@@ -72,7 +72,7 @@
     "yargs": "^13.2.0"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node server.js --port 8100",
     "startPublic": "node server.js --public",
     "build": "gulp build",
     "build-watch": "gulp build-watch",

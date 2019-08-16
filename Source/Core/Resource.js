@@ -1,57 +1,58 @@
 define([
-        '../ThirdParty/Uri',
-        '../ThirdParty/when',
-        './appendForwardSlash',
-        './Check',
-        './clone',
-        './combine',
-        './defaultValue',
-        './defined',
-        './defineProperties',
-        './DeveloperError',
-        './freezeObject',
-        './getAbsoluteUri',
-        './getBaseUri',
-        './getExtensionFromUri',
-        './isBlobUri',
-        './isCrossOriginUrl',
-        './isDataUri',
-        './loadAndExecuteScript',
-        './objectToQuery',
-        './queryToObject',
-        './Request',
-        './RequestErrorEvent',
-        './RequestScheduler',
-        './RequestState',
-        './RuntimeError',
-        './TrustedServers'
-    ], function(
-        Uri,
-        when,
-        appendForwardSlash,
-        Check,
-        clone,
-        combine,
-        defaultValue,
-        defined,
-        defineProperties,
-        DeveloperError,
-        freezeObject,
-        getAbsoluteUri,
-        getBaseUri,
-        getExtensionFromUri,
-        isBlobUri,
-        isCrossOriginUrl,
-        isDataUri,
-        loadAndExecuteScript,
-        objectToQuery,
-        queryToObject,
-        Request,
-        RequestErrorEvent,
-        RequestScheduler,
-        RequestState,
-        RuntimeError,
-        TrustedServers) {
+    '../ThirdParty/Uri',
+    '../ThirdParty/when',
+    './appendForwardSlash',
+    './Check',
+    './clone',
+    './combine',
+    './defaultValue',
+    './defined',
+    './defineProperties',
+    './DeveloperError',
+    './freezeObject',
+    './getAbsoluteUri',
+    './getBaseUri',
+    './getExtensionFromUri',
+    './isBlobUri',
+    './isCrossOriginUrl',
+    './isDataUri',
+    './loadAndExecuteScript',
+    './objectToQuery',
+    './queryToObject',
+    './Request',
+    './RequestErrorEvent',
+    './RequestScheduler',
+    './RequestState',
+    './RuntimeError',
+    './TrustedServers'
+], function(
+    Uri,
+    when,
+    appendForwardSlash,
+    Check,
+    clone,
+    combine,
+    defaultValue,
+    defined,
+    defineProperties,
+    DeveloperError,
+    freezeObject,
+    getAbsoluteUri,
+    getBaseUri,
+    getExtensionFromUri,
+    isBlobUri,
+    isCrossOriginUrl,
+    isDataUri,
+    loadAndExecuteScript,
+    objectToQuery,
+    queryToObject,
+    Request,
+    RequestErrorEvent,
+    RequestScheduler,
+    RequestState,
+    RuntimeError,
+    TrustedServers
+) {
     'use strict';
 
     var xhrBlobSupported = (function() {
@@ -77,7 +78,7 @@ define([
      */
     function parseQuery(uri, resource, merge, preserveQueryParameters) {
         var queryString = uri.query;
-        if (!defined(queryString) || (queryString.length === 0)) {
+        if (!defined(queryString) || queryString.length === 0) {
             return {};
         }
 
@@ -92,7 +93,11 @@ define([
         }
 
         if (merge) {
-            resource._queryParameters = combineQueryParameters(query, resource._queryParameters, preserveQueryParameters);
+            resource._queryParameters = combineQueryParameters(
+                query,
+                resource._queryParameters,
+                preserveQueryParameters
+            );
         } else {
             resource._queryParameters = query;
         }
@@ -146,7 +151,10 @@ define([
      * @private
      */
     function checkAndResetRequest(request) {
-        if (request.state === RequestState.ISSUED || request.state === RequestState.ACTIVE) {
+        if (
+            request.state === RequestState.ISSUED ||
+            request.state === RequestState.ACTIVE
+        ) {
             throw new RuntimeError('The Resource is already being fetched.');
         }
 
@@ -228,7 +236,9 @@ define([
 
                     result[param] = value.concat(q2Value);
                 } else {
-                    result[param] = Array.isArray(q2Value) ? q2Value.slice() : q2Value;
+                    result[param] = Array.isArray(q2Value)
+                        ? q2Value.slice()
+                        : q2Value;
                 }
             }
         }
@@ -358,7 +368,7 @@ define([
             //  be modified outside of a class that holds it (eg. an imagery or terrain provider). Since the Request objects
             //  are managed outside of the providers, by the tile loading code, we want to keep the request property the same so if it is changed
             //  in the underlying tiling code the requests for this resource will use it.
-            return  resource.getDerivedResource({
+            return resource.getDerivedResource({
                 request: resource.request
             });
         }
@@ -393,10 +403,11 @@ define([
             return supportsImageBitmapOptionsPromise;
         }
 
-        var imageDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWP4////fwAJ+wP9CNHoHgAAAABJRU5ErkJggg==';
+        var imageDataUri =
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWP4////fwAJ+wP9CNHoHgAAAABJRU5ErkJggg==';
 
         supportsImageBitmapOptionsPromise = Resource.fetchBlob({
-            url : imageDataUri
+            url: imageDataUri
         })
             .then(function(blob) {
                 return createImageBitmap(blob, {
@@ -423,8 +434,8 @@ define([
          *
          * @readonly
          */
-        isBlobSupported : {
-            get : function() {
+        isBlobSupported: {
+            get: function() {
                 return xhrBlobSupported;
             }
         }
@@ -539,7 +550,7 @@ define([
          */
         hasHeaders: {
             get: function() {
-                return (Object.keys(this.headers).length > 0);
+                return Object.keys(this.headers).length > 0;
             }
         }
     });
@@ -553,7 +564,7 @@ define([
      * @returns {String} The url with all the requested components.
      */
     Resource.prototype.getUrlComponent = function(query, proxy) {
-        if(this.isDataUri) {
+        if (this.isDataUri) {
             return this._url;
         }
 
@@ -564,7 +575,10 @@ define([
         }
 
         // objectToQuery escapes the placeholders.  Undo that.
-        var url = uri.toString().replace(/%7B/g, '{').replace(/%7D/g, '}');
+        var url = uri
+            .toString()
+            .replace(/%7B/g, '{')
+            .replace(/%7D/g, '}');
 
         var templateValues = this._templateValues;
         url = url.replace(/{(.*?)}/g, function(match, key) {
@@ -592,9 +606,17 @@ define([
      */
     Resource.prototype.setQueryParameters = function(params, useAsDefault) {
         if (useAsDefault) {
-            this._queryParameters = combineQueryParameters(this._queryParameters, params, false);
+            this._queryParameters = combineQueryParameters(
+                this._queryParameters,
+                params,
+                false
+            );
         } else {
-            this._queryParameters = combineQueryParameters(params, this._queryParameters, false);
+            this._queryParameters = combineQueryParameters(
+                params,
+                this._queryParameters,
+                false
+            );
         }
     };
 
@@ -605,7 +627,11 @@ define([
      * @param {Object} params The query parameters
      */
     Resource.prototype.appendQueryParameters = function(params) {
-        this._queryParameters = combineQueryParameters(params, this._queryParameters, true);
+        this._queryParameters = combineQueryParameters(
+            params,
+            this._queryParameters,
+            true
+        );
     };
 
     /**
@@ -646,20 +672,31 @@ define([
         if (defined(options.url)) {
             var uri = new Uri(options.url);
 
-            var preserveQueryParameters = defaultValue(options.preserveQueryParameters, false);
+            var preserveQueryParameters = defaultValue(
+                options.preserveQueryParameters,
+                false
+            );
             parseQuery(uri, resource, true, preserveQueryParameters);
 
             // Remove the fragment as it's not sent with a request
             uri.fragment = undefined;
 
-            resource._url = uri.resolve(new Uri(getAbsoluteUri(this._url))).toString();
+            resource._url = uri
+                .resolve(new Uri(getAbsoluteUri(this._url)))
+                .toString();
         }
 
         if (defined(options.queryParameters)) {
-            resource._queryParameters = combine(options.queryParameters, resource._queryParameters);
+            resource._queryParameters = combine(
+                options.queryParameters,
+                resource._queryParameters
+            );
         }
         if (defined(options.templateValues)) {
-            resource._templateValues = combine(options.templateValues, resource.templateValues);
+            resource._templateValues = combine(
+                options.templateValues,
+                resource.templateValues
+            );
         }
         if (defined(options.headers)) {
             resource.headers = combine(options.headers, resource.headers);
@@ -691,17 +728,19 @@ define([
      */
     Resource.prototype.retryOnError = function(error) {
         var retryCallback = this.retryCallback;
-        if ((typeof retryCallback !== 'function') || (this._retryCount >= this.retryAttempts)) {
+        if (
+            typeof retryCallback !== 'function' ||
+            this._retryCount >= this.retryAttempts
+        ) {
             return when(false);
         }
 
         var that = this;
-        return when(retryCallback(this, error))
-            .then(function(result) {
-                ++that._retryCount;
+        return when(retryCallback(this, error)).then(function(result) {
+            ++that._retryCount;
 
-                return result;
-            });
+            return result;
+        });
     };
 
     /**
@@ -714,7 +753,7 @@ define([
     Resource.prototype.clone = function(result) {
         if (!defined(result)) {
             result = new Resource({
-                url : this._url
+                url: this._url
             });
         }
 
@@ -768,9 +807,16 @@ define([
      * @see {@link http://www.w3.org/TR/cors/|Cross-Origin Resource Sharing}
      * @see {@link http://wiki.commonjs.org/wiki/Promises/A|CommonJS Promises/A}
      */
-    Resource.prototype.fetchArrayBuffer = function () {
+    Resource.prototype.fetchArrayBuffer = function() {
         return this.fetch({
-            responseType : 'arraybuffer'
+            responseType: 'arraybuffer'
+        });
+    };
+
+    Resource.prototype.fetchArrayBufferCache = function(success) {
+        return this.fetch({
+            responseType: 'arraybuffer',
+            success: success
         });
     };
 
@@ -788,7 +834,7 @@ define([
      * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
      * @returns {Promise.<ArrayBuffer>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchArrayBuffer = function (options) {
+    Resource.fetchArrayBuffer = function(options) {
         var resource = new Resource(options);
         return resource.fetchArrayBuffer();
     };
@@ -812,9 +858,9 @@ define([
      * @see {@link http://www.w3.org/TR/cors/|Cross-Origin Resource Sharing}
      * @see {@link http://wiki.commonjs.org/wiki/Promises/A|CommonJS Promises/A}
      */
-    Resource.prototype.fetchBlob = function () {
+    Resource.prototype.fetchBlob = function() {
         return this.fetch({
-            responseType : 'blob'
+            responseType: 'blob'
         });
     };
 
@@ -832,7 +878,7 @@ define([
      * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
      * @returns {Promise.<Blob>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchBlob = function (options) {
+    Resource.fetchBlob = function(options) {
         var resource = new Resource(options);
         return resource.fetchBlob();
     };
@@ -865,7 +911,7 @@ define([
      * @see {@link http://www.w3.org/TR/cors/|Cross-Origin Resource Sharing}
      * @see {@link http://wiki.commonjs.org/wiki/Promises/A|CommonJS Promises/A}
      */
-    Resource.prototype.fetchImage = function (options) {
+    Resource.prototype.fetchImage = function(options) {
         options = defaultValue(options, defaultValue.EMPTY_OBJECT);
         var preferImageBitmap = defaultValue(options.preferImageBitmap, false);
         var preferBlob = defaultValue(options.preferBlob, false);
@@ -878,7 +924,12 @@ define([
         // 2. It's a data URI
         // 3. It's a blob URI
         // 4. It doesn't have request headers and we preferBlob is false
-        if (!xhrBlobSupported || this.isDataUri || this.isBlobUri || (!this.hasHeaders && !preferBlob)) {
+        if (
+            !xhrBlobSupported ||
+            this.isDataUri ||
+            this.isBlobUri ||
+            (!this.hasHeaders && !preferBlob)
+        ) {
             return fetchImage({
                 resource: this,
                 flipY: flipY,
@@ -981,7 +1032,13 @@ define([
             }
 
             var deferred = when.defer();
-            Resource._Implementations.createImage(url, crossOrigin, deferred, flipY, preferImageBitmap);
+            Resource._Implementations.createImage(
+                url,
+                crossOrigin,
+                deferred,
+                flipY,
+                preferImageBitmap
+            );
 
             return deferred.promise;
         };
@@ -991,30 +1048,28 @@ define([
             return;
         }
 
-        return promise
-            .otherwise(function(e) {
-                // Don't retry cancelled or otherwise aborted requests
-                if (request.state !== RequestState.FAILED) {
-                    return when.reject(e);
+        return promise.otherwise(function(e) {
+            // Don't retry cancelled or otherwise aborted requests
+            if (request.state !== RequestState.FAILED) {
+                return when.reject(e);
+            }
+
+            return resource.retryOnError(e).then(function(retry) {
+                if (retry) {
+                    // Reset request so it can try again
+                    request.state = RequestState.UNISSUED;
+                    request.deferred = undefined;
+
+                    return fetchImage({
+                        resource: resource,
+                        flipY: flipY,
+                        preferImageBitmap: preferImageBitmap
+                    });
                 }
 
-                return resource.retryOnError(e)
-                    .then(function(retry) {
-                        if (retry) {
-                            // Reset request so it can try again
-                            request.state = RequestState.UNISSUED;
-                            request.deferred = undefined;
-
-                            return fetchImage({
-                                resource: resource,
-                                flipY: flipY,
-                                preferImageBitmap: preferImageBitmap
-                            });
-                        }
-
-                        return when.reject(e);
-                    });
+                return when.reject(e);
             });
+        });
     }
 
     /**
@@ -1034,7 +1089,7 @@ define([
      * @param {Boolean} [options.preferImageBitmap=false] If true, image will be decoded during fetch and an <code>ImageBitmap</code> is returned.
      * @returns {Promise.<ImageBitmap>|Promise.<Image>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchImage = function (options) {
+    Resource.fetchImage = function(options) {
         var resource = new Resource(options);
         return resource.fetchImage({
             flipY: options.flipY,
@@ -1071,7 +1126,7 @@ define([
      */
     Resource.prototype.fetchText = function() {
         return this.fetch({
-            responseType : 'text'
+            responseType: 'text'
         });
     };
 
@@ -1089,7 +1144,7 @@ define([
      * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
      * @returns {Promise.<String>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchText = function (options) {
+    Resource.fetchText = function(options) {
         var resource = new Resource(options);
         return resource.fetchText();
     };
@@ -1118,9 +1173,9 @@ define([
      */
     Resource.prototype.fetchJson = function() {
         var promise = this.fetch({
-            responseType : 'text',
+            responseType: 'text',
             headers: {
-                Accept : 'application/json,*/*;q=0.01'
+                Accept: 'application/json,*/*;q=0.01'
             }
         });
 
@@ -1128,13 +1183,12 @@ define([
             return undefined;
         }
 
-        return promise
-            .then(function(value) {
-                if (!defined(value)) {
-                    return;
-                }
-                return JSON.parse(value);
-            });
+        return promise.then(function(value) {
+            if (!defined(value)) {
+                return;
+            }
+            return JSON.parse(value);
+        });
     };
 
     /**
@@ -1151,7 +1205,7 @@ define([
      * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchJson = function (options) {
+    Resource.fetchJson = function(options) {
         var resource = new Resource(options);
         return resource.fetchJson();
     };
@@ -1181,8 +1235,8 @@ define([
      */
     Resource.prototype.fetchXML = function() {
         return this.fetch({
-            responseType : 'document',
-            overrideMimeType : 'text/xml'
+            responseType: 'document',
+            overrideMimeType: 'text/xml'
         });
     };
 
@@ -1200,7 +1254,7 @@ define([
      * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
      * @returns {Promise.<XMLDocument>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchXML = function (options) {
+    Resource.fetchXML = function(options) {
         var resource = new Resource(options);
         return resource.fetchXML();
     };
@@ -1230,7 +1284,11 @@ define([
         //generate a unique function name
         var functionName;
         do {
-            functionName = 'loadJsonp' + Math.random().toString().substring(2, 8);
+            functionName =
+                'loadJsonp' +
+                Math.random()
+                    .toString()
+                    .substring(2, 8);
         } while (defined(window[functionName]));
 
         return fetchJsonp(this, callbackParameterName, functionName);
@@ -1257,7 +1315,11 @@ define([
                 }
             };
 
-            Resource._Implementations.loadAndExecuteScript(resource.url, functionName, deferred);
+            Resource._Implementations.loadAndExecuteScript(
+                resource.url,
+                functionName,
+                deferred
+            );
             return deferred.promise;
         };
 
@@ -1266,25 +1328,27 @@ define([
             return;
         }
 
-        return promise
-            .otherwise(function(e) {
-                if (request.state !== RequestState.FAILED) {
-                    return when.reject(e);
+        return promise.otherwise(function(e) {
+            if (request.state !== RequestState.FAILED) {
+                return when.reject(e);
+            }
+
+            return resource.retryOnError(e).then(function(retry) {
+                if (retry) {
+                    // Reset request so it can try again
+                    request.state = RequestState.UNISSUED;
+                    request.deferred = undefined;
+
+                    return fetchJsonp(
+                        resource,
+                        callbackParameterName,
+                        functionName
+                    );
                 }
 
-                return resource.retryOnError(e)
-                    .then(function(retry) {
-                        if (retry) {
-                            // Reset request so it can try again
-                            request.state = RequestState.UNISSUED;
-                            request.deferred = undefined;
-
-                            return fetchJsonp(resource, callbackParameterName, functionName);
-                        }
-
-                        return when.reject(e);
-                    });
+                return when.reject(e);
             });
+        });
     }
 
     /**
@@ -1302,7 +1366,7 @@ define([
      * @param {String} [options.callbackParameterName='callback'] The callback parameter name that the server expects.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetchJsonp = function (options) {
+    Resource.fetchJsonp = function(options) {
         var resource = new Resource(options);
         return resource.fetchJsonp(options.callbackParameterName);
     };
@@ -1317,6 +1381,64 @@ define([
         var request = resource.request;
         request.url = resource.url;
 
+        var promise;
+        if (
+            typeof options.success === 'function' &&
+            (resource.url.indexOf('b3dm') >= 0 ||
+                resource.url.indexOf('gl') >= 0)
+        ) {
+            request.requestFunction = function() {
+                var responseType = options.responseType;
+                var headers = combine(options.headers, resource.headers);
+                var overrideMimeType = options.overrideMimeType;
+                var method = options.method;
+                var data = options.data;
+                var deferred = when.defer();
+                var xhr = Resource._Implementations.loadWithCache(
+                    resource.url,
+                    responseType,
+                    method,
+                    data,
+                    headers,
+                    deferred,
+                    overrideMimeType
+                );
+                if (defined(xhr) && defined(xhr.abort)) {
+                    request.cancelFunction = function() {
+                        xhr.abort();
+                    };
+                }
+                return deferred.promise;
+            };
+            promise = RequestScheduler.request(request);
+            if (!defined(promise)) {
+                return;
+            }
+            return promise
+                .then(function(data) {
+                    return data;
+                })
+                .otherwise(function(e) {
+                    if (request.state !== RequestState.FAILED) {
+                        return when.reject(e);
+                    }
+                    return resource.retryOnError(e).then(function(retry) {
+                        if (retry) {
+                            // Reset request so it can try again
+                            request.state = RequestState.UNISSUED;
+                            request.deferred = undefined;
+                            return resource.fetch(options);
+                        }
+                        return when.reject(e);
+                    });
+                });
+        }
+        if (
+            resource.url.indexOf('b3dm') >= 0 ||
+            resource.url.indexOf('gltf') >= 0
+        ) {
+            console.log(resource.url);
+        }
         request.requestFunction = function() {
             var responseType = options.responseType;
             var headers = combine(options.headers, resource.headers);
@@ -1324,7 +1446,15 @@ define([
             var method = options.method;
             var data = options.data;
             var deferred = when.defer();
-            var xhr = Resource._Implementations.loadWithXhr(resource.url, responseType, method, data, headers, deferred, overrideMimeType);
+            var xhr = Resource._Implementations.loadWithXhr(
+                resource.url,
+                responseType,
+                method,
+                data,
+                headers,
+                deferred,
+                overrideMimeType
+            );
             if (defined(xhr) && defined(xhr.abort)) {
                 request.cancelFunction = function() {
                     xhr.abort();
@@ -1332,12 +1462,10 @@ define([
             }
             return deferred.promise;
         };
-
-        var promise = RequestScheduler.request(request);
+        promise = RequestScheduler.request(request);
         if (!defined(promise)) {
             return;
         }
-
         return promise
             .then(function(data) {
                 return data;
@@ -1346,21 +1474,79 @@ define([
                 if (request.state !== RequestState.FAILED) {
                     return when.reject(e);
                 }
-
-                return resource.retryOnError(e)
-                    .then(function(retry) {
-                        if (retry) {
-                            // Reset request so it can try again
-                            request.state = RequestState.UNISSUED;
-                            request.deferred = undefined;
-
-                            return resource.fetch(options);
-                        }
-
-                        return when.reject(e);
-                    });
+                return resource.retryOnError(e).then(function(retry) {
+                    if (retry) {
+                        // Reset request so it can try again
+                        request.state = RequestState.UNISSUED;
+                        request.deferred = undefined;
+                        return resource.fetch(options);
+                    }
+                    return when.reject(e);
+                });
             });
     };
+
+    // /**
+    //  * @private
+    //  */
+    // Resource.prototype._makeRequest = function(options) {
+    //     var resource = this;
+    //     checkAndResetRequest(resource.request);
+
+    //     var request = resource.request;
+    //     request.url = resource.url;
+
+    //     request.requestFunction = function() {
+    //         var responseType = options.responseType;
+    //         var headers = combine(options.headers, resource.headers);
+    //         var overrideMimeType = options.overrideMimeType;
+    //         var method = options.method;
+    //         var data = options.data;
+    //         var deferred = when.defer();
+    //         var xhr = Resource._Implementations.loadWithXhr(
+    //             resource.url,
+    //             responseType,
+    //             method,
+    //             data,
+    //             headers,
+    //             deferred,
+    //             overrideMimeType
+    //         );
+    //         if (defined(xhr) && defined(xhr.abort)) {
+    //             request.cancelFunction = function() {
+    //                 xhr.abort();
+    //             };
+    //         }
+    //         return deferred.promise;
+    //     };
+
+    //     var promise = RequestScheduler.request(request);
+    //     if (!defined(promise)) {
+    //         return;
+    //     }
+
+    //     return promise
+    //         .then(function(data) {
+    //             return data;
+    //         })
+    //         .otherwise(function(e) {
+    //             if (request.state !== RequestState.FAILED) {
+    //                 return when.reject(e);
+    //             }
+
+    //             return resource.retryOnError(e).then(function(retry) {
+    //                 if (retry) {
+    //                     // Reset request so it can try again
+    //                     request.state = RequestState.UNISSUED;
+    //                     request.deferred = undefined;
+
+    //                     return resource.fetch(options);
+    //                 }
+
+    //                 return when.reject(e);
+    //             });
+    //         });
+    // };
 
     var dataUriRegex = /^data:(.*?)(;base64)?,(.*)$/;
 
@@ -1397,16 +1583,21 @@ define([
             case 'blob':
                 var buffer = decodeDataUriArrayBuffer(isBase64, data);
                 return new Blob([buffer], {
-                    type : mimeType
+                    type: mimeType
                 });
             case 'document':
                 var parser = new DOMParser();
-                return parser.parseFromString(decodeDataUriText(isBase64, data), mimeType);
+                return parser.parseFromString(
+                    decodeDataUriText(isBase64, data),
+                    mimeType
+                );
             case 'json':
                 return JSON.parse(decodeDataUriText(isBase64, data));
             default:
                 //>>includeStart('debug', pragmas.debug);
-                throw new DeveloperError('Unhandled responseType: ' + responseType);
+                throw new DeveloperError(
+                    'Unhandled responseType: ' + responseType
+                );
             //>>includeEnd('debug');
         }
     }
@@ -1459,7 +1650,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.fetch = function (options) {
+    Resource.fetch = function(options) {
         var resource = new Resource(options);
         return resource.fetch({
             // Make copy of just the needed fields because headers can be passed to both the constructor and to fetch
@@ -1516,7 +1707,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.delete = function (options) {
+    Resource.delete = function(options) {
         var resource = new Resource(options);
         return resource.delete({
             // Make copy of just the needed fields because headers can be passed to both the constructor and to fetch
@@ -1573,7 +1764,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.head = function (options) {
+    Resource.head = function(options) {
         var resource = new Resource(options);
         return resource.head({
             // Make copy of just the needed fields because headers can be passed to both the constructor and to fetch
@@ -1629,7 +1820,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.options = function (options) {
+    Resource.options = function(options) {
         var resource = new Resource(options);
         return resource.options({
             // Make copy of just the needed fields because headers can be passed to both the constructor and to fetch
@@ -1691,7 +1882,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.post = function (options) {
+    Resource.post = function(options) {
         var resource = new Resource(options);
         return resource.post(options.data, {
             // Make copy of just the needed fields because headers can be passed to both the constructor and to post
@@ -1752,7 +1943,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.put = function (options) {
+    Resource.put = function(options) {
         var resource = new Resource(options);
         return resource.put(options.data, {
             // Make copy of just the needed fields because headers can be passed to both the constructor and to post
@@ -1813,7 +2004,7 @@ define([
      * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
      * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
      */
-    Resource.patch = function (options) {
+    Resource.patch = function(options) {
         var resource = new Resource(options);
         return resource.patch(options.data, {
             // Make copy of just the needed fields because headers can be passed to both the constructor and to post
@@ -1851,7 +2042,13 @@ define([
         image.src = url;
     }
 
-    Resource._Implementations.createImage = function(url, crossOrigin, deferred, flipY, preferImageBitmap) {
+    Resource._Implementations.createImage = function(
+        url,
+        crossOrigin,
+        deferred,
+        flipY,
+        preferImageBitmap
+    ) {
         // Passing an Image to createImageBitmap will force it to run on the main thread
         // since DOM elements don't exist on workers. We convert it to a blob so it's non-blocking.
         // See:
@@ -1869,17 +2066,24 @@ define([
                 return Resource.fetchBlob({
                     url: url
                 })
-                .then(function(blob) {
-                    if (!defined(blob)) {
-                        deferred.reject(new RuntimeError('Successfully retrieved ' + url + ' but it contained no content.'));
-                        return;
-                    }
+                    .then(function(blob) {
+                        if (!defined(blob)) {
+                            deferred.reject(
+                                new RuntimeError(
+                                    'Successfully retrieved ' +
+                                        url +
+                                        ' but it contained no content.'
+                                )
+                            );
+                            return;
+                        }
 
-                    return Resource.createImageBitmapFromBlob(blob, {
-                        flipY: flipY,
-                        premultiplyAlpha: false
-                    });
-                }).then(deferred.resolve);
+                        return Resource.createImageBitmapFromBlob(blob, {
+                            flipY: flipY,
+                            premultiplyAlpha: false
+                        });
+                    })
+                    .then(deferred.resolve);
             })
             .otherwise(deferred.reject);
     };
@@ -1902,39 +2106,51 @@ define([
 
     function decodeResponse(loadWithHttpResponse, responseType) {
         switch (responseType) {
-          case 'text':
-              return loadWithHttpResponse.toString('utf8');
-          case 'json':
-              return JSON.parse(loadWithHttpResponse.toString('utf8'));
-          default:
-              return new Uint8Array(loadWithHttpResponse).buffer;
+            case 'text':
+                return loadWithHttpResponse.toString('utf8');
+            case 'json':
+                return JSON.parse(loadWithHttpResponse.toString('utf8'));
+            default:
+                return new Uint8Array(loadWithHttpResponse).buffer;
         }
     }
 
-    function loadWithHttpRequest(url, responseType, method, data, headers, deferred, overrideMimeType) {
-
+    function loadWithHttpRequest(
+        url,
+        responseType,
+        method,
+        data,
+        headers,
+        deferred,
+        overrideMimeType
+    ) {
         // Specifically use the Node version of require to avoid conflicts with the global
         // require defined in the built version of Cesium.
         var nodeRequire = global.require; // eslint-disable-line
 
         // Note: only the 'json' and 'text' responseTypes transforms the loaded buffer
         var URL = nodeRequire('url').parse(url);
-        var http = URL.protocol === 'https:' ? nodeRequire('https') : nodeRequire('http');
+        var http =
+            URL.protocol === 'https:'
+                ? nodeRequire('https')
+                : nodeRequire('http');
         var zlib = nodeRequire('zlib');
         var options = {
-            protocol : URL.protocol,
-            hostname : URL.hostname,
-            port : URL.port,
-            path : URL.path,
-            query : URL.query,
-            method : method,
-            headers : headers
+            protocol: URL.protocol,
+            hostname: URL.hostname,
+            port: URL.port,
+            path: URL.path,
+            query: URL.query,
+            method: method,
+            headers: headers
         };
 
         http.request(options)
             .on('response', function(res) {
                 if (res.statusCode < 200 || res.statusCode >= 300) {
-                    deferred.reject(new RequestErrorEvent(res.statusCode, res, res.headers));
+                    deferred.reject(
+                        new RequestErrorEvent(res.statusCode, res, res.headers)
+                    );
                     return;
                 }
 
@@ -1948,22 +2164,39 @@ define([
                     if (res.headers['content-encoding'] === 'gzip') {
                         zlib.gunzip(result, function(error, resultUnzipped) {
                             if (error) {
-                                deferred.reject(new RuntimeError('Error decompressing response.'));
+                                deferred.reject(
+                                    new RuntimeError(
+                                        'Error decompressing response.'
+                                    )
+                                );
                             } else {
-                                deferred.resolve(decodeResponse(resultUnzipped, responseType));
+                                deferred.resolve(
+                                    decodeResponse(resultUnzipped, responseType)
+                                );
                             }
                         });
                     } else {
                         deferred.resolve(decodeResponse(result, responseType));
                     }
                 });
-            }).on('error', function(e) {
+            })
+            .on('error', function(e) {
                 deferred.reject(new RequestErrorEvent());
-            }).end();
+            })
+            .end();
     }
 
     var noXMLHttpRequest = typeof XMLHttpRequest === 'undefined';
-    Resource._Implementations.loadWithXhr = function(url, responseType, method, data, headers, deferred, overrideMimeType) {
+    Resource._Implementations.loadWithXhr = function(
+        url,
+        responseType,
+        method,
+        data,
+        headers,
+        deferred,
+        overrideMimeType,
+        saveCache
+    ) {
         var dataUriRegexResult = dataUriRegex.exec(url);
         if (dataUriRegexResult !== null) {
             deferred.resolve(decodeDataUri(dataUriRegexResult, responseType));
@@ -1971,7 +2204,15 @@ define([
         }
 
         if (noXMLHttpRequest) {
-            loadWithHttpRequest(url, responseType, method, data, headers, deferred, overrideMimeType);
+            loadWithHttpRequest(
+                url,
+                responseType,
+                method,
+                data,
+                headers,
+                deferred,
+                overrideMimeType
+            );
             return;
         }
 
@@ -2002,12 +2243,24 @@ define([
         // While non-standard, file protocol always returns a status of 0 on success
         var localFile = false;
         if (typeof url === 'string') {
-            localFile = (url.indexOf('file://') === 0) || (typeof window !== 'undefined' && window.location.origin === 'file://');
+            localFile =
+                url.indexOf('file://') === 0 ||
+                (typeof window !== 'undefined' &&
+                    window.location.origin === 'file://');
         }
 
         xhr.onload = function() {
-            if ((xhr.status < 200 || xhr.status >= 300) && !(localFile && xhr.status === 0)) {
-                deferred.reject(new RequestErrorEvent(xhr.status, xhr.response, xhr.getAllResponseHeaders()));
+            if (
+                (xhr.status < 200 || xhr.status >= 300) &&
+                !(localFile && xhr.status === 0)
+            ) {
+                deferred.reject(
+                    new RequestErrorEvent(
+                        xhr.status,
+                        xhr.response,
+                        xhr.getAllResponseHeaders()
+                    )
+                );
                 return;
             }
 
@@ -2019,7 +2272,7 @@ define([
                 var splitHeaders = responseHeaderString.trim().split(/[\r\n]+/);
 
                 var responseHeaders = {};
-                splitHeaders.forEach(function (line) {
+                splitHeaders.forEach(function(line) {
                     var parts = line.split(': ');
                     var header = parts.shift();
                     responseHeaders[header] = parts.join(': ');
@@ -2035,20 +2288,50 @@ define([
             if (xhr.status === 204) {
                 // accept no content
                 deferred.resolve();
-            } else if (defined(response) && (!defined(responseType) || (browserResponseType === responseType))) {
+            } else if (
+                defined(response) &&
+                (!defined(responseType) || browserResponseType === responseType)
+            ) {
                 deferred.resolve(response);
-            } else if ((responseType === 'json') && typeof response === 'string') {
+                if (saveCache) {
+                    var dbpromise = window._indexDbCache.addData({
+                        id: url,
+                        data: response
+                    });
+                    dbpromise.then(
+                        function() {},
+                        function(error) {
+                            console.log(error.data);
+                            console.log(error.message);
+                        }
+                    );
+                }
+            } else if (
+                responseType === 'json' &&
+                typeof response === 'string'
+            ) {
                 try {
                     deferred.resolve(JSON.parse(response));
                 } catch (e) {
                     deferred.reject(e);
                 }
-            } else if ((browserResponseType === '' || browserResponseType === 'document') && defined(xhr.responseXML) && xhr.responseXML.hasChildNodes()) {
+            } else if (
+                (browserResponseType === '' ||
+                    browserResponseType === 'document') &&
+                defined(xhr.responseXML) &&
+                xhr.responseXML.hasChildNodes()
+            ) {
                 deferred.resolve(xhr.responseXML);
-            } else if ((browserResponseType === '' || browserResponseType === 'text') && defined(xhr.responseText)) {
+            } else if (
+                (browserResponseType === '' ||
+                    browserResponseType === 'text') &&
+                defined(xhr.responseText)
+            ) {
                 deferred.resolve(xhr.responseText);
             } else {
-                deferred.reject(new RuntimeError('Invalid XMLHttpRequest response type.'));
+                deferred.reject(
+                    new RuntimeError('Invalid XMLHttpRequest response type.')
+                );
             }
         };
 
@@ -2060,9 +2343,150 @@ define([
 
         return xhr;
     };
-
-    Resource._Implementations.loadAndExecuteScript = function(url, functionName, deferred) {
-        return loadAndExecuteScript(url, functionName).otherwise(deferred.reject);
+    Resource._Implementations.loadCache = function(
+        url,
+        responseType,
+        method,
+        data,
+        headers,
+        deferred,
+        overrideMimeType,
+        cacheData
+    ) {
+        var dataUriRegexResult = dataUriRegex.exec(url);
+        if (dataUriRegexResult !== null) {
+            deferred.resolve(decodeDataUri(dataUriRegexResult, responseType));
+            return;
+        }
+        if (
+            defined(cacheData) &&
+            (!defined(responseType) || 'arraybuffer' === responseType)
+        ) {
+            var test = false;
+            if (test) {
+                // While non-standard, file protocol always returns a status of 0 on success
+                var localFile = false;
+                if (typeof url === 'string') {
+                    localFile =
+                        url.indexOf('file://') === 0 ||
+                        (typeof window !== 'undefined' &&
+                            window.location.origin === 'file://');
+                }
+                var xhr = new XMLHttpRequest();
+                if (defined(responseType)) {
+                    xhr.responseType = responseType;
+                }
+                xhr.open(method, url);
+                xhr.onload = function() {
+                    if (
+                        (xhr.status < 200 || xhr.status >= 300) &&
+                        !(localFile && xhr.status === 0)
+                    ) {
+                        deferred.reject(
+                            new RequestErrorEvent(
+                                xhr.status,
+                                xhr.response,
+                                xhr.getAllResponseHeaders()
+                            )
+                        );
+                        return;
+                    }
+                    var response = xhr.response;
+                    if (response.byteLength !== cacheData.byteLength) {
+                        deferred.resolve(response);
+                        var dbpromise = window._indexDbCache.updateData(url, {
+                            id: url,
+                            data: response
+                        });
+                        dbpromise.then(
+                            function(result) {
+                                console.log(cacheData);
+                                console.log(
+                                    '更新数据：' + url + ' -> ' + result
+                                );
+                                console.log(response);
+                            },
+                            function(error) {
+                                console.log(error.message);
+                            }
+                        );
+                    } else {
+                        deferred.resolve(cacheData);
+                    }
+                };
+                xhr.send(data);
+            } else {
+                deferred.resolve(cacheData);
+            }
+        } else if (responseType === 'json' && typeof cacheData === 'string') {
+            try {
+                deferred.resolve(JSON.parse(cacheData));
+            } catch (e) {
+                deferred.reject(e);
+            }
+        } else {
+            deferred.reject(new RuntimeError('Invalid cache response type.'));
+        }
+    };
+    Resource._Implementations.loadWithCache = function(
+        url,
+        responseType,
+        method,
+        data,
+        headers,
+        deferred,
+        overrideMimeType
+    ) {
+        //搜索数据库
+        var dbpromise = window._indexDbCache.getData(url);
+        dbpromise.then(
+            function(cacheData) {
+                if (cacheData) {
+                    Resource._Implementations.loadCache(
+                        url,
+                        responseType,
+                        method,
+                        data,
+                        headers,
+                        deferred,
+                        overrideMimeType,
+                        cacheData.data
+                    );
+                } else {
+                    Resource._Implementations.loadWithXhr(
+                        url,
+                        responseType,
+                        method,
+                        data,
+                        headers,
+                        deferred,
+                        overrideMimeType,
+                        true
+                    );
+                }
+            },
+            function(error) {
+                console.log(error.message);
+                Resource._Implementations.loadWithXhr(
+                    url,
+                    responseType,
+                    method,
+                    data,
+                    headers,
+                    deferred,
+                    overrideMimeType
+                );
+            }
+        );
+    };
+    Resource._Implementations.loadAndExecuteScript = function(
+        url,
+        functionName,
+        deferred
+    ) {
+        return loadAndExecuteScript(url, functionName).otherwise(
+            deferred.reject
+        );
     };
 
     /**
@@ -2071,9 +2495,12 @@ define([
      * @private
      */
     Resource._DefaultImplementations = {};
-    Resource._DefaultImplementations.createImage = Resource._Implementations.createImage;
-    Resource._DefaultImplementations.loadWithXhr = Resource._Implementations.loadWithXhr;
-    Resource._DefaultImplementations.loadAndExecuteScript = Resource._Implementations.loadAndExecuteScript;
+    Resource._DefaultImplementations.createImage =
+        Resource._Implementations.createImage;
+    Resource._DefaultImplementations.loadWithXhr =
+        Resource._Implementations.loadWithXhr;
+    Resource._DefaultImplementations.loadAndExecuteScript =
+        Resource._Implementations.loadAndExecuteScript;
 
     /**
      * A resource instance initialized to the current browser location
@@ -2081,9 +2508,14 @@ define([
      * @type {Resource}
      * @constant
      */
-    Resource.DEFAULT = freezeObject(new Resource({
-        url: (typeof document === 'undefined') ? '' : document.location.href.split('?')[0]
-    }));
+    Resource.DEFAULT = freezeObject(
+        new Resource({
+            url:
+                typeof document === 'undefined'
+                    ? ''
+                    : document.location.href.split('?')[0]
+        })
+    );
 
     /**
      * A function that returns the value of the property.
