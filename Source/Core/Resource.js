@@ -1384,7 +1384,7 @@ define([
         var promise;
         if (
             typeof options.success === 'function' &&
-            (resource.url.indexOf('b3dm') >= 0 ||
+            (resource.url.indexOf('3dm') >= 0 ||
                 resource.url.indexOf('gl') >= 0)
         ) {
             request.requestFunction = function() {
@@ -1434,7 +1434,7 @@ define([
                 });
         }
         if (
-            resource.url.indexOf('b3dm') >= 0 ||
+            resource.url.indexOf('3dm') >= 0 ||
             resource.url.indexOf('gltf') >= 0
         ) {
             console.log(resource.url);

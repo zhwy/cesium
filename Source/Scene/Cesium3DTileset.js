@@ -1942,10 +1942,10 @@ define([
         if (
             defined(window._indexDbCache) &&
             ((tile._contentResource &&
-                (tile._contentResource._url.indexOf('b3dm') >= 0 ||
+                (tile._contentResource._url.indexOf('3dm') >= 0 ||
                     tile._contentResource._url.indexOf('gl') >= 0)) ||
                 (tile._request &&
-                    (tile._request.url.indexOf('b3dm') >= 0 ||
+                    (tile._request.url.indexOf('3dm') >= 0 ||
                         tile._request.url.indexOf('gl') >= 0)))
         ) {
             requested = tile.requestContentCache(function(requested) {
