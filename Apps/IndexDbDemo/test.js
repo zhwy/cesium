@@ -3,7 +3,7 @@ function Test() {
     var _originXY = {
         lng: 116.790876,
         lat: 36.498399,
-        height: 100,
+        height: 0,
         mercX: 13001100.84,
         mercY: 4369418.66,
         roamH: 135,
@@ -81,7 +81,7 @@ function Test() {
         luminanceAtZenith: 1,
         lightColor: new Cesium.Cartesian3(1, 1, 1)
         // immediatelyLoadDesiredLevelOfDetail: true,
-        // maximumScreenSpaceError: 0,
+        // maximumScreenSpaceError: 0
         // debugShowGeometricError: true
         // debugShowBoundingVolume: true
         //debugShowUrl: true,
@@ -89,7 +89,7 @@ function Test() {
         // maximumMemoryUsage: 64
     });
     model.origin = 'GD';
-    _changeModelPosition(model, 0, 0, 0, 0, true);
+    _changeModelPosition(model, 0, 0, 0);
     _roadModel.add(model);
 
     var jgModel = new Cesium.Cesium3DTileset({
@@ -147,10 +147,10 @@ function Test() {
             //   _originXY.height
             // );
             var mat = Cesium.Transforms.eastNorthUpToFixedFrame(position);
-            var rotationX = Cesium.Matrix4.fromRotationTranslation(
+            var rotationZZ = Cesium.Matrix4.fromRotationTranslation(
                 Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(0))
             );
-            Cesium.Matrix4.multiply(mat, rotationX, mat);
+            Cesium.Matrix4.multiply(mat, rotationZZ, mat);
             tileset._root.transform = mat;
         });
     }

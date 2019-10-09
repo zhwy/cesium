@@ -10,7 +10,7 @@
             name="viewport"
             content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
         />
-        <title>GLTFModelDemo</title>
+        <title>GLTF Model Demo</title>
         <!-- <script src="../Build/CesiumUnminified/Cesium.js"></script> -->
         <script src="../../ThirdParty/requirejs-2.1.20/require.js"></script>
         <style>
@@ -24,10 +24,64 @@
                 padding: 0;
                 overflow: hidden;
             }
+            #toolbar {
+                background: rgba(42, 42, 42, 0.8);
+                padding: 4px;
+                border-radius: 4px;
+                position: absolute;
+                top: 10px;
+                left: 10px;
+            }
+            #toolbar input {
+                vertical-align: middle;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
         </style>
     </head>
     <body>
         <div id="cesiumContainer"></div>
+        <div id="toolbar">
+            <div>Height-offset</div>
+            <input
+                type="range"
+                min="-500.0"
+                max="500.0"
+                step="1"
+                data-bind="value: height, valueUpdate: 'input'"
+            />
+            <input type="text" size="5" data-bind="value: height" />
+
+            <div>RotateX</div>
+            <input
+                type="range"
+                min="-180.0"
+                max="180.0"
+                step="1"
+                data-bind="value: RotateX, valueUpdate: 'input'"
+            />
+            <input type="text" size="5" data-bind="value: RotateX" />
+
+            <div>RotateY</div>
+            <input
+                type="range"
+                min="-180.0"
+                max="180.0"
+                step="1"
+                data-bind="value: RotateY, valueUpdate: 'input'"
+            />
+            <input type="text" size="5" data-bind="value: RotateY" />
+
+            <div>RotateZ</div>
+            <input
+                type="range"
+                min="-180.0"
+                max="180.0"
+                step="1"
+                data-bind="value: RotateZ, valueUpdate: 'input'"
+            />
+            <input type="text" size="5" data-bind="value: RotateZ" />
+        </div>
         <script>
             /* eslint-disable */
             require(['../../Source/Cesium'], function(Cesium) {
@@ -35,6 +89,19 @@
                 /*global self,module*/
                 if (typeof window !== 'undefined') {
                     window.Cesium = Cesium;
+
+                    var viewModel = {
+                        height: 0,
+                        RotateX: 0,
+                        RotateY: 0,
+                        RotateZ: 0
+                    };
+
+                    Cesium.knockout.track(viewModel);
+
+                    var toolbar = document.getElementById('toolbar');
+                    Cesium.knockout.applyBindings(viewModel, toolbar);
+
                     var viewer = new Cesium.Viewer('cesiumContainer', {
                         animation: false,
                         baseLayerPicker: false,
@@ -51,13 +118,14 @@
                         //高德
                         imageryProvider: new Cesium.UrlTemplateImageryProvider({
                             url:
-                                'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
-                            // 'http://www.google.cn/maps/vt?lyrs=s&x={x}&y={y}&z={z}',
+                                // 'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', //高德
+                                'http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}', //谷歌有偏移
                             maximumLevel: 18,
                             tileMatrixSetID: 'GoogleMapsCompatible'
                         })
                     });
-                    viewer.scene.globe.depthTestAgainstTerrain = false;
+                    viewer.scene.globe.depthTestAgainstTerrain = true;
+
                     //计算（0,0）经纬度
                     var realOrigin = calculateOrigin(
                         29945.5016, //图纸坐标
@@ -76,21 +144,24 @@
                     var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
                         carte
                     );
+
                     var rotationZ = Cesium.Matrix3.fromRotationZ(
-                        Cesium.Math.toRadians(-90)
+                        Cesium.Math.toRadians(0)
                     );
-                    var rotationX = Cesium.Matrix4.fromRotationTranslation(
+                    var rotationZZ = Cesium.Matrix4.fromRotationTranslation(
                         rotationZ
                     );
                     Cesium.Matrix4.multiply(
                         modelMatrix,
-                        rotationX,
+                        rotationZZ,
                         modelMatrix
                     );
 
                     var model = viewer.scene.primitives.add(
                         Cesium.Model.fromGltf({
                             url: './guidao.glb',
+                            // url:
+                            //     '../SampleData/models/CesiumBalloon/CesiumBalloon.glb',
                             modelMatrix: modelMatrix,
                             debugShowBoundingVolume: true
                         })
@@ -98,15 +169,104 @@
                     model.readyPromise.then(function(arg) {
                         // debugger;
                     });
+                    var hh = 0,
+                        xx = 0,
+                        yy = 0,
+                        zz = 0;
+                    var matrix = modelMatrix;
+                    //调整高度
+                    Cesium.knockout
+                        .getObservable(viewModel, 'height')
+                        .subscribe(function(height) {
+                            height = Number(height) - hh;
+                            hh += height;
+                            if (isNaN(height)) {
+                                return;
+                            }
+                            var m = model.modelMatrix;
+                            var translation = Cesium.Cartesian3.fromArray([
+                                0,
+                                0,
+                                height
+                            ]);
+
+                            Cesium.Matrix4.multiplyByTranslation(
+                                m,
+                                translation,
+                                m
+                            );
+                            model.modelMatrix = m;
+                            matrix = m;
+                        });
+
+                    //绕X旋转
+                    Cesium.knockout
+                        .getObservable(viewModel, 'RotateX')
+                        .subscribe(function(RotateX) {
+                            xx = Number(RotateX);
+                            if (isNaN(xx)) {
+                                return;
+                            }
+                            model.modelMatrix = rotate(matrix, xx, yy, zz);
+                        });
+                    //绕Y旋转
+                    Cesium.knockout
+                        .getObservable(viewModel, 'RotateY')
+                        .subscribe(function(RotateY) {
+                            yy = Number(RotateY);
+                            if (isNaN(yy)) {
+                                return;
+                            }
+                            model.modelMatrix = rotate(matrix, xx, yy, zz);
+                        });
+                    //绕Z旋转
+                    Cesium.knockout
+                        .getObservable(viewModel, 'RotateZ')
+                        .subscribe(function(RotateZ) {
+                            zz = Number(RotateZ);
+                            if (isNaN(zz)) {
+                                return;
+                            }
+                            model.modelMatrix = rotate(matrix, xx, yy, zz);
+                        });
+
                     setTimeout(function() {
                         viewer.camera.flyTo({
                             destination: Cesium.Cartesian3.fromDegrees(
                                 116.790876,
                                 36.498398,
-                                100
+                                500
                             )
                         });
                     }, 2000);
+
+                    function rotate(matrix, x, y, z) {
+                        var m = matrix.clone();
+                        var m1 = Cesium.Matrix3.fromRotationX(
+                            Cesium.Math.toRadians(xx)
+                        );
+                        m = Cesium.Matrix4.multiplyByMatrix3(
+                            m,
+                            m1,
+                            new Cesium.Matrix4()
+                        );
+                        var m2 = Cesium.Matrix3.fromRotationY(
+                            Cesium.Math.toRadians(yy)
+                        );
+                        m = Cesium.Matrix4.multiplyByMatrix3(
+                            m,
+                            m2,
+                            new Cesium.Matrix4()
+                        );
+                        var m3 = Cesium.Matrix3.fromRotationZ(
+                            Cesium.Math.toRadians(zz)
+                        );
+                        return Cesium.Matrix4.multiplyByMatrix3(
+                            m,
+                            m3,
+                            new Cesium.Matrix4()
+                        );
+                    }
                     function calculateOrigin(x, y, lng, lat) {
                         //x方向
                         var carto = new Cesium.Cartographic(
