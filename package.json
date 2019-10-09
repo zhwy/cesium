@@ -69,10 +69,10 @@
     "request": "^2.79.0",
     "rimraf": "^2.6.1",
     "stream-to-promise": "^2.2.0",
-    "yargs": "^13.2.0"
+    "yargs": "^14.0.0"
   },
   "scripts": {
-    "start": "node server.js --port 8100",
+    "start": "node server.js",
     "startPublic": "node server.js --public",
     "build": "gulp build",
     "build-watch": "gulp build-watch",

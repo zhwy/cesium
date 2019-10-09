@@ -1592,6 +1592,24 @@ define([
         },
 
         /**
+         * Ratio between a pixel and a density-independent pixel. Provides a standard unity of
+         * measure for real pixel measurements appropriate to a particular device.
+         *
+         * @memberof Scene.prototype
+         * @type {Number}
+         * @default 1.0
+         * @private
+         */
+        pixelRatio: {
+            get: function() {
+                return this._frameState.pixelRatio;
+            },
+            set: function(value) {
+                this._frameState.pixelRatio = value;
+            }
+        },
+
+        /**
          * @private
          */
         opaqueFrustumNearOffset : {
@@ -3355,11 +3373,14 @@ define([
          * Passes update. Add any passes here
          *
          */
-        tryAndCatchError(this, updateMostDetailedRayPicks);
-        tryAndCatchError(this, updatePreloadPass);
-        tryAndCatchError(this, updatePreloadFlightPass);
-        if (!shouldRender) {
-            tryAndCatchError(this, updateRequestRenderModeDeferCheckPass);
+        if (this.primitives.show)
+        {
+            tryAndCatchError(this, updateMostDetailedRayPicks);
+            tryAndCatchError(this, updatePreloadPass);
+            tryAndCatchError(this, updatePreloadFlightPass);
+            if (!shouldRender) {
+                tryAndCatchError(this, updateRequestRenderModeDeferCheckPass);
+            }
         }
 
         this._postUpdate.raiseEvent(this, time);

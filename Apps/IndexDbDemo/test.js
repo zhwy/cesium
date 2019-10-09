@@ -43,7 +43,7 @@ function Test() {
             url:
                 'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
             // 'http://www.google.cn/maps/vt?lyrs=s&x={x}&y={y}&z={z}',
-            maximumLevel: 5,
+            maximumLevel: 18,
             tileMatrixSetID: 'GoogleMapsCompatible'
         })
     });
@@ -89,7 +89,7 @@ function Test() {
         // maximumMemoryUsage: 64
     });
     model.origin = 'GD';
-    _changeModelPosition(model, 0, 0, 0);
+    _changeModelPosition(model, 0, 0, 0, 0, true);
     _roadModel.add(model);
 
     var jgModel = new Cesium.Cesium3DTileset({

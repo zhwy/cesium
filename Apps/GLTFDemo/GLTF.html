@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <!-- Use correct character set. -->
+        <meta charset="utf-8" />
+        <!-- Tell IE to use the latest, best version. -->
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+        />
+        <title>GLTFModelDemo</title>
+        <!-- <script src="../Build/CesiumUnminified/Cesium.js"></script> -->
+        <script src="../../ThirdParty/requirejs-2.1.20/require.js"></script>
+        <style>
+            @import url(../../Build/Cesium/Widgets/widgets.css);
+            html,
+            body,
+            #cesiumContainer {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="cesiumContainer"></div>
+        <script>
+            /* eslint-disable */
+            require(['../../Source/Cesium'], function(Cesium) {
+                'use strict';
+                /*global self,module*/
+                if (typeof window !== 'undefined') {
+                    window.Cesium = Cesium;
+                    var viewer = new Cesium.Viewer('cesiumContainer', {
+                        animation: false,
+                        baseLayerPicker: false,
+                        geocoder: false,
+                        timeline: false,
+                        infobox: false,
+                        navigationHelpButton: false,
+                        sceneModePicker: false,
+                        scene3DOnly: true,
+                        homeButton: false,
+                        infoBox: false,
+                        selectionIndicator: false,
+                        fullscreenButton: false,
+                        //高德
+                        imageryProvider: new Cesium.UrlTemplateImageryProvider({
+                            url:
+                                'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+                            // 'http://www.google.cn/maps/vt?lyrs=s&x={x}&y={y}&z={z}',
+                            maximumLevel: 18,
+                            tileMatrixSetID: 'GoogleMapsCompatible'
+                        })
+                    });
+                    viewer.scene.globe.depthTestAgainstTerrain = false;
+                    //计算（0,0）经纬度
+                    var realOrigin = calculateOrigin(
+                        29945.5016, //图纸坐标
+                        31119.6283,
+                        // 29960.5016, //调整到地图，对不齐
+                        // 31009.6283,
+                        116.790876,
+                        36.498398
+                    );
+                    //放置到对应位置
+                    var carte = Cesium.Cartesian3.fromRadians(
+                        realOrigin.longitude,
+                        realOrigin.latitude,
+                        0 //整体高度变化不对，好像反了
+                    );
+                    var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
+                        carte
+                    );
+                    var rotationZ = Cesium.Matrix3.fromRotationZ(
+                        Cesium.Math.toRadians(-90)
+                    );
+                    var rotationX = Cesium.Matrix4.fromRotationTranslation(
+                        rotationZ
+                    );
+                    Cesium.Matrix4.multiply(
+                        modelMatrix,
+                        rotationX,
+                        modelMatrix
+                    );
+
+                    var model = viewer.scene.primitives.add(
+                        Cesium.Model.fromGltf({
+                            url: './guidao.glb',
+                            modelMatrix: modelMatrix,
+                            debugShowBoundingVolume: true
+                        })
+                    );
+                    model.readyPromise.then(function(arg) {
+                        // debugger;
+                    });
+                    setTimeout(function() {
+                        viewer.camera.flyTo({
+                            destination: Cesium.Cartesian3.fromDegrees(
+                                116.790876,
+                                36.498398,
+                                100
+                            )
+                        });
+                    }, 2000);
+                    function calculateOrigin(x, y, lng, lat) {
+                        //x方向
+                        var carto = new Cesium.Cartographic(
+                            Cesium.Math.toRadians(lng),
+                            Cesium.Math.toRadians(lat),
+                            10
+                        );
+                        var carto2 = new Cesium.Cartographic(
+                            Cesium.Math.toRadians(lng - 0.01),
+                            Cesium.Math.toRadians(lat),
+                            10
+                        );
+                        var geodesic = new Cesium.EllipsoidGeodesic(
+                            carto,
+                            carto2
+                        );
+                        var resultx = geodesic.interpolateUsingSurfaceDistance(
+                            x,
+                            null
+                        );
+                        //y方向
+                        carto = new Cesium.Cartographic(
+                            Cesium.Math.toRadians(lng),
+                            Cesium.Math.toRadians(lat),
+                            10
+                        );
+                        carto2 = new Cesium.Cartographic(
+                            Cesium.Math.toRadians(lng),
+                            Cesium.Math.toRadians(lat - 0.01),
+                            10
+                        );
+                        geodesic = new Cesium.EllipsoidGeodesic(carto, carto2);
+                        var resulty = geodesic.interpolateUsingSurfaceDistance(
+                            y,
+                            null
+                        );
+                        return new Cesium.Cartographic(
+                            resultx.longitude,
+                            resulty.latitude,
+                            0
+                        );
+                    }
+                } else if (typeof self !== 'undefined') {
+                    self.Cesium = Cesium;
+                } else if (typeof module !== 'undefined') {
+                    module.exports = Cesium;
+                } else {
+                    console.log('Unable to load Cesium.');
+                }
+            }, undefined, true);
+        </script>
+        <script></script>
+    </body>
+</html>

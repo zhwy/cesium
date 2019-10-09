@@ -858,6 +858,9 @@ define([
                 error -= dynamicError;
             }
         }
+
+        error /= frameState.pixelRatio;
+
         return error;
     };
 
