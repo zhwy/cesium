@@ -1,29 +1,14 @@
-define([
-    '../Core/Cartesian2',
-    '../Core/Cartesian3',
-    '../Core/Cartographic',
-    '../Core/defaultValue',
-    '../Core/defined',
-    '../Core/DeveloperError',
-    '../Core/EasingFunction',
-    '../Core/Math',
-    '../Core/PerspectiveFrustum',
-    '../Core/PerspectiveOffCenterFrustum',
-    './SceneMode'
-], function(
-    Cartesian2,
-    Cartesian3,
-    Cartographic,
-    defaultValue,
-    defined,
-    DeveloperError,
-    EasingFunction,
-    CesiumMath,
-    PerspectiveFrustum,
-    PerspectiveOffCenterFrustum,
-    SceneMode
-) {
-    'use strict';
+import Cartesian2 from '../Core/Cartesian2.js';
+import Cartesian3 from '../Core/Cartesian3.js';
+import Cartographic from '../Core/Cartographic.js';
+import defaultValue from '../Core/defaultValue.js';
+import defined from '../Core/defined.js';
+import DeveloperError from '../Core/DeveloperError.js';
+import EasingFunction from '../Core/EasingFunction.js';
+import CesiumMath from '../Core/Math.js';
+import PerspectiveFrustum from '../Core/PerspectiveFrustum.js';
+import PerspectiveOffCenterFrustum from '../Core/PerspectiveOffCenterFrustum.js';
+import SceneMode from './SceneMode.js';
 
     /**
      * Creates tweens for camera flights.
@@ -32,7 +17,8 @@ define([
      *
      * @private
      */
-    var CameraFlightPath = {};
+    var CameraFlightPath = {
+    };
 
     function getAltitude(frustum, dx, dy) {
         var near;
@@ -43,12 +29,12 @@ define([
             near = frustum.near;
             top = frustum.near * tanTheta;
             right = frustum.aspectRatio * top;
-            return Math.max((dx * near) / right, (dy * near) / top);
+            return Math.max(dx * near / right, dy * near / top);
         } else if (frustum instanceof PerspectiveOffCenterFrustum) {
             near = frustum.near;
             top = frustum.top;
             right = frustum.right;
-            return Math.max((dx * near) / right, (dy * near) / top);
+            return Math.max(dx * near / right, dy * near / top);
         }
 
         return Math.max(dx, dy);
@@ -57,16 +43,8 @@ define([
     var scratchCart = new Cartesian3();
     var scratchCart2 = new Cartesian3();
 
-    function createPitchFunction(
-        startPitch,
-        endPitch,
-        heightFunction,
-        pitchAdjustHeight
-    ) {
-        if (
-            defined(pitchAdjustHeight) &&
-            heightFunction(0.5) > pitchAdjustHeight
-        ) {
+    function createPitchFunction(startPitch, endPitch, heightFunction, pitchAdjustHeight) {
+        if (defined(pitchAdjustHeight) && heightFunction(0.5) > pitchAdjustHeight) {
             var startHeight = heightFunction(0.0);
             var endHeight = heightFunction(1.0);
             var middleHeight = heightFunction(0.5);
@@ -78,19 +56,11 @@ define([
                 var altitude = heightFunction(time);
                 if (time <= 0.5) {
                     var t1 = (altitude - startHeight) / d1;
-                    return CesiumMath.lerp(
-                        startPitch,
-                        -CesiumMath.PI_OVER_TWO,
-                        t1
-                    );
+                    return CesiumMath.lerp(startPitch, -CesiumMath.PI_OVER_TWO, t1);
                 }
 
                 var t2 = (altitude - endHeight) / d2;
-                return CesiumMath.lerp(
-                    -CesiumMath.PI_OVER_TWO,
-                    endPitch,
-                    1 - t2
-                );
+                return CesiumMath.lerp(-CesiumMath.PI_OVER_TWO, endPitch, 1 - t2);
             };
         }
         return function(time) {
@@ -98,13 +68,7 @@ define([
         };
     }
 
-    function createHeightFunction(
-        camera,
-        destination,
-        startHeight,
-        endHeight,
-        optionAltitude
-    ) {
+    function createHeightFunction(camera, destination, startHeight, endHeight, optionAltitude) {
         var altitude = optionAltitude;
         var maxHeight = Math.max(startHeight, endHeight);
 
@@ -116,26 +80,10 @@ define([
             var frustum = camera.frustum;
 
             var diff = Cartesian3.subtract(start, end, scratchCart);
-            var verticalDistance = Cartesian3.magnitude(
-                Cartesian3.multiplyByScalar(
-                    up,
-                    Cartesian3.dot(diff, up),
-                    scratchCart2
-                )
-            );
-            var horizontalDistance = Cartesian3.magnitude(
-                Cartesian3.multiplyByScalar(
-                    right,
-                    Cartesian3.dot(diff, right),
-                    scratchCart2
-                )
-            );
+            var verticalDistance = Cartesian3.magnitude(Cartesian3.multiplyByScalar(up, Cartesian3.dot(diff, up), scratchCart2));
+            var horizontalDistance = Cartesian3.magnitude(Cartesian3.multiplyByScalar(right, Cartesian3.dot(diff, right), scratchCart2));
 
-            altitude = Math.min(
-                getAltitude(frustum, verticalDistance, horizontalDistance) *
-                    0.2,
-                1000000000.0
-            );
+            altitude = Math.min(getAltitude(frustum, verticalDistance, horizontalDistance) * 0.20, 1000000000.0);
         }
 
         if (maxHeight < altitude) {
@@ -157,13 +105,7 @@ define([
     }
 
     function adjustAngleForLERP(startAngle, endAngle) {
-        if (
-            CesiumMath.equalsEpsilon(
-                startAngle,
-                CesiumMath.TWO_PI,
-                CesiumMath.EPSILON11
-            )
-        ) {
+        if (CesiumMath.equalsEpsilon(startAngle, CesiumMath.TWO_PI, CesiumMath.EPSILON11)) {
             startAngle = 0.0;
         }
 
@@ -178,15 +120,7 @@ define([
 
     var scratchStart = new Cartesian3();
 
-    function createUpdateCV(
-        scene,
-        duration,
-        destination,
-        heading,
-        pitch,
-        roll,
-        optionAltitude
-    ) {
+    function createUpdateCV(scene, duration, destination, heading, pitch, roll, optionAltitude) {
         var camera = scene.camera;
 
         var start = Cartesian3.clone(camera.position, scratchStart);
@@ -194,22 +128,16 @@ define([
         var startHeading = adjustAngleForLERP(camera.heading, heading);
         var startRoll = adjustAngleForLERP(camera.roll, roll);
 
-        var heightFunction = createHeightFunction(
-            camera,
-            destination,
-            start.z,
-            destination.z,
-            optionAltitude
-        );
+        var heightFunction = createHeightFunction(camera, destination, start.z, destination.z, optionAltitude);
 
         function update(value) {
             var time = value.time / duration;
 
             camera.setView({
                 orientation: {
-                    heading: CesiumMath.lerp(startHeading, heading, time),
-                    pitch: CesiumMath.lerp(startPitch, pitch, time),
-                    roll: CesiumMath.lerp(startRoll, roll, time)
+                    heading : CesiumMath.lerp(startHeading, heading, time),
+                    pitch : CesiumMath.lerp(startPitch, pitch, time),
+                    roll : CesiumMath.lerp(startRoll, roll, time)
                 }
             });
 
@@ -239,34 +167,17 @@ define([
     var scratchStartCart = new Cartographic();
     var scratchEndCart = new Cartographic();
 
-    function createUpdate3D(
-        scene,
-        duration,
-        destination,
-        heading,
-        pitch,
-        roll,
-        optionAltitude,
-        optionFlyOverLongitude,
-        optionFlyOverLongitudeWeight,
-        optionPitchAdjustHeight
-    ) {
+    function createUpdate3D(scene, duration, destination, heading, pitch, roll, optionAltitude, optionFlyOverLongitude, optionFlyOverLongitudeWeight, optionPitchAdjustHeight) {
         var camera = scene.camera;
         var projection = scene.mapProjection;
         var ellipsoid = projection.ellipsoid;
 
-        var startCart = Cartographic.clone(
-            camera.positionCartographic,
-            scratchStartCart
-        );
+        var startCart = Cartographic.clone(camera.positionCartographic, scratchStartCart);
         var startPitch = camera.pitch;
         var startHeading = adjustAngleForLERP(camera.heading, heading);
         var startRoll = adjustAngleForLERP(camera.roll, roll);
 
-        var destCart = ellipsoid.cartesianToCartographic(
-            destination,
-            scratchEndCart
-        );
+        var destCart = ellipsoid.cartesianToCartographic(destination, scratchEndCart);
         startCart.longitude = CesiumMath.zeroToTwoPi(startCart.longitude);
         destCart.longitude = CesiumMath.zeroToTwoPi(destCart.longitude);
 
@@ -278,7 +189,7 @@ define([
             var lonMin = Math.min(startCart.longitude, destCart.longitude);
             var lonMax = Math.max(startCart.longitude, destCart.longitude);
 
-            var hitInside = hitLon >= lonMin && hitLon <= lonMax;
+            var hitInside =  (hitLon >= lonMin && hitLon <= lonMax);
 
             if (defined(optionFlyOverLongitudeWeight)) {
                 // Distance inside  (0...2Pi)
@@ -289,10 +200,7 @@ define([
                 var hitDistance = hitInside ? din : dot;
                 var offDistance = hitInside ? dot : din;
 
-                if (
-                    hitDistance < offDistance * optionFlyOverLongitudeWeight &&
-                    !hitInside
-                ) {
+                if (hitDistance < offDistance * optionFlyOverLongitudeWeight && !hitInside) {
                     useLongFlight = true;
                 }
             } else if (!hitInside) {
@@ -306,19 +214,8 @@ define([
             useShortestFlight(startCart, destCart);
         }
 
-        var heightFunction = createHeightFunction(
-            camera,
-            destination,
-            startCart.height,
-            destCart.height,
-            optionAltitude
-        );
-        var pitchFunction = createPitchFunction(
-            startPitch,
-            pitch,
-            heightFunction,
-            optionPitchAdjustHeight
-        );
+        var heightFunction = createHeightFunction(camera, destination, startCart.height, destCart.height, optionAltitude);
+        var pitchFunction = createPitchFunction(startPitch, pitch, heightFunction, optionPitchAdjustHeight);
 
         // Isolate scope for update function.
         // to have local copies of vars used in lerp
@@ -341,11 +238,11 @@ define([
                 );
 
                 camera.setView({
-                    destination: position,
+                    destination : position,
                     orientation: {
-                        heading: CesiumMath.lerp(startHeading, heading, time),
-                        pitch: pitchFunction(time),
-                        roll: CesiumMath.lerp(startRoll, roll, time)
+                        heading : CesiumMath.lerp(startHeading, heading, time),
+                        pitch : pitchFunction(time),
+                        roll : CesiumMath.lerp(startRoll, roll, time)
                     }
                 });
             };
@@ -353,35 +250,21 @@ define([
         return isolateUpdateFunction();
     }
 
-    function createUpdate2D(
-        scene,
-        duration,
-        destination,
-        heading,
-        pitch,
-        roll,
-        optionAltitude
-    ) {
+    function createUpdate2D(scene, duration, destination, heading, pitch, roll, optionAltitude) {
         var camera = scene.camera;
 
         var start = Cartesian3.clone(camera.position, scratchStart);
         var startHeading = adjustAngleForLERP(camera.heading, heading);
 
         var startHeight = camera.frustum.right - camera.frustum.left;
-        var heightFunction = createHeightFunction(
-            camera,
-            destination,
-            startHeight,
-            destination.z,
-            optionAltitude
-        );
+        var heightFunction = createHeightFunction(camera, destination, startHeight, destination.z, optionAltitude);
 
         function update(value) {
             var time = value.time / duration;
 
             camera.setView({
                 orientation: {
-                    heading: CesiumMath.lerp(startHeading, heading, time)
+                    heading : CesiumMath.lerp(startHeading, heading, time)
                 }
             });
 
@@ -406,11 +289,11 @@ define([
 
     function emptyFlight(complete, cancel) {
         return {
-            startObject: {},
-            stopObject: {},
-            duration: 0.0,
-            complete: complete,
-            cancel: cancel
+            startObject : {},
+            stopObject : {},
+            duration : 0.0,
+            complete : complete,
+            cancel : cancel
         };
     }
 
@@ -454,10 +337,7 @@ define([
 
         if (convert && mode !== SceneMode.SCENE3D) {
             ellipsoid.cartesianToCartographic(destination, scratchCartographic);
-            destination = projection.project(
-                scratchCartographic,
-                scratchDestination
-            );
+            destination = projection.project(scratchCartographic, scratchDestination);
         }
 
         var camera = scene.camera;
@@ -468,11 +348,7 @@ define([
 
         var duration = options.duration;
         if (!defined(duration)) {
-            duration =
-                Math.ceil(
-                    Cartesian3.distance(camera.position, destination) /
-                        1000000.0
-                ) + 2.0;
+            duration = Math.ceil(Cartesian3.distance(camera.position, destination) / 1000000.0) + 2.0;
             duration = Math.min(duration, 3.0);
         }
 
@@ -489,50 +365,16 @@ define([
         var frustum = camera.frustum;
 
         var empty = scene.mode === SceneMode.SCENE2D;
-        empty =
-            empty &&
-            Cartesian2.equalsEpsilon(
-                camera.position,
-                destination,
-                CesiumMath.EPSILON6
-            );
-        empty =
-            empty &&
-            CesiumMath.equalsEpsilon(
-                Math.max(
-                    frustum.right - frustum.left,
-                    frustum.top - frustum.bottom
-                ),
-                destination.z,
-                CesiumMath.EPSILON6
-            );
+        empty = empty && Cartesian2.equalsEpsilon(camera.position, destination, CesiumMath.EPSILON6);
+        empty = empty && CesiumMath.equalsEpsilon(Math.max(frustum.right - frustum.left, frustum.top - frustum.bottom), destination.z, CesiumMath.EPSILON6);
 
-        empty =
-            empty ||
-            (scene.mode !== SceneMode.SCENE2D &&
-                Cartesian3.equalsEpsilon(
-                    destination,
-                    camera.position,
-                    CesiumMath.EPSILON10
-                ));
+        empty = empty || (scene.mode !== SceneMode.SCENE2D &&
+            Cartesian3.equalsEpsilon(destination, camera.position, CesiumMath.EPSILON10));
 
-        empty =
-            empty &&
-            CesiumMath.equalsEpsilon(
-                CesiumMath.negativePiToPi(heading),
-                CesiumMath.negativePiToPi(camera.heading),
-                CesiumMath.EPSILON10
-            ) &&
-            CesiumMath.equalsEpsilon(
-                CesiumMath.negativePiToPi(pitch),
-                CesiumMath.negativePiToPi(camera.pitch),
-                CesiumMath.EPSILON10
-            ) &&
-            CesiumMath.equalsEpsilon(
-                CesiumMath.negativePiToPi(roll),
-                CesiumMath.negativePiToPi(camera.roll),
-                CesiumMath.EPSILON10
-            );
+        empty = empty &&
+            CesiumMath.equalsEpsilon(CesiumMath.negativePiToPi(heading), CesiumMath.negativePiToPi(camera.heading), CesiumMath.EPSILON10) &&
+            CesiumMath.equalsEpsilon(CesiumMath.negativePiToPi(pitch), CesiumMath.negativePiToPi(camera.pitch), CesiumMath.EPSILON10) &&
+            CesiumMath.equalsEpsilon(CesiumMath.negativePiToPi(roll), CesiumMath.negativePiToPi(camera.roll), CesiumMath.EPSILON10);
 
         if (empty) {
             return emptyFlight(complete, cancel);
@@ -545,18 +387,7 @@ define([
 
         if (duration <= 0.0) {
             var newOnComplete = function() {
-                var update = updateFunctions[mode](
-                    scene,
-                    1.0,
-                    destination,
-                    heading,
-                    pitch,
-                    roll,
-                    maximumHeight,
-                    flyOverLongitude,
-                    flyOverLongitudeWeight,
-                    pitchAdjustHeight
-                );
+                var update = updateFunctions[mode](scene, 1.0, destination, heading, pitch, roll, maximumHeight, flyOverLongitude, flyOverLongitudeWeight, pitchAdjustHeight);
                 update({ time: 1.0 });
 
                 if (typeof complete === 'function') {
@@ -566,25 +397,11 @@ define([
             return emptyFlight(newOnComplete, cancel);
         }
 
-        var update = updateFunctions[mode](
-            scene,
-            duration,
-            destination,
-            heading,
-            pitch,
-            roll,
-            maximumHeight,
-            flyOverLongitude,
-            flyOverLongitudeWeight,
-            pitchAdjustHeight
-        );
+        var update = updateFunctions[mode](scene, duration, destination, heading, pitch, roll, maximumHeight, flyOverLongitude, flyOverLongitudeWeight, pitchAdjustHeight);
 
         if (!defined(easingFunction)) {
             var startHeight = camera.positionCartographic.height;
-            var endHeight =
-                mode === SceneMode.SCENE3D
-                    ? ellipsoid.cartesianToCartographic(destination).height
-                    : destination.z;
+            var endHeight = mode === SceneMode.SCENE3D ? ellipsoid.cartesianToCartographic(destination).height : destination.z;
 
             if (startHeight > endHeight && startHeight > 11500.0) {
                 easingFunction = EasingFunction.CUBIC_OUT;
@@ -594,19 +411,17 @@ define([
         }
 
         return {
-            duration: duration,
-            easingFunction: easingFunction,
-            startObject: {
-                time: 0.0
+            duration : duration,
+            easingFunction : easingFunction,
+            startObject : {
+                time : 0.0
             },
-            stopObject: {
-                time: duration
+            stopObject : {
+                time : duration
             },
-            update: update,
-            complete: complete,
+            update : update,
+            complete : complete,
             cancel: cancel
         };
     };
-
-    return CameraFlightPath;
-});
+export default CameraFlightPath;

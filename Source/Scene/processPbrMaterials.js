@@ -1,24 +1,12 @@
-define([
-        './ModelUtility',
-        '../Core/defined',
-        '../Core/defaultValue',
-        '../Core/WebGLConstants',
-        '../Core/webGLConstantToGlslType',
-        '../ThirdParty/GltfPipeline/addToArray',
-        '../ThirdParty/GltfPipeline/ForEach',
-        '../ThirdParty/GltfPipeline/hasExtension',
-        '../ThirdParty/GltfPipeline/numberOfComponentsForType'
-    ], function(
-        ModelUtility,
-        defined,
-        defaultValue,
-        WebGLConstants,
-        webGLConstantToGlslType,
-        addToArray,
-        ForEach,
-        hasExtension,
-        numberOfComponentsForType) {
-    'use strict';
+import defaultValue from '../Core/defaultValue.js';
+import defined from '../Core/defined.js';
+import WebGLConstants from '../Core/WebGLConstants.js';
+import webGLConstantToGlslType from '../Core/webGLConstantToGlslType.js';
+import addToArray from '../ThirdParty/GltfPipeline/addToArray.js';
+import ForEach from '../ThirdParty/GltfPipeline/ForEach.js';
+import hasExtension from '../ThirdParty/GltfPipeline/hasExtension.js';
+import numberOfComponentsForType from '../ThirdParty/GltfPipeline/numberOfComponentsForType.js';
+import ModelUtility from './ModelUtility.js';
 
     /**
      * @private
@@ -535,10 +523,20 @@ define([
             '}\n\n';
 
         fragmentShader +=
+            'vec3 applyTonemapping(vec3 linearIn) \n' +
+            '{\n' +
+            '#ifndef HDR \n' +
+            '    return czm_acesTonemapping(linearIn);\n' +
+            '#else \n' +
+            '    return linearIn;\n' +
+            '#endif \n' +
+            '}\n\n';
+
+        fragmentShader +=
             'vec3 LINEARtoSRGB(vec3 linearIn) \n' +
             '{\n' +
             '#ifndef HDR \n' +
-            '    return pow(czm_acesTonemapping(linearIn), vec3(1.0/2.2));\n' +
+            '    return pow(linearIn, vec3(1.0/2.2));\n' +
             '#else \n' +
             '    return linearIn;\n' +
             '#endif \n' +
@@ -782,7 +780,7 @@ define([
             fragmentShader += '    float luminance = gltf_luminanceAtZenith * (numerator / denominator);\n';
             fragmentShader += '#endif \n';
 
-            fragmentShader += '    vec2 brdfLut = texture2D(czm_brdfLut, vec2(NdotV, 1.0 - roughness)).rg;\n';
+            fragmentShader += '    vec2 brdfLut = texture2D(czm_brdfLut, vec2(NdotV, roughness)).rg;\n';
             fragmentShader += '    vec3 IBLColor = (diffuseIrradiance * diffuseColor * gltf_iblFactor.x) + (specularIrradiance * SRGBtoLINEAR3(specularColor * brdfLut.x + brdfLut.y) * gltf_iblFactor.y);\n';
 
             fragmentShader += '#ifdef USE_SUN_LUMINANCE \n';
@@ -845,8 +843,12 @@ define([
             }
         }
 
-        // Final color
+        if (!isUnlit) {
+            fragmentShader += '    color = applyTonemapping(color);\n';
+        }
+
         fragmentShader += '    color = LINEARtoSRGB(color);\n';
+
         if (defined(alphaMode)) {
             if (alphaMode === 'MASK') {
                 fragmentShader += '    if (baseColorWithAlpha.a < u_alphaCutoff) {\n';
@@ -929,6 +931,4 @@ define([
                 return WebGLConstants.FLOAT;
         }
     }
-
-    return processPbrMaterials;
-});
+export default processPbrMaterials;
