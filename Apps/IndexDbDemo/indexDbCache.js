@@ -166,7 +166,7 @@ var IndexedDbCache = /** @class */ (function() {
     };
     return IndexedDbCache;
 })();
-
+export default IndexedDbCache;
 // /**
 //  * Trusted Promise constructor.  A Promise created from this constructor is
 //  * a trusted when.js promise.  Any other duck-typed promise is considered

@@ -1,4 +1,5 @@
 /* eslint-disable */
+import * as Cesium from '../../Source/Cesium.js';
 function Test() {
     var _originXY = {
         lng: 116.790876,
@@ -155,3 +156,4 @@ function Test() {
         });
     }
 }
+export default Test;

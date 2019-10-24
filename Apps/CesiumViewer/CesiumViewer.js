@@ -40,19 +40,18 @@ function main() {
     var imageryProvider;
     if (defined(endUserOptions.tmsImageryUrl)) {
         imageryProvider = new TileMapServiceImageryProvider({
-            url : endUserOptions.tmsImageryUrl
+            url: endUserOptions.tmsImageryUrl
         });
     }
-
     var loadingIndicator = document.getElementById('loadingIndicator');
     var viewer;
     try {
         var hasBaseLayerPicker = !defined(imageryProvider);
         viewer = new Viewer('cesiumContainer', {
-            imageryProvider : imageryProvider,
-            baseLayerPicker : hasBaseLayerPicker,
-            scene3DOnly : endUserOptions.scene3DOnly,
-            requestRenderMode : true
+            imageryProvider: imageryProvider,
+            baseLayerPicker: hasBaseLayerPicker,
+            scene3DOnly: endUserOptions.scene3DOnly,
+            requestRenderMode: true
         });
 
         if (hasBaseLayerPicker) {
@@ -81,7 +80,8 @@ function main() {
 
     var showLoadError = function(name, error) {
         var title = 'An error occurred while loading the file: ' + name;
-        var message = 'An error occurred while loading the file, which may indicate that it is invalid.  A detailed error report is below:';
+        var message =
+            'An error occurred while loading the file, which may indicate that it is invalid.  A detailed error report is below:';
         viewer.cesiumWidget.showErrorPanel(title, message, error);
     };
 
@@ -106,7 +106,11 @@ function main() {
             // autodetect using file extension if not specified
             if (/\.czml$/i.test(source)) {
                 sourceType = 'czml';
-            } else if (/\.geojson$/i.test(source) || /\.json$/i.test(source) || /\.topojson$/i.test(source)) {
+            } else if (
+                /\.geojson$/i.test(source) ||
+                /\.json$/i.test(source) ||
+                /\.topojson$/i.test(source)
+            ) {
                 sourceType = 'geojson';
             } else if (/\.kml$/i.test(source) || /\.kmz$/i.test(source)) {
                 sourceType = 'kml';
@@ -128,22 +132,31 @@ function main() {
         }
 
         if (defined(loadPromise)) {
-            viewer.dataSources.add(loadPromise).then(function(dataSource) {
-                var lookAt = endUserOptions.lookAt;
-                if (defined(lookAt)) {
-                    var entity = dataSource.entities.getById(lookAt);
-                    if (defined(entity)) {
-                        viewer.trackedEntity = entity;
-                    } else {
-                        var error = 'No entity with id "' + lookAt + '" exists in the provided data source.';
-                        showLoadError(source, error);
+            viewer.dataSources
+                .add(loadPromise)
+                .then(function(dataSource) {
+                    var lookAt = endUserOptions.lookAt;
+                    if (defined(lookAt)) {
+                        var entity = dataSource.entities.getById(lookAt);
+                        if (defined(entity)) {
+                            viewer.trackedEntity = entity;
+                        } else {
+                            var error =
+                                'No entity with id "' +
+                                lookAt +
+                                '" exists in the provided data source.';
+                            showLoadError(source, error);
+                        }
+                    } else if (
+                        !defined(view) &&
+                        endUserOptions.flyTo !== 'false'
+                    ) {
+                        viewer.flyTo(dataSource);
                     }
-                } else if (!defined(view) && endUserOptions.flyTo !== 'false') {
-                    viewer.flyTo(dataSource);
-                }
-            }).otherwise(function(error) {
-                showLoadError(source, error);
-            });
+                })
+                .otherwise(function(error) {
+                    showLoadError(source, error);
+                });
         }
     }
 
@@ -167,13 +180,29 @@ function main() {
         if (splitQuery.length > 1) {
             var longitude = !isNaN(+splitQuery[0]) ? +splitQuery[0] : 0.0;
             var latitude = !isNaN(+splitQuery[1]) ? +splitQuery[1] : 0.0;
-            var height = ((splitQuery.length > 2) && (!isNaN(+splitQuery[2]))) ? +splitQuery[2] : 300.0;
-            var heading = ((splitQuery.length > 3) && (!isNaN(+splitQuery[3]))) ? CesiumMath.toRadians(+splitQuery[3]) : undefined;
-            var pitch = ((splitQuery.length > 4) && (!isNaN(+splitQuery[4]))) ? CesiumMath.toRadians(+splitQuery[4]) : undefined;
-            var roll = ((splitQuery.length > 5) && (!isNaN(+splitQuery[5]))) ? CesiumMath.toRadians(+splitQuery[5]) : undefined;
+            var height =
+                splitQuery.length > 2 && !isNaN(+splitQuery[2])
+                    ? +splitQuery[2]
+                    : 300.0;
+            var heading =
+                splitQuery.length > 3 && !isNaN(+splitQuery[3])
+                    ? CesiumMath.toRadians(+splitQuery[3])
+                    : undefined;
+            var pitch =
+                splitQuery.length > 4 && !isNaN(+splitQuery[4])
+                    ? CesiumMath.toRadians(+splitQuery[4])
+                    : undefined;
+            var roll =
+                splitQuery.length > 5 && !isNaN(+splitQuery[5])
+                    ? CesiumMath.toRadians(+splitQuery[5])
+                    : undefined;
 
             viewer.camera.setView({
-                destination: Cartesian3.fromDegrees(longitude, latitude, height),
+                destination: Cartesian3.fromDegrees(
+                    longitude,
+                    latitude,
+                    height
+                ),
                 orientation: {
                     heading: heading,
                     pitch: pitch,
@@ -188,10 +217,26 @@ function main() {
         var position = camera.positionCartographic;
         var hpr = '';
         if (defined(camera.heading)) {
-            hpr = ',' + CesiumMath.toDegrees(camera.heading) + ',' + CesiumMath.toDegrees(camera.pitch) + ',' + CesiumMath.toDegrees(camera.roll);
+            hpr =
+                ',' +
+                CesiumMath.toDegrees(camera.heading) +
+                ',' +
+                CesiumMath.toDegrees(camera.pitch) +
+                ',' +
+                CesiumMath.toDegrees(camera.roll);
         }
-        endUserOptions.view = CesiumMath.toDegrees(position.longitude) + ',' + CesiumMath.toDegrees(position.latitude) + ',' + position.height + hpr;
-        history.replaceState(undefined, '', '?' + objectToQuery(endUserOptions));
+        endUserOptions.view =
+            CesiumMath.toDegrees(position.longitude) +
+            ',' +
+            CesiumMath.toDegrees(position.latitude) +
+            ',' +
+            position.height +
+            hpr;
+        history.replaceState(
+            undefined,
+            '',
+            '?' + objectToQuery(endUserOptions)
+        );
     }
 
     var timeout;
