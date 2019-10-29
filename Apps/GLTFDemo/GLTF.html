@@ -12,7 +12,6 @@
         />
         <title>GLTF Model Demo</title>
         <!-- <script src="../Build/CesiumUnminified/Cesium.js"></script> -->
-        <script src="../../ThirdParty/requirejs-2.1.20/require.js"></script>
         <style>
             @import url(../../Build/Cesium/Widgets/widgets.css);
             html,
@@ -82,241 +81,207 @@
             />
             <input type="text" size="5" data-bind="value: RotateZ" />
         </div>
-        <script>
+        <script type="module">
             /* eslint-disable */
-            require(['../../Source/Cesium'], function(Cesium) {
-                'use strict';
-                /*global self,module*/
-                if (typeof window !== 'undefined') {
-                    window.Cesium = Cesium;
+            import * as Cesium from '../../Source/Cesium.js';
+            var viewModel = {
+                height: 0,
+                RotateX: 0,
+                RotateY: 0,
+                RotateZ: 0
+            };
 
-                    var viewModel = {
-                        height: 0,
-                        RotateX: 0,
-                        RotateY: 0,
-                        RotateZ: 0
-                    };
+            Cesium.knockout.track(viewModel);
 
-                    Cesium.knockout.track(viewModel);
+            var toolbar = document.getElementById('toolbar');
+            Cesium.knockout.applyBindings(viewModel, toolbar);
 
-                    var toolbar = document.getElementById('toolbar');
-                    Cesium.knockout.applyBindings(viewModel, toolbar);
+            var viewer = new Cesium.Viewer('cesiumContainer', {
+                animation: false,
+                baseLayerPicker: false,
+                geocoder: false,
+                timeline: false,
+                infobox: false,
+                navigationHelpButton: false,
+                sceneModePicker: false,
+                scene3DOnly: true,
+                homeButton: false,
+                infoBox: false,
+                selectionIndicator: false,
+                fullscreenButton: false,
+                //高德
+                imageryProvider: new Cesium.UrlTemplateImageryProvider({
+                    url:
+                        // 'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', //高德
+                        'http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}', //谷歌有偏移
+                    maximumLevel: 18,
+                    tileMatrixSetID: 'GoogleMapsCompatible'
+                })
+            });
+            viewer.scene.globe.depthTestAgainstTerrain = true;
 
-                    var viewer = new Cesium.Viewer('cesiumContainer', {
-                        animation: false,
-                        baseLayerPicker: false,
-                        geocoder: false,
-                        timeline: false,
-                        infobox: false,
-                        navigationHelpButton: false,
-                        sceneModePicker: false,
-                        scene3DOnly: true,
-                        homeButton: false,
-                        infoBox: false,
-                        selectionIndicator: false,
-                        fullscreenButton: false,
-                        //高德
-                        imageryProvider: new Cesium.UrlTemplateImageryProvider({
-                            url:
-                                // 'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', //高德
-                                'http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}', //谷歌有偏移
-                            maximumLevel: 18,
-                            tileMatrixSetID: 'GoogleMapsCompatible'
-                        })
-                    });
-                    viewer.scene.globe.depthTestAgainstTerrain = true;
+            //计算（0,0）经纬度
+            var realOrigin = calculateOrigin(
+                29945.5016, //图纸坐标
+                31119.6283,
+                // 29960.5016, //调整到地图，对不齐
+                // 31009.6283,
+                116.790876,
+                36.498398
+            );
+            //放置到对应位置
+            var carte = Cesium.Cartesian3.fromRadians(
+                realOrigin.longitude,
+                realOrigin.latitude,
+                0 //整体高度变化不对，好像反了
+            );
+            var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(carte);
 
-                    //计算（0,0）经纬度
-                    var realOrigin = calculateOrigin(
-                        29945.5016, //图纸坐标
-                        31119.6283,
-                        // 29960.5016, //调整到地图，对不齐
-                        // 31009.6283,
+            var rotationZ = Cesium.Matrix3.fromRotationZ(
+                Cesium.Math.toRadians(0)
+            );
+            var rotationZZ = Cesium.Matrix4.fromRotationTranslation(rotationZ);
+            Cesium.Matrix4.multiply(modelMatrix, rotationZZ, modelMatrix);
+
+            var model = viewer.scene.primitives.add(
+                Cesium.Model.fromGltf({
+                    url: './guidao.glb',
+                    // url:
+                    //     '../SampleData/models/CesiumBalloon/CesiumBalloon.glb',
+                    modelMatrix: modelMatrix,
+                    debugShowBoundingVolume: true
+                })
+            );
+            model.readyPromise.then(function(arg) {
+                // debugger;
+            });
+            var hh = 0,
+                xx = 0,
+                yy = 0,
+                zz = 0;
+            var matrix = modelMatrix;
+            //调整高度
+            Cesium.knockout
+                .getObservable(viewModel, 'height')
+                .subscribe(function(height) {
+                    height = Number(height) - hh;
+                    hh += height;
+                    if (isNaN(height)) {
+                        return;
+                    }
+                    var m = model.modelMatrix;
+                    var translation = Cesium.Cartesian3.fromArray([
+                        0,
+                        0,
+                        height
+                    ]);
+
+                    Cesium.Matrix4.multiplyByTranslation(m, translation, m);
+                    model.modelMatrix = m;
+                    matrix = m;
+                });
+
+            //绕X旋转
+            Cesium.knockout
+                .getObservable(viewModel, 'RotateX')
+                .subscribe(function(RotateX) {
+                    xx = Number(RotateX);
+                    if (isNaN(xx)) {
+                        return;
+                    }
+                    model.modelMatrix = rotate(matrix, xx, yy, zz);
+                });
+            //绕Y旋转
+            Cesium.knockout
+                .getObservable(viewModel, 'RotateY')
+                .subscribe(function(RotateY) {
+                    yy = Number(RotateY);
+                    if (isNaN(yy)) {
+                        return;
+                    }
+                    model.modelMatrix = rotate(matrix, xx, yy, zz);
+                });
+            //绕Z旋转
+            Cesium.knockout
+                .getObservable(viewModel, 'RotateZ')
+                .subscribe(function(RotateZ) {
+                    zz = Number(RotateZ);
+                    if (isNaN(zz)) {
+                        return;
+                    }
+                    model.modelMatrix = rotate(matrix, xx, yy, zz);
+                });
+
+            setTimeout(function() {
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(
                         116.790876,
-                        36.498398
-                    );
-                    //放置到对应位置
-                    var carte = Cesium.Cartesian3.fromRadians(
-                        realOrigin.longitude,
-                        realOrigin.latitude,
-                        0 //整体高度变化不对，好像反了
-                    );
-                    var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
-                        carte
-                    );
+                        36.498398,
+                        500
+                    )
+                });
+            }, 2000);
 
-                    var rotationZ = Cesium.Matrix3.fromRotationZ(
-                        Cesium.Math.toRadians(0)
-                    );
-                    var rotationZZ = Cesium.Matrix4.fromRotationTranslation(
-                        rotationZ
-                    );
-                    Cesium.Matrix4.multiply(
-                        modelMatrix,
-                        rotationZZ,
-                        modelMatrix
-                    );
-
-                    var model = viewer.scene.primitives.add(
-                        Cesium.Model.fromGltf({
-                            url: './guidao.glb',
-                            // url:
-                            //     '../SampleData/models/CesiumBalloon/CesiumBalloon.glb',
-                            modelMatrix: modelMatrix,
-                            debugShowBoundingVolume: true
-                        })
-                    );
-                    model.readyPromise.then(function(arg) {
-                        // debugger;
-                    });
-                    var hh = 0,
-                        xx = 0,
-                        yy = 0,
-                        zz = 0;
-                    var matrix = modelMatrix;
-                    //调整高度
-                    Cesium.knockout
-                        .getObservable(viewModel, 'height')
-                        .subscribe(function(height) {
-                            height = Number(height) - hh;
-                            hh += height;
-                            if (isNaN(height)) {
-                                return;
-                            }
-                            var m = model.modelMatrix;
-                            var translation = Cesium.Cartesian3.fromArray([
-                                0,
-                                0,
-                                height
-                            ]);
-
-                            Cesium.Matrix4.multiplyByTranslation(
-                                m,
-                                translation,
-                                m
-                            );
-                            model.modelMatrix = m;
-                            matrix = m;
-                        });
-
-                    //绕X旋转
-                    Cesium.knockout
-                        .getObservable(viewModel, 'RotateX')
-                        .subscribe(function(RotateX) {
-                            xx = Number(RotateX);
-                            if (isNaN(xx)) {
-                                return;
-                            }
-                            model.modelMatrix = rotate(matrix, xx, yy, zz);
-                        });
-                    //绕Y旋转
-                    Cesium.knockout
-                        .getObservable(viewModel, 'RotateY')
-                        .subscribe(function(RotateY) {
-                            yy = Number(RotateY);
-                            if (isNaN(yy)) {
-                                return;
-                            }
-                            model.modelMatrix = rotate(matrix, xx, yy, zz);
-                        });
-                    //绕Z旋转
-                    Cesium.knockout
-                        .getObservable(viewModel, 'RotateZ')
-                        .subscribe(function(RotateZ) {
-                            zz = Number(RotateZ);
-                            if (isNaN(zz)) {
-                                return;
-                            }
-                            model.modelMatrix = rotate(matrix, xx, yy, zz);
-                        });
-
-                    setTimeout(function() {
-                        viewer.camera.flyTo({
-                            destination: Cesium.Cartesian3.fromDegrees(
-                                116.790876,
-                                36.498398,
-                                500
-                            )
-                        });
-                    }, 2000);
-
-                    function rotate(matrix, x, y, z) {
-                        var m = matrix.clone();
-                        var m1 = Cesium.Matrix3.fromRotationX(
-                            Cesium.Math.toRadians(xx)
-                        );
-                        m = Cesium.Matrix4.multiplyByMatrix3(
-                            m,
-                            m1,
-                            new Cesium.Matrix4()
-                        );
-                        var m2 = Cesium.Matrix3.fromRotationY(
-                            Cesium.Math.toRadians(yy)
-                        );
-                        m = Cesium.Matrix4.multiplyByMatrix3(
-                            m,
-                            m2,
-                            new Cesium.Matrix4()
-                        );
-                        var m3 = Cesium.Matrix3.fromRotationZ(
-                            Cesium.Math.toRadians(zz)
-                        );
-                        return Cesium.Matrix4.multiplyByMatrix3(
-                            m,
-                            m3,
-                            new Cesium.Matrix4()
-                        );
-                    }
-                    function calculateOrigin(x, y, lng, lat) {
-                        //x方向
-                        var carto = new Cesium.Cartographic(
-                            Cesium.Math.toRadians(lng),
-                            Cesium.Math.toRadians(lat),
-                            10
-                        );
-                        var carto2 = new Cesium.Cartographic(
-                            Cesium.Math.toRadians(lng - 0.01),
-                            Cesium.Math.toRadians(lat),
-                            10
-                        );
-                        var geodesic = new Cesium.EllipsoidGeodesic(
-                            carto,
-                            carto2
-                        );
-                        var resultx = geodesic.interpolateUsingSurfaceDistance(
-                            x,
-                            null
-                        );
-                        //y方向
-                        carto = new Cesium.Cartographic(
-                            Cesium.Math.toRadians(lng),
-                            Cesium.Math.toRadians(lat),
-                            10
-                        );
-                        carto2 = new Cesium.Cartographic(
-                            Cesium.Math.toRadians(lng),
-                            Cesium.Math.toRadians(lat - 0.01),
-                            10
-                        );
-                        geodesic = new Cesium.EllipsoidGeodesic(carto, carto2);
-                        var resulty = geodesic.interpolateUsingSurfaceDistance(
-                            y,
-                            null
-                        );
-                        return new Cesium.Cartographic(
-                            resultx.longitude,
-                            resulty.latitude,
-                            0
-                        );
-                    }
-                } else if (typeof self !== 'undefined') {
-                    self.Cesium = Cesium;
-                } else if (typeof module !== 'undefined') {
-                    module.exports = Cesium;
-                } else {
-                    console.log('Unable to load Cesium.');
-                }
-            }, undefined, true);
+            function rotate(matrix, x, y, z) {
+                var m = matrix.clone();
+                var m1 = Cesium.Matrix3.fromRotationX(
+                    Cesium.Math.toRadians(xx)
+                );
+                m = Cesium.Matrix4.multiplyByMatrix3(
+                    m,
+                    m1,
+                    new Cesium.Matrix4()
+                );
+                var m2 = Cesium.Matrix3.fromRotationY(
+                    Cesium.Math.toRadians(yy)
+                );
+                m = Cesium.Matrix4.multiplyByMatrix3(
+                    m,
+                    m2,
+                    new Cesium.Matrix4()
+                );
+                var m3 = Cesium.Matrix3.fromRotationZ(
+                    Cesium.Math.toRadians(zz)
+                );
+                return Cesium.Matrix4.multiplyByMatrix3(
+                    m,
+                    m3,
+                    new Cesium.Matrix4()
+                );
+            }
+            function calculateOrigin(x, y, lng, lat) {
+                //x方向
+                var carto = new Cesium.Cartographic(
+                    Cesium.Math.toRadians(lng),
+                    Cesium.Math.toRadians(lat),
+                    10
+                );
+                var carto2 = new Cesium.Cartographic(
+                    Cesium.Math.toRadians(lng - 0.01),
+                    Cesium.Math.toRadians(lat),
+                    10
+                );
+                var geodesic = new Cesium.EllipsoidGeodesic(carto, carto2);
+                var resultx = geodesic.interpolateUsingSurfaceDistance(x, null);
+                //y方向
+                carto = new Cesium.Cartographic(
+                    Cesium.Math.toRadians(lng),
+                    Cesium.Math.toRadians(lat),
+                    10
+                );
+                carto2 = new Cesium.Cartographic(
+                    Cesium.Math.toRadians(lng),
+                    Cesium.Math.toRadians(lat - 0.01),
+                    10
+                );
+                geodesic = new Cesium.EllipsoidGeodesic(carto, carto2);
+                var resulty = geodesic.interpolateUsingSurfaceDistance(y, null);
+                return new Cesium.Cartographic(
+                    resultx.longitude,
+                    resulty.latitude,
+                    0
+                );
+            }
         </script>
         <script></script>
     </body>
