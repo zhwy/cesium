@@ -390,7 +390,14 @@ import  View from './View.js';
             var position = pickedResult.position;
             var exclude = pickedResult.exclude;
 
-            if (defined(position) && !defined(object)) {
+            // origin
+            // if (defined(position) && !defined(object)) {
+            //     result.push(pickedResult);
+            //     break;
+            // }
+
+            // modifid by zwy 为模拟人在模型中移动而改，有问题
+            if (defined(position)&& defined(object)) {
                 result.push(pickedResult);
                 break;
             }

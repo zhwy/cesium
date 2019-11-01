@@ -1,5 +1,6 @@
 /* eslint-disable */
 import * as Cesium from '../../Source/Cesium.js';
+window.CESIUM_BASE_URL = '../../Source';
 function Test() {
     var _originXY = {
         lng: 116.790876,

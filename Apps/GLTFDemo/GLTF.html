@@ -11,7 +11,7 @@
             content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
         />
         <title>GLTF Model Demo</title>
-        <!-- <script src="../Build/CesiumUnminified/Cesium.js"></script> -->
+        <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
         <style>
             @import url(../../Build/Cesium/Widgets/widgets.css);
             html,
@@ -84,6 +84,7 @@
         <script type="module">
             /* eslint-disable */
             import * as Cesium from '../../Source/Cesium.js';
+            window.CESIUM_BASE_URL = '../../Source';
             var viewModel = {
                 height: 0,
                 RotateX: 0,

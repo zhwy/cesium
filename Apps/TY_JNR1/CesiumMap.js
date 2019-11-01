@@ -1,6 +1,7 @@
 /* eslint-disable */
 import * as Cesium from '../../Source/Cesium.js';
 import CesiumPopup from './CesiumPopup.js';
+window.CESIUM_BASE_URL = '../../Source';
 var CesiumMap = (function() {
     //三维视图
     var _viewer = undefined;
