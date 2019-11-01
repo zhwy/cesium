@@ -391,16 +391,16 @@ import  View from './View.js';
             var exclude = pickedResult.exclude;
 
             // origin
-            // if (defined(position) && !defined(object)) {
-            //     result.push(pickedResult);
-            //     break;
-            // }
-
-            // modifid by zwy 为模拟人在模型中移动而改，有问题
-            if (defined(position)&& defined(object)) {
+            if (defined(position) && !defined(object)) {
                 result.push(pickedResult);
                 break;
             }
+
+            // modifid by zwy 为模拟人在模型中移动而改，有问题
+            // if (defined(position)&& defined(object)) {
+            //     result.push(pickedResult);
+            //     // break;
+            // }
 
             if (!defined(object) || !defined(object.primitive)) {
                 break;

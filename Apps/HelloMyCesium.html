@@ -12,6 +12,8 @@
         />
         <title>Hello My Cesium</title>
         <!-- <script src="../Build/Cesium/Cesium.js"></script> -->
+        <!-- <script src="http://localhost:8081/Cesium/Build/Cesium/Cesium.js"></script> -->
+        <!-- <script src="./RayIntersect/pickFromRay.js"></script> -->
         <style>
             @import url(../Build/Cesium/Widgets/widgets.css);
             html,
@@ -30,6 +32,7 @@
         <script type="module">
             window.CESIUM_BASE_URL = '../Source';
             import * as Cesium from '../Source/Cesium.js';
+            import PickFromRay from './RayIntersect/pickFromRay.js';
             /* eslint-disable */
             var _roam = true;
             var _originXY = {
@@ -83,13 +86,13 @@
                     tileMatrixSetID: 'GoogleMapsCompatible'
                 })
             });
-            viewer.scene.globe.depthTestAgainstTerrain = false;
+            viewer.scene.globe.depthTestAgainstTerrain = true;
             //阴影设置
-            viewer.shadowMap.softShadows = true;
+            // viewer.shadowMap.softShadows = true;
             //viewer.scene.globe.enableLighting = true;
-            viewer.shadowMap.maximumDistance = 1000;
+            // viewer.shadowMap.maximumDistance = 1000;
             //模型显示不完整
-            viewer.scene.logarithmicDepthBuffer = false;
+            // viewer.scene.logarithmicDepthBuffer = false;
             //viewer.scene.farToNearRatio = 1;
             // setTimeout(function() {
             //     viewer.camera.flyTo({
@@ -140,11 +143,16 @@
                 console.log('camera height: ' + pos.height);
             });
             //球体
+            var ballPos = Cesium.Cartesian3.fromDegrees(
+                116.895407,
+                36.652209,
+                170
+            );
             var ball = viewer.entities.add({
                 name: 'ball',
-                position: Cesium.Cartesian3.fromDegrees(0, 0, 100),
+                position: ballPos,
                 ellipsoid: {
-                    radii: new Cesium.Cartesian3(0.5, 0.5, 0.5),
+                    radii: new Cesium.Cartesian3(0.1, 0.1, 0.1),
                     fill: true,
                     material: Cesium.Color.RED,
                     outline: false,
@@ -153,6 +161,7 @@
                     stackPartitions: 24 //纵向切割线   不能小于3
                 }
             });
+            var picker = new PickFromRay(viewer, [ball]);
             //按键移动相机
             var keydown = function(e) {
                 if (_roam) {
@@ -220,11 +229,7 @@
                 );
             }, Cesium.ScreenSpaceEventType.RIGHT_UP);
 
-            function _intersectScene(viewer, start, objectsToExclude = null) {
-                if (!Cesium.defined(objectsToExclude)) {
-                    objectsToExclude =
-                        viewer.scene.primitives._primitives[0]._primitives;
-                }
+            function _intersectScene(viewer, start, objectsToExclude = []) {
                 var ss = Cesium.Cartographic.fromCartesian(start);
                 start = Cesium.Cartesian3.fromRadians(
                     ss.longitude,
@@ -274,24 +279,30 @@
                             (position.latitude += distance * Math.cos(heading)),
                             position.height
                         );
-                        var floor = _intersectScene(
-                            viewer,
-                            entity.position._value || entity.position,
-                            _roadModel._primitives
-                        );
-                        if (floor && floor.position) {
-                            var intersectedPos = Cesium.Cartographic.fromCartesian(
-                                floor.position
-                            );
-                            finalPos = Cesium.Cartesian3.fromRadians(
-                                position.longitude,
-                                position.latitude,
-                                intersectedPos.height + hoffset
-                            );
-                            console.log(
-                                'intersect height: ' + intersectedPos.height
-                            );
-                        }
+                        picker._removeEntities();
+                        // var timer = setTimeout(() => {
+                        // clearTimeoukt(timer);
+                        picker.pickFromRay(finalPos);
+                        // }, 1000);
+                        // var floor = _intersectScene(
+                        //     viewer,
+                        //     entity.position._value || entity.position
+                        // );
+                        // if (floor && floor.position) {
+                        //     var intersectedPos = Cesium.Cartographic.fromCartesian(
+                        //         floor.position
+                        //     );
+                        //     if (intersectedPos.height >= 0) {
+                        //         finalPos = Cesium.Cartesian3.fromRadians(
+                        //             position.longitude,
+                        //             position.latitude,
+                        //             intersectedPos.height + hoffset
+                        //         );
+                        //     }
+                        //     console.log(
+                        //         'intersect height: ' + intersectedPos.height
+                        //     );
+                        // }
                         break;
                     case 'S'.charCodeAt(0):
                         finalPos = Cesium.Cartesian3.fromRadians(
@@ -334,10 +345,12 @@
                         console.log('ball height: ' + position.height);
                         break;
                 }
-                if (isCamare) {
-                    entity.position = finalPos;
-                } else {
-                    entity.position.setValue(finalPos);
+                if (finalPos) {
+                    if (isCamare) {
+                        entity.position = finalPos;
+                    } else {
+                        entity.position.setValue(finalPos);
+                    }
                 }
             }
             function _changeModelPosition(tileset, lng, lat, height, adjust) {
@@ -374,21 +387,12 @@
                     );
                     Cesium.Matrix4.multiply(mat, rotationZZ, mat);
                     tileset._root.transform = mat;
-
-                    viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(
-                            116.895634,
-                            36.652209,
-                            height
-                        ),
-                        orientation: _originCamera.direction,
-                        duration: 2,
-                        complete: function() {
-                            ball.position.setValue(
-                                viewer.camera.position.clone()
-                            );
-                        }
-                    });
+                    viewer.camera.flyToBoundingSphere(tileset.boundingSphere);
+                    ball.position.setValue(ballPos);
+                    var timer = setTimeout(() => {
+                        clearTimeout(timer);
+                        picker.pickFromRay(ballPos);
+                    }, 2000);
                 });
             }
         </script>
