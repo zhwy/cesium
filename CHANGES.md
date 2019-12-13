@@ -1,17 +1,41 @@
 Change Log
 ==========
 
+### 1.65.0 - 2019-01-02
+
+##### Fixes :wrench:
+* Fixed Geocoder auto-complete suggestions when hosted inside Web Components. [#8425](https://github.com/AnalyticalGraphicsInc/cesium/pull/8425)
+* Fixed terrain tile culling problems when under ellipsoid. [#8397](https://github.com/AnalyticalGraphicsInc/cesium/pull/8397)
+* Fixed primitive culling when below the ellipsoid but above terrain. [#8398](https://github.com/AnalyticalGraphicsInc/cesium/pull/8398)
+
+### 1.64.0 - 2019-12-02
+
+##### Fixes :wrench:
+* Fixed an issue in image based lighting where an invalid environment map would silently fail. [#8303](https://github.com/AnalyticalGraphicsInc/cesium/pull/8303)
+* Various small internal improvements
+
+### 1.63.1 - 2019-11-06
+
+##### Fixes :wrench:
+* Fixed regression in 1.63 where ground atmosphere and labels rendered incorrectly on displays with `window.devicePixelRatio` greater than 1.0. [#8351](https://github.com/AnalyticalGraphicsInc/cesium/pull/8351)
+* Fixed regression in 1.63 where some primitives would show through the globe when log depth is disabled. [#8368](https://github.com/AnalyticalGraphicsInc/cesium/pull/8368)
+
 ### 1.63 - 2019-11-01
 
-We’ve consolidated all of our website content from cesiumjs.org and cesium.com into one home on cesium.com.  Here’s where you can now find:
+##### Major Announcements :loudspeaker:
+* Cesium has migrated to ES6 modules. This may or may not be a breaking change for your application depending on how you use Cesium.  See our [blog post](https://cesium.com/blog/2019/10/31/cesiumjs-es6/) for the full details.
+* We’ve consolidated all of our website content from cesiumjs.org and cesium.com into one home on cesium.com.  Here’s where you can now find:
   * [Sandcastle](https://sandcastle.cesium.com) - `https://sandcastle.cesium.com`
   * [API Docs](https://cesium.com/docs/cesiumjs-ref-doc/) - `https://cesium.com/docs/cesiumjs-ref-doc/`
   * [Downloads](https://cesium.com/downloads/) - `https://cesium.com/downloads/`
   * Hosted releases can be found at `https://cesium.com/downloads/cesiumjs/releases/<CesiumJS Version Number>/Build/Cesium/Cesium.js`
-  * See our [Blog post](https://cesium.com/blog/2019/10/15/cesiumjs-migration/) for more information.
+  * See our [blog post](https://cesium.com/blog/2019/10/15/cesiumjs-migration/) for more information.
 
 ##### Additions :tada:
+* Decreased Web Workers bundle size by a factor of 10, from 8384KB (2624KB gzipped) to 863KB (225KB gzipped). This makes Cesium load faster, especially on low-end devices and slower network connections.
 * Added full UTF-8 support to labels, greatly improving support for non-latin alphabets and emoji. [#7280](https://github.com/AnalyticalGraphicsInc/cesium/pull/7280)
+* Added `"type": "module"` to package.json to take advantage of native ES6 module support in newer versions of Node.js. This also enables module-based front-end development for tooling that relies on Node.js module resolution.
+* The combined `Build/Cesium/Cesium.js` and `Build/CesiumUnminified/Cesium.js` have been upgraded from IIFE to UMD modules that support IIFE, AMD, and commonjs.
 * Added `pixelRatio` parameter to `OrthographicFrustum.getPixelDimensions`, `OrthographicOffCenterFrustum.getPixelDimensions`, `PerspectiveFrustum.getPixelDimensions`, and `PerspectiveOffCenterFrustum.getPixelDimensions`. Pass in `scene.pixelRatio` for dimensions in CSS pixel units or `1.0` for dimensions in native device pixel units. [#8237](https://github.com/AnalyticalGraphicsInc/cesium/pull/8237)
 
 ##### Fixes :wrench:

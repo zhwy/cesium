@@ -202,9 +202,9 @@ Copyright 2011-2019 CesiumJS Contributors
    See the License for the specific language governing permissions and
    limitations under the License.
 
-Patents 9153063 9865085
+Patents US9153063B2 US9865085B1
 
-Patents pending 15/829,786 62/701,099 62/837,358 62/837,381
+Patents pending US15/829,786 US16/516,997 US62/837,358 US62/837,381
 
 Third-Party Code
 ================
@@ -932,7 +932,8 @@ http://raphaeljs.com/license.html
 
 ### Mouse and gesture vector icons made by Freepik from Flaticon.com
 
-http://www.flaticon.com/authors/freepik
+Creative Commons Attribution 3.0
+https://web.archive.org/web/20140419110558/http://www.flaticon.com/terms-of-use
 
 ### Maki icon set from Mapbox
 
