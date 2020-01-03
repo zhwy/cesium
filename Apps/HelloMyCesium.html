@@ -86,6 +86,8 @@
                     tileMatrixSetID: "GoogleMapsCompatible"
                 })
             });
+            //3d tiles inspector
+            viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
             viewer.scene.globe.depthTestAgainstTerrain = true;
             //模型显示不完整
             viewer.scene.logarithmicDepthBuffer = false;
