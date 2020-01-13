@@ -83,8 +83,8 @@
         </div>
         <script type="module">
             /* eslint-disable */
-            import * as Cesium from '../../Source/Cesium.js';
-            window.CESIUM_BASE_URL = '../../Source';
+            import * as Cesium from "../../Source/Cesium.js";
+            window.CESIUM_BASE_URL = "../../Source";
             var viewModel = {
                 height: 0,
                 RotateX: 0,
@@ -94,10 +94,10 @@
 
             Cesium.knockout.track(viewModel);
 
-            var toolbar = document.getElementById('toolbar');
+            var toolbar = document.getElementById("toolbar");
             Cesium.knockout.applyBindings(viewModel, toolbar);
 
-            var viewer = new Cesium.Viewer('cesiumContainer', {
+            var viewer = new Cesium.Viewer("cesiumContainer", {
                 animation: false,
                 baseLayerPicker: false,
                 geocoder: false,
@@ -114,9 +114,9 @@
                 imageryProvider: new Cesium.UrlTemplateImageryProvider({
                     url:
                         // 'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', //高德
-                        'http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}', //谷歌有偏移
+                        "http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}", //谷歌有偏移
                     maximumLevel: 18,
-                    tileMatrixSetID: 'GoogleMapsCompatible'
+                    tileMatrixSetID: "GoogleMapsCompatible"
                 })
             });
             viewer.scene.globe.depthTestAgainstTerrain = true;
@@ -143,14 +143,14 @@
             );
             var rotationZZ = Cesium.Matrix4.fromRotationTranslation(rotationZ);
             Cesium.Matrix4.multiply(modelMatrix, rotationZZ, modelMatrix);
-
             var model = viewer.scene.primitives.add(
                 Cesium.Model.fromGltf({
-                    url: './guidao.glb',
-                    // url:
-                    //     '../SampleData/models/CesiumBalloon/CesiumBalloon.glb',
+                    // url: "./guidao.glb",
+                    url: "../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
                     modelMatrix: modelMatrix,
-                    debugShowBoundingVolume: true
+                    debugShowBoundingVolume: true,
+                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    scene: viewer.scene
                 })
             );
             model.readyPromise.then(function(arg) {
@@ -163,7 +163,7 @@
             var matrix = modelMatrix;
             //调整高度
             Cesium.knockout
-                .getObservable(viewModel, 'height')
+                .getObservable(viewModel, "height")
                 .subscribe(function(height) {
                     height = Number(height) - hh;
                     hh += height;
@@ -184,7 +184,7 @@
 
             //绕X旋转
             Cesium.knockout
-                .getObservable(viewModel, 'RotateX')
+                .getObservable(viewModel, "RotateX")
                 .subscribe(function(RotateX) {
                     xx = Number(RotateX);
                     if (isNaN(xx)) {
@@ -194,7 +194,7 @@
                 });
             //绕Y旋转
             Cesium.knockout
-                .getObservable(viewModel, 'RotateY')
+                .getObservable(viewModel, "RotateY")
                 .subscribe(function(RotateY) {
                     yy = Number(RotateY);
                     if (isNaN(yy)) {
@@ -204,7 +204,7 @@
                 });
             //绕Z旋转
             Cesium.knockout
-                .getObservable(viewModel, 'RotateZ')
+                .getObservable(viewModel, "RotateZ")
                 .subscribe(function(RotateZ) {
                     zz = Number(RotateZ);
                     if (isNaN(zz)) {
@@ -213,15 +213,16 @@
                     model.modelMatrix = rotate(matrix, xx, yy, zz);
                 });
 
-            setTimeout(function() {
-                viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(
-                        116.790876,
-                        36.498398,
-                        500
-                    )
-                });
-            }, 2000);
+            // setTimeout(function() {
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(
+                    116.790876,
+                    36.498398,
+                    500
+                ),
+                duration: 0
+            });
+            // }, 2000);
 
             function rotate(matrix, x, y, z) {
                 var m = matrix.clone();

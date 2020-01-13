@@ -1,7 +1,7 @@
 /* eslint-disable */
-import * as Cesium from '../../Source/Cesium.js';
-import CesiumPopup from './CesiumPopup.js';
-window.CESIUM_BASE_URL = '../../Source';
+import * as Cesium from "../../Source/Cesium.js";
+import CesiumPopup from "./CesiumPopup.js";
+window.CESIUM_BASE_URL = "../../Source";
 var CesiumMap = (function() {
     //三维视图
     var _viewer = undefined;
@@ -32,17 +32,17 @@ var CesiumMap = (function() {
     var _clickModel = undefined;
 
     //图层控制
-    var _tilesetShown = ['GD', 'JG', 'INIT'];
+    var _tilesetShown = ["GD", "JG", "INIT"];
     var _tilesetConditionDict = {
         GD: [
             "regExp('Line').test(${name}) || regExp('对象').test(${name}) || regExp('qiaodun').test(${name})",
-            'true'
+            "true"
         ], //轨道
-        JG: ['regExp("JG").test(${name})', 'true'], //结构
-        SB: ['regExp("SB").test(${name})', 'true'], //设备
-        ZX: ['regExp("ZX").test(${name})', 'true'], //装修
-        MQ: ['regExp("MQ").test(${name})', 'true'], //幕墙
-        INIT: ['true', 'false']
+        JG: ['regExp("JG").test(${name})', "true"], //结构
+        SB: ['regExp("SB").test(${name})', "true"], //设备
+        ZX: ['regExp("ZX").test(${name})', "true"], //装修
+        MQ: ['regExp("MQ").test(${name})', "true"], //幕墙
+        INIT: ["true", "false"]
     };
     var _tilesetCondition = [
         _tilesetConditionDict.GD,
@@ -61,7 +61,7 @@ var CesiumMap = (function() {
     var _roadLine = undefined; //隧道轴线
     var _startTime = Cesium.JulianDate.fromDate(new Date(2015, 2, 25, 0)); //漫游起始时刻
     var _rightStopTime, _leftStopTime; //左右线漫游终止时刻
-    var _directInfo = ''; //方向信息
+    var _directInfo = ""; //方向信息
     var _roamVelocity = 80; //漫游速度
 
     //相机相关
@@ -99,13 +99,13 @@ var CesiumMap = (function() {
     };
     //配置
     var _options = {
-        domId: 'cesiumContainer',
-        dataServerUrl: 'http://192.168.0.116:5678/yifeng',
-        dataFolder: './',
+        domId: "cesiumContainer",
+        dataServerUrl: "http://192.168.0.116:5678/yifeng",
+        dataFolder: "./",
         eagleMapFunc: () => {},
         eagleUpdateFunc: () => {},
-        webApiAddress: '',
-        key: '',
+        webApiAddress: "",
+        key: "",
         adjustTerrain: false
     };
 
@@ -167,14 +167,14 @@ var CesiumMap = (function() {
                 //高德
                 imageryProvider: new Cesium.UrlTemplateImageryProvider({
                     url:
-                        'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+                        "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
                     //                layer: "tdtVecBasicLayer",
                     //                style: "default",
                     //                format: "image/png",
                     //                tileMatrixSetID: "GoogleMapsCompatible",
                     //                show: false
                     maximumLevel: 5,
-                    tileMatrixSetID: 'GoogleMapsCompatible'
+                    tileMatrixSetID: "GoogleMapsCompatible"
                 })
                 /* imageryProvider: new Cesium.SingleTileImageryProvider({
                     url: _options.dataFolder + 'white.png',
@@ -183,6 +183,8 @@ var CesiumMap = (function() {
                     url: _options.dataServerUrl + "/terrain_tiles",
                 }), */
             });
+            //抗锯齿
+            _viewer.scene.postProcessStages.fxaa.enabled = true;
             //debug模式
             //_viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
             //_viewer.extend(Cesium.viewerCesiumInspectorMixin);
@@ -262,7 +264,7 @@ var CesiumMap = (function() {
             });
             //弹窗初始化
             _popup = new CesiumPopup({
-                id: 'mousemove',
+                id: "mousemove",
                 viewer: _viewer,
                 offsetX: 0,
                 offsetY: 15,
@@ -302,7 +304,7 @@ var CesiumMap = (function() {
      * 初始化隧道路径
      */
     var _initTunnelLine = function() {
-        $.getJSON(_options.dataFolder + 'axises.json', function(result) {
+        $.getJSON(_options.dataFolder + "axises.json", function(result) {
             if (Cesium.defined(result.features)) {
                 //var path = result.features["1"].geometry.paths[0];
                 var path = result.features[0].geometry.coordinates;
@@ -316,7 +318,7 @@ var CesiumMap = (function() {
      */
     var _flyToHome = function(completeFunc) {
         _roamMode = false;
-        if (typeof _blockPlaneSource !== 'undefined') {
+        if (typeof _blockPlaneSource !== "undefined") {
             _blockPlaneSource.show = false;
         }
         _options.eagleMapFunc(false);
@@ -357,10 +359,10 @@ var CesiumMap = (function() {
     var _initRoam = function() {
         //轨迹漫游
         _roamMode = false;
-        if (typeof _blockPlaneSource !== 'undefined') {
+        if (typeof _blockPlaneSource !== "undefined") {
             _blockPlaneSource.show = false;
         }
-        _directInfo = '上行';
+        _directInfo = "上行";
         var stop = _startTime.clone();
         _viewer.clock.startTime = _startTime.clone();
         _viewer.clock.stopTime = stop.clone();
@@ -368,7 +370,7 @@ var CesiumMap = (function() {
         _viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
         _viewer.clock.multiplier = 0;
 
-        $.getJSON(_options.dataFolder + 'roam.json', function(result) {
+        $.getJSON(_options.dataFolder + "roam.json", function(result) {
             //右车道
             var rightPP = new Cesium.SampledPositionProperty();
             var rightPoints = result.right;
@@ -466,11 +468,11 @@ var CesiumMap = (function() {
         var keydown = function(e) {
             if (_roamMode) {
                 switch (e.keyCode) {
-                    case 'W'.charCodeAt(0):
+                    case "W".charCodeAt(0):
                         _viewer.clock.multiplier =
                             _roamVelocity * cameraDirection;
                         break;
-                    case 'S'.charCodeAt(0):
+                    case "S".charCodeAt(0):
                         _viewer.clock.multiplier =
                             -_roamVelocity * cameraDirection;
                         break;
@@ -480,29 +482,29 @@ var CesiumMap = (function() {
 
                 if (_adjustTerrain) {
                     switch (e.keyCode) {
-                        case 'W'.charCodeAt(0):
+                        case "W".charCodeAt(0):
                             //_changeModelHeight(_terrainModel, 0, 0, 0.000001);
                             //lat += 0.000001;
                             break;
-                        case 'S'.charCodeAt(0):
+                        case "S".charCodeAt(0):
                             //_changeModelHeight(_terrainModel, 0, 0, -0.000001);
                             //lat -= 0.000001;
                             break;
-                        case 'A'.charCodeAt(0):
+                        case "A".charCodeAt(0):
                             //_changeModelHeight(_terrainModel, 0, -0.000001, 0);
                             //lng += 0.000001;
                             break;
-                        case 'D'.charCodeAt(0):
+                        case "D".charCodeAt(0):
                             //_changeModelHeight(_terrainModel, 0, 0.000001, 0);
                             //lng -= 0.000001;
                             break;
-                        case 'Z'.charCodeAt(0):
+                        case "Z".charCodeAt(0):
                             //_changeModelHeight(_terrainModel, -1);
                             var delta = -0.5;
                             height += delta;
                             //_changeModelPosition(testModel, 0, 0, delta, true);
                             break;
-                        case 'X'.charCodeAt(0):
+                        case "X".charCodeAt(0):
                             //_changeModelHeight(_terrainModel, 1);
                             var delta = 0.5;
                             height += delta;
@@ -513,8 +515,8 @@ var CesiumMap = (function() {
                 }
             }
         };
-        document.addEventListener('keydown', keydown);
-        window.parent.document.addEventListener('keydown', keydown);
+        document.addEventListener("keydown", keydown);
+        window.parent.document.addEventListener("keydown", keydown);
         var isTurning = false;
         _looking = false;
         var keyup = function(e) {
@@ -524,13 +526,13 @@ var CesiumMap = (function() {
                         _flyToHome();
                         _changeTips();
                         break;
-                    case 'W'.charCodeAt(0): //w
+                    case "W".charCodeAt(0): //w
                         _viewer.clock.multiplier = 0;
                         break;
-                    case 'S'.charCodeAt(0): //s
+                    case "S".charCodeAt(0): //s
                         _viewer.clock.multiplier = 0;
                         break;
-                    case 'A'.charCodeAt(0): //a
+                    case "A".charCodeAt(0): //a
                         _roamPath =
                             cameraDirection > 0
                                 ? _axisLine.left
@@ -541,10 +543,10 @@ var CesiumMap = (function() {
                         ).clone();
                         _viewer.clock.stopTime = stop.clone();
                         _viewer.clock.startTime = _startTime.clone();
-                        _directInfo = cameraDirection > 0 ? '下行' : '上行';
-                        $('#direction').text('当前位于' + _directInfo + '线');
+                        _directInfo = cameraDirection > 0 ? "下行" : "上行";
+                        $("#direction").text("当前位于" + _directInfo + "线");
                         break;
-                    case 'D'.charCodeAt(0): //d
+                    case "D".charCodeAt(0): //d
                         _roamPath =
                             cameraDirection > 0
                                 ? _axisLine.right
@@ -555,10 +557,10 @@ var CesiumMap = (function() {
                         ).clone();
                         _viewer.clock.stopTime = stop.clone();
                         _viewer.clock.startTime = _startTime.clone();
-                        _directInfo = cameraDirection > 0 ? '上行' : '下行';
-                        $('#direction').text('当前位于' + _directInfo + '线');
+                        _directInfo = cameraDirection > 0 ? "上行" : "下行";
+                        $("#direction").text("当前位于" + _directInfo + "线");
                         break;
-                    case 'R'.charCodeAt(0): //r
+                    case "R".charCodeAt(0): //r
                         var position1 = _roamPath.position
                             .getValue(_viewer.clock.currentTime)
                             .clone();
@@ -569,7 +571,7 @@ var CesiumMap = (function() {
                                 new Cesium.JulianDate()
                             )
                         );
-                        if (typeof position2 === 'undefined') {
+                        if (typeof position2 === "undefined") {
                             position2 = position1.clone();
                             position1 = _roamPath.position.getValue(
                                 Cesium.JulianDate.addSeconds(
@@ -609,7 +611,7 @@ var CesiumMap = (function() {
                             }
                         });
                         break;
-                    case 'T'.charCodeAt(0): //t
+                    case "T".charCodeAt(0): //t
                         var position1 = _roamPath.position
                             .getValue(_viewer.clock.currentTime)
                             .clone();
@@ -620,7 +622,7 @@ var CesiumMap = (function() {
                                 new Cesium.JulianDate()
                             )
                         );
-                        if (typeof position2 === 'undefined') {
+                        if (typeof position2 === "undefined") {
                             position2 = position1.clone();
                             position1 = _roamPath.position.getValue(
                                 Cesium.JulianDate.addSeconds(
@@ -664,8 +666,8 @@ var CesiumMap = (function() {
                 }
             }
         };
-        document.addEventListener('keyup', keyup);
-        window.parent.document.addEventListener('keyup', keyup);
+        document.addEventListener("keyup", keyup);
+        window.parent.document.addEventListener("keyup", keyup);
         var trackHandler = new Cesium.ScreenSpaceEventHandler(
             _viewer.scene.canvas
         );
@@ -702,7 +704,7 @@ var CesiumMap = (function() {
                     scene.pickPositionSupported &&
                     Cesium.defined(pickedObject) &&
                     Cesium.defined(pickedObject.tileset) &&
-                    pickedObject.tileset.origin == 'GD'
+                    pickedObject.tileset.origin == "GD"
                 ) {
                     var pos = scene.pickPosition(movement.position);
                     var cartesian = _wgs2gcj(pos).cartesian;
@@ -826,7 +828,7 @@ var CesiumMap = (function() {
             if (_roamMode) {
                 var seconds =
                     clock.currentTime.secondsOfDay - _startTime.secondsOfDay;
-                var side = _directInfo == '上行' ? 'right' : 'left';
+                var side = _directInfo == "上行" ? "right" : "left";
                 var position = _roamPath.position
                     .getValue(clock.currentTime)
                     .clone();
@@ -839,7 +841,7 @@ var CesiumMap = (function() {
                             new Cesium.JulianDate()
                         )
                     );
-                    if (typeof nextpos === 'undefined') {
+                    if (typeof nextpos === "undefined") {
                         nextpos = position.clone();
                         pos = _roamPath.position.getValue(
                             Cesium.JulianDate.addSeconds(
@@ -901,8 +903,8 @@ var CesiumMap = (function() {
      */
     var _switchTrackMode = function(angle) {
         _roamMode = true;
-        _directInfo = '上行';
-        if (typeof _blockPlaneSource !== 'undefined') {
+        _directInfo = "上行";
+        if (typeof _blockPlaneSource !== "undefined") {
             _blockPlaneSource.show = true;
         }
         if (_roamMode) {
@@ -949,8 +951,8 @@ var CesiumMap = (function() {
     var _mileageToString = function(mileage) {
         var start = parseInt(mileage / 1000);
         var end = mileage - start * 1000;
-        end = ('000' + end.toFixed(0)).slice(-3);
-        return 'K' + start + '+' + end;
+        end = ("000" + end.toFixed(0)).slice(-3);
+        return "K" + start + "+" + end;
     };
     /**
      * 事件绑定
@@ -984,11 +986,11 @@ var CesiumMap = (function() {
                     );
                     var heightString = cartographic.height.toFixed(2);
                     console.log(
-                        'blh:' +
+                        "blh:" +
                             longitudeString +
-                            ',' +
+                            "," +
                             latitudeString +
-                            ',' +
+                            "," +
                             heightString
                     );
                     console.log(cartesian);
@@ -998,7 +1000,7 @@ var CesiumMap = (function() {
         }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
         //鼠标移动事件
         handler.setInputAction(function(movement) {
-            document.getElementById(_options.domId).style.cursor = 'default';
+            document.getElementById(_options.domId).style.cursor = "default";
             var scene = _viewer.scene;
             if (
                 scene.mode !== Cesium.SceneMode.MORPHING &&
@@ -1017,19 +1019,19 @@ var CesiumMap = (function() {
                         ) {
                             document.getElementById(
                                 _options.domId
-                            ).style.cursor = 'pointer';
+                            ).style.cursor = "pointer";
                         }
                         if (Cesium.defined(pickedObject.tileset)) {
                             if (
-                                pickedObject.tileset.origin != 'DX' &&
-                                pickedObject.tileset.origin != 'GD'
+                                pickedObject.tileset.origin != "DX" &&
+                                pickedObject.tileset.origin != "GD"
                             ) {
-                                var name = pickedObject.getProperty('name');
+                                var name = pickedObject.getProperty("name");
                                 //var isTunnelBlock = new RegExp('YF').test(name);
                                 //if (isTunnelBlock) { //隧道
                                 document.getElementById(
                                     _options.domId
-                                ).style.cursor = 'pointer';
+                                ).style.cursor = "pointer";
                                 if (Cesium.defined(_selectModel)) {
                                     //var show = true;
                                     //if (Cesium.defined(_selectModel.tileset.style)) {
@@ -1158,7 +1160,7 @@ var CesiumMap = (function() {
      */
     var _initTerrainModel = function() {
         _terrainModel = new Cesium.Cesium3DTileset({
-            url: _options.dataServerUrl + '/terrain/tileset.json',
+            url: _options.dataServerUrl + "/terrain/tileset.json",
             show: true,
             luminanceAtZenith: 1,
             lightColor: new Cesium.Cartesian3(1, 1, 1),
@@ -1173,7 +1175,7 @@ var CesiumMap = (function() {
         //_changeModelPosition(_terrainModel, 116.839708, 36.590748, -33.2 + _originXY.height);
         _changeModelPosition(_terrainModel, 0, 0, 0);
 
-        _terrainModel.origin = 'DX';
+        _terrainModel.origin = "DX";
         _viewer.scene.primitives.add(_terrainModel);
     };
 
@@ -1186,7 +1188,7 @@ var CesiumMap = (function() {
             destroyPrimitives: true
         });
         var model = new Cesium.Cesium3DTileset({
-            url: _options.dataServerUrl + '/GD/tileset.json',
+            url: _options.dataServerUrl + "/GD/tileset.json",
             //url:'http://localhost:9002/api/folder/2847d3e291e14660813fc95fcf1ede3d/tileset.json',
             luminanceAtZenith: 1,
             lightColor: new Cesium.Cartesian3(1, 1, 1),
@@ -1198,33 +1200,33 @@ var CesiumMap = (function() {
             //loadSiblings: false,
             maximumMemoryUsage: 64
         });
-        model.origin = 'GD';
+        model.origin = "GD";
         //_changeModelHeight(model, _originXY.height)
         //_changeModelPosition(model, 116.847671, 36.589851, 150.3);
         _changeModelPosition(model, 0, 0, 0);
 
         var jgModel = new Cesium.Cesium3DTileset({
-            url: _options.dataServerUrl + '/JG/tileset.json',
+            url: _options.dataServerUrl + "/JG/tileset.json",
             luminanceAtZenith: 1,
             lightColor: new Cesium.Cartesian3(1, 1, 1),
             maximumMemoryUsage: 64
         });
-        jgModel.origin = 'JG';
+        jgModel.origin = "JG";
         jgModel.loadProgress.addEventListener(function(
             numberOfPendingRequests,
             numberOfTilesProcessing
         ) {
             if (_roamMode) {
-                $('#progress').show();
+                $("#progress").show();
                 _progress.JG += numberOfTilesProcessing;
                 var total =
                     _progress.JG + _progress.SB + _progress.MQ + _progress.ZX;
                 if (total > 99) {
                     total = 99;
                 }
-                $('#progress').text('模型切片加载中，' + total + '%');
+                $("#progress").text("模型切片加载中，" + total + "%");
             } else {
-                $('#progress').hide();
+                $("#progress").hide();
             }
         });
         jgModel.allTilesLoaded.addEventListener(function() {
@@ -1236,15 +1238,15 @@ var CesiumMap = (function() {
                     _progress.SB == 0 &&
                     _progress.ZX == 0
                 ) {
-                    $('#progress').text('模型切片加载中，100%');
+                    $("#progress").text("模型切片加载中，100%");
                     var timing = setTimeout(function() {
                         clearTimeout(timing);
-                        $('#progress').hide();
-                        $('#progress').text('模型切片加载中，0%');
+                        $("#progress").hide();
+                        $("#progress").text("模型切片加载中，0%");
                     }, 1000);
                 }
             } else {
-                $('#progress').hide();
+                $("#progress").hide();
             }
         });
         //控制显示内容
@@ -1276,7 +1278,7 @@ var CesiumMap = (function() {
         //    maximumMemoryUsage: 16
         //});
         //_changeModelPosition(sbModel, 0, 0, _originXY.dishangModelH)
-        jgModel.origin = 'JG';
+        jgModel.origin = "JG";
         _roadModel.add(model);
         _roadModel.add(jgModel);
         //_roadModel.add(mqModel);
@@ -1295,7 +1297,7 @@ var CesiumMap = (function() {
                     Cesium.defined(pickedObject)
                 ) {
                     if (Cesium.defined(pickedObject.tileset) && _roamMode) {
-                        var name = pickedObject.getProperty('name');
+                        var name = pickedObject.getProperty("name");
                         if (
                             scene.mode !== Cesium.SceneMode.MORPHING &&
                             !_looking &&
@@ -1304,15 +1306,15 @@ var CesiumMap = (function() {
                             try {
                                 if (Cesium.defined(pickedObject.tileset)) {
                                     if (
-                                        pickedObject.tileset.origin != 'DX' &&
-                                        pickedObject.tileset.origin != 'GD'
+                                        pickedObject.tileset.origin != "DX" &&
+                                        pickedObject.tileset.origin != "GD"
                                     ) {
                                         var name = pickedObject.getProperty(
-                                            'name'
+                                            "name"
                                         );
                                         document.getElementById(
                                             _options.domId
-                                        ).style.cursor = 'pointer';
+                                        ).style.cursor = "pointer";
                                         if (Cesium.defined(_clickModel)) {
                                             if (
                                                 Cesium.defined(
@@ -1394,27 +1396,27 @@ var CesiumMap = (function() {
      * */
     var _changeTips = function() {
         if (_roamMode) {
-            $('#tooltip p').text(
-                '操作提示：按W键前进；按S键后退；按A,D键切换轨道；鼠标右键转动视角；鼠标左键点击显示信息；按ESC退出漫游模式。'
+            $("#tooltip p").text(
+                "操作提示：按W键前进；按S键后退；按A,D键切换轨道；鼠标右键转动视角；鼠标左键点击显示信息；按ESC退出漫游模式。"
             );
-            $('#direction').text('当前位于' + _directInfo + '线');
-            $('#direction').show();
+            $("#direction").text("当前位于" + _directInfo + "线");
+            $("#direction").show();
         } else {
-            $('#tooltip p').text(
-                '操作提示：鼠标左键拖动，鼠标右键转动视角，鼠标滚轮缩放。鼠标左键双击模型进入漫游模式。'
+            $("#tooltip p").text(
+                "操作提示：鼠标左键拖动，鼠标右键转动视角，鼠标滚轮缩放。鼠标左键双击模型进入漫游模式。"
             );
-            $('#tooltip img').show();
-            $('#direction').hide();
+            $("#tooltip img").show();
+            $("#direction").hide();
         }
     };
     var _readModel = function(content) {
         var tileset = new Cesium.Cesium3DTileset({
-            url: _options.dataServerUrl + '/' + content + '/tileset.json',
+            url: _options.dataServerUrl + "/" + content + "/tileset.json",
             luminanceAtZenith: 1,
             lightColor: new Cesium.Cartesian3(1, 1, 1),
             maximumMemoryUsage: 64
         });
-        tileset.origin = content.replace('/', '');
+        tileset.origin = content.replace("/", "");
         var change = _tilesetsTransform[content];
         //_changeModelPosition(tileset, change[0], change[1], change[2]);
         if (_modelShownType == 0) {
@@ -1431,16 +1433,16 @@ var CesiumMap = (function() {
             numberOfTilesProcessing
         ) {
             if (_roamMode) {
-                $('#progress').show();
+                $("#progress").show();
                 _progress[cc] += numberOfTilesProcessing;
                 var total =
                     _progress.JG + _progress.SB + _progress.MQ + _progress.ZX;
                 if (total > 99) {
                     total = 99;
                 }
-                $('#progress').text('模型切片加载中，' + total + '%');
+                $("#progress").text("模型切片加载中，" + total + "%");
             } else {
-                $('#progress').hide();
+                $("#progress").hide();
             }
         });
         tileset.allTilesLoaded.addEventListener(function() {
@@ -1452,15 +1454,15 @@ var CesiumMap = (function() {
                     _progress.SB == 0 &&
                     _progress.ZX == 0
                 ) {
-                    $('#progress').text('模型切片加载中，100%');
+                    $("#progress").text("模型切片加载中，100%");
                     var timing = setTimeout(function() {
                         clearTimeout(timing);
-                        $('#progress').hide();
-                        $('#progress').text('模型切片加载中，0%');
+                        $("#progress").hide();
+                        $("#progress").text("模型切片加载中，0%");
                     }, 1000);
                 }
             } else {
-                $('#progress').hide();
+                $("#progress").hide();
             }
         });
         //}
@@ -1577,7 +1579,7 @@ var CesiumMap = (function() {
         );
         //revit模型测试
         var revitModel = new Cesium.Cesium3DTileset({
-            url: 'http://localhost:8082/revit/tileset.json',
+            url: "http://localhost:8082/revit/tileset.json",
             modelMatrix: modelMatrix,
             //luminanceAtZenith: 0.2,
             lightColor: new Cesium.Cartesian3(1, 1, 1)
@@ -1624,7 +1626,7 @@ var CesiumMap = (function() {
          */
         FlyToArea: function(lng, lat, height) {
             _roamMode = false;
-            if (typeof _blockPlaneSource !== 'undefined') {
+            if (typeof _blockPlaneSource !== "undefined") {
                 _blockPlaneSource.show = true;
             }
             _options.eagleMapFunc(false);
@@ -1669,7 +1671,7 @@ var CesiumMap = (function() {
             event.stopPropagation();
             //if (!_roamMode) {
             _flyToHome();
-            $.getJSON(_options.dataServerUrl + '/locations.json', function(
+            $.getJSON(_options.dataServerUrl + "/locations.json", function(
                 result
             ) {
                 if (name in result) {
@@ -1733,8 +1735,8 @@ var CesiumMap = (function() {
                 name = e.value;
             }
             if (_modelShownType == 1) {
-                value = 'dixia' + e.value;
-                name = 'dixia/' + e.value;
+                value = "dixia" + e.value;
+                name = "dixia/" + e.value;
             }
 
             if (_modelShownType == 2) {
@@ -1756,20 +1758,20 @@ var CesiumMap = (function() {
          * 切换地上地下模型
          * */
         ShowModel: function(type) {
-            var dishang = ['JG', 'MQ', 'SB', 'ZX'];
-            var dixia = ['dixia/JG', 'dixia/MQ', 'dixia/ZX'];
+            var dishang = ["JG", "MQ", "SB", "ZX"];
+            var dixia = ["dixia/JG", "dixia/MQ", "dixia/ZX"];
             _modelShownType = type;
             if (type == 0) {
                 //显示地上站，删除地下
                 dixia.forEach(function(item) {
-                    var name = item.replace('/', '');
+                    var name = item.replace("/", "");
                     if (_roadModel.contains(_tilesets[name])) {
                         _roadModel.remove(_tilesets[name]);
                         //_tilesets[name].show = false;
                     }
                 });
-                $('#selector')[0].children[0][0].disabled = '';
-                var item = 'JG';
+                $("#selector")[0].children[0][0].disabled = "";
+                var item = "JG";
                 //dishang.forEach(function (item) {
                 if (!_roadModel.contains(_tilesets[item])) {
                     _tilesets[item] = _readModel(item);
@@ -1781,7 +1783,7 @@ var CesiumMap = (function() {
             }
             if (type == 1) {
                 //显示地下站，删除地上
-                $('#selector')[0].children[0][0].disabled = 'disabled'; //地下站均无设备
+                $("#selector")[0].children[0][0].disabled = "disabled"; //地下站均无设备
                 _terrainModel.show = false;
                 dishang.forEach(function(item) {
                     if (_roadModel.contains(_tilesets[item])) {
@@ -1790,8 +1792,8 @@ var CesiumMap = (function() {
                     }
                 });
                 //dixia.forEach(function (item) {
-                var item = 'dixia/JG';
-                var name = item.replace('/', '');
+                var item = "dixia/JG";
+                var name = item.replace("/", "");
                 if (!_roadModel.contains(_tilesets[name])) {
                     _tilesets[name] = _readModel(item);
                     _roadModel.add(_tilesets[name]);
@@ -1809,7 +1811,7 @@ var CesiumMap = (function() {
                     }
                 });
                 dixia.forEach(function(item) {
-                    var name = item.replace('/', '');
+                    var name = item.replace("/", "");
                     if (_roadModel.contains(_tilesets[name])) {
                         _roadModel.remove(_tilesets[name]);
                         //_tilesets[name].show = false;

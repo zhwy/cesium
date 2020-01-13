@@ -10,7 +10,7 @@
             name="viewport"
             content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
         />
-        <title>Hello World!</title>
+        <title>Geometry</title>
         <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
         <style>
             @import url(../../Build/Cesium/Widgets/widgets.css);
@@ -29,8 +29,8 @@
         <div id="cesiumContainer"></div>
         <script type="module">
             /* eslint-disable no-undef */
-            import * as Cesium from '../../Source/Cesium.js';
-            window.CESIUM_BASE_URL = '../../Source';
+            import * as Cesium from "../../Source/Cesium.js";
+            window.CESIUM_BASE_URL = "../../Source";
             function TetrahedronGeometry() {
                 var negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
                 var negativeOneThird = -1.0 / 3.0;
@@ -112,7 +112,7 @@
                 //this.boundingSphere = Cesium.BoundingSphere.fromVertices(positions);
             }
 
-            var cesiumWidget = new Cesium.CesiumWidget('cesiumContainer');
+            var cesiumWidget = new Cesium.CesiumWidget("cesiumContainer");
             var scene = cesiumWidget.scene;
             var ellipsoid = cesiumWidget.scene.globe.ellipsoid;
 
