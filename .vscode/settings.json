@@ -19,11 +19,6 @@
     "files.associations": {
         "*.czml": "json"
     },
-    "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
-    "editor.insertSpaces": true,
-    "editor.tabSize": 4,
-    "editor.detectIndentation": false,
     "eslint.enable": true,
     "javascript.format.insertSpaceAfterCommaDelimiter": true,
     "javascript.format.insertSpaceAfterSemicolonInForStatements": true,
@@ -34,8 +29,5 @@
     "javascript.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
     "javascript.format.placeOpenBraceOnNewLineForFunctions": false,
     "javascript.format.placeOpenBraceOnNewLineForControlBlocks": false,
-    "javascript.preferences.quoteStyle": "single",
-    "typescript.preferences.quoteStyle": "single",
-    "prettier.singleQuote": true,
-    "prettier.jsxSingleQuote": true
+    "glTF.defaultV2Engine": "Cesium"
 }
