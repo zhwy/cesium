@@ -1403,7 +1403,7 @@ Resource.prototype._makeRequest = function(options) {
             });
     }
     if (
-        defined(window._indexDbCache) &&
+        typeof window != "undefined" && defined(window._indexDbCache) &&
         (resource.url.indexOf('3dm') >= 0 || resource.url.indexOf('gltf') >= 0)
     ) {
         console.log(resource.url);
@@ -2038,8 +2038,8 @@ Resource._Implementations.createImage = function(
                         deferred.reject(
                             new RuntimeError(
                                 'Successfully retrieved ' +
-                                    url +
-                                    ' but it contained no content.'
+                                url +
+                                ' but it contained no content.'
                             )
                         );
                         return;
@@ -2264,7 +2264,7 @@ Resource._Implementations.loadWithXhr = function(
                     data: response
                 });
                 dbpromise.then(
-                    function() {},
+                    function() { },
                     function(error) {
                         console.log(error.data);
                         console.log(error.message);
