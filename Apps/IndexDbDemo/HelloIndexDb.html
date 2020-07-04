@@ -1,69 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <!-- Use correct character set. -->
-        <meta charset="utf-8" />
-        <!-- Tell IE to use the latest, best version. -->
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-        />
-        <title>Hello IndexDb!</title>
-        <style>
-            @import url(../../Build/Cesium/Widgets/widgets.css);
-            html,
-            body,
-            #cesiumContainer {
-                width: 100%;
-                height: 100%;
-                margin: 0;
-                padding: 0;
-                overflow: hidden;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="cesiumContainer"></div>
-        <script type="module">
-            import IndexedDbCache from './indexDbCache.js';
-            import Test from './test.js';
-            /* eslint-disable */
-            var keys = {
-                fenji2: function(url) {
-                    return url
-                        .replace('http://localhost:8082/fenji2', '')
-                        .replace(/\//g, '_')
-                        .replace('.', '');
-                },
-                yifeng: function(url) {
-                    return url
-                        .replace('http://localhost:8081/indexDbTest', '')
-                        .replace(/\//g, '_')
-                        .replace('.', '')
-                        .replace('-', '')
-                        .replace('?v=1.0.0-obj23dtiles', '');
-                },
-                revit: function(url) {
-                    var i = url.indexOf('?');
-                    return url
-                        .slice(0, i)
-                        .replace('http://localhost:8082/revit', '')
-                        .replace(/\//g, '_')
-                        .replace('.', '');
-                },
-            };
-            window._indexDbCache = new IndexedDbCache(
-                'test_cache',
-                3,
-                'test',
-                keys['fenji2'],
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Hello IndexDb!</title>
+    <style>
+      @import url(../../Build/Cesium/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import IndexedDbCache from "./indexDbCache.js";
+      import * as Cesium from "../../Source/Cesium.js";
+      window.CESIUM_BASE_URL = "../../Source";
+      /* eslint-disable */
+      var replaceUrl = function (url) {
+        return url.replace(
+          "http://localhost:8080/Apps/SampleData/Cesium3DTiles/Tilesets/Tileset/",
+          ""
+        );
+      };
+      window._indexDbCache = new IndexedDbCache(
+        "test_cache",
+        1,
+        "test",
+        replaceUrl
+      );
+      var promise = _indexDbCache.initDb();
+      var viewer;
+      promise.then(
+        function () {
+          viewer = new Cesium.Viewer("cesiumContainer", {
+            shadows: true,
+          });
+          var tileset = viewer.scene.primitives.add(
+            new Cesium.Cesium3DTileset({
+              url: "../SampleData/Cesium3DTiles/Tilesets/Tileset/tileset.json",
+            })
+          );
+          tileset.readyPromise.then(function () {
+            viewer.zoomTo(
+              tileset,
+              new Cesium.HeadingPitchRange(
+                0,
+                -2.0,
+                Math.max(100.0 - tileset.boundingSphere.radius, 0.0)
+              )
             );
-            var a = _indexDbCache.initDb();
-            Test();
-            a.then(function() {}, function() {});
-        </script>
-        <script></script>
-    </body>
+          });
+        },
+        function (mes) {
+          alert(mes);
+        }
+      );
+    </script>
+    <script></script>
+  </body>
 </html>

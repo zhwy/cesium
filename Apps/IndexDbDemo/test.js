@@ -65,7 +65,7 @@ function Test() {
                     destination: _originCamera.position,
                     orientation: _originCamera.direction,
                     duration: 0.1,
-                    complete: function() {}
+                    complete: function() { }
                 });
             }
         });
