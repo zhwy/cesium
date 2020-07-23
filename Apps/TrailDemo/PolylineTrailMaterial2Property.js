@@ -3,94 +3,78 @@
 
 /* eslint-disable */
 export class PolylineTrailMaterial2Property {
+  constructor(options) {
+    options = Cesium.defaultValue(options, Cesium.defaultValue.EMPTY_OBJECT);
 
-    constructor(options) {
+    this._definitionChanged = new Cesium.Event();
 
-        options = Cesium.defaultValue(options, Cesium.defaultValue.EMPTY_OBJECT);
+    this._color = undefined;
 
-        this._definitionChanged = new Cesium.Event();
+    this._colorSubscription = undefined;
 
-        this._color = undefined;
+    this.color = options.color;
 
-        this._colorSubscription = undefined;
+    this.duration = options.duration;
 
-        this.color = options.color;
+    this.trailImage = options.trailImage;
 
-        this.duration = options.duration;
+    this._time = performance.now();
 
-        this.trailImage = options.trailImage;
-
-        this._time = performance.now();
-
-        this.repeat = options.repeat;
-
-    }
-
+    this.repeat = options.repeat;
+  }
 }
 
 Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
-
-    isConstant: {
-
-        get: function() {
-
-            return false;
-
-        }
-
+  isConstant: {
+    get: function () {
+      return false;
     },
+  },
 
-    definitionChanged: {
-
-        get: function() {
-
-            return this._definitionChanged;
-
-        }
-
+  definitionChanged: {
+    get: function () {
+      return this._definitionChanged;
     },
+  },
 
-    color: Cesium.createPropertyDescriptor('color')
-
+  color: Cesium.createPropertyDescriptor("color"),
 });
 
-PolylineTrailMaterial2Property.prototype.getType = function(time) {
+PolylineTrailMaterial2Property.prototype.getType = function (time) {
+  return "PolylineTrail2";
+};
 
-    return 'PolylineTrail2';
+PolylineTrailMaterial2Property.prototype.getValue = function (time, result) {
+  if (!Cesium.defined(result)) {
+    result = {};
+  }
 
-}
+  result.color = Cesium.Property.getValueOrClonedDefault(
+    this._color,
+    time,
+    Cesium.Color.WHITE,
+    result.color
+  );
 
-PolylineTrailMaterial2Property.prototype.getValue = function(time, result) {
+  result.image = Cesium.Material.PolylineTrailImage2;
 
-    if (!Cesium.defined(result)) {
+  // result.image = this.trailImage;
 
-        result = {};
+  result.time =
+    ((performance.now() - this._time) % this.duration) / this.duration;
 
-    }
+  return result;
+};
 
-    result.color = Cesium.Property.getValueOrClonedDefault(this._color, time, Cesium.Color.WHITE, result.color);
+PolylineTrailMaterial2Property.prototype.equals = function (other) {
+  return (
+    this === other ||
+    (other instanceof PolylineTrailMaterial2Property &&
+      Cesium.Property.equals(this._color, other._color))
+  );
+};
 
-    result.image = Cesium.Material.PolylineTrailImage2;
-
-    // result.image = this.trailImage;
-
-    result.time = ((performance.now() - this._time) % this.duration) / this.duration;
-
-    return result;
-
-}
-
-PolylineTrailMaterial2Property.prototype.equals = function(other) {
-
-    return this === other ||
-
-        (other instanceof PolylineTrailMaterial2Property &&
-
-            Cesium.Property.equals(this._color, other._color))
-
-}
-
-Cesium.Material.PolylineTrailType2 = 'PolylineTrail2';
+Cesium.Material.PolylineTrailType2 = "PolylineTrail2";
 
 Cesium.Material.PolylineTrailImage2 = "./red.png";
 
@@ -114,39 +98,27 @@ Cesium.Material.PolylineTrailSource2 = `czm_material czm_getMaterial(czm_materia
 } `;
 
 Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
+  fabric: {
+    type: Cesium.Material.PolylineTrailType2,
 
-    fabric: {
+    uniforms: {
+      color: new Cesium.Color(1.0, 0.0, 0.0, 1),
 
-        type: Cesium.Material.PolylineTrailType2,
+      image: Cesium.Material.PolylineTrailImage2,
 
-        uniforms: {
+      time: 0,
 
-            color: new Cesium.Color(1.0, 0.0, 0.0, 1),
+      duration: 1000,
 
-            image: Cesium.Material.PolylineTrailImage2,
-
-            time: 0,
-
-            duration: 1000,
-
-            repeat: 1
-
-        },
-
-        source: Cesium.Material.PolylineTrailSource2
-
+      repeat: 1,
     },
 
-    translucent: function(material) {
+    source: Cesium.Material.PolylineTrailSource2,
+  },
 
-        return true;
-
-    }
-
+  translucent: function (material) {
+    return true;
+  },
 });
 
 Cesium.PolylineTrailMaterial2Property = PolylineTrailMaterial2Property;
-
-
-
-
