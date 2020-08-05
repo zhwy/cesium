@@ -30,5 +30,8 @@
     "javascript.format.placeOpenBraceOnNewLineForFunctions": false,
     "javascript.format.placeOpenBraceOnNewLineForControlBlocks": false,
     "glTF.defaultV2Engine": "Cesium",
-    "vetur.format.defaultFormatter.ts": "none"
+    "vetur.format.defaultFormatter.ts": "none",
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true
 }
