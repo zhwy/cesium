@@ -1,15 +1,25 @@
 # Change Log
 
+### 1.73 - 2020-09-01
+
+##### Fixes :wrench:
+
+- Fixed several artifcats on mobile devices caused by using insufficient precision. [#9064](https://github.com/CesiumGS/cesium/pull/9064)
+
 ### 1.72 - 2020-08-03
 
 ##### Breaking Changes :mega:
 
 - CesiumJS no longer ships with a default Mapbox access token and Mapbox imagery layers have been removed from the `BaseLayerPicker` defaults. If you are using `MapboxImageryProvider` or `MapboxStyleImageryProvider`, use `options.accessToken` when initializing the imagery provider.
 
+##### Additions :tada:
+
+- Added support for glTF multi-texturing via `TEXCOORD_1`. [#9075](https://github.com/CesiumGS/cesium/pull/9075)
+
 ##### Deprecated :hourglass_flowing_sand:
 
 - `MapboxApi.defaultAccessToken` was deprecated and will be removed in CesiumJS 1.73. Pass your access token directly to the MapboxImageryProvider or MapboxStyleImageryProvider constructors.
-- `BingMapxApi` was deprecated and will be removed in CesiumJS 1.73. Pass your access key directly to the BingMapsImageryProvider or BingMapsGeocoderService constructors.
+- `BingMapsApi` was deprecated and will be removed in CesiumJS 1.73. Pass your access key directly to the BingMapsImageryProvider or BingMapsGeocoderService constructors.
 
 ##### Fixes :wrench:
 
@@ -22,6 +32,7 @@
 - Fixed `translucencyByDistance` for label outline color [#9003](https://github.com/CesiumGS/cesium/pull/9003)
 - Fixed return value for `SampledPositionProperty.removeSample` [#9017](https://github.com/CesiumGS/cesium/pull/9017)
 - Fixed issue where wall doesn't have correct texture coordinates when there are duplicate positions input [#9042](https://github.com/CesiumGS/cesium/issues/9042)
+- Fixed an issue where clipping planes would not clip at the correct distances on some Android devices, most commonly reproducible on devices with `Mali` GPUs that do not support float textures via WebGL [#9023](https://github.com/CesiumGS/cesium/issues/9023)
 
 ### 1.71 - 2020-07-01
 
