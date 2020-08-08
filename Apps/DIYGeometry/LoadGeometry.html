@@ -11,7 +11,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
     <title>Geometry</title>
-    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
+    <script src="../../Build/Cesium/Cesium.js"></script>
     <style>
       @import url(../../Build/Cesium/Widgets/widgets.css);
       html,
@@ -27,10 +27,11 @@
   </head>
   <body>
     <div id="cesiumContainer"></div>
-    <script type="module">
+    <script src="./PolylineTrailMaterial2Property.js"></script>
+    <script>
       /* eslint-disable no-undef */
-      import * as Cesium from "../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../Source";
+      // import * as Cesium from "../../Source/Cesium.js";
+      // window.CESIUM_BASE_URL = "../../Source";
       function TetrahedronGeometry() {
         var negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
         var negativeOneThird = -1.0 / 3.0;
@@ -147,11 +148,55 @@
           geometryInstances: instance,
           appearance: new Cesium.PerInstanceColorAppearance({
             flat: true,
-            translucent: false,
+            translucent: true,
           }),
           asynchronous: false,
         })
       );
+
+      //线
+      var material = Cesium.Material.fromType(
+        Cesium.Material.PolylineTrailType2,
+        {
+          color: new Cesium.Color(1, 1, 1, 0.01),
+          duration: 100,
+          image: "./red.png",
+          repeat: 1,
+        }
+      );
+      var trail, trail2;
+      trail = scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: new Cesium.GeometryInstance({
+            geometry: new Cesium.PolylineGeometry({
+              positions: Cesium.Cartesian3.fromDegreesArray([
+                -100,
+                40,
+                100,
+                40,
+              ]),
+              width: 3,
+            }),
+          }),
+          appearance: new Cesium.PolylineMaterialAppearance({
+            material: material,
+          }),
+          // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+          //   material: Cesium.Material.fromType("Color"),
+          // }),
+          depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+            material: material,
+          }),
+        })
+      );
+      scene.preRender.addEventListener(() => {
+        if (
+          trail &&
+          trail.appearance.material &&
+          trail.appearance.material.uniforms
+        )
+          trail.appearance.material.uniforms.time++;
+      });
     </script>
   </body>
 </html>
