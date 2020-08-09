@@ -1,6 +1,6 @@
 /* eslint-disable */
-import * as Cesium from "../../Source/Cesium.js";
-window.CESIUM_BASE_URL = "../../Source";
+import * as Cesium from "../../../Source/Cesium.js";
+window.CESIUM_BASE_URL = "../../../Source";
 function Test() {
   var _originXY = {
     lng: 116.790876,
@@ -57,15 +57,15 @@ function Test() {
   //模型显示不完整
   viewer.scene.logarithmicDepthBuffer = false;
   //viewer.scene.farToNearRatio = 1;
-  setTimeout(function () {
+  setTimeout(function() {
     viewer.camera.flyTo({
       destination: _originCamera.position,
-      complete: function () {
+      complete: function() {
         viewer.camera.flyTo({
           destination: _originCamera.position,
           orientation: _originCamera.direction,
           duration: 0.1,
-          complete: function () {},
+          complete: function() { },
         });
       },
     });
@@ -113,7 +113,7 @@ function Test() {
   viewer.scene.primitives.add(_roadModel);
 
   var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  handler.setInputAction(function (movement) {
+  handler.setInputAction(function(movement) {
     var scene = viewer.scene;
     if (scene.mode !== Cesium.SceneMode.MORPHING) {
       var pickedObject = scene.pick(movement.position);
@@ -127,7 +127,7 @@ function Test() {
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
   function _changeModelPosition(tileset, lng, lat, height, adjust) {
-    tileset.readyPromise.then(function (argument) {
+    tileset.readyPromise.then(function(argument) {
       var mat = Cesium.Matrix4.fromArray(tileset._root.transform);
       var pos = Cesium.Matrix4.getTranslation(mat, new Cesium.Cartesian3());
       var wpos = Cesium.Cartographic.fromCartesian(pos);

@@ -11,9 +11,8 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
     <title>水面效果</title>
-    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
     <style>
-      @import url(../../Build/Cesium/Widgets/widgets.css);
+      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
       html,
       body,
@@ -32,8 +31,8 @@
     <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
     <script type="module">
       /* eslint-disable*/
-      import * as Cesium from "../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../Source";
+      import * as Cesium from "../../../Source/Cesium.js";
+      window.CESIUM_BASE_URL = "../../../Source";
       var viewer = new Cesium.Viewer("cesiumContainer", {
         terrainProvider: new Cesium.CesiumTerrainProvider({
           url: "https://localhost:8003/三维河道/terrain2",
@@ -61,7 +60,7 @@
                 // specularMap: "../images/earthspec1k.jpg",
                 normalMap: "./waterNormals.jpg",
                 frequency: 10000.0,
-                animationSpeed: 0,
+                animationSpeed: 0.01,
                 amplitude: 0.5,
                 baseWaterColor: new Cesium.Color(
                   25 / 255,

@@ -10,10 +10,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>GLTF Model Demo</title>
+    <title>GLTF Model</title>
     <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
     <style>
-      @import url(../../Build/Cesium/Widgets/widgets.css);
+      @import url(../../../Build/Cesium/Widgets/widgets.css);
       html,
       body,
       #cesiumContainer {
@@ -83,8 +83,8 @@
     </div>
     <script type="module">
       /* eslint-disable */
-      import * as Cesium from "../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../Source";
+      import * as Cesium from "../../../Source/Cesium.js";
+      window.CESIUM_BASE_URL = "../../../Source";
       var viewModel = {
         height: 0,
         RotateX: 0,
@@ -113,8 +113,8 @@
         //高德
         imageryProvider: new Cesium.UrlTemplateImageryProvider({
           url:
-            // 'https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', //高德
-            "http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}", //谷歌有偏移
+            "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", //高德
+          // "http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}", //谷歌有偏移
           maximumLevel: 18,
           tileMatrixSetID: "GoogleMapsCompatible",
         }),
@@ -123,10 +123,10 @@
 
       //计算（0,0）经纬度
       var realOrigin = calculateOrigin(
-        29945.5016, //图纸坐标
-        31119.6283,
-        // 29960.5016, //调整到地图，对不齐
-        // 31009.6283,
+        // 29945.5016, //图纸坐标
+        // 31119.6283,
+        29960.5016, //调整到地图，对不齐
+        31009.6283,
         116.790876,
         36.498398
       );
@@ -141,10 +141,11 @@
       var rotationZ = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(0));
       var rotationZZ = Cesium.Matrix4.fromRotationTranslation(rotationZ);
       Cesium.Matrix4.multiply(modelMatrix, rotationZZ, modelMatrix);
+
       var model = viewer.scene.primitives.add(
         Cesium.Model.fromGltf({
           // url: "./guidao.glb",
-          url: "../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
+          url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
           modelMatrix: modelMatrix,
           debugShowBoundingVolume: true,
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
@@ -152,7 +153,10 @@
         })
       );
       model.readyPromise.then(function (arg) {
-        // debugger;
+        viewer.camera.flyTo({
+          duration: 0,
+          destination: carte,
+        });
       });
       var hh = 0,
         xx = 0,
@@ -207,13 +211,6 @@
           model.modelMatrix = rotate(matrix, xx, yy, zz);
         });
 
-      // setTimeout(function() {
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 500),
-        duration: 0,
-      });
-      // }, 2000);
-
       function rotate(matrix, x, y, z) {
         var m = matrix.clone();
         var m1 = Cesium.Matrix3.fromRotationX(Cesium.Math.toRadians(xx));
@@ -223,6 +220,8 @@
         var m3 = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(zz));
         return Cesium.Matrix4.multiplyByMatrix3(m, m3, new Cesium.Matrix4());
       }
+
+      //计算原点（0，0）经纬度
       function calculateOrigin(x, y, lng, lat) {
         //x方向
         var carto = new Cesium.Cartographic(

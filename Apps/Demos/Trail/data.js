@@ -16,23 +16,14 @@ const czml = [
       "<p>Hang gliding flight log data from Daniel H. Friedman.<br>Icon created by Larisa Skosyrska from the Noun Project</p>",
     availability: "2012-08-04T10:00:00Z/2012-08-04T15:00:00Z",
     path: {
-      material: Cesium.Material.fromType(
-        Cesium.Material.PolylineTrailType2,
-        {
-          color: new Cesium.Color(0.5, 0, 1, 0.5),
-          duration: 1000,
-          image: "./red.png",
-          repeat: 1,
-        }
-      ),
-      // material: {
-      //   image: {
-      //     image: { uri: "./red.png" },
-      //     color: {
-      //       rgba: [255, 255, 255, 128],
-      //     },
-      //   },
-      // },
+      material: {
+        image: {
+          image: { uri: "./red.png" },
+          color: {
+            rgba: [255, 255, 255, 128],
+          },
+        },
+      },
       width: 5,
       leadTime: 0,
       trailTime: 100,
@@ -45,6 +36,9 @@ const czml = [
       eyeOffset: {
         cartesian: [0.0, 0.0, -10.0],
       },
+      color: {
+        rgba: [255, 0, 0, 255],
+      }
     },
     position: {
       epoch: "2012-08-04T10:00:00Z",

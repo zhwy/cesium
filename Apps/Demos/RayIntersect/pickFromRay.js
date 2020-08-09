@@ -1,4 +1,4 @@
-import * as Cesium from "../../Source/Cesium.js";
+import * as Cesium from "../../../Source/Cesium.js";
 class PickFromRay {
   constructor(viewer, objectsToExclude) {
     this.viewer = viewer;
@@ -115,7 +115,7 @@ class PickFromRay {
         viewPointWebMercator.x,
         viewPointWebMercator.y + radius * Math.cos(radians),
         Cesium.Cartographic.fromCartesian(viewPoint).height +
-          radius * Math.sin(radians)
+        radius * Math.sin(radians)
       );
       // 投影坐标转世界坐标
       toPoint = webMercatorProjection.unproject(toPoint);
