@@ -36,14 +36,15 @@
 
     var viewer = new Cesium.Viewer("cesiumContainer");
     viewer.scene.debugShowFramesPerSecond = true;
-    let supportsImageRenderingPixelated = this.viewer.cesiumWidget
+    viewer.targetFrameRate = 60;
+    var supportsImageRenderingPixelated = viewer.cesiumWidget
       ._supportsImageRenderingPixelated;
     if (supportsImageRenderingPixelated) {
-      let vtxf_dpr = window.devicePixelRatio;
+      var vtxf_dpr = window.devicePixelRatio;
       while (vtxf_dpr >= 2.0) {
         vtxf_dpr /= 2.0;
       }
-      this.viewer.resolutionScale = vtxf_dpr;
+      viewer.resolutionScale = vtxf_dpr;
     }
 
     var material = Cesium.Material.fromType(
