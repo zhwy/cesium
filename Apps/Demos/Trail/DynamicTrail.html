@@ -62,9 +62,15 @@
         var instances = [];
         ds.entities.values.forEach((entity, i) => {
           if (i == 0) {
+            var pos = Cesium.Cartographic.fromCartesian(entity.polyline.positions.getValue()[0]);
             viewer.camera.flyTo({
               duration: 0,
-              destination: entity.polyline.positions.getValue()[0]
+              destination: new Cesium.Cartesian3.fromRadians(pos.longitude, pos.latitude, 50000),
+              orientation: {
+                heading: Cesium.Math.toRadians(-35),
+                pitch: Cesium.Math.toRadians(-45),
+                roll: 0
+              }
             })
           }
           var geo = new Cesium.PolylineGeometry({
