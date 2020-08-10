@@ -20,6 +20,8 @@ function PolylineTrailMaterial2Property(options) {
   this._time = performance.now();
 
   this.repeat = options.repeat || 1;
+
+  this.length = options.length || 1;
 }
 
 Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
@@ -90,6 +92,8 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
       duration: 1000,
 
       repeat: 1,
+
+      length: 1
     },
 
     source: `czm_material czm_getMaterial(czm_materialInput materialInput)    
@@ -101,7 +105,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
 
     float _time = ( time - (duration * floor(time / duration) ) ) / duration;
 
-    vec4 colorImage = texture2D(image, vec2(fract(st.s * repeat - _time * repeat), st.t));        
+    vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t));        
 
     material.alpha = colorImage.a + color.a;
 
