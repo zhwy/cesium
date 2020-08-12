@@ -1,30 +1,27 @@
-// 作者：happy_port
-// 链接：https://www.jianshu.com/p/193b8ea734cd
-
 /* eslint-disable */
-function PolylineTrailMaterial2Property(options) {
+function PolylineTimeTrailMaterialProperty(options) {
   options = Cesium.defaultValue(options, Cesium.defaultValue.EMPTY_OBJECT);
 
   this._definitionChanged = new Cesium.Event();
 
   this._color = undefined;
 
-  this._colorSubscription = undefined;
-
   this.color = options.color || new Cesium.Color(1, 1, 1, 1);
 
   this.duration = options.duration || 10;
 
-  this.trailImage = options.trailImage || Cesium.Material.PolylineTrailImage2;
+  this.trailImage = options.trailImage || Cesium.Material.PolylineTimeTrailImage;
 
   this._time = performance.now();
 
   this.repeat = options.repeat || 1;
 
   this.length = options.length || 1;
+
+  this.times = options.times || [];
 }
 
-Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
+Cesium.defineProperties(PolylineTimeTrailMaterialProperty.prototype, {
   isConstant: {
     get: function() {
       return false;
@@ -40,11 +37,11 @@ Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
   color: Cesium.createPropertyDescriptor("color"),
 });
 
-PolylineTrailMaterial2Property.prototype.getType = function(time) {
-  return "PolylineTrail2";
+PolylineTimeTrailMaterialProperty.prototype.getType = function(time) {
+  return "PolylineTimeTrail";
 };
 
-PolylineTrailMaterial2Property.prototype.getValue = function(time, result) {
+PolylineTimeTrailMaterialProperty.prototype.getValue = function(time, result) {
   if (!Cesium.defined(result)) {
     result = {};
   }
@@ -56,7 +53,7 @@ PolylineTrailMaterial2Property.prototype.getValue = function(time, result) {
     result.color
   );
 
-  result.image = Cesium.Material.PolylineTrailImage2;
+  result.image = Cesium.Material.PolylineTimeTrailImage;
 
   // result.image = this.trailImage;
 
@@ -66,26 +63,26 @@ PolylineTrailMaterial2Property.prototype.getValue = function(time, result) {
   return result;
 };
 
-PolylineTrailMaterial2Property.prototype.equals = function(other) {
+PolylineTimeTrailMaterialProperty.prototype.equals = function(other) {
   return (
     this === other ||
-    (other instanceof PolylineTrailMaterial2Property &&
+    (other instanceof PolylineTimeTrailMaterialProperty &&
       Cesium.Property.equals(this._color, other._color))
   );
 };
 
-Cesium.Material.PolylineTrailType2 = "PolylineTrail2";
+Cesium.Material.PolylineTimeTrailType = "PolylineTimeTrail";
 
-Cesium.Material.PolylineTrailImage2 = "./red.png";
+Cesium.Material.PolylineTimeTrailImage = "./red.png";
 
-Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
+Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType, {
   fabric: {
-    type: Cesium.Material.PolylineTrailType2,
+    type: Cesium.Material.PolylineTimeTrailType,
 
     uniforms: {
       color: new Cesium.Color(1.0, 0.0, 0.0, 1),
 
-      image: Cesium.Material.PolylineTrailImage2,
+      image: Cesium.Material.PolylineTimeTrailImage,
 
       time: 0,
 
@@ -93,7 +90,9 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
 
       repeat: 1,
 
-      length: 1
+      length: 1,
+
+      times: "[]"
     },
 
     source: `czm_material czm_getMaterial(czm_materialInput materialInput)    
@@ -123,4 +122,4 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
   },
 });
 
-Cesium.PolylineTrailMaterial2Property = PolylineTrailMaterial2Property;
+Cesium.PolylineTimeTrailMaterialProperty = PolylineTimeTrailMaterialProperty;
