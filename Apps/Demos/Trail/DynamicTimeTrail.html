@@ -54,6 +54,7 @@
 
 
     promise.then(res => {
+      debugger
       res = JSON.parse(res);
       var instances = [];
       res.forEach((data, i) => {
