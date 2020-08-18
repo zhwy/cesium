@@ -47,7 +47,7 @@
       viewer.resolutionScale = vtxf_dpr;
     }
 
-    var trails = [];
+    var trails = [], cameraPos = null;
     var promise = Cesium.Resource.fetch({
       url: "./ais.json"
     });
@@ -55,14 +55,17 @@
 
     promise.then(res => {
       debugger
-      res = JSON.parse(res);
       var instances = [];
+      res = JSON.parse(res);
+      res = preProcess(res);
       res.forEach((data, i) => {
         var coords = data.path;
 
         var positions = coords.map(coord => {
           return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 0);
-        })
+        });
+        if (i == Math.floor(res.length / 2)) cameraPos = positions[0];
+
         var geo = new Cesium.PolylineGeometry({
           positions: positions,
           width: 1,
@@ -71,7 +74,10 @@
           geometry: geo
         })
         instances.push(instance);
-        let times = data.timestamps;
+        var fisrt = data.timestamps[0];
+        let times = data.timestamps.map(time => {
+          return (time - fisrt) / 1000
+        });
 
         var material = Cesium.Material.fromType(
           Cesium.Material.PolylineTimeTrailType,
@@ -106,10 +112,10 @@
       });
       viewer.camera.flyTo({
         duration: 0,
-        destination: new Cesium.Cartesian3(1338961.0616347308, -4657267.370001955, 4137298.189785462),
+        destination: new Cesium.Cartesian3(-2901081.4913666034, 4623900.97000167, 3291169.5259287623),
         orientation: {
-          heading: 5.984184,
-          pitch: -0.439199,
+          heading: 3.9167362,
+          pitch: -0.351147,
           roll: 0
         }
       })
@@ -122,14 +128,16 @@
         if (ship.mmsi != data.mmsi) {
           if (ship.mmsi) ships.push(ship);
           ship = {
-            path: [[ship.lon, ship.lat]],
-            timestamps: [(new Date(ship.time)).getTime()]
+            path: [[data.lon, data.lat]],
+            timestamps: [(new Date(data.time)).getTime()],
+            mmsi: data.mmsi
           }
         } else {
-          ship.path.push([ship.lon, ship.lat])
-          ship.path.timestamps.push((new Date(ship.time)).getTime())
+          ship.path.push([data.lon, data.lat])
+          ship.timestamps.push((new Date(data.time)).getTime())
         }
       })
+      return ships;
     }
 
   </script>
