@@ -92,7 +92,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
       length: 1,
 
-      times: "[]"
+      // times: []
     },
 
     source: `czm_material czm_getMaterial(czm_materialInput materialInput)    
@@ -116,7 +116,6 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
 } `,
   },
-
   translucent: function(material) {
     return true;
   },
