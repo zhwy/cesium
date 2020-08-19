@@ -34,6 +34,13 @@
     Cesium.Ion.defaultAccessToken =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
+    var vertexSource = (function(filePath) {
+      var request = new XMLHttpRequest();
+      request.open('GET', filePath, false);
+      request.send();
+      return request.responseText;
+    })("../Lib/PolylineTimeTrailMaterialAppearanceVS.glsl");
+
     var viewer = new Cesium.Viewer("cesiumContainer");
     viewer.scene.debugShowFramesPerSecond = true;
     viewer.targetFrameRate = 60;
@@ -49,17 +56,17 @@
 
     var trails = [];
     var promise = Cesium.Resource.fetch({
-      url: "./trips-v7.json"
+      url: "./test.json"
     });
 
     var singleMaterial = Cesium.Material.fromType(
       Cesium.Material.PolylineTimeTrailType,
       {
         color: new Cesium.Color(1, 1, 1, 0),
-        duration: 10,
+        duration: 1,
         image: "../Lib/red.png",
         repeat: 1,
-        length: 0.02,
+        length: 0.5,
       }
     );
 
@@ -79,15 +86,16 @@
         });
         var geometry = Cesium.PolylineGeometry.createGeometry(polyline);
         var size = positions.length * 4 - 4;
-        var vertexTimes = new Float32Array(size);
-        for (var i = 0; i < positions.length * 4 - 4; i++) {
-          vertexTimes[i] = 10.;
-        }
-        geometry.attributes.times = new Cesium.GeometryAttribute({
-          componentDatatype: Cesium.ComponentDatatype.DOUBLE,
-          componentsPerAttribute: 1,
-          values: vertexTimes,
-        });
+        var vertexSpeeds = new Float32Array(size);
+        //计算速度（当时间间隔相同时，传入点距离即可）
+        // for (var i = 0; i < positions.length * 4 - 4; i++) {
+        //   vertexSpeeds[i] = 1.;
+        // }
+        // geometry.attributes.speed = new Cesium.GeometryAttribute({
+        //   componentDatatype: Cesium.ComponentDatatype.FLOAT,
+        //   componentsPerAttribute: 1,
+        //   values: vertexSpeeds,
+        // });
         var instance = new Cesium.GeometryInstance({
           geometry: geometry,
         })
@@ -124,10 +132,13 @@
           geometryInstances: instances,
           appearance: new Cesium.PolylineMaterialAppearance({
             material: singleMaterial,
+            // vertexShaderSource: vertexSource
           }),
-          // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-          //   material: material,
-          // }),
+          asynchronous: false,
+          depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+            material: singleMaterial,
+            // vertexShaderSource: vertexSource
+          }),
         })
       );
 
@@ -146,6 +157,8 @@
         }
       })
     })
+
+
 
   </script>
 </body>
