@@ -95,7 +95,9 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
       // times: []
     },
 
-    source: `czm_material czm_getMaterial(czm_materialInput materialInput)    
+    source: `    
+
+    czm_material czm_getMaterial(czm_materialInput materialInput)    
 {
 
     czm_material material = czm_getDefaultMaterial(materialInput); 
@@ -104,7 +106,9 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
     float _duration = duration * 1000.;
 
-    float _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
+    float _time = time * times;
+
+    _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
 
     vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t));        
 

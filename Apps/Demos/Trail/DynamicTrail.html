@@ -51,14 +51,24 @@
       Cesium.Material.PolylineTrailType2,
       {
         color: new Cesium.Color(1, 1, 1, 0.01),
-        duration: 1000,
+        duration: 10000,
         image: "../Lib/red.png",
         repeat: 1,
         length: 0.1
       }
     );
     var trails = [];
-    Cesium.GeoJsonDataSource.load("./trails.json")
+    var singleMaterial = Cesium.Material.fromType(
+      Cesium.Material.PolylineTrailType2,
+      {
+        color: new Cesium.Color(1, 1, 1, 0),
+        duration: 10,
+        image: "../Lib/red.png",
+        repeat: 1,
+        length: 0.02,
+      }
+    );
+    Cesium.GeoJsonDataSource.load("./Lagrange-byPts_data.json")
       .then(function(ds) {
         var instances = [];
         ds.entities.values.forEach((entity, i) => {
@@ -82,19 +92,30 @@
             geometry: geo
           })
           instances.push(instance);
-          trail = viewer.scene.primitives.add(
-            new Cesium.Primitive({
-              geometryInstances: instance,
-              appearance: new Cesium.PolylineMaterialAppearance({
-                material: material,
-              }),
-              // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-              //   material: material,
-              // }),
-            })
-          );
-          trails.push(trail);
+          // trail = viewer.scene.primitives.add(
+          //   new Cesium.Primitive({
+          //     geometryInstances: instance,
+          //     appearance: new Cesium.PolylineMaterialAppearance({
+          //       material: material,
+          //     }),
+          //     // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+          //     //   material: material,
+          //     // }),
+          //   })
+          // );
+          // trails.push(trail);
         });
+        var trailCollection = viewer.scene.primitives.add(
+          new Cesium.Primitive({
+            geometryInstances: instances,
+            appearance: new Cesium.PolylineMaterialAppearance({
+              material: singleMaterial,
+            }),
+            // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+            //   material: material,
+            // }),
+          })
+        )
         // trail = scene.primitives.add(
         //   new Cesium.Primitive({
         //     geometryInstances: instances,
@@ -107,9 +128,10 @@
         //   })
         // );
         viewer.scene.preRender.addEventListener(() => {
-          trails.forEach(trail => {
-            trail.appearance.material.uniforms.time++;
-          })
+          // trails.forEach(trail => {
+          //   trail.appearance.material.uniforms.time++;
+          // })
+          trailCollection.appearance.material.uniforms.time++;
         });
       })
   </script>
