@@ -9,7 +9,7 @@
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>规则流场数据</title>
+  <title>规则流场数据测试</title>
   <style>
     @import url(../../../Build/Cesium/Widgets/widgets.css);
 
@@ -49,7 +49,7 @@
 
     var trails = [];
     var promise = Cesium.Resource.fetch({
-      url: "./processed.json"
+      url: "./test.json"
     });
 
     promise.then(res => {
@@ -64,7 +64,7 @@
       var singleMaterial = Cesium.Material.fromType(
         Cesium.Material.PolylineTrailType2,
         {
-          color: new Cesium.Color(1, 1, 1, 0),
+          color: new Cesium.Color(1, 1, 1, 1),
           duration: timeDuration,
           image: "../Lib/red.png",
           repeat: 1,
@@ -118,6 +118,7 @@
         viewer.scene.preRender.addEventListener(() => {
           let now = Cesium.JulianDate.toDate(viewer.clock.currentTime);
           trailCollection.appearance.material.uniforms.time = (now.getTime() - startTimeOri) / 1000;//毫秒转秒
+          // trailCollection.appearance.material.uniforms.time = viewer.clock.currentTime.secondsOfDay;
         });
       });
 
