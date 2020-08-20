@@ -34,3 +34,4 @@ yarn.lock
 .idea/tasks.xml
 Apps/SampleData/Lagrange-byPts_data.json
 Apps/Demos/Trail/Lagrange-byPts_data.json
+Apps/Demos/Trail/processed.json

@@ -103,7 +103,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
 
     vec2 st = materialInput.st; 
 
-    float _duration = duration * 1000.;
+    float _duration = duration;
 
     float _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
 

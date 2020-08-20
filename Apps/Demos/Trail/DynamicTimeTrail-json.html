@@ -9,7 +9,7 @@
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>流动线</title>
+  <title>时间数据</title>
   <style>
     @import url(../../../Build/Cesium/Widgets/widgets.css);
 
@@ -56,7 +56,7 @@
 
     var trails = [];
     var promise = Cesium.Resource.fetch({
-      url: "./test.json"
+      url: "./trips-v7.json"
     });
 
     var singleMaterial = Cesium.Material.fromType(

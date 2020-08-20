@@ -68,7 +68,7 @@
         length: 0.02,
       }
     );
-    Cesium.GeoJsonDataSource.load("./Lagrange-byPts_data.json")
+    Cesium.GeoJsonDataSource.load("./trails.json")
       .then(function(ds) {
         var instances = [];
         ds.entities.values.forEach((entity, i) => {
