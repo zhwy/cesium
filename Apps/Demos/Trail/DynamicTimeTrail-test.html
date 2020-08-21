@@ -28,11 +28,18 @@
 <body>
   <div id="cesiumContainer"></div>
   <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-  <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
+  <script src="../Lib/PolylineTimeTrailMaterialProperty.js"></script>
   <script>
     /* eslint-disable*/
     Cesium.Ion.defaultAccessToken =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    var vertexSource = (function(filePath) {
+      var request = new XMLHttpRequest();
+      request.open('GET', filePath, false);
+      request.send();
+      return request.responseText;
+    })("../Lib/PolylineTimeTrailMaterialAppearanceVS.glsl");
 
     var viewer = new Cesium.Viewer("cesiumContainer");
     viewer.scene.debugShowFramesPerSecond = true;
@@ -85,6 +92,18 @@
           positions: positions,
           width: 1,
         });
+        var size = positions.length;
+        var vertexSpeeds = new Float32Array(size);
+        // for (var i = 0; i < size * 4 - 4; i++) {
+        //   vertexSpeeds[i] = 1.;
+        // }
+        //存入速度信息
+        var geometry = Cesium.PolylineGeometry.createGeometry(polyline);
+        geometry.attributes.speed = new Cesium.GeometryAttribute({
+          componentDatatype: Cesium.ComponentDatatype.FLOAT,
+          componentsPerAttribute: 1,
+          values: vertexSpeeds,
+        });
         var instance = new Cesium.GeometryInstance({
           geometry: polyline,
         })
@@ -98,7 +117,7 @@
           geometryInstances: instances,
           appearance: new Cesium.PolylineMaterialAppearance({
             material: singleMaterial,
-            // vertexShaderSource: vertexSource
+            vertexShaderSource: vertexSource
           }),
           asynchronous: false,
           // depthFailAppearance: new Cesium.PolylineMaterialAppearance({

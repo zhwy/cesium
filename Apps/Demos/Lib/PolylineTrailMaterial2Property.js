@@ -107,7 +107,9 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
 
     float _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
 
-    vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t));        
+    vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t)); 
+
+    // vec4 colorImage = texture2D(image, vec2(fract(st.s * repeat - _time * repeat), st.t));        
 
     material.alpha = colorImage.a * color.a;
 

@@ -97,7 +97,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
     source: `    
 
-    // varying float v_speed;
+    varying float v_speed;
 
     czm_material czm_getMaterial(czm_materialInput materialInput)    
 {
