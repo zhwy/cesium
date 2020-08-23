@@ -76,8 +76,6 @@ Cesium.Material.PolylineTimeTrailImage = "./red.png";
 
 Cesium.Material.PolylineTimeTrailSpeedCoolor = "./color.png";
 
-debugger
-
 Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType, {
   fabric: {
     type: Cesium.Material.PolylineTimeTrailType,
@@ -97,7 +95,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
       length: 1,
 
-      // test: "./color.png"
+      test: "./color.png"
     },
 
     source: `    
@@ -120,14 +118,14 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
     // }
     
 
-    // vec4 speed = texture2D(test, vec2(_time, 0));
+    vec4 speed = texture2D(test, vec2(_time, 0)); 
 
+    vec4 colorImage = texture2D(image, vec2(smoothstep((1. - length) ,1. ,fract((st.s - _time) * repeat)), st.t));
 
-    vec4 colorImage = texture2D(image, vec2(smoothstep((1. - length) ,1. ,fract(st.s * repeat - _time * repeat)), st.t));
-
-    vec4 speedImage = texture2D(speedColor, vec2(v_speed, st.t));
+    vec4 speedImage = texture2D(speedColor, vec2(speed.x, st.t));
 
     material.alpha = colorImage.a * color.a;
+
 
     // material.alpha = 1.;
 

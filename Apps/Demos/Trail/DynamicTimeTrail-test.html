@@ -76,9 +76,9 @@
         var positions = coords.map(coord => {
           return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 0);
         });
-        var speeds = new Array(positions.length)
+        var speeds = new Array(positions.length);
         for (var j = 0; j < positions.length - 1; j++) {
-          speeds[j] = Cesium.Cartesian3.distanceSquared(positions[j], positions[j + 1])
+          speeds[j] = Cesium.Cartesian3.distance(positions[j], positions[j + 1]);
         };
         speeds[positions.length - 1] = speeds[positions.length - 2];
         //画点
@@ -159,22 +159,22 @@
           length: 0.1,
           time: 0,
           //速度
-          // test: new Cesium.Texture({
-          //   context: viewer.scene.context,
-          //   width: speedTexture.length,
-          //   height: 1,
-          //   pixelFormat: Cesium.PixelFormat.LUMINANCE,
-          //   pixelDatatype: Cesium.PixelDatatype.FLOAT,
-          //   flipY: false,
-          //   sampler: new Cesium.Sampler({
-          //     // the values of texture will not be interpolated
-          //     minificationFilter: Cesium.TextureMinificationFilter.NEAREST,
-          //     magnificationFilter: Cesium.TextureMagnificationFilter.NEAREST
-          //   }),
-          //   source: {
-          //     arrayBufferView: speedTexture
-          //   }
-          // })
+          test: new Cesium.Texture({
+            context: viewer.scene.context,
+            width: speedTexture.length,
+            height: 1,
+            pixelFormat: Cesium.PixelFormat.LUMINANCE,
+            pixelDatatype: Cesium.PixelDatatype.FLOAT,
+            flipY: false,
+            sampler: new Cesium.Sampler({
+              // the values of texture will not be interpolated
+              minificationFilter: Cesium.TextureMinificationFilter.NEAREST,
+              magnificationFilter: Cesium.TextureMagnificationFilter.NEAREST
+            }),
+            source: {
+              arrayBufferView: speedTexture
+            }
+          })
         }
       );
 
