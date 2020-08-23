@@ -18,7 +18,6 @@ function PolylineTimeTrailMaterialProperty(options) {
 
   this.length = options.length || 1;
 
-  this.times = options.times || [];
 }
 
 Cesium.defineProperties(PolylineTimeTrailMaterialProperty.prototype, {
@@ -75,6 +74,10 @@ Cesium.Material.PolylineTimeTrailType = "PolylineTimeTrail";
 
 Cesium.Material.PolylineTimeTrailImage = "./red.png";
 
+Cesium.Material.PolylineTimeTrailSpeedCoolor = "./color.png";
+
+debugger
+
 Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType, {
   fabric: {
     type: Cesium.Material.PolylineTimeTrailType,
@@ -84,6 +87,8 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
       image: Cesium.Material.PolylineTimeTrailImage,
 
+      speedColor: "./color.png",
+
       time: 0,
 
       duration: 1000,
@@ -92,7 +97,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
       length: 1,
 
-      // times: []
+      // test: "./color.png"
     },
 
     source: `    
@@ -110,13 +115,25 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
     float _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
 
-    // _time *= v_speed;
+    // if(_time == 0.){
+    //   _time = 1.;
+    // }
+    
 
-    vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t));        
+    // vec4 speed = texture2D(test, vec2(_time, 0));
 
-    material.alpha = colorImage.a + color.a;
 
-    material.diffuse = (colorImage.rgb + color.rgb) / 2.0; 
+    vec4 colorImage = texture2D(image, vec2(smoothstep((1. - length) ,1. ,fract(st.s * repeat - _time * repeat)), st.t));
+
+    vec4 speedImage = texture2D(speedColor, vec2(v_speed, st.t));
+
+    material.alpha = colorImage.a * color.a;
+
+    // material.alpha = 1.;
+
+    // material.diffuse = (colorImage.rgb + color.rgb) / 2.0; 
+
+    material.diffuse = speedImage.rgb;
 
     return material; 
 

@@ -357,7 +357,7 @@ Material._uniformList = {};
  *     color : new Cesium.Color(1.0, 0.0, 0.0, 1.0)
  * });
  */
-Material.fromType = function (type, uniforms) {
+Material.fromType = function(type, uniforms) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(Material._materialCache.getMaterial(type))) {
     throw new DeveloperError(
@@ -387,7 +387,7 @@ Material.fromType = function (type, uniforms) {
  * Gets whether or not this material is translucent.
  * @returns {Boolean} <code>true</code> if this material is translucent, <code>false</code> otherwise.
  */
-Material.prototype.isTranslucent = function () {
+Material.prototype.isTranslucent = function() {
   if (defined(this.translucent)) {
     if (typeof this.translucent === "function") {
       return this.translucent();
@@ -417,7 +417,7 @@ Material.prototype.isTranslucent = function () {
 /**
  * @private
  */
-Material.prototype.update = function (context) {
+Material.prototype.update = function(context) {
   var i;
   var uniformId;
 
@@ -519,7 +519,7 @@ Material.prototype.update = function (context) {
  *
  * @see Material#destroy
  */
-Material.prototype.isDestroyed = function () {
+Material.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -539,7 +539,7 @@ Material.prototype.isDestroyed = function () {
  *
  * @see Material#isDestroyed
  */
-Material.prototype.destroy = function () {
+Material.prototype.destroy = function() {
   var textures = this._textures;
   for (var texture in textures) {
     if (textures.hasOwnProperty(texture)) {
@@ -612,7 +612,7 @@ function initializeMaterial(options, result) {
 
   if (defined(translucent)) {
     if (typeof translucent === "function") {
-      var wrappedTranslucent = function () {
+      var wrappedTranslucent = function() {
         return translucent(result);
       };
       result._translucentFunctions.push(wrappedTranslucent);
@@ -776,7 +776,7 @@ var crnRegex = /\.crn$/i;
 
 function createTexture2DUpdateFunction(uniformId) {
   var oldUniformValue;
-  return function (material, context) {
+  return function(material, context) {
     var uniforms = material.uniforms;
     var uniformValue = uniforms[uniformId];
     var uniformChanged = oldUniformValue !== uniformValue;
@@ -821,7 +821,7 @@ function createTexture2DUpdateFunction(uniformId) {
     if (uniformValue instanceof Texture && uniformValue !== texture) {
       material._texturePaths[uniformId] = undefined;
       var tmp = material._textures[uniformId];
-      if (tmp !== material._defaultTexture) {
+      if (tmp && tmp !== material._defaultTexture) {
         tmp.destroy();
       }
       material._textures[uniformId] = uniformValue;
@@ -879,7 +879,7 @@ function createTexture2DUpdateFunction(uniformId) {
         } else {
           promise = resource.fetchImage();
         }
-        when(promise, function (image) {
+        when(promise, function(image) {
           material._loadedImages.push({
             id: uniformId,
             image: image,
@@ -901,7 +901,7 @@ function createTexture2DUpdateFunction(uniformId) {
 }
 
 function createCubeMapUpdateFunction(uniformId) {
-  return function (material, context) {
+  return function(material, context) {
     var uniformValue = material.uniforms[uniformId];
 
     if (uniformValue instanceof CubeMap) {
@@ -941,7 +941,7 @@ function createCubeMapUpdateFunction(uniformId) {
         Resource.createIfNeeded(uniformValue.negativeZ).fetchImage(),
       ];
 
-      when.all(promises).then(function (images) {
+      when.all(promises).then(function(images) {
         material._loadedCubeMaps.push({
           id: uniformId,
           images: images,
@@ -1026,25 +1026,25 @@ function createUniform(material, uniformId) {
     material.uniforms[uniformId] = uniformValue;
 
     if (uniformType === "sampler2D") {
-      material._uniforms[newUniformId] = function () {
+      material._uniforms[newUniformId] = function() {
         return material._textures[uniformId];
       };
       material._updateFunctions.push(createTexture2DUpdateFunction(uniformId));
     } else if (uniformType === "samplerCube") {
-      material._uniforms[newUniformId] = function () {
+      material._uniforms[newUniformId] = function() {
         return material._textures[uniformId];
       };
       material._updateFunctions.push(createCubeMapUpdateFunction(uniformId));
     } else if (uniformType.indexOf("mat") !== -1) {
       var scratchMatrix = new matrixMap[uniformType]();
-      material._uniforms[newUniformId] = function () {
+      material._uniforms[newUniformId] = function() {
         return matrixMap[uniformType].fromColumnMajorArray(
           material.uniforms[uniformId],
           scratchMatrix
         );
       };
     } else {
-      material._uniforms[newUniformId] = function () {
+      material._uniforms[newUniformId] = function() {
         return material.uniforms[uniformId];
       };
     }
@@ -1157,7 +1157,7 @@ function replaceToken(material, token, newToken, excludePeriod) {
   var suffixChars = "([\\w])?";
   var prefixChars = "([\\w" + (excludePeriod ? "." : "") + "])?";
   var regExp = new RegExp(prefixChars + token + suffixChars, "g");
-  material.shaderSource = material.shaderSource.replace(regExp, function (
+  material.shaderSource = material.shaderSource.replace(regExp, function(
     $0,
     $1,
     $2
@@ -1177,10 +1177,10 @@ function getNumberOfTokens(material, token, excludePeriod) {
 
 Material._materialCache = {
   _materials: {},
-  addMaterial: function (type, materialTemplate) {
+  addMaterial: function(type, materialTemplate) {
     this._materials[type] = materialTemplate;
   },
-  getMaterial: function (type) {
+  getMaterial: function(type) {
     return this._materials[type];
   },
 };
@@ -1214,7 +1214,7 @@ Material._materialCache.addMaterial(Material.ColorType, {
       alpha: "color.a",
     },
   },
-  translucent: function (material) {
+  translucent: function(material) {
     return material.uniforms.color.alpha < 1.0;
   },
 });
@@ -1239,7 +1239,7 @@ Material._materialCache.addMaterial(Material.ImageType, {
       alpha: "texture2D(image, fract(repeat * materialInput.st)).a * color.a",
     },
   },
-  translucent: function (material) {
+  translucent: function(material) {
     return material.uniforms.color.alpha < 1.0;
   },
 });
@@ -1386,7 +1386,7 @@ Material._materialCache.addMaterial(Material.GridType, {
     },
     source: GridMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return uniforms.color.alpha < 1.0 || uniforms.cellAlpha < 1.0;
   },
@@ -1410,7 +1410,7 @@ Material._materialCache.addMaterial(Material.StripeType, {
     },
     source: StripeMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return uniforms.evenColor.alpha < 1.0 || uniforms.oddColor.alpha < 1.0;
   },
@@ -1432,7 +1432,7 @@ Material._materialCache.addMaterial(Material.CheckerboardType, {
     },
     source: CheckerboardMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return uniforms.lightColor.alpha < 1.0 || uniforms.darkColor.alpha < 1.0;
   },
@@ -1454,7 +1454,7 @@ Material._materialCache.addMaterial(Material.DotType, {
     },
     source: DotMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return uniforms.lightColor.alpha < 1.0 || uniforms.darkColor.alpha < 1.0;
   },
@@ -1482,7 +1482,7 @@ Material._materialCache.addMaterial(Material.WaterType, {
     },
     source: WaterMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return (
       uniforms.baseWaterColor.alpha < 1.0 || uniforms.blendColor.alpha < 1.0
@@ -1506,7 +1506,7 @@ Material._materialCache.addMaterial(Material.RimLightingType, {
     },
     source: RimLightingMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return uniforms.color.alpha < 1.0 || uniforms.rimColor.alpha < 1.0;
   },
@@ -1534,7 +1534,7 @@ Material._materialCache.addMaterial(Material.FadeType, {
     },
     source: FadeMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return (
       uniforms.fadeInColor.alpha < 1.0 || uniforms.fadeOutColor.alpha < 1.0
@@ -1614,7 +1614,7 @@ Material._materialCache.addMaterial(Material.PolylineOutlineType, {
     },
     source: PolylineOutlineMaterial,
   },
-  translucent: function (material) {
+  translucent: function(material) {
     var uniforms = material.uniforms;
     return uniforms.color.alpha < 1.0 || uniforms.outlineColor.alpha < 1.0;
   },

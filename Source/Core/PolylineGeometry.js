@@ -158,7 +158,7 @@ function PolylineGeometry(options) {
  *
  * @returns {Number[]} The array that was packed into
  */
-PolylineGeometry.pack = function (value, array, startingIndex) {
+PolylineGeometry.pack = function(value, array, startingIndex) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(value)) {
     throw new DeveloperError("value is required");
@@ -223,7 +223,7 @@ var scratchOptions = {
  * @param {PolylineGeometry} [result] The object into which to store the result.
  * @returns {PolylineGeometry} The modified result parameter or a new PolylineGeometry instance if one was not provided.
  */
-PolylineGeometry.unpack = function (array, startingIndex, result) {
+PolylineGeometry.unpack = function(array, startingIndex, result) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(array)) {
     throw new DeveloperError("array is required");
@@ -296,7 +296,7 @@ var scratchNextPosition = new Cartesian3();
  * @param {PolylineGeometry} polylineGeometry A description of the polyline.
  * @returns {Geometry|undefined} The computed vertices and indices.
  */
-PolylineGeometry.createGeometry = function (polylineGeometry) {
+PolylineGeometry.createGeometry = function(polylineGeometry) {
   var width = polylineGeometry._width;
   var vertexFormat = polylineGeometry._vertexFormat;
   var colors = polylineGeometry._colors;

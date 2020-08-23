@@ -198,6 +198,7 @@ varying vec2 v_st;
 varying float v_polylineAngle;
 varying float v_speed;
 
+
 void main()
 {
     float expandDir = expandAndWidth.x;
