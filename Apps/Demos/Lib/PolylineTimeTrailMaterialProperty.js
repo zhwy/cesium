@@ -122,6 +122,8 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
     vec4 colorImage = texture2D(image, vec2(smoothstep((1. - length) ,1. ,fract((st.s - _time) * repeat)), st.t));
 
+    // vec4 colorImage = texture2D(image, vec2(fract((st.s - _time) * repeat), st.t));
+
     vec4 speedImage = texture2D(speedColor, vec2(speed.x, st.t));
 
     material.alpha = colorImage.a * color.a;
