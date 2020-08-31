@@ -29,11 +29,23 @@
       height: 4000px;
       display: none;
     }
+
+    #info {
+      position: absolute;
+      z-index: 99;
+      border-radius: 5px;
+      padding: 5px;
+      top: 0;
+      left: 0;
+      margin: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+    }
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer">
+    <div id="info"></div>
   </div>
   <script src="../Lib/heatmap.js"></script>
   <script src="../Lib/convertCoords.js"></script>
@@ -43,12 +55,14 @@
     window.CESIUM_BASE_URL = "../../../Source";
 
     var files = [], allData = [];
-    var length = 2;
+    var length = 25;
     var allData = [];
 
     var initialized = false;
 
     var heatmapInstance, heatmapImage;
+
+    var info = document.getElementById("info");
 
     function readData(i, success) {
       if (i <= length) {
@@ -100,7 +114,7 @@
             latMax: latMax,
           });
           heatmapInstance.setData(data);
-          console.log("已读取" + url);
+          info.textContent = "已读取" + url;
           readData(i + 1, success)
         })
 
@@ -267,7 +281,7 @@
           } else {
             clearInterval(handler);
             heatmapImage.rectangle.material.image = canvas;
-            console.log("绘制" + index)
+            info.textContent = "绘制" + index;
             handler = setInterval(() => {
               if (picAlpha < 1) {
                 picAlpha += 0.1;
