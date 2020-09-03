@@ -61,7 +61,7 @@
         viewer.scene.logarithmicDepthBuffer = false;
         var tileset = viewer.scene.primitives.add(
             new Cesium.Cesium3DTileset({
-                url: "https://localhost:8003/zt-Qzhou/models/pc/0/terra_b3dms/tileset.json",
+                url: "http://localhost:8005/江苏太仓/models/pc/0/terra_b3dms/tileset.json",
                 debugShowBoundingVolume: false,
                 skipLevelOfDetail: true,
                 shadows: Cesium.ShadowMode.DISABLED,
@@ -70,7 +70,7 @@
             })
         );
         tileset.readyPromise.then(function() {
-            _changeModelPosition(tileset, 120, 30, 100);
+            // _changeModelPosition(tileset, 120, 30, 100);
             viewer.zoomTo(
                 tileset,
                 new Cesium.HeadingPitchRange(
@@ -79,7 +79,7 @@
                     Math.max(100.0 - tileset.boundingSphere.radius, 0.0)
                 )
             );
-            _enableTranslate()
+            // _enableTranslate()
         });
         window._tileset = tileset;
 
