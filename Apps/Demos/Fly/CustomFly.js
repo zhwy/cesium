@@ -128,7 +128,7 @@ class CustomFly {
             this.deltaH = nextView.heading - nowView.heading;
             this.intervalHandler = setInterval(() => {
                 me._setCamera()
-            }, 50);
+            }, 20);
         } else {
             this.isStop = true;
             this.l = 0;
@@ -153,7 +153,7 @@ class CustomFly {
             heading: viewer.camera.heading,
             pitch: viewer.camera.pitch,
             roll: viewer.camera.roll,
-            time: 3
+            time: 10
         }
     }
 
