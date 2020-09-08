@@ -16,7 +16,7 @@ function getSpaceDistance(positions) {
         s = Math.sqrt(Math.pow(s, 2) + Math.pow(point2cartographic.height - point1cartographic.height, 2));
         distance = distance + s;
     }
-    return distance.toFixed(2);
+    return distance;
 }
 
 /*方向*/
@@ -64,7 +64,7 @@ function getArea(positions) {
         let dis_temp2 = distance(positions[j], positions[k]);
         res += dis_temp1 * dis_temp2 * Math.abs(Math.sin(totalAngle));
     }
-    return (res / 1000000.0).toFixed(4);
+    return res;
 }
 
 //多点距离
@@ -94,35 +94,116 @@ class MeasureTool {
         this.viewer = viewer;
         this.positions = null;
         this.pointer = null;//鼠标点
+        this.pointerPos = null;
         this.measureEntity = null;
+        this.label = null;
         this.handler = null;
         this.measureOptions = null;
         this.pointerOptions = null;
+        this.labelOptions = null;
+        this.lastCompleted = true;//上次测量已完成
+        this.orginLeftDblEvt = null;//原有鼠标左键事件
+
+        let me = this;
+        this.pointerOptions = {
+            name: 'measure-pointer',
+            position: new Cesium.CallbackProperty(() => {
+                return me.pointerPos;
+            }, false),
+            point: {
+                pixelSize: 5,
+                color: Cesium.Color.RED,
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 2,
+            },
+        };
     }
     /**
      * 开始一次测量
      */
     activate() {
+        let me = this;
+        let viewer = this.viewer;
+
+        this.measureEntity = viewer.entities.add(this.measureOptions);
+        this.pointer = viewer.entities.add(this.pointerOptions);
+        this.label = viewer.entities.add(this.labelOptions);
+
+        this.orginLeftDblEvt = viewer.screenSpaceEventHandler.getInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+        // 取消双击事件-追踪该位置
+        viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+        this.handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        this.positions = [];
+
+        let cartesian = null;
+
+        this.handler.setInputAction(function(movement) {
+
+            let ray = viewer.camera.getPickRay(movement.endPosition);
+            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+            if (cartesian) me.pointerPos = cartesian.clone();
+            if (cartesian && !me.lastCompleted) {
+                if (me.positions.length <= 1) {
+                    me.positions.push(cartesian);
+                } else {
+                    me.positions.pop();
+                    me.positions.push(cartesian);
+                }
+            }
+
+        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+        this.handler.setInputAction(function(movement) {
+            // tooltip.style.display = "none";
+            // cartesian = viewer.scene.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+            // cartesian = viewer.scene.pickPosition(movement.position);
+            if (me.lastCompleted) {
+                me.clear();
+                me.lastCompleted = false;
+                // me.pointer.show = true;
+            }
+            let ray = viewer.camera.getPickRay(movement.position);
+            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+            if (cartesian) {
+                me.positions.push(cartesian);
+            }
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        this.handler.setInputAction(function(movement) {
+            me.lastCompleted = true;
+            //添加最后一个点
+            // let ray = viewer.camera.getPickRay(movement.position);
+            // cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+            // if (cartesian) {
+            //     me.positions.push(cartesian);
+            // }
+            // me.pointer.show = false;
+        }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     }
     /**
      * 清除标记
      */
     clear() {
-        this.viewer.entities.remove(this.pointer);
-        this.viewer.entities.remove(this.measureEntity);
-        this.pointer = null;
-        this.measureEntity = null;
-        this.positions = null;
+        this.positions = [];
     }
     /**
      * 停止
      */
     deactivate() {
-        this.clear();
+        this.viewer.entities.remove(this.pointer);
+        this.viewer.entities.remove(this.measureEntity);
+        this.viewer.entities.remove(this.label);
+        this.pointer = null;
+        this.measureEntity = null;
+        this.label = null;
+        this.positions = [];
         if (!this.handler.isDestroyed()) {
             this.handler.destroy();
         }
+        this.viewer.screenSpaceEventHandler.setInputAction(this.orginLeftDblEvt, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);//添加回双击事件
     }
     /**
      * 销毁
@@ -154,25 +235,19 @@ class MeasureDistance extends MeasureTool {
                     return me.positions;
                 }, false),
                 material: Cesium.Color.CHARTREUSE,
-                width: 5,
+                width: 3,
                 clampToGround: true
             }
         };
-        this.pointerOptions = {
-            name: 'measure-pointer',
+        this.labelOptions = {
+            name: "measure-label",
             position: new Cesium.CallbackProperty(() => {
                 return me.positions[me.positions.length - 1];
             }, false),
-            point: {
-                pixelSize: 5,
-                color: Cesium.Color.RED,
-                outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 2,
-            },
             label: {
                 text: new Cesium.CallbackProperty(() => {
                     let distance = getSpaceDistance(me.positions);
-                    return `${distance}米`;
+                    return `${distance.toFixed(2)}米`;
                 }, false),
                 font: '15px sans-serif',
                 fillColor: Cesium.Color.GOLD,
@@ -182,57 +257,7 @@ class MeasureDistance extends MeasureTool {
                 pixelOffset: new Cesium.Cartesian2(20, -20),
             }
         }
-    }
-    activate() {
-        let viewer = this.viewer;
-        let me = this;
 
-        this.measureEntity = viewer.entities.add(this.measureOptions);
-        this.pointer = viewer.entities.add(this.pointerOptions);
-
-        // 取消双击事件-追踪该位置
-        // viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-
-        this.handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        this.positions = [];
-        // let tooltip = document.getElementById("toolTip");
-        let cartesian = null;
-        // tooltip.style.display = "block";
-
-        this.handler.setInputAction(function(movement) {
-            // tooltip.style.left = movement.endPosition.x + 3 + "px";
-            // tooltip.style.top = movement.endPosition.y - 25 + "px";
-            // tooltip.innerHTML = '<p>单击开始，右击结束</p>';
-            let ray = viewer.camera.getPickRay(movement.endPosition);
-            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-            if (cartesian) {
-                if (me.positions.length > 0) {
-                    me.positions.pop();
-                }
-                me.positions.push(cartesian);
-
-            }
-
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-        this.handler.setInputAction(function(movement) {
-            // tooltip.style.display = "none";
-            // cartesian = viewer.scene.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
-            // cartesian = viewer.scene.pickPosition(movement.position);
-            let ray = viewer.camera.getPickRay(movement.position);
-            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-            if (cartesian) {
-                me.positions.push(cartesian);
-            }
-
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-        this.handler.setInputAction(function(movement) {
-            me.handler.destroy(); //关闭事件句柄
-            me.positions.pop(); //最后一个点无效    
-            me.viewer.entities.remove(me.pointer);
-            me.pointer = null;
-        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
     }
 }
 
@@ -253,31 +278,26 @@ class MeasureArea extends MeasureTool {
                     };
                 }, false),
                 material: Cesium.Color.GREEN.withAlpha(0.5),
+                clampToGround: true
             },
             polyline: {
                 positions: new Cesium.CallbackProperty(() => {
-                    return me.positions.length == 2 ? me.positions : []
+                    return me.positions.concat(me.positions[0]);
                 }, false),
                 material: Cesium.Color.CHARTREUSE,
-                width: 5,
+                width: 3,
+                clampToGround: true
             }
         }
-        this.pointerOptions = {
-            name: 'measure-pointer',
+        this.labelOptions = {
+            name: "measure-label",
             position: new Cesium.CallbackProperty(() => {
                 return me.positions[me.positions.length - 1]
             }, false),
-            point: {
-                pixelSize: 5,
-                color: Cesium.Color.RED,
-                outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 2,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-            },
             label: {
                 text: new Cesium.CallbackProperty(() => {
                     let area = getArea(me.positions);
-                    return `${area}平方公里`;
+                    return `${(area / 10e5).toFixed(2)}平方公里`;
                 }, false),
                 font: '15px sans-serif',
                 fillColor: Cesium.Color.GOLD,
@@ -287,54 +307,6 @@ class MeasureArea extends MeasureTool {
                 pixelOffset: new Cesium.Cartesian2(20, -20),
             }
         }
-    }
-    activate() {
-        let viewer = this.viewer;
-        let me = this;
-
-        this.pointer = viewer.entities.add(this.pointerOptions);
-        this.measureEntity = viewer.entities.add(this.measureOptions);
-
-        // 取消双击事件-追踪该位置        
-        viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-        // 鼠标事件
-        this.handler = new Cesium.ScreenSpaceEventHandler(viewer.scene._imageryLayerCollection);
-        this.positions = [];
-        let cartesian = null;
-
-        this.handler.setInputAction(function(movement) {
-            let ray = viewer.camera.getPickRay(movement.endPosition);
-            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-            if (cartesian) {
-                if (me.positions.length == 0) {
-                    me.positions.push(cartesian);
-                } else {
-                    me.positions.pop();
-                    me.positions.push(cartesian);
-                }
-
-            }
-
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-        this.handler.setInputAction(function(movement) {
-            // tooltip.style.display = "none";
-            // cartesian = viewer.scene.pickPosition(movement.position); 
-            let ray = viewer.camera.getPickRay(movement.position);
-            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-            // cartesian = viewer.scene.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
-            if (me.positions.length == 0) {
-                me.positions.push(cartesian.clone());
-            }
-            me.positions.push(cartesian);
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-        this.handler.setInputAction(function(movement) {
-            me.handler.destroy();
-            me.viewer.entities.remove(me.pointer);
-            me.pointer = null;
-            me.positions.pop();
-        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
     }
 }
 
