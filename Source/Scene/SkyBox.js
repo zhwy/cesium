@@ -5,7 +5,10 @@ import defined from "../Core/defined.js";
 import destroyObject from "../Core/destroyObject.js";
 import DeveloperError from "../Core/DeveloperError.js";
 import GeometryPipeline from "../Core/GeometryPipeline.js";
+import Matrix2 from '../Core/Matrix2.js';
+import Matrix3 from '../Core/Matrix3.js';
 import Matrix4 from "../Core/Matrix4.js";
+import Transforms from '../Core/Transforms.js';
 import VertexFormat from "../Core/VertexFormat.js";
 import BufferUsage from "../Renderer/BufferUsage.js";
 import CubeMap from "../Renderer/CubeMap.js";
@@ -63,6 +66,8 @@ function SkyBox(options) {
   this.sources = options.sources;
   this._sources = undefined;
 
+  this.nearGround = options.nearGround;
+
   /**
    * Determines if the sky box will be shown.
    *
@@ -92,7 +97,7 @@ function SkyBox(options) {
  * @exception {DeveloperError} this.sources is required and must have positiveX, negativeX, positiveY, negativeY, positiveZ, and negativeZ properties.
  * @exception {DeveloperError} this.sources properties must all be the same type.
  */
-SkyBox.prototype.update = function (frameState, useHdr) {
+SkyBox.prototype.update = function(frameState, useHdr) {
   var that = this;
 
   if (!this.show) {
@@ -146,7 +151,7 @@ SkyBox.prototype.update = function (frameState, useHdr) {
 
     if (typeof sources.positiveX === "string") {
       // Given urls for cube-map images.  Load them.
-      loadCubeMap(context, this._sources).then(function (cubeMap) {
+      loadCubeMap(context, this._sources).then(function(cubeMap) {
         that._cubeMap = that._cubeMap && that._cubeMap.destroy();
         that._cubeMap = cubeMap;
       });
@@ -163,9 +168,18 @@ SkyBox.prototype.update = function (frameState, useHdr) {
 
   if (!defined(command.vertexArray)) {
     command.uniformMap = {
-      u_cubeMap: function () {
+      u_cubeMap: function() {
         return that._cubeMap;
       },
+      //fix rotation
+      u_rotateMatrix: function() {
+        if (that.nearGround) {
+          debugger
+          command.modelMatrix = Transforms.eastNorthUpToFixedFrame(frameState.camera._positionWC);
+          return Matrix4.getMatrix3(command.modelMatrix, new Matrix3())
+        }
+        return Matrix3.IDENTITY;
+      }
     };
 
     var geometry = BoxGeometry.createGeometry(
@@ -221,7 +235,7 @@ SkyBox.prototype.update = function (frameState, useHdr) {
  *
  * @see SkyBox#destroy
  */
-SkyBox.prototype.isDestroyed = function () {
+SkyBox.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -241,7 +255,7 @@ SkyBox.prototype.isDestroyed = function () {
  *
  * @see SkyBox#isDestroyed
  */
-SkyBox.prototype.destroy = function () {
+SkyBox.prototype.destroy = function() {
   var command = this._command;
   command.vertexArray = command.vertexArray && command.vertexArray.destroy();
   command.shaderProgram =

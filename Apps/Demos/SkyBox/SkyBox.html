@@ -10,10 +10,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>Hello World!</title>
-    <script src="../Build/Cesium/Cesium.js"></script>
+    <title>天空盒</title>
+    <!-- <script src="../../../Build/Cesium/Cesium.js"></script> -->
     <style>
-      @import url(../Build/Cesium/Widgets/widgets.css);
+      @import url(../../../Build/Cesium/Widgets/widgets.css);
       html,
       body,
       #cesiumContainer {
@@ -27,10 +27,31 @@
   </head>
   <body>
     <div id="cesiumContainer"></div>
-    <script>
+    <script type="module">
+      import * as Cesium from "../../../Source/Cesium.js";
+      window.CESIUM_BASE_URL = "../../../Source";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-      var viewer = new Cesium.Viewer("cesiumContainer");
+
+      var viewer = new Cesium.Viewer("cesiumContainer", {
+        skyAtmosphere: false,
+      });
+      viewer.camera.setView({
+        destination: new Cesium.Cartesian3.fromDegrees(0, 0, 7e7),
+        duration: 0,
+      });
+      viewer.scene.skyBox = new Cesium.SkyBox({
+        nearGround: true,
+        sources: {
+          positiveX: "./pictures/test/px.bmp",
+          negativeX: "./pictures/test/nx.bmp",
+          positiveY: "./pictures/test/py.bmp",
+          negativeY: "./pictures/test/ny.bmp",
+          positiveZ: "./pictures/test/pz.bmp",
+          negativeZ: "./pictures/test/nz.bmp",
+        },
+      });
+      // viewer.scene.globe.show = false;
     </script>
   </body>
 </html>
