@@ -174,7 +174,6 @@ SkyBox.prototype.update = function(frameState, useHdr) {
       //fix rotation
       u_rotateMatrix: function() {
         if (that.nearGround) {
-          debugger
           command.modelMatrix = Transforms.eastNorthUpToFixedFrame(frameState.camera._positionWC);
           return Matrix4.getMatrix3(command.modelMatrix, new Matrix3())
         }
