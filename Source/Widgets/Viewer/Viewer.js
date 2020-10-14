@@ -58,7 +58,7 @@ function getCesium3DTileFeatureDescription(feature) {
   var propertyNames = feature.getPropertyNames();
 
   var html = "";
-  propertyNames.forEach(function (propertyName) {
+  propertyNames.forEach(function(propertyName) {
     var value = feature.getProperty(propertyName);
     if (defined(value)) {
       html += "<tr><th>" + propertyName + "</th><td>" + value + "</td></tr>";
@@ -169,7 +169,7 @@ function pickImageryLayerFeature(viewer, windowPosition) {
 
   when(
     imageryLayerFeaturePromise,
-    function (features) {
+    function(features) {
       // Has this async pick been superseded by a later one?
       if (viewer.selectedEntity !== loadingMessage) {
         return;
@@ -198,7 +198,7 @@ function pickImageryLayerFeature(viewer, windowPosition) {
 
       viewer.selectedEntity = entity;
     },
-    function () {
+    function() {
       // Has this async pick been superseded by a later one?
       if (viewer.selectedEntity !== loadingMessage) {
         return;
@@ -303,6 +303,8 @@ function enableVRUI(viewer, enabled) {
  * @property {ImageryProvider} [imageryProvider=createWorldImagery()] The imagery provider to use.  This value is only valid if `baseLayerPicker` is set to false.
  * @property {TerrainProvider} [terrainProvider=new EllipsoidTerrainProvider()] The terrain provider to use
  * @property {SkyBox|false} [skyBox] The skybox used to render the stars.  When <code>undefined</code>, the default stars are used. If set to <code>false</code>, no skyBox, Sun, or Moon will be added.
+ * @property {SkyBox| false} [options.nearGroundSkyBox] The near-ground skybox.
+ * @property {Number} [options.nearGroundSkyBoxShowHeight=5000.0] The near-ground skybox show height.
  * @property {SkyAtmosphere|false} [skyAtmosphere] Blue sky, and the glow around the Earth's limb.  Set to <code>false</code> to turn it off.
  * @property {Element|String} [fullscreenElement=document.body] The element or id to be placed into fullscreen mode when the full screen button is pressed.
  * @property {Boolean} [useDefaultRenderLoop=true] True if this widget should control the render loop, false otherwise.
@@ -470,6 +472,8 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
         : undefined,
     clock: clock,
     skyBox: options.skyBox,
+    nearGroundSkyBox: options.nearGroundSkyBox,
+    nearGroundSkyBoxShowHeight: options.nearGroundSkyBoxShowHeight,
     skyAtmosphere: options.skyAtmosphere,
     sceneMode: options.sceneMode,
     mapProjection: options.mapProjection,
@@ -584,7 +588,7 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
   if (!defined(options.homeButton) || options.homeButton !== false) {
     homeButton = new HomeButton(toolbar, scene);
     if (defined(geocoder)) {
-      eventHelper.add(homeButton.viewModel.command.afterExecute, function () {
+      eventHelper.add(homeButton.viewModel.command.afterExecute, function() {
         var viewModel = geocoder.viewModel;
         viewModel.searchText = "";
         if (viewModel.isSearchInProgress) {
@@ -745,7 +749,7 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
     fullscreenSubscription = subscribeAndEvaluate(
       fullscreenButton.viewModel,
       "isFullscreenEnabled",
-      function (isFullscreenEnabled) {
+      function(isFullscreenEnabled) {
         fullscreenContainer.style.display = isFullscreenEnabled
           ? "block"
           : "none";
@@ -771,7 +775,7 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
     vrSubscription = subscribeAndEvaluate(
       vrButton.viewModel,
       "isVREnabled",
-      function (isVREnabled) {
+      function(isVREnabled) {
         vrContainer.style.display = isVREnabled ? "block" : "none";
         if (defined(fullscreenButton)) {
           vrContainer.style.right = fullscreenContainer.clientWidth + "px";
@@ -786,7 +790,7 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
     vrModeSubscription = subscribeAndEvaluate(
       vrButton.viewModel,
       "isVRMode",
-      function (isVRMode) {
+      function(isVRMode) {
         enableVRUI(that, isVRMode);
       }
     );
@@ -925,7 +929,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   container: {
-    get: function () {
+    get: function() {
       return this._container;
     },
   },
@@ -938,7 +942,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   bottomContainer: {
-    get: function () {
+    get: function() {
       return this._bottomContainer;
     },
   },
@@ -950,7 +954,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   cesiumWidget: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget;
     },
   },
@@ -962,7 +966,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   selectionIndicator: {
-    get: function () {
+    get: function() {
       return this._selectionIndicator;
     },
   },
@@ -974,7 +978,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   infoBox: {
-    get: function () {
+    get: function() {
       return this._infoBox;
     },
   },
@@ -986,7 +990,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   geocoder: {
-    get: function () {
+    get: function() {
       return this._geocoder;
     },
   },
@@ -998,7 +1002,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   homeButton: {
-    get: function () {
+    get: function() {
       return this._homeButton;
     },
   },
@@ -1010,7 +1014,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   sceneModePicker: {
-    get: function () {
+    get: function() {
       return this._sceneModePicker;
     },
   },
@@ -1022,7 +1026,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   projectionPicker: {
-    get: function () {
+    get: function() {
       return this._projectionPicker;
     },
   },
@@ -1034,7 +1038,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   baseLayerPicker: {
-    get: function () {
+    get: function() {
       return this._baseLayerPicker;
     },
   },
@@ -1046,7 +1050,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   navigationHelpButton: {
-    get: function () {
+    get: function() {
       return this._navigationHelpButton;
     },
   },
@@ -1058,7 +1062,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   animation: {
-    get: function () {
+    get: function() {
       return this._animation;
     },
   },
@@ -1070,7 +1074,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   timeline: {
-    get: function () {
+    get: function() {
       return this._timeline;
     },
   },
@@ -1082,7 +1086,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   fullscreenButton: {
-    get: function () {
+    get: function() {
       return this._fullscreenButton;
     },
   },
@@ -1094,7 +1098,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   vrButton: {
-    get: function () {
+    get: function() {
       return this._vrButton;
     },
   },
@@ -1106,7 +1110,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   dataSourceDisplay: {
-    get: function () {
+    get: function() {
       return this._dataSourceDisplay;
     },
   },
@@ -1119,7 +1123,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   entities: {
-    get: function () {
+    get: function() {
       return this._dataSourceDisplay.defaultDataSource.entities;
     },
   },
@@ -1131,7 +1135,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   dataSources: {
-    get: function () {
+    get: function() {
       return this._dataSourceCollection;
     },
   },
@@ -1143,7 +1147,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   canvas: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.canvas;
     },
   },
@@ -1155,7 +1159,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   scene: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.scene;
     },
   },
@@ -1166,10 +1170,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {Boolean}
    */
   shadows: {
-    get: function () {
+    get: function() {
       return this.scene.shadowMap.enabled;
     },
-    set: function (value) {
+    set: function(value) {
       this.scene.shadowMap.enabled = value;
     },
   },
@@ -1180,10 +1184,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {ShadowMode}
    */
   terrainShadows: {
-    get: function () {
+    get: function() {
       return this.scene.globe.shadows;
     },
-    set: function (value) {
+    set: function(value) {
       this.scene.globe.shadows = value;
     },
   },
@@ -1195,7 +1199,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   shadowMap: {
-    get: function () {
+    get: function() {
       return this.scene.shadowMap;
     },
   },
@@ -1208,7 +1212,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   imageryLayers: {
-    get: function () {
+    get: function() {
       return this.scene.imageryLayers;
     },
   },
@@ -1220,10 +1224,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {TerrainProvider}
    */
   terrainProvider: {
-    get: function () {
+    get: function() {
       return this.scene.terrainProvider;
     },
-    set: function (terrainProvider) {
+    set: function(terrainProvider) {
       this.scene.terrainProvider = terrainProvider;
     },
   },
@@ -1236,7 +1240,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   camera: {
-    get: function () {
+    get: function() {
       return this.scene.camera;
     },
   },
@@ -1249,7 +1253,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   postProcessStages: {
-    get: function () {
+    get: function() {
       return this.scene.postProcessStages;
     },
   },
@@ -1261,7 +1265,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   clock: {
-    get: function () {
+    get: function() {
       return this._clockViewModel.clock;
     },
   },
@@ -1273,7 +1277,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   clockViewModel: {
-    get: function () {
+    get: function() {
       return this._clockViewModel;
     },
   },
@@ -1285,7 +1289,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   screenSpaceEventHandler: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.screenSpaceEventHandler;
     },
   },
@@ -1300,10 +1304,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {Number}
    */
   targetFrameRate: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.targetFrameRate;
     },
-    set: function (value) {
+    set: function(value) {
       this._cesiumWidget.targetFrameRate = value;
     },
   },
@@ -1323,10 +1327,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {Boolean}
    */
   useDefaultRenderLoop: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.useDefaultRenderLoop;
     },
-    set: function (value) {
+    set: function(value) {
       this._cesiumWidget.useDefaultRenderLoop = value;
     },
   },
@@ -1344,10 +1348,10 @@ Object.defineProperties(Viewer.prototype, {
    * @default 1.0
    */
   resolutionScale: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.resolutionScale;
     },
-    set: function (value) {
+    set: function(value) {
       this._cesiumWidget.resolutionScale = value;
     },
   },
@@ -1365,10 +1369,10 @@ Object.defineProperties(Viewer.prototype, {
    * @default true
    */
   useBrowserRecommendedResolution: {
-    get: function () {
+    get: function() {
       return this._cesiumWidget.useBrowserRecommendedResolution;
     },
-    set: function (value) {
+    set: function(value) {
       this._cesiumWidget.useBrowserRecommendedResolution = value;
     },
   },
@@ -1384,10 +1388,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {Boolean}
    */
   allowDataSourcesToSuspendAnimation: {
-    get: function () {
+    get: function() {
       return this._allowDataSourcesToSuspendAnimation;
     },
-    set: function (value) {
+    set: function(value) {
       this._allowDataSourcesToSuspendAnimation = value;
     },
   },
@@ -1398,10 +1402,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {Entity | undefined}
    */
   trackedEntity: {
-    get: function () {
+    get: function() {
       return this._trackedEntity;
     },
-    set: function (value) {
+    set: function(value) {
       if (this._trackedEntity !== value) {
         this._trackedEntity = value;
 
@@ -1451,10 +1455,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {Entity | undefined}
    */
   selectedEntity: {
-    get: function () {
+    get: function() {
       return this._selectedEntity;
     },
-    set: function (value) {
+    set: function(value) {
       if (this._selectedEntity !== value) {
         this._selectedEntity = value;
         var selectionIndicatorViewModel = defined(this._selectionIndicator)
@@ -1479,7 +1483,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   selectedEntityChanged: {
-    get: function () {
+    get: function() {
       return this._selectedEntityChanged;
     },
   },
@@ -1490,7 +1494,7 @@ Object.defineProperties(Viewer.prototype, {
    * @readonly
    */
   trackedEntityChanged: {
-    get: function () {
+    get: function() {
       return this._trackedEntityChanged;
     },
   },
@@ -1500,10 +1504,10 @@ Object.defineProperties(Viewer.prototype, {
    * @type {DataSource}
    */
   clockTrackedDataSource: {
-    get: function () {
+    get: function() {
       return this._clockTrackedDataSource;
     },
-    set: function (value) {
+    set: function(value) {
       if (this._clockTrackedDataSource !== value) {
         this._clockTrackedDataSource = value;
         trackDataSourceClock(this._timeline, this.clock, value);
@@ -1522,7 +1526,7 @@ Object.defineProperties(Viewer.prototype, {
  *
  * @see viewerDragDropMixin
  */
-Viewer.prototype.extend = function (mixin, options) {
+Viewer.prototype.extend = function(mixin, options) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(mixin)) {
     throw new DeveloperError("mixin is required.");
@@ -1537,7 +1541,7 @@ Viewer.prototype.extend = function (mixin, options) {
  * This function is called automatically as needed unless
  * <code>useDefaultRenderLoop</code> is set to false.
  */
-Viewer.prototype.resize = function () {
+Viewer.prototype.resize = function() {
   var cesiumWidget = this._cesiumWidget;
   var container = this._container;
   var width = container.clientWidth;
@@ -1639,7 +1643,7 @@ Viewer.prototype.resize = function () {
  * This forces the widget to re-think its layout, including
  * widget sizes and credit placement.
  */
-Viewer.prototype.forceResize = function () {
+Viewer.prototype.forceResize = function() {
   this._lastWidth = 0;
   this.resize();
 };
@@ -1648,14 +1652,14 @@ Viewer.prototype.forceResize = function () {
  * Renders the scene.  This function is called automatically
  * unless <code>useDefaultRenderLoop</code> is set to false;
  */
-Viewer.prototype.render = function () {
+Viewer.prototype.render = function() {
   this._cesiumWidget.render();
 };
 
 /**
  * @returns {Boolean} true if the object has been destroyed, false otherwise.
  */
-Viewer.prototype.isDestroyed = function () {
+Viewer.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -1663,7 +1667,7 @@ Viewer.prototype.isDestroyed = function () {
  * Destroys the widget.  Should be called if permanently
  * removing the widget from layout.
  */
-Viewer.prototype.destroy = function () {
+Viewer.prototype.destroy = function() {
   var i;
 
   this.screenSpaceEventHandler.removeInputAction(
@@ -1760,7 +1764,7 @@ Viewer.prototype.destroy = function () {
 /**
  * @private
  */
-Viewer.prototype._dataSourceAdded = function (
+Viewer.prototype._dataSourceAdded = function(
   dataSourceCollection,
   dataSource
 ) {
@@ -1774,7 +1778,7 @@ Viewer.prototype._dataSourceAdded = function (
 /**
  * @private
  */
-Viewer.prototype._dataSourceRemoved = function (
+Viewer.prototype._dataSourceRemoved = function(
   dataSourceCollection,
   dataSource
 ) {
@@ -1804,7 +1808,7 @@ Viewer.prototype._dataSourceRemoved = function (
 /**
  * @private
  */
-Viewer.prototype._onTick = function (clock) {
+Viewer.prototype._onTick = function(clock) {
   var time = clock.currentTime;
 
   var isUpdated = this._dataSourceDisplay.update(time);
@@ -1889,7 +1893,7 @@ Viewer.prototype._onTick = function (clock) {
 /**
  * @private
  */
-Viewer.prototype._onEntityCollectionChanged = function (
+Viewer.prototype._onEntityCollectionChanged = function(
   collection,
   added,
   removed
@@ -1909,7 +1913,7 @@ Viewer.prototype._onEntityCollectionChanged = function (
 /**
  * @private
  */
-Viewer.prototype._onInfoBoxCameraClicked = function (infoBoxViewModel) {
+Viewer.prototype._onInfoBoxCameraClicked = function(infoBoxViewModel) {
   if (
     infoBoxViewModel.isCameraTracking &&
     this.trackedEntity === this.selectedEntity
@@ -1929,21 +1933,21 @@ Viewer.prototype._onInfoBoxCameraClicked = function (infoBoxViewModel) {
 /**
  * @private
  */
-Viewer.prototype._clearTrackedObject = function () {
+Viewer.prototype._clearTrackedObject = function() {
   this.trackedEntity = undefined;
 };
 
 /**
  * @private
  */
-Viewer.prototype._onInfoBoxClockClicked = function (infoBoxViewModel) {
+Viewer.prototype._onInfoBoxClockClicked = function(infoBoxViewModel) {
   this.selectedEntity = undefined;
 };
 
 /**
  * @private
  */
-Viewer.prototype._clearObjects = function () {
+Viewer.prototype._clearObjects = function() {
   this.trackedEntity = undefined;
   this.selectedEntity = undefined;
 };
@@ -1951,7 +1955,7 @@ Viewer.prototype._clearObjects = function () {
 /**
  * @private
  */
-Viewer.prototype._onDataSourceChanged = function (dataSource) {
+Viewer.prototype._onDataSourceChanged = function(dataSource) {
   if (this.clockTrackedDataSource === dataSource) {
     trackDataSourceClock(this.timeline, this.clock, dataSource);
   }
@@ -1960,7 +1964,7 @@ Viewer.prototype._onDataSourceChanged = function (dataSource) {
 /**
  * @private
  */
-Viewer.prototype._onDataSourceAdded = function (
+Viewer.prototype._onDataSourceAdded = function(
   dataSourceCollection,
   dataSource
 ) {
@@ -1979,7 +1983,7 @@ Viewer.prototype._onDataSourceAdded = function (
 /**
  * @private
  */
-Viewer.prototype._onDataSourceRemoved = function (
+Viewer.prototype._onDataSourceRemoved = function(
   dataSourceCollection,
   dataSource
 ) {
@@ -2018,7 +2022,7 @@ Viewer.prototype._onDataSourceRemoved = function (
  * @param {HeadingPitchRange} [offset] The offset from the center of the entity in the local east-north-up reference frame.
  * @returns {Promise.<Boolean>} A Promise that resolves to true if the zoom was successful or false if the target is not currently visualized in the scene or the zoom was cancelled.
  */
-Viewer.prototype.zoomTo = function (target, offset) {
+Viewer.prototype.zoomTo = function(target, offset) {
   var options = {
     offset: offset,
   };
@@ -2047,7 +2051,7 @@ Viewer.prototype.zoomTo = function (target, offset) {
  * @param {HeadingPitchRange} [options.offset] The offset from the target in the local east-north-up reference frame centered at the target.
  * @returns {Promise.<Boolean>} A Promise that resolves to true if the flight was successful or false if the target is not currently visualized in the scene or the flight was cancelled. //TODO: Cleanup entity mentions
  */
-Viewer.prototype.flyTo = function (target, options) {
+Viewer.prototype.flyTo = function(target, options) {
   return zoomToOrFly(this, target, options, true);
 };
 
@@ -2069,7 +2073,7 @@ function zoomToOrFly(that, zoomTarget, options, isFlight) {
   that._zoomIsFlight = isFlight;
   that._zoomOptions = options;
 
-  when(zoomTarget, function (zoomTarget) {
+  when(zoomTarget, function(zoomTarget) {
     //Only perform the zoom if it wasn't cancelled before the promise resolved.
     if (that._zoomPromise !== zoomPromise) {
       return;
@@ -2079,10 +2083,10 @@ function zoomToOrFly(that, zoomTarget, options, isFlight) {
     if (zoomTarget instanceof ImageryLayer) {
       zoomTarget
         .getViewableRectangle()
-        .then(function (rectangle) {
+        .then(function(rectangle) {
           return computeFlyToLocationForRectangle(rectangle, that.scene);
         })
-        .then(function (position) {
+        .then(function(position) {
           //Only perform the zoom if it wasn't cancelled before the promise was resolved
           if (that._zoomPromise === zoomPromise) {
             that._zoomTarget = position;
@@ -2105,7 +2109,7 @@ function zoomToOrFly(that, zoomTarget, options, isFlight) {
 
     //If the zoom target is a data source, and it's in the middle of loading, wait for it to finish loading.
     if (zoomTarget.isLoading && defined(zoomTarget.loadingEvent)) {
-      var removeEvent = zoomTarget.loadingEvent.addEventListener(function () {
+      var removeEvent = zoomTarget.loadingEvent.addEventListener(function() {
         removeEvent();
 
         //Only perform the zoom if it wasn't cancelled before the data source finished.
@@ -2160,7 +2164,7 @@ function cancelZoom(viewer) {
 /**
  * @private
  */
-Viewer.prototype._postRender = function () {
+Viewer.prototype._postRender = function() {
   updateZoomTarget(this);
   updateTrackedEntity(this);
 };
@@ -2180,7 +2184,7 @@ function updateZoomTarget(viewer) {
 
   // If zoomTarget was Cesium3DTileset
   if (target instanceof Cesium3DTileset) {
-    return target.readyPromise.then(function () {
+    return target.readyPromise.then(function() {
       var boundingSphere = target.boundingSphere;
       // If offset was originally undefined then give it base value instead of empty object
       if (!defined(zoomOptions.offset)) {
@@ -2195,10 +2199,10 @@ function updateZoomTarget(viewer) {
         offset: zoomOptions.offset,
         duration: zoomOptions.duration,
         maximumHeight: zoomOptions.maximumHeight,
-        complete: function () {
+        complete: function() {
           zoomPromise.resolve(true);
         },
-        cancel: function () {
+        cancel: function() {
           zoomPromise.resolve(false);
         },
       };
@@ -2219,7 +2223,7 @@ function updateZoomTarget(viewer) {
 
   // If zoomTarget was TimeDynamicPointCloud
   if (target instanceof TimeDynamicPointCloud) {
-    return target.readyPromise.then(function () {
+    return target.readyPromise.then(function() {
       var boundingSphere = target.boundingSphere;
       // If offset was originally undefined then give it base value instead of empty object
       if (!defined(zoomOptions.offset)) {
@@ -2234,10 +2238,10 @@ function updateZoomTarget(viewer) {
         offset: zoomOptions.offset,
         duration: zoomOptions.duration,
         maximumHeight: zoomOptions.maximumHeight,
-        complete: function () {
+        complete: function() {
           zoomPromise.resolve(true);
         },
-        cancel: function () {
+        cancel: function() {
           zoomPromise.resolve(false);
         },
       };
@@ -2264,10 +2268,10 @@ function updateZoomTarget(viewer) {
       ),
       duration: zoomOptions.duration,
       maximumHeight: zoomOptions.maximumHeight,
-      complete: function () {
+      complete: function() {
         zoomPromise.resolve(true);
       },
-      cancel: function () {
+      cancel: function() {
         zoomPromise.resolve(false);
       },
     };
@@ -2319,10 +2323,10 @@ function updateZoomTarget(viewer) {
     camera.flyToBoundingSphere(boundingSphere, {
       duration: zoomOptions.duration,
       maximumHeight: zoomOptions.maximumHeight,
-      complete: function () {
+      complete: function() {
         zoomPromise.resolve(true);
       },
-      cancel: function () {
+      cancel: function() {
         zoomPromise.resolve(false);
       },
       offset: zoomOptions.offset,

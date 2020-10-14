@@ -37,48 +37,52 @@
 
       var viewer = new Cesium.Viewer("cesiumContainer", {
         // skyAtmosphere: false,
+        moon: false,
+        // nearGroundSkyBoxShowHeight: 10000,
+        skyBox: false,
       });
       window._viewer = viewer;
       viewer.camera.setView({
         destination: new Cesium.Cartesian3.fromDegrees(0, 0, 7e7),
         duration: 0,
       });
-      var defaultSkybox = viewer.scene.skyBox;
-      var nearGroundSkybox = new Cesium.SkyBox({
-        nearGround: true,
-        sources: {
-          // positiveX: "./pictures/skybox_sunny_summer/px.png",
-          // negativeX: "./pictures/skybox_sunny_summer/nx.png",
-          // positiveY: "./pictures/skybox_sunny_summer/py.png",
-          // negativeY: "./pictures/skybox_sunny_summer/ny.png",
-          // positiveZ: "./pictures/skybox_sunny_summer/pz.png",
-          // negativeZ: "./pictures/skybox_sunny_summer/nz.png",
-          // positiveX: "./pictures/skybox_sunny_land/right.png",
-          // negativeX: "./pictures/skybox_sunny_land/left.png",
-          // positiveY: "./pictures/skybox_sunny_land/front.png",
-          // negativeY: "./pictures/skybox_sunny_land/back.png",
-          // positiveZ: "./pictures/skybox_sunny_land/top.png",
-          // negativeZ: "./pictures/skybox_sunny_land/bottom.png",
-          positiveX: "./pictures/test/px.bmp",
-          negativeX: "./pictures/test/nx.bmp",
-          positiveY: "./pictures/test/py.bmp",
-          negativeY: "./pictures/test/ny.bmp",
-          positiveZ: "./pictures/test/pz.bmp",
-          negativeZ: "./pictures/test/nz.bmp",
-        },
-      });
-      // viewer.scene.globe.show = false;
-      viewer.scene.postRender.addEventListener(() => {
-        var height = viewer.camera.positionCartographic.height;
-        if (height < 5000) {
-          // 显示自定义的天空盒
-          viewer.scene.skyBox = nearGroundSkybox;
-          viewer.scene.skyAtmosphere.show = false;
-        } else {
-          viewer.scene.skyBox = defaultSkybox;
-          viewer.scene.skyAtmosphere.show = true;
-        }
-      });
+
+      // var defaultSkybox = viewer.scene.skyBox;
+      // var nearGroundSkybox = new Cesium.SkyBox({
+      //   nearGround: true,
+      //   sources: {
+      //     // positiveX: "./pictures/skybox_sunny_summer/px.png",
+      //     // negativeX: "./pictures/skybox_sunny_summer/nx.png",
+      //     // positiveY: "./pictures/skybox_sunny_summer/py.png",
+      //     // negativeY: "./pictures/skybox_sunny_summer/ny.png",
+      //     // positiveZ: "./pictures/skybox_sunny_summer/pz.png",
+      //     // negativeZ: "./pictures/skybox_sunny_summer/nz.png",
+      //     // positiveX: "./pictures/skybox_sunny_land/right.png",
+      //     // negativeX: "./pictures/skybox_sunny_land/left.png",
+      //     // positiveY: "./pictures/skybox_sunny_land/front.png",
+      //     // negativeY: "./pictures/skybox_sunny_land/back.png",
+      //     // positiveZ: "./pictures/skybox_sunny_land/top.png",
+      //     // negativeZ: "./pictures/skybox_sunny_land/bottom.png",
+      //     positiveX: "./pictures/test/px.bmp",
+      //     negativeX: "./pictures/test/nx.bmp",
+      //     positiveY: "./pictures/test/py.bmp",
+      //     negativeY: "./pictures/test/ny.bmp",
+      //     positiveZ: "./pictures/test/pz.bmp",
+      //     negativeZ: "./pictures/test/nz.bmp",
+      //   },
+      // });
+      // // viewer.scene.globe.show = false;
+      // viewer.scene.postRender.addEventListener(() => {
+      //   var height = viewer.camera.positionCartographic.height;
+      //   if (height < 5000) {
+      //     // 显示自定义的天空盒
+      //     viewer.scene.skyBox = nearGroundSkybox;
+      //     viewer.scene.skyAtmosphere.show = false;
+      //   } else {
+      //     viewer.scene.skyBox = defaultSkybox;
+      //     viewer.scene.skyAtmosphere.show = true;
+      //   }
+      // });
     </script>
   </body>
 </html>
