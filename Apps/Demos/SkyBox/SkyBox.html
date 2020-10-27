@@ -36,16 +36,27 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
       var viewer = new Cesium.Viewer("cesiumContainer", {
-        // skyAtmosphere: false,
-        moon: false,
-        // nearGroundSkyBoxShowHeight: 10000,
-        skyBox: false,
+        nearGroundSkyBoxShowHeight: 10000,
+        // nearGroundSkybox:new Cesium.SkyBox({
+        //   nearGround:true,
+        //   sources:{
+        //               positiveX: "./pictures/test/px.bmp",
+        //   negativeX: "./pictures/test/nx.bmp",
+        //   positiveY: "./pictures/test/py.bmp",
+        //   negativeY: "./pictures/test/ny.bmp",
+        //   positiveZ: "./pictures/test/pz.bmp",
+        //   negativeZ: "./pictures/test/nz.bmp",
+        //   }
+        // })
       });
       window._viewer = viewer;
       viewer.camera.setView({
         destination: new Cesium.Cartesian3.fromDegrees(0, 0, 7e7),
         duration: 0,
       });
+
+      viewer.scene.moon = undefined;
+      viewer.scene.sun = undefined;
 
       // var defaultSkybox = viewer.scene.skyBox;
       // var nearGroundSkybox = new Cesium.SkyBox({
@@ -71,7 +82,6 @@
       //     negativeZ: "./pictures/test/nz.bmp",
       //   },
       // });
-      // // viewer.scene.globe.show = false;
       // viewer.scene.postRender.addEventListener(() => {
       //   var height = viewer.camera.positionCartographic.height;
       //   if (height < 5000) {
