@@ -111,7 +111,7 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
 
     material.alpha = colorImage.a * color.a;
 
-    material.diffuse = (colorImage.rgb + color.rgb) / 2.0; 
+    material.diffuse = color.rgb; 
 
     return material; 
 

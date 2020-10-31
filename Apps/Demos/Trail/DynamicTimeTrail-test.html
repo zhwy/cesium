@@ -146,17 +146,15 @@
 
       });
 
-
-
       var singleMaterial = Cesium.Material.fromType(
         Cesium.Material.PolylineTimeTrailType,
         {
           color: new Cesium.Color(1, 1, 1, 1),
           duration: timeDuration,
-          image: "../Lib/triangle.png",
+          image: "../Lib/red.png",
           speedColor: "../Lib/color.png",
           repeat: 1,
-          length: 0.3,
+          length: 0.2,
           time: 0,
           //速度
           test: new Cesium.Texture({
@@ -198,7 +196,7 @@
         viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
         viewer.clock.startTime = startTime;
         viewer.clock.stopTime = endTime;
-        viewer.clock.currentTime = startTime;
+        viewer.clock.currentTime = Cesium.JulianDate.addSeconds(startTime, 1, new Cesium.JulianDate());
         viewer.timeline.zoomTo(startTime, endTime);
         trailCollection.show = true;
         viewer.scene.preRender.addEventListener(() => {

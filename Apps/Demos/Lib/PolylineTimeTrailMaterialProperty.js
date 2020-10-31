@@ -95,12 +95,11 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
 
       length: 1,
 
-      test: "./color.png"
+      test: "./color.png" // to think 将速度纹理写入几何属性，创建类似PerInstanceColorAppearance，读取每个几何中的速度纹理，
+      // 就不需要每个geometry instance都创建一个primitive
     },
 
-    source: `    
-
-    varying float v_speed;
+    source: `
 
     czm_material czm_getMaterial(czm_materialInput materialInput)    
 {
@@ -129,11 +128,14 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType
     material.alpha = colorImage.a * color.a;
 
 
-    // material.alpha = 1.;
+    // 不要渐变
+    // material.alpha = 0.;
+    // if(colorImage.a >= 0.5)
+    //   material.alpha = color.a;
 
-    // material.diffuse = (colorImage.rgb + color.rgb) / 2.0; 
+    // material.diffuse = color.rgb; //相同颜色
 
-    material.diffuse = speedImage.rgb;
+    material.diffuse = speedImage.rgb; //不同速度颜色不同
 
     return material; 
 

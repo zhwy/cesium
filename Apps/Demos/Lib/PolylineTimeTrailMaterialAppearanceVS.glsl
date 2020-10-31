@@ -191,13 +191,10 @@ attribute vec3 nextPosition3DLow;
 attribute vec2 expandAndWidth;
 attribute vec2 st;
 attribute float batchId;
-attribute float speed; //速度属性
 
 varying float v_width;
 varying vec2 v_st;
 varying float v_polylineAngle;
-varying float v_speed;
-
 
 void main()
 {
