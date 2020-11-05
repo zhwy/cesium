@@ -85,6 +85,9 @@
       /* eslint-disable */
       import * as Cesium from "../../../Source/Cesium.js";
       window.CESIUM_BASE_URL = "../../../Source";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
       var viewModel = {
         height: 0,
         RotateX: 0,
@@ -93,69 +96,44 @@
       };
 
       Cesium.knockout.track(viewModel);
+      enableDropModel();
 
       var toolbar = document.getElementById("toolbar");
       Cesium.knockout.applyBindings(viewModel, toolbar);
 
       var viewer = new Cesium.Viewer("cesiumContainer", {
         animation: false,
-        baseLayerPicker: false,
-        geocoder: false,
         timeline: false,
-        infobox: false,
-        navigationHelpButton: false,
-        sceneModePicker: false,
-        scene3DOnly: true,
-        homeButton: false,
-        infoBox: false,
-        selectionIndicator: false,
-        fullscreenButton: false,
-        //高德
-        imageryProvider: new Cesium.UrlTemplateImageryProvider({
-          url:
-            "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}", //高德
-          // "http://mt1.google.cn/vt/lyrs=s&gl=cn&x={x}&y={y}&z={z}", //谷歌有偏移
-          maximumLevel: 18,
-          tileMatrixSetID: "GoogleMapsCompatible",
-        }),
       });
+      window._viewer = viewer;
       viewer.scene.globe.depthTestAgainstTerrain = true;
 
-      //计算（0,0）经纬度
-      var realOrigin = calculateOrigin(
-        // 29945.5016, //图纸坐标
-        // 31119.6283,
-        29960.5016, //调整到地图，对不齐
-        31009.6283,
-        116.790876,
-        36.498398
-      );
       //放置到对应位置
-      var carte = Cesium.Cartesian3.fromRadians(
-        realOrigin.longitude,
-        realOrigin.latitude,
-        0 //整体高度变化不对，好像反了
+      var carte = Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 50);
+      // var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(carte);
+      // var rotationZ = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(0));
+      // var rotationZZ = Cesium.Matrix4.fromRotationTranslation(rotationZ);
+      // Cesium.Matrix4.multiply(modelMatrix, rotationZZ, modelMatrix);
+      var modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+        carte,
+        new Cesium.HeadingPitchRoll(0, 0, 0)
       );
-      var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(carte);
-
-      var rotationZ = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(0));
-      var rotationZZ = Cesium.Matrix4.fromRotationTranslation(rotationZ);
-      Cesium.Matrix4.multiply(modelMatrix, rotationZZ, modelMatrix);
 
       var model = viewer.scene.primitives.add(
         Cesium.Model.fromGltf({
-          // url: "./guidao.glb",
           url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
           modelMatrix: modelMatrix,
-          debugShowBoundingVolume: true,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          scene: viewer.scene,
+          debugShowBoundingVolume: false,
         })
       );
       model.readyPromise.then(function (arg) {
-        viewer.camera.flyTo({
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(
+            116.790876,
+            36.498398,
+            100
+          ),
           duration: 0,
-          destination: carte,
         });
       });
       var hh = 0,
@@ -251,7 +229,25 @@
         var resulty = geodesic.interpolateUsingSurfaceDistance(y, null);
         return new Cesium.Cartographic(resultx.longitude, resulty.latitude, 0);
       }
+
+      function enableDropModel() {
+        function allowDrop(e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        function drop(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var df = e.dataTransfer;
+          var dropFiles = []; // 存放拖拽的文件对象
+          debugger;
+        }
+        var container = document.getElementById("cesiumContainer");
+        container.ondragenter = allowDrop;
+        container.ondragover = allowDrop;
+        container.ondragleave = allowDrop;
+        container.ondrop = drop;
+      }
     </script>
-    <script></script>
   </body>
 </html>
