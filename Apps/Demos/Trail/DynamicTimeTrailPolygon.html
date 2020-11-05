@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>流动面</title>
+  <style>
+    @import url(../../../Build/Cesium/Widgets/widgets.css);
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+  <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
+  <script>
+    /* eslint-disable*/
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    var viewer = new Cesium.Viewer("cesiumContainer");
+    viewer.scene.debugShowFramesPerSecond = true;
+    viewer.targetFrameRate = 60;
+    var supportsImageRenderingPixelated =
+      viewer.cesiumWidget._supportsImageRenderingPixelated;
+    if (supportsImageRenderingPixelated) {
+      var vtxf_dpr = window.devicePixelRatio;
+      while (vtxf_dpr >= 2.0) {
+        vtxf_dpr /= 2.0;
+      }
+      viewer.resolutionScale = vtxf_dpr;
+    }
+
+    var coords = [
+      [120, 29],
+      [121, 28],
+      [122, 29],
+      [121, 30],
+      [120, 29]
+    ]
+
+    var positions = coords.map((coord) => {
+      return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 5);
+    });
+    var geometry = new Cesium.PolygonGeometry({
+      polygonHierarchy: new Cesium.PolygonHierarchy(positions),
+      height: 5,
+      stRotation: Cesium.Math.toRadians(-90)
+    });
+    // var geometry = new Cesium.RectangleGeometry({
+    //   rectangle: new Cesium.Rectangle(Cesium.Math.toRadians(120), Cesium.Math.toRadians(29), Cesium.Math.toRadians(121), Cesium.Math.toRadians(30))
+    // })
+    var instance = new Cesium.GeometryInstance({
+      geometry: geometry,
+    });
+
+    var primitive = viewer.scene.primitives.add(
+      new Cesium.Primitive({
+        geometryInstances: instance,
+        debugShowBoundingVolume: false,
+        appearance: new Cesium.EllipsoidSurfaceAppearance({
+          material: Cesium.Material.fromType(
+            Cesium.Material.PolylineTrailType2,
+            {
+              color: new Cesium.Color(1, 1, 1, 1),
+              duration: 1000,
+              image: "../Lib/arrow.png",
+              repeat: 5,
+              length: 1,
+              time: 0,
+            }
+          ),
+        }),
+        // appearance: new Cesium.EllipsoidSurfaceAppearance({
+        //   material: Cesium.Material.fromType('Color', {
+        //     color: new Cesium.Color(1, 1, 1, 1)
+        //   }),
+        // }),
+      })
+    );
+
+    primitive.readyPromise.then(() => {
+      var rotation = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(-90));
+      // primitive.modelMatrix = Cesium.Matrix4.multiplyByMatrix3(primitive.modelMatrix, rotation, new Cesium.Matrix4());
+      viewer.scene.preRender.addEventListener(() => {
+        if (Cesium.defined(primitive.appearance.material.uniforms.time))
+          primitive.appearance.material.uniforms.time++;
+      });
+    });
+
+    viewer.camera.flyTo({
+      duration: 0,
+      destination: Cesium.Cartesian3.fromDegrees(120.5, 29.5, 500000),
+    });
+
+  </script>
+</body>
+
+</html>
