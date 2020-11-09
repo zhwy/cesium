@@ -303,8 +303,8 @@ function enableVRUI(viewer, enabled) {
  * @property {ImageryProvider} [imageryProvider=createWorldImagery()] The imagery provider to use.  This value is only valid if `baseLayerPicker` is set to false.
  * @property {TerrainProvider} [terrainProvider=new EllipsoidTerrainProvider()] The terrain provider to use
  * @property {SkyBox|false} [skyBox] The skybox used to render the stars.  When <code>undefined</code>, the default stars are used. If set to <code>false</code>, no skyBox, Sun, or Moon will be added.
- * @property {SkyBox| false} [options.nearGroundSkyBox] The near-ground skybox.
- * @property {Number} [options.nearGroundSkyBoxShowHeight=5000.0] The near-ground skybox show height.
+ * @property {SkyBox| false} [nearGroundSkyBox] The near-ground skybox.
+ * @property {Number} [nearGroundSkyBoxShowHeight=5000.0] The near-ground skybox show height.
  * @property {SkyAtmosphere|false} [skyAtmosphere] Blue sky, and the glow around the Earth's limb.  Set to <code>false</code> to turn it off.
  * @property {Element|String} [fullscreenElement=document.body] The element or id to be placed into fullscreen mode when the full screen button is pressed.
  * @property {Boolean} [useDefaultRenderLoop=true] True if this widget should control the render loop, false otherwise.
