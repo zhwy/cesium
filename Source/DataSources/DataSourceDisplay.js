@@ -98,7 +98,7 @@ function DataSourceDisplay(options) {
   var removeDataSourceCollectionListener;
   if (!primitivesAdded) {
     var that = this;
-    var addPrimitives = function () {
+    var addPrimitives = function() {
       scene.primitives.add(primitives);
       scene.groundPrimitives.add(groundPrimitives);
       removeDefaultDataSourceListener();
@@ -126,7 +126,7 @@ function DataSourceDisplay(options) {
  *
  * @type {DataSourceDisplay.VisualizersCallback}
  */
-DataSourceDisplay.defaultVisualizersCallback = function (
+DataSourceDisplay.defaultVisualizersCallback = function(
   scene,
   entityCluster,
   dataSource
@@ -161,7 +161,7 @@ Object.defineProperties(DataSourceDisplay.prototype, {
    * @type {Scene}
    */
   scene: {
-    get: function () {
+    get: function() {
       return this._scene;
     },
   },
@@ -171,7 +171,7 @@ Object.defineProperties(DataSourceDisplay.prototype, {
    * @type {DataSourceCollection}
    */
   dataSources: {
-    get: function () {
+    get: function() {
       return this._dataSourceCollection;
     },
   },
@@ -184,7 +184,7 @@ Object.defineProperties(DataSourceDisplay.prototype, {
    * @type {CustomDataSource}
    */
   defaultDataSource: {
-    get: function () {
+    get: function() {
       return this._defaultDataSource;
     },
   },
@@ -196,7 +196,7 @@ Object.defineProperties(DataSourceDisplay.prototype, {
    * @readonly
    */
   ready: {
-    get: function () {
+    get: function() {
       return this._ready;
     },
   },
@@ -212,7 +212,7 @@ Object.defineProperties(DataSourceDisplay.prototype, {
  *
  * @see DataSourceDisplay#destroy
  */
-DataSourceDisplay.prototype.isDestroyed = function () {
+DataSourceDisplay.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -232,7 +232,7 @@ DataSourceDisplay.prototype.isDestroyed = function () {
  *
  * @see DataSourceDisplay#isDestroyed
  */
-DataSourceDisplay.prototype.destroy = function () {
+DataSourceDisplay.prototype.destroy = function() {
   this._eventHelper.removeAll();
 
   var dataSourceCollection = this._dataSourceCollection;
@@ -261,7 +261,7 @@ DataSourceDisplay.prototype.destroy = function () {
  * @param {JulianDate} time The simulation time.
  * @returns {Boolean} True if all data sources are ready to be displayed, false otherwise.
  */
-DataSourceDisplay.prototype.update = function (time) {
+DataSourceDisplay.prototype.update = function(time) {
   //>>includeStart('debug', pragmas.debug);
   Check.defined("time", time);
   //>>includeEnd('debug');
@@ -303,7 +303,7 @@ DataSourceDisplay.prototype.update = function (time) {
   return result;
 };
 
-DataSourceDisplay.prototype._postRender = function () {
+DataSourceDisplay.prototype._postRender = function() {
   // Adds credits for all datasources
   var frameState = this._scene.frameState;
   var dataSources = this._dataSourceCollection;
@@ -343,7 +343,7 @@ var getBoundingSphereBoundingSphereScratch = new BoundingSphere();
  *                       BoundingSphereState.FAILED if the entity has no visualization in the current scene.
  * @private
  */
-DataSourceDisplay.prototype.getBoundingSphere = function (
+DataSourceDisplay.prototype.getBoundingSphere = function(
   entity,
   allowPartial,
   result
@@ -412,7 +412,7 @@ DataSourceDisplay.prototype.getBoundingSphere = function (
   return BoundingSphereState.DONE;
 };
 
-DataSourceDisplay.prototype._onDataSourceAdded = function (
+DataSourceDisplay.prototype._onDataSourceAdded = function(
   dataSourceCollection,
   dataSource
 ) {
@@ -441,7 +441,7 @@ DataSourceDisplay.prototype._onDataSourceAdded = function (
   );
 };
 
-DataSourceDisplay.prototype._onDataSourceRemoved = function (
+DataSourceDisplay.prototype._onDataSourceRemoved = function(
   dataSourceCollection,
   dataSource
 ) {
@@ -455,9 +455,11 @@ DataSourceDisplay.prototype._onDataSourceRemoved = function (
   primitives.remove(entityCluster);
 
   var visualizers = dataSource._visualizers;
-  var length = visualizers.length;
-  for (var i = 0; i < length; i++) {
-    visualizers[i].destroy();
+  if (visualizers) {
+    var length = visualizers.length;
+    for (var i = 0; i < length; i++) {
+      visualizers[i].destroy();
+    }
   }
 
   displayPrimitives.remove(primitives);
@@ -466,7 +468,7 @@ DataSourceDisplay.prototype._onDataSourceRemoved = function (
   dataSource._visualizers = undefined;
 };
 
-DataSourceDisplay.prototype._onDataSourceMoved = function (
+DataSourceDisplay.prototype._onDataSourceMoved = function(
   dataSource,
   newIndex,
   oldIndex
