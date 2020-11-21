@@ -30,7 +30,10 @@ import Primitive from "./Primitive.js";
  * @param {Matrix4} [options.modelMatrix=Matrix4.IDENTITY] The 4x4 matrix that defines the reference frame, i.e., origin plus axes, to visualize.
  * @param {Boolean} [options.show=true] Determines if this primitive will be shown.
  * @param {Object} [options.id] A user-defined object to return when the instance is picked with {@link Scene#pick}
- *
+ * @param {Color} [options.xColor=Color.RED] Color for axis x
+ * @param {Color} [options.yColor=Color.GREEN] Color for axis y
+ * @param {Color} [options.zColor=Color.BLUE] Color for axis z
+ * 
  * @example
  * primitives.add(new Cesium.DebugModelMatrixPrimitiveNew({
  *   modelMatrix : primitive.modelMatrix,  // primitive to debug
@@ -89,13 +92,20 @@ function DebugModelMatrixPrimitiveNew(options) {
   this.id = options.id;
   this._id = undefined;
 
+  this.xColor = defaultValue(options.xColor, Color.RED);
+  this._xColor = undefined;
+  this.yColor = defaultValue(options.yColor, Color.GREEN);
+  this._yColor = undefined;
+  this.zColor = defaultValue(options.zColor, Color.BLUE);
+  this._zColor = undefined;
+
   this._primitive = undefined;
 }
 
 /**
  * @private
  */
-DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
+DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
   if (!this.show) {
     return;
   }
@@ -105,12 +115,18 @@ DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
     !Matrix4.equals(this._modelMatrix, this.modelMatrix) ||
     this._length !== this.length ||
     this._width !== this.width ||
-    this._id !== this.id
+    this._id !== this.id ||
+    this._xColor !== this.xColor ||
+    this._yColor !== this.yColor ||
+    this._zColor !== this.zColor
   ) {
     this._modelMatrix = Matrix4.clone(this.modelMatrix, this._modelMatrix);
     this._length = this.length;
     this._width = this.width;
     this._id = this.id;
+    this._xColor = this.xColor;
+    this._yColor = this.yColor;
+    this._zColor = this.zColor
 
     if (defined(this._primitive)) {
       this._primitive.destroy();
@@ -130,7 +146,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
         positions: [Cartesian3.ZERO, Cartesian3.UNIT_X],
         width: this.width,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
-        colors: [Color.RED, Color.RED],
+        colors: [this.xColor, this.xColor],
         arcType: ArcType.NONE,
       }),
       modelMatrix: Matrix4.multiplyByUniformScale(
@@ -149,7 +165,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
         positions: [Cartesian3.ZERO, Cartesian3.UNIT_Y],
         width: this.width,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
-        colors: [Color.GREEN, Color.GREEN],
+        colors: [this.yColor, this.yColor],
         arcType: ArcType.NONE,
       }),
       modelMatrix: Matrix4.multiplyByUniformScale(
@@ -168,7 +184,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
         positions: [Cartesian3.ZERO, Cartesian3.UNIT_Z],
         width: this.width,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
-        colors: [Color.BLUE, Color.BLUE],
+        colors: [this.zColor, this.zColor],
         arcType: ArcType.NONE,
       }),
       modelMatrix: Matrix4.multiplyByUniformScale(
@@ -187,6 +203,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
       geometryInstances: [x, y, z],
       appearance: new PolylineColorAppearance(),
       asynchronous: false,
+      releaseGeometryInstances: false
     });
   }
 
@@ -204,7 +221,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
  *
  * @see DebugModelMatrixPrimitiveNew#destroy
  */
-DebugModelMatrixPrimitiveNew.prototype.isDestroyed = function () {
+DebugModelMatrixPrimitiveNew.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -224,7 +241,7 @@ DebugModelMatrixPrimitiveNew.prototype.isDestroyed = function () {
  *
  * @see DebugModelMatrixPrimitiveNew#isDestroyed
  */
-DebugModelMatrixPrimitiveNew.prototype.destroy = function () {
+DebugModelMatrixPrimitiveNew.prototype.destroy = function() {
   this._primitive = this._primitive && this._primitive.destroy();
   return destroyObject(this);
 };
