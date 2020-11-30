@@ -197,7 +197,9 @@
         viewer.entities.removeAll();
         viewer.scene.primitives.removeAll();
         polygons.forEach((positions, i) => {
-          viewer.entities.add(createEntity(positions, i));
+          viewer.entities.add(
+            new Cesium.EntityCollection().add(createEntity(positions, i))
+          );
         });
       }
       function usePrimitive() {
