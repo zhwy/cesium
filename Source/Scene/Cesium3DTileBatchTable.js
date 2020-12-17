@@ -1368,91 +1368,97 @@ Cesium3DTileBatchTable.prototype.addDerivedCommands = function (
 
   for (var i = commandStart; i < commandEnd; ++i) {
     var command = commandList[i];
-    var derivedCommands = command.derivedCommands.tileset;
-    if (!defined(derivedCommands) || command.dirty) {
-      derivedCommands = {};
-      command.derivedCommands.tileset = derivedCommands;
-      derivedCommands.originalCommand = deriveCommand(command);
-      command.dirty = false;
-    }
-    var originalCommand = derivedCommands.originalCommand;
-
-    if (
-      styleCommandsNeeded !== StyleCommandsNeeded.ALL_OPAQUE &&
-      command.pass !== Pass.TRANSLUCENT
-    ) {
-      if (!defined(derivedCommands.translucent)) {
-        derivedCommands.translucent = deriveTranslucentCommand(originalCommand);
+    if (command) {
+      var derivedCommands = command.derivedCommands.tileset;
+      if (!defined(derivedCommands) || command.dirty) {
+        derivedCommands = {};
+        command.derivedCommands.tileset = derivedCommands;
+        derivedCommands.originalCommand = deriveCommand(command);
+        command.dirty = false;
       }
-    }
+      var originalCommand = derivedCommands.originalCommand;
 
-    if (
-      styleCommandsNeeded !== StyleCommandsNeeded.ALL_TRANSLUCENT &&
-      command.pass !== Pass.TRANSLUCENT
-    ) {
-      if (!defined(derivedCommands.opaque)) {
-        derivedCommands.opaque = deriveOpaqueCommand(originalCommand);
+      if (
+        styleCommandsNeeded !== StyleCommandsNeeded.ALL_OPAQUE &&
+        command.pass !== Pass.TRANSLUCENT
+      ) {
+        if (!defined(derivedCommands.translucent)) {
+          derivedCommands.translucent = deriveTranslucentCommand(
+            originalCommand
+          );
+        }
       }
 
-      if (bivariateVisibilityTest) {
-        if (!finalResolution) {
-          if (!defined(derivedCommands.zback)) {
-            derivedCommands.zback = deriveZBackfaceCommand(
-              frameState.context,
-              originalCommand
-            );
+      if (
+        styleCommandsNeeded !== StyleCommandsNeeded.ALL_TRANSLUCENT &&
+        command.pass !== Pass.TRANSLUCENT
+      ) {
+        if (!defined(derivedCommands.opaque)) {
+          derivedCommands.opaque = deriveOpaqueCommand(originalCommand);
+        }
+
+        if (bivariateVisibilityTest) {
+          if (!finalResolution) {
+            if (!defined(derivedCommands.zback)) {
+              derivedCommands.zback = deriveZBackfaceCommand(
+                frameState.context,
+                originalCommand
+              );
+            }
+            tileset._backfaceCommands.push(derivedCommands.zback);
           }
-          tileset._backfaceCommands.push(derivedCommands.zback);
+          if (
+            !defined(derivedCommands.stencil) ||
+            tile._selectionDepth !==
+              getLastSelectionDepth(derivedCommands.stencil)
+          ) {
+            if (command.renderState.depthMask) {
+              derivedCommands.stencil = deriveStencilCommand(
+                originalCommand,
+                tile._selectionDepth
+              );
+            } else {
+              // Ignore if tile does not write depth
+              derivedCommands.stencil = derivedCommands.opaque;
+            }
+          }
+        }
+      }
+
+      var opaqueCommand = bivariateVisibilityTest
+        ? derivedCommands.stencil
+        : derivedCommands.opaque;
+      var translucentCommand = derivedCommands.translucent;
+
+      // If the command was originally opaque:
+      //    * If the styling applied to the tile is all opaque, use the opaque command
+      //      (with one additional uniform needed for the shader).
+      //    * If the styling is all translucent, use new (cached) derived commands (front
+      //      and back faces) with a translucent render state.
+      //    * If the styling causes both opaque and translucent features in this tile,
+      //      then use both sets of commands.
+      if (command.pass !== Pass.TRANSLUCENT) {
+        if (styleCommandsNeeded === StyleCommandsNeeded.ALL_OPAQUE) {
+          commandList[i] = opaqueCommand;
+        }
+        if (styleCommandsNeeded === StyleCommandsNeeded.ALL_TRANSLUCENT) {
+          commandList[i] = translucentCommand;
         }
         if (
-          !defined(derivedCommands.stencil) ||
-          tile._selectionDepth !==
-            getLastSelectionDepth(derivedCommands.stencil)
+          styleCommandsNeeded === StyleCommandsNeeded.OPAQUE_AND_TRANSLUCENT
         ) {
-          if (command.renderState.depthMask) {
-            derivedCommands.stencil = deriveStencilCommand(
-              originalCommand,
-              tile._selectionDepth
-            );
-          } else {
-            // Ignore if tile does not write depth
-            derivedCommands.stencil = derivedCommands.opaque;
-          }
+          // PERFORMANCE_IDEA: if the tile has multiple commands, we do not know what features are in what
+          // commands so this case may be overkill.
+          commandList[i] = opaqueCommand;
+          commandList.push(translucentCommand);
         }
+      } else {
+        // Command was originally translucent so no need to derive new commands;
+        // as of now, a style can't change an originally translucent feature to
+        // opaque since the style's alpha is modulated, not a replacement.  When
+        // this changes, we need to derive new opaque commands here.
+        commandList[i] = originalCommand;
       }
-    }
-
-    var opaqueCommand = bivariateVisibilityTest
-      ? derivedCommands.stencil
-      : derivedCommands.opaque;
-    var translucentCommand = derivedCommands.translucent;
-
-    // If the command was originally opaque:
-    //    * If the styling applied to the tile is all opaque, use the opaque command
-    //      (with one additional uniform needed for the shader).
-    //    * If the styling is all translucent, use new (cached) derived commands (front
-    //      and back faces) with a translucent render state.
-    //    * If the styling causes both opaque and translucent features in this tile,
-    //      then use both sets of commands.
-    if (command.pass !== Pass.TRANSLUCENT) {
-      if (styleCommandsNeeded === StyleCommandsNeeded.ALL_OPAQUE) {
-        commandList[i] = opaqueCommand;
-      }
-      if (styleCommandsNeeded === StyleCommandsNeeded.ALL_TRANSLUCENT) {
-        commandList[i] = translucentCommand;
-      }
-      if (styleCommandsNeeded === StyleCommandsNeeded.OPAQUE_AND_TRANSLUCENT) {
-        // PERFORMANCE_IDEA: if the tile has multiple commands, we do not know what features are in what
-        // commands so this case may be overkill.
-        commandList[i] = opaqueCommand;
-        commandList.push(translucentCommand);
-      }
-    } else {
-      // Command was originally translucent so no need to derive new commands;
-      // as of now, a style can't change an originally translucent feature to
-      // opaque since the style's alpha is modulated, not a replacement.  When
-      // this changes, we need to derive new opaque commands here.
-      commandList[i] = originalCommand;
     }
   }
 };
