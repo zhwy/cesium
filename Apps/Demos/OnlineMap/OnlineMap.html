@@ -53,9 +53,11 @@
           category: "卫星",
           creationFunction: function () {
             return new Cesium.UrlTemplateImageryProvider({
-              url: "http://www.google.cn/maps/vt?lyrs=s&x={x}&y={y}&z={z}",
-              maximumLevel: 22,
-              tileMatrixSetID: "GoogleMapsCompatible",
+              url:
+                "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
+              maximumLevel: 20,
+              tileWidth: 512,
+              tileHeight: 512,
             });
           },
         }),

@@ -11,6 +11,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
     <title>3d tiles 展示</title>
+    <script src="../Lib/tool.js"></script>
     <style>
       @import url(../../../../Build/Cesium/Widgets/widgets.css);
 
@@ -71,7 +72,7 @@
         })
       );
       tileset.readyPromise.then(function () {
-        _changeModelPosition(tileset, 0.5, 0.5, -20);
+        changeTilesetPosition(tileset, 0.5, 0.5, -20);
         // 绘制一个圆，查看遮挡情况
         var radius = 100;
         var orginPoint = Cesium.Matrix4.multiplyByPoint(
@@ -168,42 +169,6 @@
         // _enableTranslate()
       });
       window._tileset = tileset;
-
-      function _changeModelPosition(tileset, dx, dy, dz) {
-        var cartographic = Cesium.Cartographic.fromCartesian(
-          tileset.boundingSphere.center
-        );
-        var surface = Cesium.Cartesian3.fromRadians(
-          cartographic.longitude,
-          cartographic.latitude,
-          0.0
-        );
-        var offset = Cesium.Cartesian3.fromRadians(
-          cartographic.longitude,
-          cartographic.latitude,
-          dz
-        );
-        var translation = Cesium.Cartesian3.subtract(
-          offset,
-          surface,
-          new Cesium.Cartesian3()
-        );
-
-        tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation); //改变高度
-
-        // var pos = Cesium.Cartesian3.fromDegrees(lng, lat, height);
-        // var headingPitchRoll = new Cesium.HeadingPitchRoll(
-        //   0,
-        //   0,
-        //   Cesium.Math.toRadians(0)
-        // );
-        // modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
-        //   new Cesium.Cartesian3(6378059, 0, 0),
-        //   headingPitchRoll
-        // );
-
-        // Cesium.Matrix4.multiply(modelMatrix, tileset.modelMatrix, modelMatrix);
-      }
 
       // 移动模型
       function _enableTranslate() {
