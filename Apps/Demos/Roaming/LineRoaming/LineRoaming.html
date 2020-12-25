@@ -10,10 +10,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>Hello My Cesium</title>
-    <script src="Demos/Lib/tool.js"></script>
+    <title>轴线漫游</title>
+    <script src="/Apps/Demos/Lib/tool.js"></script>
     <style>
-      @import url(../Build/Cesium/Widgets/widgets.css);
+      @import url(/Source/Widgets/widgets.css);
 
       html,
       body,
@@ -30,12 +30,14 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
+      /* eslint-disable */
+      window.CESIUM_BASE_URL = "/Source";
+      import * as Cesium from "/Source/Cesium.js";
+      import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
+      import LineRoamingHelper from "./lineRoamingHelper.js";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-      window.CESIUM_BASE_URL = "../Source";
-      import * as Cesium from "../Source/Cesium.js";
-      import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
-      /* eslint-disable */
+
       var _roam = true;
       var viewer = new Cesium.Viewer("cesiumContainer", {
         animation: false,
@@ -50,7 +52,7 @@
         infoBox: false,
         selectionIndicator: false,
         fullscreenButton: false,
-        shouldAnimate: true,
+        shouldAnimate: false,
         imageryProvider: new Cesium.UrlTemplateImageryProvider({
           url:
             "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
@@ -61,20 +63,33 @@
         terrainProvider: Cesium.createWorldTerrain(),
       });
       window._viewer = viewer;
-      //抗锯齿
-      viewer.scene.postProcessStages.fxaa.enabled = true;
-      //3d tiles inspector
-      // viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
-      viewer.scene.globe.depthTestAgainstTerrain = true;
+      var roamingHelper = new LineRoamingHelper(viewer);
+      window._roamingHelper = roamingHelper;
+      var scene = viewer.scene;
+
+      scene.globe.depthTestAgainstTerrain = true;
       //防止模型显示不完整
-      viewer.scene.logarithmicDepthBuffer = false;
+      scene.logarithmicDepthBuffer = false;
       //鼠标控制
-      viewer.scene.screenSpaceCameraController.rotateEventTypes = [
+      scene.screenSpaceCameraController.rotateEventTypes = [
         Cesium.CameraEventType.LEFT_DRAG,
       ];
-      viewer.scene.screenSpaceCameraController.zoomEventTypes = [
+      scene.screenSpaceCameraController.zoomEventTypes = [
         Cesium.CameraEventType.WHEEL,
       ];
+
+      scene.screenSpaceCameraController.enableCollisionDetection = false; // 允许相机下地
+
+      var globe = scene.globe;
+      globe.depthTestAgainstTerrain = true;
+      globe.undergroundColor = Cesium.Color.fromCssColorString(
+        "rgb(61, 53, 51)"
+      );
+      globe.undergroundColorAlphaByDistance.near = 0;
+      globe.undergroundColorAlphaByDistance.far = 100;
+      globe.undergroundColorAlphaByDistance.nearValue = 0;
+      globe.undergroundColorAlphaByDistance.farValue = 1;
+
       //加载模型
       // var model = new Cesium.Cesium3DTileset({
       //   url: "http://localhost:8082/compare_with_glb/tileset.json",
@@ -98,6 +113,7 @@
       );
       var model = viewer.entities.add({
         position: pos,
+        id: "tunnel",
         orientation: orientation,
         model: {
           uri: "/Apps/Demos/Underground/隧道test.glb",
@@ -105,11 +121,33 @@
       });
       viewer.zoomTo(model);
 
+      //添加路径
+      var positions = [
+        [120.04936536199757, 29.83066370910273, 654.5595598390918],
+        [120.03480534442834, 29.817954205366856, 654.9648386175115],
+      ];
+      roamingHelper.setRoamPath(positions);
+
+      var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      //双击事件
+      handler.setInputAction(function (evt) {
+        if (scene.mode !== Cesium.SceneMode.MORPHING) {
+          if (scene.pickPositionSupported) {
+            let pickedObject = scene.pick(evt.position);
+            if (pickedObject.id.id == "tunnel") {
+              roamingHelper.startRoaming();
+            }
+          } else {
+            console.warn("地图不支持位置选取");
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
       //右键旋转视角
       var startMousePosition;
       var mousePosition;
       var turning = false;
-      viewer.clock.onTick.addEventListener((clock) => {
+      scene.preRender.addEventListener((clock) => {
         if (turning) {
           var width = viewer.scene.canvas.clientWidth;
           var height = viewer.scene.canvas.clientHeight;
@@ -126,6 +164,7 @@
           mousePosition.clone(startMousePosition);
         }
       });
+
       handler.setInputAction(function (movement) {
         mousePosition = movement.endPosition;
       }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
@@ -141,6 +180,43 @@
           movement.position
         );
       }, Cesium.ScreenSpaceEventType.RIGHT_UP);
+
+      // 点击
+      handler.setInputAction((evt) => {
+        if (scene.mode !== Cesium.SceneMode.MORPHING) {
+          if (scene.pickPositionSupported) {
+            let cartesian = viewer.scene.pickPosition(evt.position);
+            if (Cesium.defined(cartesian)) {
+              let cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+              let lng = Cesium.Math.toDegrees(cartographic.longitude);
+              let lat = Cesium.Math.toDegrees(cartographic.latitude);
+              let height = cartographic.height; //高度
+              let mapPosition = { lng: lng, lat: lat, height: height };
+              console.log("position", mapPosition);
+              let cameraCart = viewer.camera.positionCartographic;
+              console.log("camera", {
+                cartesian: viewer.camera.position,
+                position: {
+                  lng: Cesium.Math.toDegrees(cameraCart.longitude),
+                  lat: Cesium.Math.toDegrees(cameraCart.latitude),
+                  height: cameraCart.height,
+                },
+                orientation: {
+                  heading: viewer.camera.heading,
+                  pitch: viewer.camera.pitch,
+                  roll: viewer.camera.roll,
+                },
+              });
+              let pickedObject = scene.pick(evt.position);
+              console.log("pickedObject", pickedObject);
+            } else {
+              console.warn("未拾取到地理坐标");
+            }
+          } else {
+            console.warn("地图不支持位置选取");
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK); //左键点击
     </script>
   </body>
 </html>
