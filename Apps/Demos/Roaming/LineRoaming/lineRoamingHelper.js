@@ -9,7 +9,25 @@ class LineRoamingHelper {
       this.clock.tick();
     });
     this.tickHandler = null;
+    this.roaming = false;
+    this.multiplier = 60; // 行进速度
+    this.cameraDirection = 1;
+    this.whenStopRoaming = () => { };
+
+    this.rotateCtrls = this.viewer.scene.screenSpaceCameraController.rotateEventTypes;
+    this.tiltCtrls = this.viewer.scene.screenSpaceCameraController.tiltEventTypes;
+
+    document.addEventListener("keydown", (e) => {
+      this._keydown(e);
+    });
+    document.addEventListener("keyup", (e) => {
+      this._keyup(e);
+    });
   }
+  /**
+   * 设置漫游路径
+   * @param {*} positions
+   */
   setRoamPath(positions) {
     if (positions.length > 1) {
       const cartographic = [];
@@ -59,11 +77,16 @@ class LineRoamingHelper {
       alert("至少需要两个点！");
     }
   }
-  startRoaming() {
+  /**
+   * 激活漫游
+   */
+  activateRoaming() {
+    const me = this;
+    this.roaming = true;
     if (this.tickHandler) this.tickHandler(); // 移除
     const camera = this.viewer.camera;
     this.clock.currentTime = this.clock.startTime.clone();
-    const pos1 = this.roamPath.position.getValue(this.clock.currentTime);
+    const pos1 = this.roamPath.position.getValue(this.clock.startTime);
     const pos2 = this.roamPath.position.getValue(
       Cesium.JulianDate.addSeconds(
         this.clock.startTime,
@@ -71,35 +94,113 @@ class LineRoamingHelper {
         new Cesium.JulianDate()
       )
     );
-    const direction = Cesium.Cartesian3.normalize(
-      Cesium.Cartesian3.subtract(pos2, pos1, new Cesium.Cartesian3()),
-      new Cesium.Cartesian3()
+    const geodesic = new Cesium.EllipsoidGeodesic(
+      Cesium.Cartographic.fromCartesian(pos1),
+      Cesium.Cartographic.fromCartesian(pos2)
     );
-    camera.direction = direction;
-    console.log({ direction: direction, heading: camera.heading });
-    camera.setView({
+    this.viewer.scene.screenSpaceCameraController.enableRotate = false;
+    this.viewer.scene.screenSpaceCameraController.enableTilt = false;
+    this.viewer.scene.screenSpaceCameraController.enableZoom = false;
+    camera.flyTo({
       destination: pos1,
       orientation: {
-        roll: 0,
+        heading: geodesic.startHeading,
         pitch: 0,
-        heading: camera.heading,
+        roll: 0
       },
+      maximumHeight: geodesic.start.height,
+      duration: 2,
+      complete: () => {
+        this.tickHandler = this.clock.onTick.addEventListener((clock) => {
+          const pos = this.roamPath.position.getValue(clock.currentTime);
+          if (pos) {
+            camera.setView({
+              destination: pos,
+              orientation: {
+                roll: camera.roll,
+                pitch: camera.pitch,
+                heading: camera.heading,
+              },
+            });
+            let nowPos = pos.clone();
+            let nextpos = me.roamPath.position.getValue(
+              Cesium.JulianDate.addSeconds(
+                clock.currentTime,
+                1,
+                new Cesium.JulianDate()
+              )
+            );
+            if (typeof nextpos === "undefined") {
+              nextpos = pos.clone();
+              nowPos = me.roamPath.position.getValue(
+                Cesium.JulianDate.addSeconds(
+                  clock.currentTime,
+                  -1,
+                  new Cesium.JulianDate()
+                )
+              );
+            }
+            const direction = Cesium.Cartesian3.subtract(
+              nextpos,
+              nowPos,
+              new Cesium.Cartesian3()
+            );
+            const angle = Cesium.Cartesian3.angleBetween(
+              direction,
+              camera.direction
+            );
+            if (angle > -Math.PI / 2 && angle < Math.PI / 2) {
+              me.cameraDirection = 1;
+            } else {
+              me.cameraDirection = -1;
+            }
+          }
+        });
+      }
     });
-    setTimeout(() => {
-      this.tickHandler = this.clock.onTick.addEventListener((clock) => {
-        const pos = this.roamPath.position.getValue(clock.currentTime);
-        if (pos) {
-          camera.setView({
-            destination: pos,
-            orientation: {
-              roll: camera.roll,
-              pitch: camera.pitch,
-              heading: camera.heading,
-            },
-          });
-        }
-      });
-    }, 200);
+  }
+  /**
+   * 退出漫游
+   */
+  deactivateRoaming() {
+    this.clock.shouldAnimate = false;
+    this.roaming = false;
+    if (this.tickHandler) this.tickHandler(); // 移除
+    this.viewer.scene.screenSpaceCameraController.enableRotate = true;
+    this.viewer.scene.screenSpaceCameraController.enableTilt = true;
+    this.viewer.scene.screenSpaceCameraController.enableZoom = true;
+    this.whenStopRoaming();
+  }
+  _keydown(e) {
+    if (this.roaming) {
+      switch (e.keyCode) {
+        case "W".charCodeAt(0):
+          this.clock.shouldAnimate = true;
+          this.clock.multiplier = this.multiplier * this.cameraDirection;
+          break;
+        case "S".charCodeAt(0):
+          this.clock.shouldAnimate = true;
+          this.clock.multiplier = this.multiplier * this.cameraDirection * (-1);
+          break;
+        case 27: //esc
+          this.deactivateRoaming();
+          break;
+        default:
+          break;
+      }
+    }
+  }
+  _keyup(e) {
+    switch (e.keyCode) {
+      case "W".charCodeAt(0):
+        this.clock.shouldAnimate = false;
+        break;
+      case "S".charCodeAt(0):
+        this.clock.shouldAnimate = false;
+        break;
+      default:
+        break;
+    }
   }
 }
 export default LineRoamingHelper;
