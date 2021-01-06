@@ -107,17 +107,17 @@ function CachedGltf(options) {
 
 Object.defineProperties(CachedGltf.prototype, {
   gltf: {
-    set: function(value) {
+    set: function (value) {
       this._gltf = value;
     },
 
-    get: function() {
+    get: function () {
       return this._gltf;
     },
   },
 });
 
-CachedGltf.prototype.makeReady = function(gltfJson) {
+CachedGltf.prototype.makeReady = function (gltfJson) {
   this.gltf = gltfJson;
 
   var models = this.modelsToLoad;
@@ -401,7 +401,7 @@ function Model(options) {
   this._scene = scene;
   if (defined(scene) && defined(scene.terrainProviderChanged)) {
     this._terrainProviderChangedCallback = scene.terrainProviderChanged.addEventListener(
-      function() {
+      function () {
         this._heightChanged = true;
       },
       this
@@ -675,7 +675,7 @@ Object.defineProperties(Model.prototype, {
    * @default undefined
    */
   gltf: {
-    get: function() {
+    get: function () {
       return defined(this._cachedGltf) ? this._cachedGltf.gltf : undefined;
     },
   },
@@ -697,7 +697,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   releaseGltfJson: {
-    get: function() {
+    get: function () {
       return this._releaseGltfJson;
     },
   },
@@ -719,7 +719,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   cacheKey: {
-    get: function() {
+    get: function () {
       return this._cacheKey;
     },
   },
@@ -739,7 +739,7 @@ Object.defineProperties(Model.prototype, {
    * @default ''
    */
   basePath: {
-    get: function() {
+    get: function () {
       return this._resource.url;
     },
   },
@@ -762,7 +762,7 @@ Object.defineProperties(Model.prototype, {
    * var center = Cesium.Matrix4.multiplyByPoint(model.modelMatrix, model.boundingSphere.center, new Cesium.Cartesian3());
    */
   boundingSphere: {
-    get: function() {
+    get: function () {
       //>>includeStart('debug', pragmas.debug);
       if (this._state !== ModelState.LOADED) {
         throw new DeveloperError(
@@ -822,7 +822,7 @@ Object.defineProperties(Model.prototype, {
    * @default false
    */
   ready: {
-    get: function() {
+    get: function () {
       return this._ready;
     },
   },
@@ -851,7 +851,7 @@ Object.defineProperties(Model.prototype, {
    * @see Model#ready
    */
   readyPromise: {
-    get: function() {
+    get: function () {
       return this._readyPromise.promise;
     },
   },
@@ -868,7 +868,7 @@ Object.defineProperties(Model.prototype, {
    * @default true
    */
   asynchronous: {
-    get: function() {
+    get: function () {
       return this._asynchronous;
     },
   },
@@ -884,7 +884,7 @@ Object.defineProperties(Model.prototype, {
    * @default true
    */
   allowPicking: {
-    get: function() {
+    get: function () {
       return this._allowPicking;
     },
   },
@@ -900,7 +900,7 @@ Object.defineProperties(Model.prototype, {
    * @default true
    */
   incrementallyLoadTextures: {
-    get: function() {
+    get: function () {
       return this._incrementallyLoadTextures;
     },
   },
@@ -914,7 +914,7 @@ Object.defineProperties(Model.prototype, {
    * @readonly
    */
   pendingTextureLoads: {
-    get: function() {
+    get: function () {
       return defined(this._loadResources)
         ? this._loadResources.pendingTextureLoads
         : 0;
@@ -932,7 +932,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   dirty: {
-    get: function() {
+    get: function () {
       return this._dirty;
     },
   },
@@ -944,10 +944,10 @@ Object.defineProperties(Model.prototype, {
    * @default undefined
    */
   distanceDisplayCondition: {
-    get: function() {
+    get: function () {
       return this._distanceDisplayCondition;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       if (defined(value) && value.far <= value.near) {
         throw new DeveloperError("far must be greater than near");
@@ -961,7 +961,7 @@ Object.defineProperties(Model.prototype, {
   },
 
   extensionsUsed: {
-    get: function() {
+    get: function () {
       if (!defined(this._extensionsUsed)) {
         this._extensionsUsed = ModelUtility.getUsedExtensions(this.gltf);
       }
@@ -970,7 +970,7 @@ Object.defineProperties(Model.prototype, {
   },
 
   extensionsRequired: {
-    get: function() {
+    get: function () {
       if (!defined(this._extensionsRequired)) {
         this._extensionsRequired = ModelUtility.getRequiredExtensions(
           this.gltf
@@ -993,7 +993,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   upAxis: {
-    get: function() {
+    get: function () {
       return this._upAxis;
     },
   },
@@ -1012,7 +1012,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   forwardAxis: {
-    get: function() {
+    get: function () {
       if (defined(this._forwardAxis)) {
         return this._forwardAxis;
       }
@@ -1026,7 +1026,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   trianglesLength: {
-    get: function() {
+    get: function () {
       return this._trianglesLength;
     },
   },
@@ -1037,7 +1037,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   geometryByteLength: {
-    get: function() {
+    get: function () {
       return this._geometryByteLength;
     },
   },
@@ -1048,7 +1048,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   texturesByteLength: {
-    get: function() {
+    get: function () {
       return this._texturesByteLength;
     },
   },
@@ -1059,7 +1059,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   cachedGeometryByteLength: {
-    get: function() {
+    get: function () {
       return this._cachedGeometryByteLength;
     },
   },
@@ -1070,7 +1070,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   cachedTexturesByteLength: {
-    get: function() {
+    get: function () {
       return this._cachedTexturesByteLength;
     },
   },
@@ -1083,10 +1083,10 @@ Object.defineProperties(Model.prototype, {
    * @type {ClippingPlaneCollection}
    */
   clippingPlanes: {
-    get: function() {
+    get: function () {
       return this._clippingPlanes;
     },
-    set: function(value) {
+    set: function (value) {
       if (value === this._clippingPlanes) {
         return;
       }
@@ -1099,7 +1099,7 @@ Object.defineProperties(Model.prototype, {
    * @private
    */
   pickIds: {
-    get: function() {
+    get: function () {
       return this._pickIds;
     },
   },
@@ -1114,10 +1114,10 @@ Object.defineProperties(Model.prototype, {
    * @default Cartesian2(1.0, 1.0)
    */
   imageBasedLightingFactor: {
-    get: function() {
+    get: function () {
       return this._imageBasedLightingFactor;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       Check.typeOf.object("imageBasedLightingFactor", value);
       Check.typeOf.number.greaterThanOrEquals(
@@ -1173,10 +1173,10 @@ Object.defineProperties(Model.prototype, {
    * @default undefined
    */
   lightColor: {
-    get: function() {
+    get: function () {
       return this._lightColor;
     },
-    set: function(value) {
+    set: function (value) {
       var lightColor = this._lightColor;
       if (value === lightColor || Cartesian3.equals(value, lightColor)) {
         return;
@@ -1200,10 +1200,10 @@ Object.defineProperties(Model.prototype, {
    * @default 0.2
    */
   luminanceAtZenith: {
-    get: function() {
+    get: function () {
       return this._luminanceAtZenith;
     },
-    set: function(value) {
+    set: function (value) {
       var lum = this._luminanceAtZenith;
       if (value === lum) {
         return;
@@ -1235,10 +1235,10 @@ Object.defineProperties(Model.prototype, {
    * @see {@link https://graphics.stanford.edu/papers/envmap/envmap.pdf|An Efficient Representation for Irradiance Environment Maps}
    */
   sphericalHarmonicCoefficients: {
-    get: function() {
+    get: function () {
       return this._sphericalHarmonicCoefficients;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       if (defined(value) && (!Array.isArray(value) || value.length !== 9)) {
         throw new DeveloperError(
@@ -1263,10 +1263,10 @@ Object.defineProperties(Model.prototype, {
    * @see Model#sphericalHarmonicCoefficients
    */
   specularEnvironmentMaps: {
-    get: function() {
+    get: function () {
       return this._specularEnvironmentMaps;
     },
-    set: function(value) {
+    set: function (value) {
       this._shouldUpdateSpecularMapAtlas =
         this._shouldUpdateSpecularMapAtlas ||
         value !== this._specularEnvironmentMaps;
@@ -1279,7 +1279,7 @@ Object.defineProperties(Model.prototype, {
    * @type {Credit}
    */
   credit: {
-    get: function() {
+    get: function () {
       return this._credit;
     },
   },
@@ -1311,7 +1311,7 @@ function isClippingEnabled(model) {
  * @param {Scene} scene The scene.
  * @returns {Boolean} <code>true</code> if silhouettes are supported; otherwise, returns <code>false</code>
  */
-Model.silhouetteSupported = function(scene) {
+Model.silhouetteSupported = function (scene) {
   return silhouetteSupported(scene.context);
 };
 
@@ -1419,7 +1419,7 @@ function containsGltfMagic(uint8Array) {
  *   model.activeAnimations.addAll();
  * });
  */
-Model.fromGltf = function(options) {
+Model.fromGltf = function (options) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(options) || !defined(options.url)) {
     throw new DeveloperError("options.url is required");
@@ -1472,7 +1472,7 @@ Model.fromGltf = function(options) {
 
     modelResource
       .fetchArrayBuffer()
-      .then(function(arrayBuffer) {
+      .then(function (arrayBuffer) {
         var array = new Uint8Array(arrayBuffer);
         if (containsGltfMagic(array)) {
           // Load binary glTF
@@ -1544,7 +1544,7 @@ function getRuntime(model, runtimeName, name) {
  * var node = model.getNode('LOD3sp');
  * node.matrix = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(5.0, 1.0, 1.0), node.matrix);
  */
-Model.prototype.getNode = function(name) {
+Model.prototype.getNode = function (name) {
   var node = getRuntime(this, "nodesByName", name);
   return defined(node) ? node.publicNode : undefined;
 };
@@ -1558,7 +1558,7 @@ Model.prototype.getNode = function(name) {
  *
  * @exception {DeveloperError} The model is not loaded.  Use Model.readyPromise or wait for Model.ready to be true.
  */
-Model.prototype.getMesh = function(name) {
+Model.prototype.getMesh = function (name) {
   return getRuntime(this, "meshesByName", name);
 };
 
@@ -1570,7 +1570,7 @@ Model.prototype.getMesh = function(name) {
  *
  * @exception {DeveloperError} The model is not loaded.  Use Model.readyPromise or wait for Model.ready to be true.
  */
-Model.prototype.getMaterial = function(name) {
+Model.prototype.getMaterial = function (name) {
   return getRuntime(this, "materialsByName", name);
 };
 
@@ -1585,7 +1585,7 @@ Model.prototype.getMaterial = function(name) {
  *
  * @see Model#applyArticulations
  */
-Model.prototype.setArticulationStage = function(articulationStageKey, value) {
+Model.prototype.setArticulationStage = function (articulationStageKey, value) {
   //>>includeStart('debug', pragmas.debug);
   Check.typeOf.number("value", value);
   //>>includeEnd('debug');
@@ -1706,7 +1706,7 @@ var scratchApplyArticulationTransform = new Matrix4();
  *
  * @exception {DeveloperError} The model is not loaded.  Use Model.readyPromise or wait for Model.ready to be true.
  */
-Model.prototype.applyArticulations = function() {
+Model.prototype.applyArticulations = function () {
   var articulationsByName = this._runtime.articulationsByName;
   for (var articulationName in articulationsByName) {
     if (articulationsByName.hasOwnProperty(articulationName)) {
@@ -1738,13 +1738,13 @@ Model.prototype.applyArticulations = function() {
 function addBuffersToLoadResources(model) {
   var gltf = model.gltf;
   var loadResources = model._loadResources;
-  ForEach.buffer(gltf, function(buffer, id) {
+  ForEach.buffer(gltf, function (buffer, id) {
     loadResources.buffers[id] = buffer.extras._pipeline.source;
   });
 }
 
 function bufferLoad(model, id) {
-  return function(arrayBuffer) {
+  return function (arrayBuffer) {
     var loadResources = model._loadResources;
     var buffer = new Uint8Array(arrayBuffer);
     --loadResources.pendingBufferLoads;
@@ -1757,7 +1757,7 @@ function parseBufferViews(model) {
   var vertexBuffersToCreate = model._loadResources.vertexBuffersToCreate;
 
   // Only ARRAY_BUFFER here.  ELEMENT_ARRAY_BUFFER created below.
-  ForEach.bufferView(model.gltf, function(bufferView, id) {
+  ForEach.bufferView(model.gltf, function (bufferView, id) {
     if (bufferView.target === WebGLConstants.ARRAY_BUFFER) {
       vertexBuffersToCreate.enqueue(id);
     }
@@ -1769,7 +1769,7 @@ function parseBufferViews(model) {
   // The Cesium Renderer requires knowing the datatype for an index buffer
   // at creation type, which is not part of the glTF bufferview so loop
   // through glTF accessors to create the bufferview's index buffer.
-  ForEach.accessor(model.gltf, function(accessor) {
+  ForEach.accessor(model.gltf, function (accessor) {
     var bufferViewId = accessor.bufferView;
     if (!defined(bufferViewId)) {
       return;
@@ -1800,7 +1800,7 @@ function parseTechniques(model) {
   var sourceTechniques = model._sourceTechniques;
   var programs = gltf.extensions.KHR_techniques_webgl.programs;
 
-  ForEach.technique(gltf, function(technique, techniqueId) {
+  ForEach.technique(gltf, function (technique, techniqueId) {
     sourceTechniques[techniqueId] = clone(technique);
 
     var programId = technique.program;
@@ -1811,7 +1811,7 @@ function parseTechniques(model) {
 }
 
 function shaderLoad(model, type, id) {
-  return function(source) {
+  return function (source) {
     var loadResources = model._loadResources;
     loadResources.shaders[id] = {
       source: source,
@@ -1828,7 +1828,7 @@ function parseShaders(model) {
   var buffers = gltf.buffers;
   var bufferViews = gltf.bufferViews;
   var sourceShaders = model._rendererResources.sourceShaders;
-  ForEach.shader(gltf, function(shader, id) {
+  ForEach.shader(gltf, function (shader, id) {
     // Shader references either uri (external or base64-encoded) or bufferView
     if (defined(shader.bufferView)) {
       var bufferViewId = shader.bufferView;
@@ -1920,7 +1920,7 @@ function parseArticulations(model) {
 }
 
 function imageLoad(model, textureId) {
-  return function(image) {
+  return function (image) {
     var loadResources = model._loadResources;
     --loadResources.pendingTextureLoads;
     loadResources.texturesToCreate.enqueue({
@@ -1941,7 +1941,7 @@ function parseTextures(model, context, supportsWebP) {
   var gltf = model.gltf;
   var images = gltf.images;
   var uri;
-  ForEach.texture(gltf, function(texture, id) {
+  ForEach.texture(gltf, function (texture, id) {
     var imageId = texture.source;
 
     if (
@@ -2039,7 +2039,7 @@ function parseNodes(model) {
   var skinnedNodesIds = model._loadResources.skinnedNodesIds;
   var articulationsByName = model._runtime.articulationsByName;
 
-  ForEach.node(model.gltf, function(node, id) {
+  ForEach.node(model.gltf, function (node, id) {
     var runtimeNode = {
       // Animation targets
       matrix: undefined,
@@ -2128,7 +2128,7 @@ function parseMaterials(model) {
   var runtimeMaterialsById = {};
   var uniformMaps = model._uniformMaps;
 
-  ForEach.material(gltf, function(material, materialId) {
+  ForEach.material(gltf, function (material, materialId) {
     // Allocated now so ModelMaterial can keep a reference to it.
     uniformMaps[materialId] = {
       uniformMap: undefined,
@@ -2147,7 +2147,7 @@ function parseMaterials(model) {
       modelMaterial._technique = techniqueId;
       modelMaterial._program = techniques[techniqueId].program;
 
-      ForEach.materialValue(material, function(value, uniformName) {
+      ForEach.materialValue(material, function (value, uniformName) {
         if (!defined(modelMaterial._values)) {
           modelMaterial._values = {};
         }
@@ -2168,7 +2168,7 @@ function parseMeshes(model) {
   var runtimeMeshesByName = {};
   var runtimeMaterialsById = model._runtime.materialsById;
 
-  ForEach.mesh(model.gltf, function(mesh, meshId) {
+  ForEach.mesh(model.gltf, function (mesh, meshId) {
     runtimeMeshesByName[mesh.name] = new ModelMesh(
       mesh,
       runtimeMaterialsById,
@@ -2179,7 +2179,7 @@ function parseMeshes(model) {
       model._dequantizeInShader
     ) {
       // Cache primitives according to their program
-      ForEach.meshPrimitive(mesh, function(primitive, primitiveId) {
+      ForEach.meshPrimitive(mesh, function (primitive, primitiveId) {
         var programId = getProgramForPrimitive(model, primitive);
         var programPrimitives = model._programPrimitives[programId];
         if (!defined(programPrimitives)) {
@@ -2196,19 +2196,19 @@ function parseMeshes(model) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-var CreateVertexBufferJob = function() {
+var CreateVertexBufferJob = function () {
   this.id = undefined;
   this.model = undefined;
   this.context = undefined;
 };
 
-CreateVertexBufferJob.prototype.set = function(id, model, context) {
+CreateVertexBufferJob.prototype.set = function (id, model, context) {
   this.id = id;
   this.model = model;
   this.context = context;
 };
 
-CreateVertexBufferJob.prototype.execute = function() {
+CreateVertexBufferJob.prototype.execute = function () {
   createVertexBuffer(this.id, this.model, this.context);
 };
 
@@ -2236,14 +2236,14 @@ function createVertexBuffer(bufferViewId, model, context) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-var CreateIndexBufferJob = function() {
+var CreateIndexBufferJob = function () {
   this.id = undefined;
   this.componentType = undefined;
   this.model = undefined;
   this.context = undefined;
 };
 
-CreateIndexBufferJob.prototype.set = function(
+CreateIndexBufferJob.prototype.set = function (
   id,
   componentType,
   model,
@@ -2255,7 +2255,7 @@ CreateIndexBufferJob.prototype.set = function(
   this.context = context;
 };
 
-CreateIndexBufferJob.prototype.execute = function() {
+CreateIndexBufferJob.prototype.execute = function () {
   createIndexBuffer(this.id, this.componentType, this.model, this.context);
 };
 
@@ -2410,19 +2410,19 @@ function modifyShader(shader, programName, callback) {
   return shader;
 }
 
-var CreateProgramJob = function() {
+var CreateProgramJob = function () {
   this.programToCreate = undefined;
   this.model = undefined;
   this.context = undefined;
 };
 
-CreateProgramJob.prototype.set = function(programToCreate, model, context) {
+CreateProgramJob.prototype.set = function (programToCreate, model, context) {
   this.programToCreate = programToCreate;
   this.model = model;
   this.context = context;
 };
 
-CreateProgramJob.prototype.execute = function() {
+CreateProgramJob.prototype.execute = function () {
   createProgram(this.programToCreate, this.model, this.context);
 };
 
@@ -2718,7 +2718,7 @@ function createPrograms(model, frameState) {
 }
 
 function getOnImageCreatedFromTypedArray(loadResources, gltfTexture) {
-  return function(image) {
+  return function (image) {
     loadResources.texturesToCreate.enqueue({
       id: gltfTexture.id,
       image: image,
@@ -2779,7 +2779,7 @@ function createSamplers(model) {
     loadResources.createSamplers = false;
 
     var rendererSamplers = model._rendererResources.samplers;
-    ForEach.sampler(model.gltf, function(sampler, samplerId) {
+    ForEach.sampler(model.gltf, function (sampler, samplerId) {
       rendererSamplers[samplerId] = new Sampler({
         wrapS: sampler.wrapS,
         wrapT: sampler.wrapT,
@@ -2792,19 +2792,19 @@ function createSamplers(model) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-var CreateTextureJob = function() {
+var CreateTextureJob = function () {
   this.gltfTexture = undefined;
   this.model = undefined;
   this.context = undefined;
 };
 
-CreateTextureJob.prototype.set = function(gltfTexture, model, context) {
+CreateTextureJob.prototype.set = function (gltfTexture, model, context) {
   this.gltfTexture = gltfTexture;
   this.model = model;
   this.context = context;
 };
 
-CreateTextureJob.prototype.execute = function() {
+CreateTextureJob.prototype.execute = function () {
   createTexture(this.gltfTexture, this.model, this.context);
 };
 
@@ -3072,7 +3072,7 @@ function createSkins(model) {
   var accessors = gltf.accessors;
   var runtimeSkins = {};
 
-  ForEach.skin(gltf, function(skin, id) {
+  ForEach.skin(gltf, function (skin, id) {
     var accessor = accessors[skin.inverseBindMatrices];
 
     var bindShapeMatrix;
@@ -3093,7 +3093,7 @@ function createSkins(model) {
 }
 
 function getChannelEvaluator(model, runtimeNode, targetPath, spline) {
-  return function(localAnimationTime) {
+  return function (localAnimationTime) {
     if (defined(spline)) {
       localAnimationTime = model.clampAnimations
         ? spline.clampTime(localAnimationTime)
@@ -3124,7 +3124,7 @@ function createRuntimeAnimations(model) {
   var runtimeNodes = model._runtime.nodes;
   var accessors = model.gltf.accessors;
 
-  ForEach.animation(model.gltf, function(animation, i) {
+  ForEach.animation(model.gltf, function (animation, i) {
     var channels = animation.channels;
     var samplers = animation.samplers;
 
@@ -3195,14 +3195,14 @@ function createVertexArrays(model, context) {
   var rendererVertexArrays = model._rendererResources.vertexArrays;
   var gltf = model.gltf;
   var accessors = gltf.accessors;
-  ForEach.mesh(gltf, function(mesh, meshId) {
-    ForEach.meshPrimitive(mesh, function(primitive, primitiveId) {
+  ForEach.mesh(gltf, function (mesh, meshId) {
+    ForEach.meshPrimitive(mesh, function (primitive, primitiveId) {
       var attributes = [];
       var attributeLocation;
       var attributeLocations = getAttributeLocations(model, primitive);
       var decodedData =
         model._decodedData[meshId + ".primitive." + primitiveId];
-      ForEach.meshPrimitiveAttribute(primitive, function(
+      ForEach.meshPrimitiveAttribute(primitive, function (
         accessorId,
         attributeName
       ) {
@@ -3288,7 +3288,7 @@ function createRenderStates(model) {
   if (loadResources.createRenderStates) {
     loadResources.createRenderStates = false;
 
-    ForEach.material(model.gltf, function(material, materialId) {
+    ForEach.material(model.gltf, function (material, materialId) {
       createRenderStateForMaterial(model, material, materialId);
     });
   }
@@ -3339,24 +3339,24 @@ function createRenderStateForMaterial(model, material, materialId) {
 ///////////////////////////////////////////////////////////////////////////
 
 var gltfUniformsFromNode = {
-  MODEL: function(uniformState, model, runtimeNode) {
-    return function() {
+  MODEL: function (uniformState, model, runtimeNode) {
+    return function () {
       return runtimeNode.computedMatrix;
     };
   },
-  VIEW: function(uniformState, model, runtimeNode) {
-    return function() {
+  VIEW: function (uniformState, model, runtimeNode) {
+    return function () {
       return uniformState.view;
     };
   },
-  PROJECTION: function(uniformState, model, runtimeNode) {
-    return function() {
+  PROJECTION: function (uniformState, model, runtimeNode) {
+    return function () {
       return uniformState.projection;
     };
   },
-  MODELVIEW: function(uniformState, model, runtimeNode) {
+  MODELVIEW: function (uniformState, model, runtimeNode) {
     var mv = new Matrix4();
-    return function() {
+    return function () {
       return Matrix4.multiplyTransformation(
         uniformState.view,
         runtimeNode.computedMatrix,
@@ -3364,10 +3364,10 @@ var gltfUniformsFromNode = {
       );
     };
   },
-  CESIUM_RTC_MODELVIEW: function(uniformState, model, runtimeNode) {
+  CESIUM_RTC_MODELVIEW: function (uniformState, model, runtimeNode) {
     // CESIUM_RTC extension
     var mvRtc = new Matrix4();
-    return function() {
+    return function () {
       Matrix4.multiplyTransformation(
         uniformState.view,
         runtimeNode.computedMatrix,
@@ -3376,9 +3376,9 @@ var gltfUniformsFromNode = {
       return Matrix4.setTranslation(mvRtc, model._rtcCenterEye, mvRtc);
     };
   },
-  MODELVIEWPROJECTION: function(uniformState, model, runtimeNode) {
+  MODELVIEWPROJECTION: function (uniformState, model, runtimeNode) {
     var mvp = new Matrix4();
-    return function() {
+    return function () {
       Matrix4.multiplyTransformation(
         uniformState.view,
         runtimeNode.computedMatrix,
@@ -3387,26 +3387,26 @@ var gltfUniformsFromNode = {
       return Matrix4.multiply(uniformState._projection, mvp, mvp);
     };
   },
-  MODELINVERSE: function(uniformState, model, runtimeNode) {
+  MODELINVERSE: function (uniformState, model, runtimeNode) {
     var mInverse = new Matrix4();
-    return function() {
+    return function () {
       return Matrix4.inverse(runtimeNode.computedMatrix, mInverse);
     };
   },
-  VIEWINVERSE: function(uniformState, model) {
-    return function() {
+  VIEWINVERSE: function (uniformState, model) {
+    return function () {
       return uniformState.inverseView;
     };
   },
-  PROJECTIONINVERSE: function(uniformState, model, runtimeNode) {
-    return function() {
+  PROJECTIONINVERSE: function (uniformState, model, runtimeNode) {
+    return function () {
       return uniformState.inverseProjection;
     };
   },
-  MODELVIEWINVERSE: function(uniformState, model, runtimeNode) {
+  MODELVIEWINVERSE: function (uniformState, model, runtimeNode) {
     var mv = new Matrix4();
     var mvInverse = new Matrix4();
-    return function() {
+    return function () {
       Matrix4.multiplyTransformation(
         uniformState.view,
         runtimeNode.computedMatrix,
@@ -3415,10 +3415,10 @@ var gltfUniformsFromNode = {
       return Matrix4.inverse(mv, mvInverse);
     };
   },
-  MODELVIEWPROJECTIONINVERSE: function(uniformState, model, runtimeNode) {
+  MODELVIEWPROJECTIONINVERSE: function (uniformState, model, runtimeNode) {
     var mvp = new Matrix4();
     var mvpInverse = new Matrix4();
-    return function() {
+    return function () {
       Matrix4.multiplyTransformation(
         uniformState.view,
         runtimeNode.computedMatrix,
@@ -3428,20 +3428,20 @@ var gltfUniformsFromNode = {
       return Matrix4.inverse(mvp, mvpInverse);
     };
   },
-  MODELINVERSETRANSPOSE: function(uniformState, model, runtimeNode) {
+  MODELINVERSETRANSPOSE: function (uniformState, model, runtimeNode) {
     var mInverse = new Matrix4();
     var mInverseTranspose = new Matrix3();
-    return function() {
+    return function () {
       Matrix4.inverse(runtimeNode.computedMatrix, mInverse);
       Matrix4.getMatrix3(mInverse, mInverseTranspose);
       return Matrix3.transpose(mInverseTranspose, mInverseTranspose);
     };
   },
-  MODELVIEWINVERSETRANSPOSE: function(uniformState, model, runtimeNode) {
+  MODELVIEWINVERSETRANSPOSE: function (uniformState, model, runtimeNode) {
     var mv = new Matrix4();
     var mvInverse = new Matrix4();
     var mvInverseTranspose = new Matrix3();
-    return function() {
+    return function () {
       Matrix4.multiplyTransformation(
         uniformState.view,
         runtimeNode.computedMatrix,
@@ -3452,8 +3452,8 @@ var gltfUniformsFromNode = {
       return Matrix3.transpose(mvInverseTranspose, mvInverseTranspose);
     };
   },
-  VIEWPORT: function(uniformState, model, runtimeNode) {
-    return function() {
+  VIEWPORT: function (uniformState, model, runtimeNode) {
+    return function () {
       return uniformState.viewportCartesian4;
     };
   },
@@ -3478,7 +3478,7 @@ function createUniformsForMaterial(
   var jointMatrixUniformName;
   var morphWeightsUniformName;
 
-  ForEach.techniqueUniform(technique, function(uniform, uniformName) {
+  ForEach.techniqueUniform(technique, function (uniform, uniformName) {
     // GLTF_SPEC: This does not take into account uniform arrays,
     // indicated by uniforms with a count property.
     //
@@ -3574,7 +3574,7 @@ function createUniformMaps(model, context) {
   var textures = model._rendererResources.textures;
   var defaultTexture = model._defaultTexture;
 
-  ForEach.material(gltf, function(material, materialId) {
+  ForEach.material(gltf, function (material, materialId) {
     var modelMaterial = model._runtime.materialsById[materialId];
     var technique = techniques[modelMaterial._technique];
     var instanceValues = modelMaterial._values;
@@ -3597,7 +3597,7 @@ function createUniformMaps(model, context) {
 
     if (defined(technique.attributes.a_outlineCoordinates)) {
       var outlineTexture = ModelOutlineLoader.createTexture(model, context);
-      u.uniformMap.u_outlineTexture = function() {
+      u.uniformMap.u_outlineTexture = function () {
         return outlineTexture;
       };
     }
@@ -3621,55 +3621,55 @@ function createUniformsForQuantizedAttributes(model, primitive) {
 }
 
 function createPickColorFunction(color) {
-  return function() {
+  return function () {
     return color;
   };
 }
 
 function createJointMatricesFunction(runtimeNode) {
-  return function() {
+  return function () {
     return runtimeNode.computedJointMatrices;
   };
 }
 
 function createMorphWeightsFunction(runtimeNode) {
-  return function() {
+  return function () {
     return runtimeNode.weights;
   };
 }
 
 function createSilhouetteColorFunction(model) {
-  return function() {
+  return function () {
     return model.silhouetteColor;
   };
 }
 
 function createSilhouetteSizeFunction(model) {
-  return function() {
+  return function () {
     return model.silhouetteSize;
   };
 }
 
 function createColorFunction(model) {
-  return function() {
+  return function () {
     return model.color;
   };
 }
 
 function createClippingPlanesMatrixFunction(model) {
-  return function() {
+  return function () {
     return model._clippingPlanesMatrix;
   };
 }
 
 function createIBLReferenceFrameMatrixFunction(model) {
-  return function() {
+  return function () {
     return model._iblReferenceFrameMatrix;
   };
 }
 
 function createClippingPlanesFunction(model) {
-  return function() {
+  return function () {
     var clippingPlanes = model.clippingPlanes;
     return !defined(clippingPlanes) || !clippingPlanes.enabled
       ? model._defaultTexture
@@ -3678,7 +3678,7 @@ function createClippingPlanesFunction(model) {
 }
 
 function createClippingPlanesEdgeStyleFunction(model) {
-  return function() {
+  return function () {
     var clippingPlanes = model.clippingPlanes;
     if (!defined(clippingPlanes)) {
       return Color.WHITE.withAlpha(0.0);
@@ -3691,7 +3691,7 @@ function createClippingPlanesEdgeStyleFunction(model) {
 }
 
 function createColorBlendFunction(model) {
-  return function() {
+  return function () {
     return ColorBlendMode.getColorBlend(
       model.colorBlendMode,
       model.colorBlendAmount
@@ -3700,43 +3700,43 @@ function createColorBlendFunction(model) {
 }
 
 function createIBLFactorFunction(model) {
-  return function() {
+  return function () {
     return model._imageBasedLightingFactor;
   };
 }
 
 function createLightColorFunction(model) {
-  return function() {
+  return function () {
     return model._lightColor;
   };
 }
 
 function createLuminanceAtZenithFunction(model) {
-  return function() {
+  return function () {
     return model.luminanceAtZenith;
   };
 }
 
 function createSphericalHarmonicCoefficientsFunction(model) {
-  return function() {
+  return function () {
     return model._sphericalHarmonicCoefficients;
   };
 }
 
 function createSpecularEnvironmentMapFunction(model) {
-  return function() {
+  return function () {
     return model._specularEnvironmentMapAtlas.texture;
   };
 }
 
 function createSpecularEnvironmentMapSizeFunction(model) {
-  return function() {
+  return function () {
     return model._specularEnvironmentMapAtlas.texture.dimensions;
   };
 }
 
 function createSpecularEnvironmentMapLOD(model) {
-  return function() {
+  return function () {
     return model._specularEnvironmentMapAtlas.maximumMipmapLevel;
   };
 }
@@ -4507,7 +4507,10 @@ function updateColor(model, frameState, forceDerive) {
   if (alpha > 0.0 && alpha < 1.0) {
     var nodeCommands = model._nodeCommands;
     var length = nodeCommands.length;
-    if (!defined(nodeCommands[0].translucentCommand) || forceDerive) {
+    if (
+      length > 0 &&
+      (!defined(nodeCommands[0].translucentCommand) || forceDerive)
+    ) {
       for (var i = 0; i < length; ++i) {
         var nodeCommand = nodeCommands[i];
         var command = nodeCommand.command;
@@ -4543,7 +4546,10 @@ function updateBackFaceCulling(model, frameState, forceDerive) {
   if (!backFaceCulling) {
     var nodeCommands = model._nodeCommands;
     var length = nodeCommands.length;
-    if (length > 0 && (!defined(nodeCommands[0].disableCullingCommand) || forceDerive)) {
+    if (
+      length > 0 &&
+      (!defined(nodeCommands[0].disableCullingCommand) || forceDerive)
+    ) {
       for (var i = 0; i < length; ++i) {
         var nodeCommand = nodeCommands[i];
         var command = nodeCommand.command;
@@ -4813,12 +4819,13 @@ function updateSilhouette(model, frameState, force) {
 
   var nodeCommands = model._nodeCommands;
   var dirty =
-    alphaDirty(model.color.alpha, model._colorPreviousAlpha) ||
-    alphaDirty(
-      model.silhouetteColor.alpha,
-      model._silhouetteColorPreviousAlpha
-    ) ||
-    !defined(nodeCommands[0].silhouetteModelCommand);
+    nodeCommands.length > 0 &&
+    (alphaDirty(model.color.alpha, model._colorPreviousAlpha) ||
+      alphaDirty(
+        model.silhouetteColor.alpha,
+        model._silhouetteColorPreviousAlpha
+      ) ||
+      !defined(nodeCommands[0].silhouetteModelCommand));
 
   model._colorPreviousAlpha = model.color.alpha;
   model._silhouetteColorPreviousAlpha = model.silhouetteColor.alpha;
@@ -4956,7 +4963,7 @@ function destroyCachedRendererResources(resources) {
   destroy(resources.textures);
 }
 
-CachedRendererResources.prototype.release = function() {
+CachedRendererResources.prototype.release = function () {
   if (--this.count === 0) {
     if (defined(this.cacheKey)) {
       // Remove if this was cached
@@ -4972,7 +4979,7 @@ CachedRendererResources.prototype.release = function() {
 ///////////////////////////////////////////////////////////////////////////
 
 function getUpdateHeightCallback(model, ellipsoid, cartoPosition) {
-  return function(clampedPosition) {
+  return function (clampedPosition) {
     if (model.heightReference === HeightReference.RELATIVE_TO_GROUND) {
       var clampedCart = ellipsoid.cartesianToCartographic(
         clampedPosition,
@@ -5105,7 +5112,7 @@ var scratchIBLReferenceFrameMatrix3 = new Matrix3();
  *
  * @exception {RuntimeError} Failed to load external reference.
  */
-Model.prototype.update = function(frameState) {
+Model.prototype.update = function (frameState) {
   if (frameState.mode === SceneMode.MORPHING) {
     return;
   }
@@ -5347,10 +5354,10 @@ Model.prototype.update = function(frameState) {
       );
       var that = this;
       this._specularEnvironmentMapAtlas.readyPromise
-        .then(function() {
+        .then(function () {
           that._shouldRegenerateShaders = true;
         })
-        .otherwise(function(error) {
+        .otherwise(function (error) {
           console.error("Error loading specularEnvironmentMaps: " + error);
         });
     }
@@ -5583,7 +5590,7 @@ Model.prototype.update = function(frameState) {
   if (justLoaded) {
     // Called after modelMatrix update.
     var model = this;
-    frameState.afterRender.push(function() {
+    frameState.afterRender.push(function () {
       model._ready = true;
       model._readyPromise.resolve(model);
     });
@@ -5773,7 +5780,7 @@ function regenerateShaders(model, frameState) {
  *
  * @see Model#destroy
  */
-Model.prototype.isDestroyed = function() {
+Model.prototype.isDestroyed = function () {
   return false;
 };
 
@@ -5793,7 +5800,7 @@ Model.prototype.isDestroyed = function() {
  *
  * @see Model#isDestroyed
  */
-Model.prototype.destroy = function() {
+Model.prototype.destroy = function () {
   // Vertex arrays are unique to this model, destroy here.
   if (defined(this._precreatedAttributes)) {
     destroy(this._rendererResources.vertexArrays);
