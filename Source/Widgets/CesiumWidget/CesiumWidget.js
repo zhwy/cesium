@@ -28,9 +28,7 @@ function getDefaultSkyBoxUrl(suffix) {
 }
 
 function getNearGroundSkyBoxUrl(suffix) {
-  return buildModuleUrl(
-    "Assets/Textures/NearGroundSkyBox/" + suffix + ".bmp"
-  );
+  return buildModuleUrl("Assets/Textures/NearGroundSkyBox/" + suffix + ".bmp");
 }
 
 function startRenderLoop(widget) {
@@ -211,10 +209,10 @@ function CesiumWidget(container, options) {
     canvas.style.imageRendering = FeatureDetection.imageRenderingValue();
   }
 
-  canvas.oncontextmenu = function() {
+  canvas.oncontextmenu = function () {
     return false;
   };
-  canvas.onselectstart = function() {
+  canvas.onselectstart = function () {
     return false;
   };
 
@@ -328,7 +326,8 @@ function CesiumWidget(container, options) {
       scene.moon = new Moon();
     }
 
-    if (defined(options.nearGroundSkyBoxShowHeight)) scene.nearGroundSkyBoxShowHeight = options.nearGroundSkyBoxShowHeight;
+    if (defined(options.nearGroundSkyBoxShowHeight))
+      scene.nearGroundSkyBoxShowHeight = options.nearGroundSkyBoxShowHeight;
 
     var nearGroundSkyBox = options.nearGroundSkyBox;
     if (!defined(nearGroundSkyBox)) {
@@ -341,8 +340,8 @@ function CesiumWidget(container, options) {
           negativeY: getNearGroundSkyBoxUrl("ny"),
           positiveZ: getNearGroundSkyBoxUrl("pz"),
           negativeZ: getNearGroundSkyBoxUrl("nz"),
-        }
-      })
+        },
+      });
     }
     if (nearGroundSkyBox !== false) {
       scene.nearGroundSkyBox = nearGroundSkyBox;
@@ -358,18 +357,24 @@ function CesiumWidget(container, options) {
     }
 
     // Switch the skybox
-    scene.postRender.addEventListener(function() {
+    scene.postRender.addEventListener(function () {
       if (defined(scene.nearGroundSkyBox)) {
         var height = scene.camera.positionCartographic.height;
-        if (height < scene.nearGroundSkyBoxShowHeight && scene.skyBox !== scene.nearGroundSkyBox) {
+        if (
+          height < scene.nearGroundSkyBoxShowHeight &&
+          scene.skyBox !== scene.nearGroundSkyBox
+        ) {
           // near-ground
           scene.skyBox = scene.nearGroundSkyBox;
-          if (scene.skyAtmosphere !== false) {
+          if (scene.skyAtmosphere && scene.skyAtmosphere !== false) {
             scene.skyAtmosphere.show = false;
           }
-        } else if (height >= scene.nearGroundSkyBoxShowHeight && scene.skyBox !== skyBox) {
+        } else if (
+          height >= scene.nearGroundSkyBoxShowHeight &&
+          scene.skyBox !== skyBox
+        ) {
           scene.skyBox = skyBox !== false ? skyBox : undefined;
-          if (scene.skyAtmosphere !== false) {
+          if (scene.skyAtmosphere && scene.skyAtmosphere !== false) {
             scene.skyAtmosphere.show = true;
           }
         }
@@ -413,7 +418,7 @@ function CesiumWidget(container, options) {
     this.targetFrameRate = options.targetFrameRate;
 
     var that = this;
-    this._onRenderError = function(scene, error) {
+    this._onRenderError = function (scene, error) {
       that._useDefaultRenderLoop = false;
       that._renderLoopRunning = false;
       if (that._showRenderLoopErrors) {
@@ -443,7 +448,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   container: {
-    get: function() {
+    get: function () {
       return this._container;
     },
   },
@@ -456,7 +461,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   canvas: {
-    get: function() {
+    get: function () {
       return this._canvas;
     },
   },
@@ -469,7 +474,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   creditContainer: {
-    get: function() {
+    get: function () {
       return this._creditContainer;
     },
   },
@@ -482,7 +487,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   creditViewport: {
-    get: function() {
+    get: function () {
       return this._creditViewport;
     },
   },
@@ -495,7 +500,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   scene: {
-    get: function() {
+    get: function () {
       return this._scene;
     },
   },
@@ -508,7 +513,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   imageryLayers: {
-    get: function() {
+    get: function () {
       return this._scene.imageryLayers;
     },
   },
@@ -520,10 +525,10 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @type {TerrainProvider}
    */
   terrainProvider: {
-    get: function() {
+    get: function () {
       return this._scene.terrainProvider;
     },
-    set: function(terrainProvider) {
+    set: function (terrainProvider) {
       this._scene.terrainProvider = terrainProvider;
     },
   },
@@ -536,7 +541,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   camera: {
-    get: function() {
+    get: function () {
       return this._scene.camera;
     },
   },
@@ -549,7 +554,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   clock: {
-    get: function() {
+    get: function () {
       return this._clock;
     },
   },
@@ -562,7 +567,7 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @readonly
    */
   screenSpaceEventHandler: {
-    get: function() {
+    get: function () {
       return this._screenSpaceEventHandler;
     },
   },
@@ -577,10 +582,10 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @type {Number}
    */
   targetFrameRate: {
-    get: function() {
+    get: function () {
       return this._targetFrameRate;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       if (value <= 0) {
         throw new DeveloperError(
@@ -607,10 +612,10 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @type {Boolean}
    */
   useDefaultRenderLoop: {
-    get: function() {
+    get: function () {
       return this._useDefaultRenderLoop;
     },
-    set: function(value) {
+    set: function (value) {
       if (this._useDefaultRenderLoop !== value) {
         this._useDefaultRenderLoop = value;
         if (value && !this._renderLoopRunning) {
@@ -633,10 +638,10 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @default 1.0
    */
   resolutionScale: {
-    get: function() {
+    get: function () {
       return this._resolutionScale;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       if (value <= 0) {
         throw new DeveloperError("resolutionScale must be greater than 0.");
@@ -662,10 +667,10 @@ Object.defineProperties(CesiumWidget.prototype, {
    * @default true
    */
   useBrowserRecommendedResolution: {
-    get: function() {
+    get: function () {
       return this._useBrowserRecommendedResolution;
     },
-    set: function(value) {
+    set: function (value) {
       if (this._useBrowserRecommendedResolution !== value) {
         this._useBrowserRecommendedResolution = value;
         this._forceResize = true;
@@ -684,7 +689,7 @@ Object.defineProperties(CesiumWidget.prototype, {
  * @param {String} [message] A helpful, user-facing message to display prior to the detailed error information.  This string is interpreted as HTML.
  * @param {String} [error] The error to be displayed on the error panel.  This string is formatted using {@link formatError} and then displayed as text.
  */
-CesiumWidget.prototype.showErrorPanel = function(title, message, error) {
+CesiumWidget.prototype.showErrorPanel = function (title, message, error) {
   var element = this._element;
   var overlay = document.createElement("div");
   overlay.className = "cesium-widget-errorPanel";
@@ -746,7 +751,7 @@ CesiumWidget.prototype.showErrorPanel = function(title, message, error) {
       moreDetails.appendChild(document.createTextNode("See more..."));
       errorMessageDetails.appendChild(moreDetails);
 
-      errorMessageDetails.onclick = function(e) {
+      errorMessageDetails.onclick = function (e) {
         errorMessageDetails.removeChild(moreDetails);
         errorMessageDetails.appendChild(document.createTextNode(errorDetails));
         errorMessageDetails.className =
@@ -769,7 +774,7 @@ CesiumWidget.prototype.showErrorPanel = function(title, message, error) {
   okButton.setAttribute("type", "button");
   okButton.className = "cesium-button";
   okButton.appendChild(document.createTextNode("OK"));
-  okButton.onclick = function() {
+  okButton.onclick = function () {
     if (defined(resizeCallback) && defined(window.removeEventListener)) {
       window.removeEventListener("resize", resizeCallback, false);
     }
@@ -784,7 +789,7 @@ CesiumWidget.prototype.showErrorPanel = function(title, message, error) {
 /**
  * @returns {Boolean} true if the object has been destroyed, false otherwise.
  */
-CesiumWidget.prototype.isDestroyed = function() {
+CesiumWidget.prototype.isDestroyed = function () {
   return false;
 };
 
@@ -792,7 +797,7 @@ CesiumWidget.prototype.isDestroyed = function() {
  * Destroys the widget.  Should be called if permanently
  * removing the widget from layout.
  */
-CesiumWidget.prototype.destroy = function() {
+CesiumWidget.prototype.destroy = function () {
   if (defined(this._scene)) {
     this._scene.renderError.removeEventListener(this._onRenderError);
     this._scene = this._scene.destroy();
@@ -807,7 +812,7 @@ CesiumWidget.prototype.destroy = function() {
  * This function is called automatically as needed unless
  * <code>useDefaultRenderLoop</code> is set to false.
  */
-CesiumWidget.prototype.resize = function() {
+CesiumWidget.prototype.resize = function () {
   var canvas = this._canvas;
   if (
     !this._forceResize &&
@@ -829,7 +834,7 @@ CesiumWidget.prototype.resize = function() {
  * Renders the scene.  This function is called automatically
  * unless <code>useDefaultRenderLoop</code> is set to false;
  */
-CesiumWidget.prototype.render = function() {
+CesiumWidget.prototype.render = function () {
   if (this._canRender) {
     this._scene.initializeFrame();
     var currentTime = this._clock.tick();
