@@ -50,6 +50,10 @@ import TerrainFillMesh from "./TerrainFillMesh.js";
 import TerrainState from "./TerrainState.js";
 import TileBoundingRegion from "./TileBoundingRegion.js";
 import TileSelectionResult from "./TileSelectionResult.js";
+import Texture from "../Renderer/Texture.js";
+import PixelDatatype from "../Renderer/PixelDatatype.js";
+import PixelFormat from "../Core/PixelFormat.js";
+import Sampler from "../Renderer/Sampler.js";
 
 /**
  * Provides quadtree tiles representing the surface of the globe.  This type is intended to be used
@@ -165,6 +169,9 @@ function GlobeSurfaceTileProvider(options) {
    * @private
    */
   this._clippingPlanes = undefined;
+
+  this._multiClippingPlanes = undefined;
+  this._multiClippingPlanesTexture = undefined;
 
   /**
    * A property specifying a {@link Rectangle} used to selectively limit terrain and imagery rendering.
@@ -315,6 +322,27 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
       ClippingPlaneCollection.setOwner(value, this, "_clippingPlanes");
     },
   },
+  /**
+   * The {@link ClippingPlaneCollection} array used to selectively disable rendering the tileset.
+   *
+   * @type {Array[ClippingPlaneCollection]}
+   *
+   * @private
+   */
+  multiClippingPlanes: {
+    get: function () {
+      return this._multiClippingPlanes;
+    },
+    set: function (value) {
+      if (defined(value)) {
+        value.forEach((p, i) => {
+          ClippingPlaneCollection.setOwner(p, this, "multiClippingPlanes" + i);
+        });
+      } else {
+        this._multiClippingPlanes = undefined;
+      }
+    },
+  },
 });
 
 function sortTileImageryByLayerIndex(a, b) {
@@ -404,6 +432,65 @@ GlobeSurfaceTileProvider.prototype.beginUpdate = function (frameState) {
   if (defined(clippingPlanes) && clippingPlanes.enabled) {
     clippingPlanes.update(frameState);
   }
+
+  var multiClippingPlanes = this._multiClippingPlanes;
+  if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) {
+    // update multiclipping texture
+    var context = frameState.context;
+    var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
+    // get total array buffer length
+    var widthTotal = 0,
+      height;
+    var dontUpdateTexture = false;
+    for (var i = 0; i < multiClippingPlanes.length; i++) {
+      var plane = multiClippingPlanes[i];
+      if (plane.enabled) plane.update(frameState);
+      if (!defined(plane.texture)) {
+        dontUpdateTexture = true;
+        break;
+      }
+      height = plane.texture.height;
+      widthTotal += plane.texture.width;
+    }
+    if (!dontUpdateTexture) {
+      var arrayBuffer = useFloatTexture
+        ? new Float32Array(widthTotal * height * 4)
+        : new Uint8Array(widthTotal * height * 4);
+      var startIndex = 0;
+      multiClippingPlanes.forEach((p) => {
+        p.concatArrayBufferView(context, arrayBuffer, startIndex);
+        startIndex += p.texture.width * 4;
+      });
+
+      if (useFloatTexture) {
+        this._multiClippingPlanesTexture = new Texture({
+          context: context,
+          width: widthTotal,
+          height: height,
+          pixelFormat: PixelFormat.RGBA,
+          pixelDatatype: PixelDatatype.FLOAT,
+          sampler: Sampler.NEAREST,
+          flipY: false,
+        });
+      } else {
+        this._multiClippingPlanesTexture = new Texture({
+          context: context,
+          width: widthTotal,
+          height: height,
+          pixelFormat: PixelFormat.RGBA,
+          pixelDatatype: PixelDatatype.UNSIGNED_BYTE,
+          sampler: Sampler.NEAREST,
+          flipY: false,
+        });
+      }
+      this._multiClippingPlanesTexture.copyFrom({
+        width: widthTotal,
+        height: height,
+        arrayBufferView: arrayBuffer,
+      });
+    }
+  }
+
   this._usedDrawCommands = 0;
 
   this._hasLoadedTilesThisFrame = false;
@@ -638,6 +725,9 @@ function isUndergroundVisible(tileProvider, frameState) {
     return true;
   }
 
+  // to do 待完善
+  if (defined(tileProvider._multiClippingPlanes)) return true;
+
   if (
     !Rectangle.equals(
       tileProvider.cartographicLimitRectangle,
@@ -753,6 +843,20 @@ GlobeSurfaceTileProvider.prototype.computeTileVisibility = function (
     tile.isClipped = planeIntersection !== Intersect.INSIDE;
     if (planeIntersection === Intersect.OUTSIDE) {
       return Visibility.NONE;
+    }
+  }
+
+  var multiClippingPlanes = this._multiClippingPlanes;
+  if (defined(multiClippingPlanes) && multiClippingPlanes.enabled) {
+    for (var i = 0; i, multiClippingPlanes.length; i++) {
+      var plane = multiClippingPlanes[i];
+      var planeIntersection = plane.computeIntersectionWithBoundingVolume(
+        boundingVolume
+      );
+      tile.isClipped = planeIntersection !== Intersect.INSIDE;
+      if (planeIntersection === Intersect.OUTSIDE) {
+        return Visibility.NONE;
+      }
     }
   }
 
@@ -1299,6 +1403,12 @@ GlobeSurfaceTileProvider.prototype.isDestroyed = function () {
 GlobeSurfaceTileProvider.prototype.destroy = function () {
   this._tileProvider = this._tileProvider && this._tileProvider.destroy();
   this._clippingPlanes = this._clippingPlanes && this._clippingPlanes.destroy();
+  if (defined(this._multiClippingPlanes)) {
+    this._multiClippingPlanes.forEach((p) => {
+      if (p) p.destroy();
+    });
+    this._multiClippingPlanes = undefined;
+  }
 
   return destroyObject(this);
 };
@@ -1623,6 +1733,10 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       return this.properties.dayTextureCutoutRectangles;
     },
     u_clippingPlanes: function () {
+      var texture = globeSurfaceTileProvider._multiClippingPlanesTexture;
+      if (defined(texture)) {
+        return texture;
+      }
       var clippingPlanes = globeSurfaceTileProvider._clippingPlanes;
       if (defined(clippingPlanes) && defined(clippingPlanes.texture)) {
         // Check in case clippingPlanes hasn't been updated yet.
@@ -1630,10 +1744,30 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       }
       return frameState.context.defaultTexture;
     },
+    u_multiClippingPlanes: function () {
+      var texture = globeSurfaceTileProvider._multiClippingPlanesTexture;
+      if (defined(texture)) {
+        return texture;
+      }
+      return frameState.context.defaultTexture;
+    },
     u_cartographicLimitRectangle: function () {
       return this.properties.localizedCartographicLimitRectangle;
     },
     u_clippingPlanesMatrix: function () {
+      var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
+      if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) {
+        var transform = Matrix4.multiply(
+          frameState.context.uniformState.view,
+          multiClippingPlanes[0].modelMatrix,
+          scratchClippingPlanesMatrix
+        );
+
+        return Matrix4.inverseTranspose(
+          transform,
+          scratchInverseTransposeClippingPlanesMatrix
+        );
+      }
       var clippingPlanes = globeSurfaceTileProvider._clippingPlanes;
       var transform = defined(clippingPlanes)
         ? Matrix4.multiply(
@@ -1649,7 +1783,13 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       );
     },
     u_clippingPlanesEdgeStyle: function () {
-      var style = this.properties.clippingPlanesEdgeColor;
+      var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
+      if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) {
+        var style = multiClippingPlanes[0].edgeColor.clone();
+        style.alpha = multiClippingPlanes[0].edgeWidth;
+        return style;
+      }
+      var style = this.properties.clippingPlanesEdgeColor.clone();
       style.alpha = this.properties.clippingPlanesEdgeWidth;
       return style;
     },
@@ -1731,6 +1871,49 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       undergroundColorAlphaByDistance: new Cartesian4(),
     },
   };
+
+  // var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
+  // if (defined(multiClippingPlanes)) {
+  //   multiClippingPlanes.forEach((p, i) => {
+
+  //     uniformMap['u_clippingPlanes' + i] = function() {
+  //       var clippingPlanes = p;
+  //       if (defined(clippingPlanes) && defined(clippingPlanes.texture)) {
+  //         // Check in case clippingPlanes hasn't been updated yet.
+  //         return clippingPlanes.texture;
+  //       }
+  //       return frameState.context.defaultTexture;
+  //     }
+
+  //     uniformMap['u_clippingPlanesMatrix' + i] = function() {
+  //       var clippingPlanes = p;
+  //       var transform = defined(clippingPlanes)
+  //         ? Matrix4.multiply(
+  //           frameState.context.uniformState.view,
+  //           clippingPlanes.modelMatrix,
+  //           scratchClippingPlanesMatrix
+  //         )
+  //         : Matrix4.IDENTITY;
+
+  //       return Matrix4.inverseTranspose(
+  //         transform,
+  //         scratchInverseTransposeClippingPlanesMatrix
+  //       );
+  //     }
+
+  //     uniformMap['u_clippingPlanesEdgeStyle' + i] = function() {
+  //       var style = p.edgeColor;
+  //       style.alpha = p.edgeWidth;
+  //       return style;
+  //     }
+
+  //   })
+  // }
+
+  // multipolygon terrain clipping
+  if (defined(globeSurfaceTileProvider.cutPolygonUniformMap)) {
+    return combine(uniformMap, globeSurfaceTileProvider.cutPolygonUniformMap);
+  }
 
   if (defined(globeSurfaceTileProvider.materialUniformMap)) {
     return combine(uniformMap, globeSurfaceTileProvider.materialUniformMap);
@@ -2573,6 +2756,8 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
     surfaceShaderSetOptions.enableFog = applyFog;
     surfaceShaderSetOptions.enableClippingPlanes = clippingPlanesEnabled;
     surfaceShaderSetOptions.clippingPlanes = clippingPlanes;
+    surfaceShaderSetOptions.multiClippingPlanes =
+      tileProvider._multiClippingPlanes;
     surfaceShaderSetOptions.hasImageryLayerCutout = applyCutout;
     surfaceShaderSetOptions.colorCorrect = colorCorrect;
     surfaceShaderSetOptions.highlightFillTile = highlightFillTile;

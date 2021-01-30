@@ -164,7 +164,7 @@ Object.defineProperties(ClippingPlaneCollection.prototype, {
    * @readonly
    */
   length: {
-    get: function () {
+    get: function() {
       return this._planes.length;
     },
   },
@@ -179,10 +179,10 @@ Object.defineProperties(ClippingPlaneCollection.prototype, {
    * @default false
    */
   unionClippingRegions: {
-    get: function () {
+    get: function() {
       return this._unionClippingRegions;
     },
-    set: function (value) {
+    set: function(value) {
       if (this._unionClippingRegions === value) {
         return;
       }
@@ -201,10 +201,10 @@ Object.defineProperties(ClippingPlaneCollection.prototype, {
    * @default true
    */
   enabled: {
-    get: function () {
+    get: function() {
       return this._enabled;
     },
-    set: function (value) {
+    set: function(value) {
       if (this._enabled === value) {
         return;
       }
@@ -221,7 +221,7 @@ Object.defineProperties(ClippingPlaneCollection.prototype, {
    * @private
    */
   texture: {
-    get: function () {
+    get: function() {
       return this._clippingPlanesTexture;
     },
   },
@@ -234,7 +234,7 @@ Object.defineProperties(ClippingPlaneCollection.prototype, {
    * @private
    */
   owner: {
-    get: function () {
+    get: function() {
       return this._owner;
     },
   },
@@ -251,7 +251,7 @@ Object.defineProperties(ClippingPlaneCollection.prototype, {
    * @private
    */
   clippingPlanesState: {
-    get: function () {
+    get: function() {
       return this._unionClippingRegions
         ? this._planes.length
         : -this._planes.length;
@@ -279,11 +279,11 @@ function setIndexDirty(collection, index) {
  * @see ClippingPlaneCollection#remove
  * @see ClippingPlaneCollection#removeAll
  */
-ClippingPlaneCollection.prototype.add = function (plane) {
+ClippingPlaneCollection.prototype.add = function(plane) {
   var newPlaneIndex = this._planes.length;
 
   var that = this;
-  plane.onChangeCallback = function (index) {
+  plane.onChangeCallback = function(index) {
     setIndexDirty(that, index);
   };
   plane.index = newPlaneIndex;
@@ -305,7 +305,7 @@ ClippingPlaneCollection.prototype.add = function (plane) {
  *
  * @see ClippingPlaneCollection#length
  */
-ClippingPlaneCollection.prototype.get = function (index) {
+ClippingPlaneCollection.prototype.get = function(index) {
   //>>includeStart('debug', pragmas.debug);
   Check.typeOf.number("index", index);
   //>>includeEnd('debug');
@@ -332,7 +332,7 @@ function indexOf(planes, plane) {
  *
  * @see ClippingPlaneCollection#get
  */
-ClippingPlaneCollection.prototype.contains = function (clippingPlane) {
+ClippingPlaneCollection.prototype.contains = function(clippingPlane) {
   return indexOf(this._planes, clippingPlane) !== -1;
 };
 
@@ -346,7 +346,7 @@ ClippingPlaneCollection.prototype.contains = function (clippingPlane) {
  * @see ClippingPlaneCollection#contains
  * @see ClippingPlaneCollection#removeAll
  */
-ClippingPlaneCollection.prototype.remove = function (clippingPlane) {
+ClippingPlaneCollection.prototype.remove = function(clippingPlane) {
   var planes = this._planes;
   var index = indexOf(planes, clippingPlane);
 
@@ -385,7 +385,7 @@ ClippingPlaneCollection.prototype.remove = function (clippingPlane) {
  * @see ClippingPlaneCollection#add
  * @see ClippingPlaneCollection#remove
  */
-ClippingPlaneCollection.prototype.removeAll = function () {
+ClippingPlaneCollection.prototype.removeAll = function() {
   // Dereference this ClippingPlaneCollection from all ClippingPlanes
   var planes = this._planes;
   var planesCount = planes.length;
@@ -466,7 +466,7 @@ var textureResolutionScratch = new Cartesian2();
  * Do not call this function directly.
  * </p>
  */
-ClippingPlaneCollection.prototype.update = function (frameState) {
+ClippingPlaneCollection.prototype.update = function(frameState) {
   var clippingPlanesTexture = this._clippingPlanesTexture;
   var context = frameState.context;
   var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
@@ -612,7 +612,7 @@ var scratchPlane = new Plane(Cartesian3.UNIT_X, 0.0);
  *                      if the entire volume is on the opposite side and should be clipped, and
  *                      {@link Intersect.INTERSECTING} if the volume intersects the planes.
  */
-ClippingPlaneCollection.prototype.computeIntersectionWithBoundingVolume = function (
+ClippingPlaneCollection.prototype.computeIntersectionWithBoundingVolume = function(
   tileBoundingVolume,
   transform
 ) {
@@ -658,7 +658,7 @@ ClippingPlaneCollection.prototype.computeIntersectionWithBoundingVolume = functi
  * @param {String} key The Key for the Object to reference the ClippingPlaneCollection
  * @private
  */
-ClippingPlaneCollection.setOwner = function (
+ClippingPlaneCollection.setOwner = function(
   clippingPlaneCollection,
   owner,
   key
@@ -689,7 +689,7 @@ ClippingPlaneCollection.setOwner = function (
  * @returns {Boolean} <code>true</code> if floating point textures can be used for clipping planes.
  * @private
  */
-ClippingPlaneCollection.useFloatTexture = function (context) {
+ClippingPlaneCollection.useFloatTexture = function(context) {
   return context.floatingPointTexture;
 };
 
@@ -704,7 +704,7 @@ ClippingPlaneCollection.useFloatTexture = function (context) {
  * @returns {Cartesian2} The required resolution.
  * @private
  */
-ClippingPlaneCollection.getTextureResolution = function (
+ClippingPlaneCollection.getTextureResolution = function(
   clippingPlaneCollection,
   context,
   result
@@ -727,6 +727,29 @@ ClippingPlaneCollection.getTextureResolution = function (
 };
 
 /**
+ * 
+ * @param {*} bufferView 
+ * @param {*} startIndex 
+ */
+ClippingPlaneCollection.prototype.concatArrayBufferView = function(context, arrayBuffer, startIndex) {
+  var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
+  var nowDataBuffer = useFloatTexture ? this._float32View : this._uint8View;
+
+  var nowDataIndex = 0;
+  // exclude zeros
+  for (var i = 0; i < this._planes.length; ++i) {
+
+    arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
+    arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
+    arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
+    arrayBuffer[startIndex + 3] = nowDataBuffer[nowDataIndex + 3];
+
+    nowDataIndex += 4; // each plane is 4 floats
+    startIndex += 4;
+  }
+}
+
+/**
  * Returns true if this object was destroyed; otherwise, false.
  * <br /><br />
  * If this object was destroyed, it should not be used; calling any function other than
@@ -736,7 +759,7 @@ ClippingPlaneCollection.getTextureResolution = function (
  *
  * @see ClippingPlaneCollection#destroy
  */
-ClippingPlaneCollection.prototype.isDestroyed = function () {
+ClippingPlaneCollection.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -756,7 +779,7 @@ ClippingPlaneCollection.prototype.isDestroyed = function () {
  *
  * @see ClippingPlaneCollection#isDestroyed
  */
-ClippingPlaneCollection.prototype.destroy = function () {
+ClippingPlaneCollection.prototype.destroy = function() {
   this._clippingPlanesTexture =
     this._clippingPlanesTexture && this._clippingPlanesTexture.destroy();
   return destroyObject(this);
