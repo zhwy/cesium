@@ -52,6 +52,10 @@ function Globe(ellipsoid) {
   this._surfaceShaderSet = new GlobeSurfaceShaderSet();
   this._material = undefined;
 
+  // multipolygon-terrain-clipping
+  this._cutPolygons = undefined;
+  this._cutPolygonSide = true;
+
   this._surface = new QuadtreePrimitive({
     tileProvider: new GlobeSurfaceTileProvider({
       terrainProvider: terrainProvider,
@@ -310,7 +314,7 @@ Object.defineProperties(Globe.prototype, {
    * @type {Ellipsoid}
    */
   ellipsoid: {
-    get: function () {
+    get: function() {
       return this._ellipsoid;
     },
   },
@@ -320,7 +324,7 @@ Object.defineProperties(Globe.prototype, {
    * @type {ImageryLayerCollection}
    */
   imageryLayers: {
-    get: function () {
+    get: function() {
       return this._imageryLayerCollection;
     },
   },
@@ -332,7 +336,7 @@ Object.defineProperties(Globe.prototype, {
    * @readonly
    */
   imageryLayersUpdatedEvent: {
-    get: function () {
+    get: function() {
       return this._surface.tileProvider.imageryLayersUpdatedEvent;
     },
   },
@@ -344,7 +348,7 @@ Object.defineProperties(Globe.prototype, {
    * @readonly
    */
   tilesLoaded: {
-    get: function () {
+    get: function() {
       if (!defined(this._surface)) {
         return true;
       }
@@ -362,10 +366,10 @@ Object.defineProperties(Globe.prototype, {
    * @type {Color}
    */
   baseColor: {
-    get: function () {
+    get: function() {
       return this._surface.tileProvider.baseColor;
     },
-    set: function (value) {
+    set: function(value) {
       this._surface.tileProvider.baseColor = value;
     },
   },
@@ -376,10 +380,10 @@ Object.defineProperties(Globe.prototype, {
    * @type {ClippingPlaneCollection}
    */
   clippingPlanes: {
-    get: function () {
+    get: function() {
       return this._surface.tileProvider.clippingPlanes;
     },
-    set: function (value) {
+    set: function(value) {
       this._surface.tileProvider.clippingPlanes = value;
     },
   },
@@ -392,10 +396,10 @@ Object.defineProperties(Globe.prototype, {
    * @default {@link Rectangle.MAX_VALUE}
    */
   cartographicLimitRectangle: {
-    get: function () {
+    get: function() {
       return this._surface.tileProvider.cartographicLimitRectangle;
     },
-    set: function (value) {
+    set: function(value) {
       if (!defined(value)) {
         value = Rectangle.clone(Rectangle.MAX_VALUE);
       }
@@ -410,10 +414,10 @@ Object.defineProperties(Globe.prototype, {
    * @default buildModuleUrl('Assets/Textures/waterNormalsSmall.jpg')
    */
   oceanNormalMapUrl: {
-    get: function () {
+    get: function() {
       return this._oceanNormalMapResource.url;
     },
-    set: function (value) {
+    set: function(value) {
       this._oceanNormalMapResource.url = value;
       this._oceanNormalMapResourceDirty = true;
     },
@@ -427,10 +431,10 @@ Object.defineProperties(Globe.prototype, {
    *
    */
   terrainProvider: {
-    get: function () {
+    get: function() {
       return this._terrainProvider;
     },
-    set: function (value) {
+    set: function(value) {
       if (value !== this._terrainProvider) {
         this._terrainProvider = value;
         this._terrainProviderChanged.raiseEvent(value);
@@ -448,7 +452,7 @@ Object.defineProperties(Globe.prototype, {
    * @readonly
    */
   terrainProviderChanged: {
-    get: function () {
+    get: function() {
       return this._terrainProviderChanged;
     },
   },
@@ -460,7 +464,7 @@ Object.defineProperties(Globe.prototype, {
    * @type {Event}
    */
   tileLoadProgressEvent: {
-    get: function () {
+    get: function() {
       return this._surface.tileLoadProgressEvent;
     },
   },
@@ -472,15 +476,45 @@ Object.defineProperties(Globe.prototype, {
    * @type {Material}
    */
   material: {
-    get: function () {
+    get: function() {
       return this._material;
     },
-    set: function (material) {
+    set: function(material) {
       if (this._material !== material) {
         this._material = material;
         makeShadersDirty(this);
       }
     },
+  },
+
+  /**
+   * Gets or sets the terrain clipping multipolygon
+   */
+  cutPolygons: {
+    get: function() {
+      return this._cutPolygons;
+    },
+    set: function(value) {
+      // if (JSON.stringify(this._cutPolygons) !== JSON.stringify(value)) {
+      this._cutPolygons = value;
+      makeShadersDirty(this);
+      // }
+    }
+  },
+
+  /**
+   * Gets or sets the inside/outside multipolygon terrain clipping
+   */
+  cutPolygonSide: {
+    get: function() {
+      return this._cutPolygonSide;
+    },
+    set: function(value) {
+      if (this._cutPolygonSide !== value) {
+        this._cutPolygonSide = value;
+        makeShadersDirty(this);
+      }
+    }
   },
 
   /**
@@ -496,10 +530,10 @@ Object.defineProperties(Globe.prototype, {
    * @see Globe#undergroundColorAlphaByDistance
    */
   undergroundColor: {
-    get: function () {
+    get: function() {
       return this._undergroundColor;
     },
-    set: function (value) {
+    set: function(value) {
       this._undergroundColor = Color.clone(value, this._undergroundColor);
     },
   },
@@ -522,10 +556,10 @@ Object.defineProperties(Globe.prototype, {
    *
    */
   undergroundColorAlphaByDistance: {
-    get: function () {
+    get: function() {
       return this._undergroundColorAlphaByDistance;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       if (defined(value) && value.far < value.near) {
         throw new DeveloperError(
@@ -547,7 +581,7 @@ Object.defineProperties(Globe.prototype, {
    * @type {GlobeTranslucency}
    */
   translucency: {
-    get: function () {
+    get: function() {
       return this._translucency;
     },
   },
@@ -572,7 +606,95 @@ function makeShadersDirty(globe) {
   } else {
     globe._surface._tileProvider.materialUniformMap = undefined;
   }
-  fragmentSources.push(GlobeFS);
+
+  // multipolygon terrain clipping
+  var fs = GlobeFS;
+  if (Array.isArray(globe._cutPolygons) && Array.isArray(globe._cutPolygons[0])) {
+    var uniformMap = {
+      u_cutPolygonSide: function() {
+        return globe._cutPolygonSide;
+      }
+    }
+
+    var isPointInPolygon = "";
+
+    for (var i = 0; i < globe._cutPolygons.length; i++) {
+      var cutPolygon = globe._cutPolygons[i];
+      (function(i, cutPolygon) {
+        uniformMap["u_cutPolygonPositions" + i] = function() {
+          // var positions = [];
+          // for (var k = 0; k < cutPolygon.length; k++) {
+          //   var car = Cartographic.fromCartesian(cutPolygon[k]);
+          //   var height = globe.getHeight(car) || 0;
+          //   var position = Cartesian3.fromRadians(car.longitude, car.latitude, height);
+          //   positions.push(position);
+          // }
+          return cutPolygon;
+        }
+      })(i, cutPolygon);
+      var length = cutPolygon.length;
+      fs = "uniform vec3 u_cutPolygonPositions" + i + "[" + length + "];\n" +
+        "bool isPointInPolygon" + i + "(vec3 p, vec3 points[" + length + "]){\n" +
+        "bool inside = false;\n" +
+        "const int length = " + length + ";\n" +
+        "for (int i = 0; i < length; i++) {\n" +
+        "float xi = points[i].x;\n" +
+        "float yi = points[i].y;\n" +
+        "float xj;\n" +
+        "float yj;\n" +
+        "if (i == 0) {\n" +
+        "xj = points[length - 1].x;\n" +
+        "yj = points[length - 1].y;\n" +
+        "} else {\n" +
+        "xj = points[i - 1].x;\n" +
+        "yj = points[i - 1].y;\n" +
+        "}\n" +
+        "bool intersect = ((yi > p.y) != (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);\n" +
+        "if (intersect) {\n" +
+        "inside = !inside;\n" +
+        "}\n" +
+        "}\n" +
+        "return inside;\n" +
+        "}\n" + fs;
+    }
+
+    var cutPolygonSideTrue = "";
+    for (var i = 0; i < globe._cutPolygons.length; i++) {
+      cutPolygonSideTrue += "if (isPointInPolygon" + i + "(v_positionMPClipping, u_cutPolygonPositions" + i + ")){\n" +
+        "discard;\n" +
+        "}\n";
+    }
+
+    var cutPolygonSideFalse = "if (";
+    for (var i = 0; i < globe._cutPolygons.length; i++) {
+      if (i === globe._cutPolygons.length - 1) {
+        cutPolygonSideFalse += "!isPointInPolygon" + i + "(v_positionMPClipping, u_cutPolygonPositions" + i + ")){\n" +
+          "discard;\n" +
+          "}\n";
+        break;
+      }
+      cutPolygonSideFalse += "!isPointInPolygon" + i + "(v_positionMPClipping, u_cutPolygonPositions" + i + ") && ";
+    }
+
+    fs = "uniform bool u_cutPolygonSide;\n" + fs;
+
+    isPointInPolygon = "if (u_cutPolygonSide) {\n" + cutPolygonSideTrue + "} else {\n" + cutPolygonSideFalse + "}";
+
+    var renamedFS = ShaderSource.replaceMain(
+      fs,
+      "cut_polygon_main"
+    );
+
+    fs = renamedFS + "void main () {\n cut_polygon_main();\n" + isPointInPolygon + "\n}";
+
+    globe._surface._tileProvider.cutPolygonUniformMap = uniformMap;
+
+  } else {
+    globe._surface._tileProvider.cutPolygonUniformMap = undefined;
+  }
+  // multipolygon terrain clipping
+
+  fragmentSources.push(fs);
 
   globe._surfaceShaderSet.baseVertexShaderSource = new ShaderSource({
     sources: [GroundAtmosphere, GlobeVS],
@@ -587,7 +709,7 @@ function makeShadersDirty(globe) {
 }
 
 function createComparePickTileFunction(rayOrigin) {
-  return function (a, b) {
+  return function(a, b) {
     var aDist = BoundingSphere.distanceSquaredTo(
       a.pickBoundingSphere,
       rayOrigin
@@ -618,7 +740,7 @@ var scratchSphereIntersectionResult = {
  *
  * @private
  */
-Globe.prototype.pickWorldCoordinates = function (
+Globe.prototype.pickWorldCoordinates = function(
   ray,
   scene,
   cullBackFaces,
@@ -724,7 +846,7 @@ var cartoScratch = new Cartographic();
  * var ray = viewer.camera.getPickRay(windowCoordinates);
  * var intersection = globe.pick(ray, scene);
  */
-Globe.prototype.pick = function (ray, scene, result) {
+Globe.prototype.pick = function(ray, scene, result) {
   result = this.pickWorldCoordinates(ray, scene, true, result);
   if (defined(result) && scene.mode !== SceneMode.SCENE3D) {
     result = Cartesian3.fromElements(result.y, result.z, result.x, result);
@@ -752,7 +874,7 @@ function tileIfContainsCartographic(tile, cartographic) {
  * @param {Cartographic} cartographic The cartographic for which to find the height.
  * @returns {Number|undefined} The height of the cartographic or undefined if it could not be found.
  */
-Globe.prototype.getHeight = function (cartographic) {
+Globe.prototype.getHeight = function(cartographic) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(cartographic)) {
     throw new DeveloperError("cartographic is required");
@@ -874,7 +996,7 @@ Globe.prototype.getHeight = function (cartographic) {
 /**
  * @private
  */
-Globe.prototype.update = function (frameState) {
+Globe.prototype.update = function(frameState) {
   if (!this.show) {
     return;
   }
@@ -887,7 +1009,7 @@ Globe.prototype.update = function (frameState) {
 /**
  * @private
  */
-Globe.prototype.beginFrame = function (frameState) {
+Globe.prototype.beginFrame = function(frameState) {
   var surface = this._surface;
   var tileProvider = surface.tileProvider;
   var terrainProvider = this.terrainProvider;
@@ -903,7 +1025,7 @@ Globe.prototype.beginFrame = function (frameState) {
     var oceanNormalMapUrl = oceanNormalMapResource.url;
     if (defined(oceanNormalMapUrl)) {
       var that = this;
-      when(oceanNormalMapResource.fetchImage(), function (image) {
+      when(oceanNormalMapResource.fetchImage(), function(image) {
         if (oceanNormalMapUrl !== that._oceanNormalMapResource.url) {
           // url changed while we were loading
           return;
@@ -967,7 +1089,7 @@ Globe.prototype.beginFrame = function (frameState) {
 /**
  * @private
  */
-Globe.prototype.render = function (frameState) {
+Globe.prototype.render = function(frameState) {
   if (!this.show) {
     return;
   }
@@ -982,7 +1104,7 @@ Globe.prototype.render = function (frameState) {
 /**
  * @private
  */
-Globe.prototype.endFrame = function (frameState) {
+Globe.prototype.endFrame = function(frameState) {
   if (!this.show) {
     return;
   }
@@ -1002,7 +1124,7 @@ Globe.prototype.endFrame = function (frameState) {
  *
  * @see Globe#destroy
  */
-Globe.prototype.isDestroyed = function () {
+Globe.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -1022,7 +1144,7 @@ Globe.prototype.isDestroyed = function () {
  *
  * @see Globe#isDestroyed
  */
-Globe.prototype.destroy = function () {
+Globe.prototype.destroy = function() {
   this._surfaceShaderSet =
     this._surfaceShaderSet && this._surfaceShaderSet.destroy();
   this._surface = this._surface && this._surface.destroy();

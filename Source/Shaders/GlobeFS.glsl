@@ -106,6 +106,8 @@ varying vec3 v_textureCoordinates;
 varying vec3 v_normalMC;
 varying vec3 v_normalEC;
 
+varying vec3 v_positionMPClipping;
+
 #ifdef APPLY_MATERIAL
 varying float v_height;
 varying float v_slope;

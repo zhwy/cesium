@@ -10,13 +10,15 @@ function GlobeSurfaceShader(
   flags,
   material,
   shaderProgram,
-  clippingShaderState
+  clippingShaderState,
+  cutPolygons
 ) {
   this.numberOfDayTextures = numberOfDayTextures;
   this.flags = flags;
   this.material = material;
   this.shaderProgram = shaderProgram;
   this.clippingShaderState = clippingShaderState;
+  this.cutPolygons = cutPolygons;
 }
 
 /**
@@ -70,7 +72,7 @@ function get2DYPositionFraction(useWebMercatorProjection) {
     : get2DYPositionFractionGeographicProjection;
 }
 
-GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
+GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
   var frameState = options.frameState;
   var surfaceTile = options.surfaceTile;
   var numberOfDayTextures = options.numberOfDayTextures;
@@ -171,7 +173,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     surfaceShader.numberOfDayTextures === numberOfDayTextures &&
     surfaceShader.flags === flags &&
     surfaceShader.material === this.material &&
-    surfaceShader.clippingShaderState === currentClippingShaderState
+    surfaceShader.clippingShaderState === currentClippingShaderState &&
+    surfaceShader.cutPolygons === this.cutPolygons
   ) {
     return surfaceShader.shaderProgram;
   }
@@ -186,7 +189,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   if (
     !defined(surfaceShader) ||
     surfaceShader.material !== this.material ||
-    surfaceShader.clippingShaderState !== currentClippingShaderState
+    surfaceShader.clippingShaderState !== currentClippingShaderState ||
+    surfaceShader.cutPolygons !== this.cutPolygons
   ) {
     // Cache miss - we've never seen this combination of numberOfDayTextures and flags before.
     var vs = this.baseVertexShaderSource.clone();
@@ -392,7 +396,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       flags,
       this.material,
       shader,
-      currentClippingShaderState
+      currentClippingShaderState,
+      this.curPolygons
     );
   }
 
@@ -400,7 +405,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   return surfaceShader.shaderProgram;
 };
 
-GlobeSurfaceShaderSet.prototype.destroy = function () {
+GlobeSurfaceShaderSet.prototype.destroy = function() {
   var flags;
   var shader;
 

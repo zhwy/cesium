@@ -22,6 +22,8 @@ varying vec3 v_textureCoordinates;
 varying vec3 v_normalMC;
 varying vec3 v_normalEC;
 
+varying vec3 v_positionMPClipping;
+
 #ifdef APPLY_MATERIAL
 varying float v_slope;
 varying float v_aspect;
@@ -159,6 +161,8 @@ void main()
     gl_Position = getPosition(position, height, textureCoordinates);
 
     v_textureCoordinates = vec3(textureCoordinates, webMercatorT);
+
+    v_positionMPClipping = position3DWC;
 
 #if defined(ENABLE_VERTEX_LIGHTING) || defined(GENERATE_POSITION_AND_NORMAL) || defined(APPLY_MATERIAL)
     v_positionEC = (u_modifiedModelView * vec4(position, 1.0)).xyz;
