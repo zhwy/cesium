@@ -3,6 +3,7 @@ import destroyObject from "../Core/destroyObject.js";
 import TerrainQuantization from "../Core/TerrainQuantization.js";
 import ShaderProgram from "../Renderer/ShaderProgram.js";
 import getClippingFunction from "./getClippingFunction.js";
+import getMultiClippingFunction from "./getMultiClippingFunction.js";
 import SceneMode from "./SceneMode.js";
 
 function GlobeSurfaceShader(
@@ -96,6 +97,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
   var useWebMercatorProjection = options.useWebMercatorProjection;
   var enableFog = options.enableFog;
   var enableClippingPlanes = options.enableClippingPlanes;
+  var multiClippingPlanes = options.multiClippingPlanes;
+  if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) enableClippingPlanes = true;
   var clippingPlanes = options.clippingPlanes;
   var clippedByBoundaries = options.clippedByBoundaries;
   var hasImageryLayerCutout = options.hasImageryLayerCutout;
@@ -167,6 +170,15 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
       ? clippingPlanes.clippingPlanesState
       : 0;
   }
+
+  var currentMultiClippingShaderState = 0;
+  if (defined(multiClippingPlanes)) {
+    multiClippingPlanes.forEach((p, i) => {
+      var state = p.enabled << p.clippingPlanesState << i;
+      currentMultiClippingShaderState = currentMultiClippingShaderState | state;
+    })
+  }
+
   var surfaceShader = surfaceTile.surfaceShader;
   if (
     defined(surfaceShader) &&
@@ -174,7 +186,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
     surfaceShader.flags === flags &&
     surfaceShader.material === this.material &&
     surfaceShader.clippingShaderState === currentClippingShaderState &&
-    surfaceShader.cutPolygons === this.cutPolygons
+    surfaceShader.cutPolygons === this.cutPolygons &&
+    surfaceShader.currentMultiClippingShaderState === currentMultiClippingShaderState
   ) {
     return surfaceShader.shaderProgram;
   }
@@ -190,7 +203,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
     !defined(surfaceShader) ||
     surfaceShader.material !== this.material ||
     surfaceShader.clippingShaderState !== currentClippingShaderState ||
-    surfaceShader.cutPolygons !== this.cutPolygons
+    surfaceShader.cutPolygons !== this.cutPolygons ||
+    surfaceShader.currentMultiClippingShaderState !== currentMultiClippingShaderState
   ) {
     // Cache miss - we've never seen this combination of numberOfDayTextures and flags before.
     var vs = this.baseVertexShaderSource.clone();
@@ -200,6 +214,10 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
       fs.sources.unshift(
         getClippingFunction(clippingPlanes, frameState.context)
       ); // Need to go before GlobeFS
+    }
+
+    if (currentMultiClippingShaderState !== 0) {
+      fs.sources.unshift(getMultiClippingFunction(multiClippingPlanes, frameState.context));
     }
 
     vs.defines.push(quantizationDefine);
