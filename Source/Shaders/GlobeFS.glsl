@@ -75,6 +75,8 @@ uniform vec2 u_nightFadeDistance;
 uniform highp sampler2D u_clippingPlanes;
 uniform mat4 u_clippingPlanesMatrix;
 uniform vec4 u_clippingPlanesEdgeStyle;
+uniform mediump sampler2D u_multiClippingPlanesLength;
+uniform int u_clippingPlanesMaxLength;
 #endif
 
 #if defined(FOG) && defined(DYNAMIC_ATMOSPHERE_LIGHTING) && (defined(ENABLE_VERTEX_LIGHTING) || defined(ENABLE_DAYNIGHT_SHADING))
@@ -301,7 +303,8 @@ void main()
 #endif
 
 #ifdef ENABLE_CLIPPING_PLANES
-    float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);
+    // float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);
+    float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix, u_multiClippingPlanesLength);
 #endif
 
 #if defined(SHOW_REFLECTIVE_OCEAN) || defined(ENABLE_DAYNIGHT_SHADING) || defined(HDR)

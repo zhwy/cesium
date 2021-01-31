@@ -172,6 +172,7 @@ function GlobeSurfaceTileProvider(options) {
 
   this._multiClippingPlanes = undefined;
   this._multiClippingPlanesTexture = undefined;
+  this._multiClippingPlanesLengthTexture = undefined;
 
   /**
    * A property specifying a {@link Rectangle} used to selectively limit terrain and imagery rendering.
@@ -456,9 +457,11 @@ GlobeSurfaceTileProvider.prototype.beginUpdate = function (frameState) {
       var arrayBuffer = useFloatTexture
         ? new Float32Array(widthTotal * height * 4)
         : new Uint8Array(widthTotal * height * 4);
+      var lengthArrayBuffer = new Float32Array(multiClippingPlanes.length * 4);
       var startIndex = 0;
-      multiClippingPlanes.forEach((p) => {
+      multiClippingPlanes.forEach((p, i) => {
         p.concatArrayBufferView(context, arrayBuffer, startIndex);
+        lengthArrayBuffer[i * 4 + 3] = p.length;
         startIndex += p.texture.width * 4;
       });
 
@@ -487,6 +490,21 @@ GlobeSurfaceTileProvider.prototype.beginUpdate = function (frameState) {
         width: widthTotal,
         height: height,
         arrayBufferView: arrayBuffer,
+      });
+
+      this._multiClippingPlanesLengthTexture = new Texture({
+        context: context,
+        width: multiClippingPlanes.length,
+        height: 1,
+        pixelFormat: PixelFormat.RGBA,
+        pixelDatatype: PixelDatatype.FLOAT,
+        sampler: Sampler.NEAREST,
+        flipY: false,
+      });
+      this._multiClippingPlanesLengthTexture.copyFrom({
+        width: multiClippingPlanes.length,
+        height: 1,
+        arrayBufferView: lengthArrayBuffer,
       });
     }
   }
@@ -1792,6 +1810,14 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       var style = this.properties.clippingPlanesEdgeColor.clone();
       style.alpha = this.properties.clippingPlanesEdgeWidth;
       return style;
+    },
+    u_multiClippingPlanesLength: function () {
+      var clippingPlanesLength =
+        globeSurfaceTileProvider._multiClippingPlanesLengthTexture;
+      if (defined(clippingPlanesLength)) {
+        return clippingPlanesLength;
+      }
+      return frameState.context.defaultTexture;
     },
     u_minimumBrightness: function () {
       return frameState.fog.minimumBrightness;
