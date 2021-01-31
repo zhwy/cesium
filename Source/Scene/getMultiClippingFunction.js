@@ -18,8 +18,9 @@ function getMultiClippingFunction(clippingPlaneCollectionArray, context) {
   //>>includeEnd('debug');
   // var unionClippingRegions = clippingPlaneCollection.unionClippingRegions;
   var clippingPlanesLength = 0;
-  var width = 0, height = 0;
+  var width = 0, height = 0, maxLength = 0;
   clippingPlaneCollectionArray.forEach(p => {
+    maxLength = Math.max(maxLength, p.length);
     clippingPlanesLength += p.length;
     var textureResolution = ClippingPlaneCollection.getTextureResolution(
       p,
@@ -36,7 +37,7 @@ function getMultiClippingFunction(clippingPlaneCollectionArray, context) {
     ? getClippingPlaneFloat(width, height)
     : getClippingPlaneUint8(width, height);
   functions += "\n";
-  functions += clippingFunctionIntersect(clippingPlaneCollectionArray.length);
+  functions += clippingFunctionIntersect(clippingPlaneCollectionArray.length, maxLength);
   // functions += unionClippingRegions
   //   ? clippingFunctionUnion(clippingPlanesLength)
   //   : clippingFunctionIntersect(clippingPlanesLength);
@@ -76,11 +77,10 @@ function clippingFunctionUnion(clippingPlanesLength) {
   return functionString;
 }
 
-function clippingFunctionIntersect(arrayLength) {
+function clippingFunctionIntersect(arrayLength, maxLength) {
   var functionString =
-    "float clip(vec4 fragCoord, sampler2D clippingPlanes, mat4 clippingPlanesMatrix)\n" +
+    "float clip(vec4 fragCoord, sampler2D clippingPlanes, mat4 clippingPlanesMatrix, sampler2D multiClippingPlanesLength)\n" +
     "{\n" +
-    "    bool clipped = true;\n" +
     "    vec4 position = czm_windowToEyeCoordinates(fragCoord);\n" +
     "    vec3 clipNormal = vec3(0.0);\n" +
     "    vec3 clipPosition = vec3(0.0);\n" +
@@ -90,8 +90,10 @@ function clippingFunctionIntersect(arrayLength) {
     "    for (int i = 0; i < " + arrayLength + "; ++i)\n" +
     "    {\n" +
     "        bool thisOneClipped = true;\n" +
-    "        for (int j = 0; j < 6; ++j)\n" +
+    "        int thisCollectionLength = int(texture2D(multiClippingPlanesLength, vec2((float(i) + 0.5)/float(" + arrayLength + "), 0.5)).w);\n" +
+    "        for (int j = 0; j < " + maxLength + " ; ++j)\n" +
     "         {\n" +
+    "             thisCollectionLength--;\n" +
     "             vec4 clippingPlane = getClippingPlane(clippingPlanes, count, clippingPlanesMatrix);\n" +
     "             clipNormal = clippingPlane.xyz;\n" +
     "             clipPosition = -clippingPlane.w * clipNormal;\n" +
@@ -99,16 +101,13 @@ function clippingFunctionIntersect(arrayLength) {
     "             clipAmount = max(amount, clipAmount);\n" +
     "             thisOneClipped = thisOneClipped && (amount <= 0.0);\n" +
     "             count++;\n" +
+    "             if(thisCollectionLength == 0) break;\n" +
     "         }\n" +
     "         if (thisOneClipped)\n" +
     "         {\n" +
     "             discard;\n" +
     "         }\n" +
     "    }\n" +
-    // "    if (clipped)\n" +
-    // "    {\n" +
-    // "        discard;\n" +
-    // "    }\n" +
     "    return clipAmount;\n" +
     "}\n";
   return functionString;

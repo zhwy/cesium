@@ -69,6 +69,7 @@
     viewer.zoomTo(entity);
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = false; // 允许相机下地
     viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#7d9cd6");
+    viewer.scene.debugShowFramesPerSecond = true;
 
     var globe = viewer.scene.globe;
     globe.depthTestAgainstTerrain = true;
@@ -166,13 +167,18 @@
       var worldPosition = viewer.scene.pickPosition(movement.position);
       if (Cesium.defined(worldPosition)) {
         positions.push(worldPosition);
-        if (positions.length == 6) {
-          globe.multiClippingPlanes.push(generateClippingPlanesCollection(positions));
-          positions = [];
-        }
-
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    handler.setInputAction(function(movement) {
+      var worldPosition = viewer.scene.pickPosition(movement.position);
+      if (Cesium.defined(worldPosition)) {
+        positions.push(worldPosition);
+        globe.multiClippingPlanes.push(generateClippingPlanesCollection(positions));
+        positions = [];
+
+      }
+    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
     function generateClippingPlanesCollection(points) {
       var pointsLength = points.length;
