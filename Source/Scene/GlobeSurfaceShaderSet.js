@@ -11,13 +11,17 @@ function GlobeSurfaceShader(
   flags,
   material,
   shaderProgram,
-  clippingShaderState
+  clippingShaderState,
+  multiClippingShaderState,
+  cutPolygons
 ) {
   this.numberOfDayTextures = numberOfDayTextures;
   this.flags = flags;
   this.material = material;
   this.shaderProgram = shaderProgram;
   this.clippingShaderState = clippingShaderState;
+  this.multiClippingShaderState = multiClippingShaderState;
+  this.cutPolygons = cutPolygons;
 }
 
 /**
@@ -96,8 +100,9 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   var enableFog = options.enableFog;
   var enableClippingPlanes = options.enableClippingPlanes;
   var multiClippingPlanes = options.multiClippingPlanes;
-  if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0)
-    enableClippingPlanes = true;
+  var enableMultiClippingPlanes =
+    defined(multiClippingPlanes) && multiClippingPlanes.length > 0;
+  // if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) enableClippingPlanes = true;
   var clippingPlanes = options.clippingPlanes;
   var clippedByBoundaries = options.clippedByBoundaries;
   var hasImageryLayerCutout = options.hasImageryLayerCutout;
@@ -161,7 +166,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     (colorToAlpha << 25) |
     (showUndergroundColor << 26) |
     (translucent << 27) |
-    (applyDayNightAlpha << 28);
+    (applyDayNightAlpha << 28) |
+    (enableMultiClippingPlanes << 29);
 
   var currentClippingShaderState = 0;
   if (defined(clippingPlanes) && clippingPlanes.length > 0) {
@@ -171,11 +177,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   }
 
   var currentMultiClippingShaderState = 0;
-  if (defined(multiClippingPlanes)) {
-    multiClippingPlanes.forEach((p, i) => {
-      var state = (p.enabled << p.clippingPlanesState) << i;
-      currentMultiClippingShaderState = currentMultiClippingShaderState | state;
-    });
+  if (enableMultiClippingPlanes) {
+    currentMultiClippingShaderState = multiClippingPlanes.collectionsState;
   }
 
   var surfaceShader = surfaceTile.surfaceShader;
@@ -185,8 +188,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     surfaceShader.flags === flags &&
     surfaceShader.material === this.material &&
     surfaceShader.clippingShaderState === currentClippingShaderState &&
-    surfaceShader.currentMultiClippingShaderState ===
-      currentMultiClippingShaderState
+    surfaceShader.cutPolygons === this.cutPolygons &&
+    surfaceShader.multiClippingShaderState === currentMultiClippingShaderState
   ) {
     return surfaceShader.shaderProgram;
   }
@@ -202,14 +205,14 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     !defined(surfaceShader) ||
     surfaceShader.material !== this.material ||
     surfaceShader.clippingShaderState !== currentClippingShaderState ||
-    surfaceShader.currentMultiClippingShaderState !==
-      currentMultiClippingShaderState
+    surfaceShader.cutPolygons !== this.cutPolygons ||
+    surfaceShader.multiClippingShaderState !== currentMultiClippingShaderState
   ) {
     // Cache miss - we've never seen this combination of numberOfDayTextures and flags before.
     var vs = this.baseVertexShaderSource.clone();
     var fs = this.baseFragmentShaderSource.clone();
 
-    if (currentClippingShaderState !== 0) {
+    if (currentClippingShaderState !== 0 && !defined(multiClippingPlanes)) {
       fs.sources.unshift(
         getClippingFunction(clippingPlanes, frameState.context)
       ); // Need to go before GlobeFS
@@ -306,6 +309,10 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
 
     if (enableClippingPlanes) {
       fs.defines.push("ENABLE_CLIPPING_PLANES");
+    }
+
+    if (enableMultiClippingPlanes) {
+      fs.defines.push("ENABLE_MULTI_CLIPPING_PLANES");
     }
 
     if (colorCorrect) {
@@ -415,7 +422,9 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       flags,
       this.material,
       shader,
-      currentClippingShaderState
+      currentClippingShaderState,
+      currentMultiClippingShaderState,
+      this.curPolygons
     );
   }
 

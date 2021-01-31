@@ -71,13 +71,15 @@ uniform vec4 u_cartographicLimitRectangle;
 uniform vec2 u_nightFadeDistance;
 #endif
 
-#ifdef ENABLE_CLIPPING_PLANES
+#if defined(ENABLE_CLIPPING_PLANES) || defined(ENABLE_MULTI_CLIPPING_PLANES)
 uniform highp sampler2D u_clippingPlanes;
 uniform mat4 u_clippingPlanesMatrix;
 uniform vec4 u_clippingPlanesEdgeStyle;
-uniform mediump sampler2D u_multiClippingPlanesLength;
-uniform int u_clippingPlanesMaxLength;
 #endif
+
+#ifdef ENABLE_MULTI_CLIPPING_PLANES
+uniform mediump sampler2D u_multiClippingPlanesLength;
+#endif 
 
 #if defined(FOG) && defined(DYNAMIC_ATMOSPHERE_LIGHTING) && (defined(ENABLE_VERTEX_LIGHTING) || defined(ENABLE_DAYNIGHT_SHADING))
 uniform float u_minimumBrightness;
@@ -303,7 +305,10 @@ void main()
 #endif
 
 #ifdef ENABLE_CLIPPING_PLANES
-    // float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);
+    float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);    
+#endif
+
+#ifdef ENABLE_MULTI_CLIPPING_PLANES
     float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix, u_multiClippingPlanesLength);
 #endif
 

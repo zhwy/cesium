@@ -37,6 +37,7 @@ import RenderState from "../Renderer/RenderState.js";
 import VertexArray from "../Renderer/VertexArray.js";
 import BlendingState from "./BlendingState.js";
 import ClippingPlaneCollection from "./ClippingPlaneCollection.js";
+import MultiClippingPlaneCollection from "./MultiClippingPlaneCollection.js";
 import DepthFunction from "./DepthFunction.js";
 import GlobeSurfaceTile from "./GlobeSurfaceTile.js";
 import ImageryLayer from "./ImageryLayer.js";
@@ -170,9 +171,12 @@ function GlobeSurfaceTileProvider(options) {
    */
   this._clippingPlanes = undefined;
 
+  /**
+   * A property specifying a {@link MultiClippingPlaneCollection} array used to selectively disable rendering on the outside of each plane.
+   * @type {ClippingPlaneCollection}
+   * @private
+   */
   this._multiClippingPlanes = undefined;
-  this._multiClippingPlanesTexture = undefined;
-  this._multiClippingPlanesLengthTexture = undefined;
 
   /**
    * A property specifying a {@link Rectangle} used to selectively limit terrain and imagery rendering.
@@ -336,9 +340,7 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
     },
     set: function (value) {
       if (defined(value)) {
-        value.forEach((p, i) => {
-          ClippingPlaneCollection.setOwner(p, this, "multiClippingPlanes" + i);
-        });
+        this._multiClippingPlanes = value;
       } else {
         this._multiClippingPlanes = undefined;
       }
@@ -435,79 +437,7 @@ GlobeSurfaceTileProvider.prototype.beginUpdate = function (frameState) {
   }
 
   var multiClippingPlanes = this._multiClippingPlanes;
-  if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) {
-    // update multiclipping texture
-    var context = frameState.context;
-    var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
-    // get total array buffer length
-    var widthTotal = 0,
-      height;
-    var dontUpdateTexture = false;
-    for (var i = 0; i < multiClippingPlanes.length; i++) {
-      var plane = multiClippingPlanes[i];
-      if (plane.enabled) plane.update(frameState);
-      if (!defined(plane.texture)) {
-        dontUpdateTexture = true;
-        break;
-      }
-      height = plane.texture.height;
-      widthTotal += plane.texture.width;
-    }
-    if (!dontUpdateTexture) {
-      var arrayBuffer = useFloatTexture
-        ? new Float32Array(widthTotal * height * 4)
-        : new Uint8Array(widthTotal * height * 4);
-      var lengthArrayBuffer = new Float32Array(multiClippingPlanes.length * 4);
-      var startIndex = 0;
-      multiClippingPlanes.forEach((p, i) => {
-        p.concatArrayBufferView(context, arrayBuffer, startIndex);
-        lengthArrayBuffer[i * 4 + 3] = p.length;
-        startIndex += p.texture.width * 4;
-      });
-
-      if (useFloatTexture) {
-        this._multiClippingPlanesTexture = new Texture({
-          context: context,
-          width: widthTotal,
-          height: height,
-          pixelFormat: PixelFormat.RGBA,
-          pixelDatatype: PixelDatatype.FLOAT,
-          sampler: Sampler.NEAREST,
-          flipY: false,
-        });
-      } else {
-        this._multiClippingPlanesTexture = new Texture({
-          context: context,
-          width: widthTotal,
-          height: height,
-          pixelFormat: PixelFormat.RGBA,
-          pixelDatatype: PixelDatatype.UNSIGNED_BYTE,
-          sampler: Sampler.NEAREST,
-          flipY: false,
-        });
-      }
-      this._multiClippingPlanesTexture.copyFrom({
-        width: widthTotal,
-        height: height,
-        arrayBufferView: arrayBuffer,
-      });
-
-      this._multiClippingPlanesLengthTexture = new Texture({
-        context: context,
-        width: multiClippingPlanes.length,
-        height: 1,
-        pixelFormat: PixelFormat.RGBA,
-        pixelDatatype: PixelDatatype.FLOAT,
-        sampler: Sampler.NEAREST,
-        flipY: false,
-      });
-      this._multiClippingPlanesLengthTexture.copyFrom({
-        width: multiClippingPlanes.length,
-        height: 1,
-        arrayBufferView: lengthArrayBuffer,
-      });
-    }
-  }
+  if (defined(multiClippingPlanes)) multiClippingPlanes.update(frameState);
 
   this._usedDrawCommands = 0;
 
@@ -1422,9 +1352,7 @@ GlobeSurfaceTileProvider.prototype.destroy = function () {
   this._tileProvider = this._tileProvider && this._tileProvider.destroy();
   this._clippingPlanes = this._clippingPlanes && this._clippingPlanes.destroy();
   if (defined(this._multiClippingPlanes)) {
-    this._multiClippingPlanes.forEach((p) => {
-      if (p) p.destroy();
-    });
+    this._multiClippingPlanes.destroy();
     this._multiClippingPlanes = undefined;
   }
 
@@ -1751,7 +1679,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       return this.properties.dayTextureCutoutRectangles;
     },
     u_clippingPlanes: function () {
-      var texture = globeSurfaceTileProvider._multiClippingPlanesTexture;
+      var texture = globeSurfaceTileProvider._multiClippingPlanes?.dataTexture;
       if (defined(texture)) {
         return texture;
       }
@@ -1762,22 +1690,15 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       }
       return frameState.context.defaultTexture;
     },
-    u_multiClippingPlanes: function () {
-      var texture = globeSurfaceTileProvider._multiClippingPlanesTexture;
-      if (defined(texture)) {
-        return texture;
-      }
-      return frameState.context.defaultTexture;
-    },
     u_cartographicLimitRectangle: function () {
       return this.properties.localizedCartographicLimitRectangle;
     },
     u_clippingPlanesMatrix: function () {
       var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
-      if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) {
+      if (defined(multiClippingPlanes)) {
         var transform = Matrix4.multiply(
           frameState.context.uniformState.view,
-          multiClippingPlanes[0].modelMatrix,
+          multiClippingPlanes.modelMatrix,
           scratchClippingPlanesMatrix
         );
 
@@ -1802,9 +1723,9 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
     },
     u_clippingPlanesEdgeStyle: function () {
       var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
-      if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) {
-        var style = multiClippingPlanes[0].edgeColor.clone();
-        style.alpha = multiClippingPlanes[0].edgeWidth;
+      if (defined(multiClippingPlanes)) {
+        var style = multiClippingPlanes.edgeColor.clone();
+        style.alpha = multiClippingPlanes.edgeWidth;
         return style;
       }
       var style = this.properties.clippingPlanesEdgeColor.clone();
@@ -1813,7 +1734,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
     },
     u_multiClippingPlanesLength: function () {
       var clippingPlanesLength =
-        globeSurfaceTileProvider._multiClippingPlanesLengthTexture;
+        globeSurfaceTileProvider._multiClippingPlanes?.lengthTexture;
       if (defined(clippingPlanesLength)) {
         return clippingPlanesLength;
       }
@@ -1897,44 +1818,6 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       undergroundColorAlphaByDistance: new Cartesian4(),
     },
   };
-
-  // var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
-  // if (defined(multiClippingPlanes)) {
-  //   multiClippingPlanes.forEach((p, i) => {
-
-  //     uniformMap['u_clippingPlanes' + i] = function() {
-  //       var clippingPlanes = p;
-  //       if (defined(clippingPlanes) && defined(clippingPlanes.texture)) {
-  //         // Check in case clippingPlanes hasn't been updated yet.
-  //         return clippingPlanes.texture;
-  //       }
-  //       return frameState.context.defaultTexture;
-  //     }
-
-  //     uniformMap['u_clippingPlanesMatrix' + i] = function() {
-  //       var clippingPlanes = p;
-  //       var transform = defined(clippingPlanes)
-  //         ? Matrix4.multiply(
-  //           frameState.context.uniformState.view,
-  //           clippingPlanes.modelMatrix,
-  //           scratchClippingPlanesMatrix
-  //         )
-  //         : Matrix4.IDENTITY;
-
-  //       return Matrix4.inverseTranspose(
-  //         transform,
-  //         scratchInverseTransposeClippingPlanesMatrix
-  //       );
-  //     }
-
-  //     uniformMap['u_clippingPlanesEdgeStyle' + i] = function() {
-  //       var style = p.edgeColor;
-  //       style.alpha = p.edgeWidth;
-  //       return style;
-  //     }
-
-  //   })
-  // }
 
   // multipolygon terrain clipping
   if (defined(globeSurfaceTileProvider.cutPolygonUniformMap)) {
