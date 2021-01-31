@@ -159,7 +159,7 @@
     });
 
 
-    globe.multiClippingPlanes = [];
+    globe.multiClippingPlanes = new Cesium.MultiClippingPlaneCollection();
 
     var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     var positions = [];
@@ -174,7 +174,7 @@
       var worldPosition = viewer.scene.pickPosition(movement.position);
       if (Cesium.defined(worldPosition)) {
         positions.push(worldPosition);
-        globe.multiClippingPlanes.push(generateClippingPlanesCollection(positions));
+        globe.multiClippingPlanes.add(generateClippingPlanesCollection(positions));
         positions = [];
 
       }

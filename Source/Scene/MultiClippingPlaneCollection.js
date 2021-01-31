@@ -87,10 +87,9 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
 
     collectionsState: {
         get: function() {
-            var state = 0;
+            var state = '';
             this._multiCollections.forEach((p, i) => {
-                var thisState = p.enabled << p.clippingPlanesState << i;
-                state = state | thisState;
+                state += `${p.enabled ? '+' : '-'}${i}${p.clippingPlanesState}`
             })
             return state;
         }
@@ -163,110 +162,126 @@ MultiClippingPlaneCollection.prototype.update = function(frameState) {
         if (p.enabled) p.update(frameState);
     })
 
-    // if (this._dirty) {
-    var context = frameState.context;
-    // concat each collection's arraybuffer 
-    var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
-    var widthTotal = 0, height;
-    var updateTexture = true;
-    var totalPlanes = 0;
-    var maxLength = 0;
-    for (var i = 0; i < collections.length; i++) {
-        var collection = collections[i];
-        totalPlanes += collections.length;
-        maxLength = Math.max(maxLength, collection.length);
-        // if (collection.enabled) {
-        height = collection.texture.height; // should be the same for all collections
-        widthTotal += collection.texture.width;
-        // }
-        if (!defined(collection.texture)) {
-            updateTexture = false;
+    if (this._dirty) {
+        var context = frameState.context;
+        // concat each collection's arraybuffer 
+        var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
+        var widthTotal = 0, height;
+        var updateTexture = true;
+        var totalPlanes = 0;
+        var maxLength = 0;
+        for (var i = 0; i < collections.length; i++) {
+            var collection = collections[i];
+            totalPlanes += collections.length;
+            maxLength = Math.max(maxLength, collection.length);
+            // if (collection.enabled) {
+            height = collection.texture.height; // should be the same for all collections
+            widthTotal += collection.texture.width;
+            // }
+            if (!defined(collection.texture)) {
+                updateTexture = false;
+            }
+
         }
 
-    }
+        this._totalPlanesCount = totalPlanes;
+        this._maxCollectionLength = maxLength;
 
-    this._totalPlanesCount = totalPlanes;
-    this._maxCollectionLength = maxLength;
+        if (updateTexture && collections.length > 0) {
+            this._dataArrayBuffer = useFloatTexture ? new Float32Array(widthTotal * height * 4) : new Uint8Array(widthTotal * height * 4);
+            this._lengthArrayBuffer = new Float32Array(collections.length * 4);
+            var arrayBuffer = this._dataArrayBuffer;
+            var lengthArrayBuffer = this._lengthArrayBuffer;
 
-    if (updateTexture && collections.length > 0) {
-        this._dataArrayBuffer = useFloatTexture ? new Float32Array(widthTotal * height * 4) : new Uint8Array(widthTotal * height * 4);
-        this._lengthArrayBuffer = new Float32Array(collections.length * 4);
-        var arrayBuffer = this._dataArrayBuffer;
-        var lengthArrayBuffer = this._lengthArrayBuffer;
+            var startIndex = 0;
+            collections.forEach((p, i) => {
 
-        var startIndex = 0;
-        collections.forEach((p, i) => {
+                // if (p.enabled) {
+                // var nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
+                p.concatArrayBufferView(context, arrayBuffer, startIndex);
+                // var nowDataIndex = 0;
+                // exclude zeros (data with height = 1)
+                // for (var j = 0; j < p.length; ++j) {
 
-            // if (p.enabled) {
-            // var nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
-            p.concatArrayBufferView(context, arrayBuffer, startIndex);
-            // var nowDataIndex = 0;
-            // exclude zeros (data with height = 1)
-            // for (var j = 0; j < p.length; ++j) {
+                //     arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
+                //     arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
+                //     arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
+                //     arrayBuffer[startIndex + 3] = nowDataBuffer[nowDataIndex + 3];
 
-            //     arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
-            //     arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
-            //     arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
-            //     arrayBuffer[startIndex + 3] = nowDataBuffer[nowDataIndex + 3];
+                //     nowDataIndex += 4; // each plane is 4 floats
+                //     startIndex += 4;
+                // }
+                startIndex += p.texture.width * 4;
+                lengthArrayBuffer[i * 4 + 3] = p.length;
+                // }
+            })
 
-            //     nowDataIndex += 4; // each plane is 4 floats
-            //     startIndex += 4;
-            // }
-            startIndex += p.texture.width * 4;
-            lengthArrayBuffer[i * 4 + 3] = p.length;
-            // }
-        })
-
-        if (useFloatTexture) {
-            this._dataTexture = new Texture({
-                context: context,
+            if (useFloatTexture) {
+                this._dataTexture = new Texture({
+                    context: context,
+                    width: widthTotal,
+                    height: height,
+                    pixelFormat: PixelFormat.RGBA,
+                    pixelDatatype: PixelDatatype.FLOAT,
+                    sampler: Sampler.NEAREST,
+                    flipY: false,
+                });
+            } else {
+                this._dataTexture = new Texture({
+                    context: context,
+                    width: widthTotal,
+                    height: height,
+                    pixelFormat: PixelFormat.RGBA,
+                    pixelDatatype: PixelDatatype.UNSIGNED_BYTE,
+                    sampler: Sampler.NEAREST,
+                    flipY: false,
+                    source: {
+                        width: widthTotal,
+                        height: height,
+                        arrayBufferView: arrayBuffer,
+                    }
+                });
+            }
+            this._dataTexture.copyFrom({
                 width: widthTotal,
                 height: height,
+                arrayBufferView: arrayBuffer,
+            })
+
+            this._lengthTexture = new Texture({
+                context: context,
+                width: collections.length,
+                height: 1,
                 pixelFormat: PixelFormat.RGBA,
                 pixelDatatype: PixelDatatype.FLOAT,
                 sampler: Sampler.NEAREST,
                 flipY: false,
             });
-        } else {
-            this._dataTexture = new Texture({
-                context: context,
-                width: widthTotal,
-                height: height,
-                pixelFormat: PixelFormat.RGBA,
-                pixelDatatype: PixelDatatype.UNSIGNED_BYTE,
-                sampler: Sampler.NEAREST,
-                flipY: false,
-                source: {
-                    width: widthTotal,
-                    height: height,
-                    arrayBufferView: arrayBuffer,
-                }
-            });
+            this._lengthTexture.copyFrom({
+                width: collections.length,
+                height: 1,
+                arrayBufferView: lengthArrayBuffer
+            })
         }
-        this._dataTexture.copyFrom({
-            width: widthTotal,
-            height: height,
-            arrayBufferView: arrayBuffer,
-        })
 
-        this._lengthTexture = new Texture({
-            context: context,
-            width: collections.length,
-            height: 1,
-            pixelFormat: PixelFormat.RGBA,
-            pixelDatatype: PixelDatatype.FLOAT,
-            sampler: Sampler.NEAREST,
-            flipY: false,
-        });
-        this._lengthTexture.copyFrom({
-            width: collections.length,
-            height: 1,
-            arrayBufferView: lengthArrayBuffer
-        })
+        this._dirty = false;
     }
+};
 
-    this._dirty = false;
-    // }
+MultiClippingPlaneCollection.prototype.destroy = function() {
+
+    this._multiCollections.forEach(collection => {
+        if (collection instanceof ClippingPlaneCollection) {
+            collection.destroy();
+        }
+    });
+    this._multiCollections = undefined
+
+    this._dataTexture = this._dataTexture && this._dataTexture.destroy();
+
+    this._lengthTexture = this._lengthTexture && this._dataTexture.destroy();
+
+    return destroyObject(this);;
 };
 
 export default MultiClippingPlaneCollection;

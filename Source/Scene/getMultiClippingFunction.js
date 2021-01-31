@@ -17,20 +17,24 @@ function getMultiClippingFunction(clippingPlaneCollectionArray, context) {
   Check.typeOf.object("context", context);
   //>>includeEnd('debug');
   // var unionClippingRegions = clippingPlaneCollection.unionClippingRegions;
-  var clippingPlanesLength = 0;
-  var width = 0, height = 0, maxLength = 0;
-  clippingPlaneCollectionArray.forEach(p => {
-    maxLength = Math.max(maxLength, p.length);
-    clippingPlanesLength += p.length;
-    var textureResolution = ClippingPlaneCollection.getTextureResolution(
-      p,
-      context,
-      textureResolutionScratch
-    );
-    width += textureResolution.x;
-    height = textureResolution.y; // should be the same
+  // var clippingPlanesLength = 0;
+  var dataTexture = clippingPlaneCollectionArray.dataTexture;
+  var width = dataTexture.width;
+  var height = dataTexture.height;
+  var maxLength = clippingPlaneCollectionArray.maxCollectionLength;
+  // var width = 0, height = 0, maxLength = 0;
+  // clippingPlaneCollectionArray.forEach(p => {
+  //   maxLength = Math.max(maxLength, p.length);
+  //   // clippingPlanesLength += p.length;
+  //   var textureResolution = ClippingPlaneCollection.getTextureResolution(
+  //     p,
+  //     context,
+  //     textureResolutionScratch
+  //   );
+  //   width += textureResolution.x;
+  //   height = textureResolution.y; // should be the same
 
-  })
+  // })
   var usingFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
 
   var functions = usingFloatTexture
