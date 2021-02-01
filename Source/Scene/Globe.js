@@ -383,11 +383,17 @@ Object.defineProperties(Globe.prototype, {
       this._surface.tileProvider.clippingPlanes = value;
     },
   },
+  /**
+   * A property specifying a {@link MultiClippingPlaneCollection} used to selectively disable rendering on the outside of each ClippingPlaneCollection.
+   *
+   * @memberof Globe.prototype
+   * @type {MultiClippingPlaneCollection}
+   */
   multiClippingPlanes: {
-    get: function() {
+    get: function () {
       return this._surface.tileProvider._multiClippingPlanes;
     },
-    set: function(value) {
+    set: function (value) {
       this._surface.tileProvider._multiClippingPlanes = value;
     },
   },
