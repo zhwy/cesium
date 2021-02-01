@@ -12,8 +12,7 @@ function GlobeSurfaceShader(
   material,
   shaderProgram,
   clippingShaderState,
-  multiClippingShaderState,
-  cutPolygons
+  multiClippingShaderState
 ) {
   this.numberOfDayTextures = numberOfDayTextures;
   this.flags = flags;
@@ -21,7 +20,6 @@ function GlobeSurfaceShader(
   this.shaderProgram = shaderProgram;
   this.clippingShaderState = clippingShaderState;
   this.multiClippingShaderState = multiClippingShaderState;
-  this.cutPolygons = cutPolygons;
 }
 
 /**
@@ -188,7 +186,6 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     surfaceShader.flags === flags &&
     surfaceShader.material === this.material &&
     surfaceShader.clippingShaderState === currentClippingShaderState &&
-    surfaceShader.cutPolygons === this.cutPolygons &&
     surfaceShader.multiClippingShaderState === currentMultiClippingShaderState
   ) {
     return surfaceShader.shaderProgram;
@@ -205,7 +202,6 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     !defined(surfaceShader) ||
     surfaceShader.material !== this.material ||
     surfaceShader.clippingShaderState !== currentClippingShaderState ||
-    surfaceShader.cutPolygons !== this.cutPolygons ||
     surfaceShader.multiClippingShaderState !== currentMultiClippingShaderState
   ) {
     // Cache miss - we've never seen this combination of numberOfDayTextures and flags before.
@@ -423,8 +419,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       this.material,
       shader,
       currentClippingShaderState,
-      currentMultiClippingShaderState,
-      this.curPolygons
+      currentMultiClippingShaderState
     );
   }
 

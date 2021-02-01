@@ -158,22 +158,30 @@
         unionClippingRegions: false,
       });
 
-      globe.multiClippingPlanes = [];
+      globe.multiClippingPlanes = new Cesium.MultiClippingPlaneCollection();
 
       var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       var positions = [];
+
       handler.setInputAction(function (movement) {
         var worldPosition = viewer.scene.pickPosition(movement.position);
         if (Cesium.defined(worldPosition)) {
           positions.push(worldPosition);
-          if (positions.length == 6) {
-            globe.multiClippingPlanes.push(
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      handler.setInputAction(function (movement) {
+        var worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+          if (positions.length > 2) {
+            globe.multiClippingPlanes.add(
               generateClippingPlanesCollection(positions)
             );
             positions = [];
           }
         }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+      }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
       function generateClippingPlanesCollection(points) {
         var pointsLength = points.length;
