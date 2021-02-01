@@ -330,7 +330,7 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
   /**
    * The {@link ClippingPlaneCollection} array used to selectively disable rendering the tileset.
    *
-   * @type {Array[ClippingPlaneCollection]}
+   * @type {Array}
    *
    * @private
    */
