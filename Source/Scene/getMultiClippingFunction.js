@@ -4,50 +4,51 @@ import ClippingPlaneCollection from "./ClippingPlaneCollection.js";
 
 var textureResolutionScratch = new Cartesian2();
 /**
- * Gets the GLSL functions needed to retrieve clipping planes from a ClippingPlaneCollection's texture.
+ * Gets the GLSL functions needed to retrieve collections of ClippingPlaneCollections from a MultiClippingPlaneCollection's texture.
  *
- * @param {Array} [clippingPlaneCollection] The array of clippingPlaneCollections with a defined texture.
+ * @param {Array} [multiClippingPlaneCollection] The array of clippingPlaneCollections with a defined texture.
  * @param {Context} context The current rendering context.
  * @returns {String} A string containing GLSL functions for retrieving clipping planes.
  * @private
  */
-function getMultiClippingFunction(clippingPlaneCollectionArray, context) {
+function getMultiClippingFunction(multiClippingPlaneCollection, context) {
   //>>includeStart('debug', pragmas.debug);
-  // Check.typeOf.object("clippingPlaneCollection", clippingPlaneCollection);
+  Check.typeOf.object(
+    "multiClippingPlaneCollection",
+    multiClippingPlaneCollection
+  );
   Check.typeOf.object("context", context);
   //>>includeEnd('debug');
+
   // var unionClippingRegions = clippingPlaneCollection.unionClippingRegions;
   // var clippingPlanesLength = 0;
-  var dataTexture = clippingPlaneCollectionArray.dataTexture;
+
+  var dataTexture = multiClippingPlaneCollection.dataTexture;
   var width = dataTexture.width;
   var height = dataTexture.height;
-  var maxLength = clippingPlaneCollectionArray.maxCollectionLength;
-  // var width = 0, height = 0, maxLength = 0;
-  // clippingPlaneCollectionArray.forEach(p => {
-  //   maxLength = Math.max(maxLength, p.length);
-  //   // clippingPlanesLength += p.length;
-  //   var textureResolution = ClippingPlaneCollection.getTextureResolution(
-  //     p,
-  //     context,
-  //     textureResolutionScratch
-  //   );
-  //   width += textureResolution.x;
-  //   height = textureResolution.y; // should be the same
+  var maxLength = multiClippingPlaneCollection.maxCollectionLength;
 
-  // })
   var usingFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
 
   var functions = usingFloatTexture
     ? getClippingPlaneFloat(width, height)
     : getClippingPlaneUint8(width, height);
+
   functions += "\n";
-  functions += clippingFunctionIntersect(clippingPlaneCollectionArray.length, maxLength);
+
+  // MultiClippingPlaneCollection is now not abled to deal with unionClippingRegions.
+  functions += clippingFunctionIntersect(
+    multiClippingPlaneCollection.length,
+    maxLength
+  );
+
   // functions += unionClippingRegions
   //   ? clippingFunctionUnion(clippingPlanesLength)
   //   : clippingFunctionIntersect(clippingPlanesLength);
   return functions;
 }
 
+// This fucntion has not be rewritten! Don't use it directly.
 function clippingFunctionUnion(clippingPlanesLength) {
   var functionString =
     "float clip(vec4 fragCoord, sampler2D clippingPlanes, mat4 clippingPlanesMatrix)\n" +
@@ -91,11 +92,17 @@ function clippingFunctionIntersect(arrayLength, maxLength) {
     "    float clipAmount = 0.0;\n" +
     "    float pixelWidth = czm_metersPerPixel(position);\n" +
     "    int count = 0;\n" +
-    "    for (int i = 0; i < " + arrayLength + "; ++i)\n" +
+    "    for (int i = 0; i < " +
+    arrayLength +
+    "; ++i)\n" +
     "    {\n" +
     "        bool thisOneClipped = true;\n" +
-    "        int thisCollectionLength = int(texture2D(multiClippingPlanesLength, vec2((float(i) + 0.5)/float(" + arrayLength + "), 0.5)).w);\n" +
-    "        for (int j = 0; j < " + maxLength + " ; ++j)\n" +
+    "        int thisCollectionLength = int(texture2D(multiClippingPlanesLength, vec2((float(i) + 0.5)/float(" +
+    arrayLength +
+    "), 0.5)).w);\n" +
+    "        for (int j = 0; j < " +
+    maxLength +
+    " ; ++j)\n" +
     "         {\n" +
     "             thisCollectionLength--;\n" +
     "             vec4 clippingPlane = getClippingPlane(clippingPlanes, count, clippingPlanesMatrix);\n" +
