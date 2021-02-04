@@ -1679,9 +1679,12 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       return this.properties.dayTextureCutoutRectangles;
     },
     u_clippingPlanes: function () {
-      var texture = globeSurfaceTileProvider._multiClippingPlanes?.dataTexture;
-      if (defined(texture)) {
-        return texture;
+      var multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
+      if (defined(multiClippingPlanes)) {
+        var texture = multiClippingPlanes.dataTexture;
+        if (defined(texture)) {
+          return texture;
+        }
       }
       var clippingPlanes = globeSurfaceTileProvider._clippingPlanes;
       if (defined(clippingPlanes) && defined(clippingPlanes.texture)) {
@@ -1733,8 +1736,11 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       return style;
     },
     u_multiClippingPlanesLength: function () {
-      var clippingPlanesLength =
-        globeSurfaceTileProvider._multiClippingPlanes?.lengthTexture;
+      var clippingPlanesLength = globeSurfaceTileProvider._multiClippingPlanes;
+      if (defined(clippingPlanesLength)) {
+        var texture = clippingPlanesLength.lengthTexture;
+        if (defined(texture)) return texture;
+      }
       if (defined(clippingPlanesLength)) {
         return clippingPlanesLength;
       }
