@@ -97,6 +97,8 @@ function clippingFunctionIntersect(arrayLength, maxLength) {
     "; ++i)\n" +
     "    {\n" +
     "        bool thisOneClipped = true;\n" +
+    "        clipAmount = 0.0;\n" +
+    "        float thisCollectionClipAmount = 0.;\n" +
     "        int thisCollectionLength = int(texture2D(multiClippingPlanesLength, vec2((float(i) + 0.5)/float(" +
     arrayLength +
     "), 0.5)).w);\n" +

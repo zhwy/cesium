@@ -79,7 +79,7 @@ uniform vec4 u_clippingPlanesEdgeStyle;
 
 #ifdef ENABLE_MULTI_CLIPPING_PLANES
 uniform mediump sampler2D u_multiClippingPlanesLength;
-#endif 
+#endif
 
 #if defined(FOG) && defined(DYNAMIC_ATMOSPHERE_LIGHTING) && (defined(ENABLE_VERTEX_LIGHTING) || defined(ENABLE_DAYNIGHT_SHADING))
 uniform float u_minimumBrightness;
@@ -305,7 +305,7 @@ void main()
 #endif
 
 #ifdef ENABLE_CLIPPING_PLANES
-    float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);    
+    float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);
 #endif
 
 #ifdef ENABLE_MULTI_CLIPPING_PLANES
@@ -408,7 +408,7 @@ void main()
     vec4 finalColor = color;
 #endif
 
-#ifdef ENABLE_CLIPPING_PLANES
+#if defined(ENABLE_CLIPPING_PLANES) || defined(ENABLE_MULTI_CLIPPING_PLANES)
     vec4 clippingPlanesEdgeColor = vec4(1.0);
     clippingPlanesEdgeColor.rgb = u_clippingPlanesEdgeStyle.rgb;
     float clippingPlanesEdgeWidth = u_clippingPlanesEdgeStyle.a;
