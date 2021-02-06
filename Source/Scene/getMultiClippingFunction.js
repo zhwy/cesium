@@ -97,7 +97,6 @@ function clippingFunctionIntersect(arrayLength, maxLength) {
     "; ++i)\n" +
     "    {\n" +
     "        bool thisOneClipped = true;\n" +
-    "        clipAmount = 0.0;\n" +
     "        float thisCollectionClipAmount = 0.;\n" +
     "        int thisCollectionLength = int(texture2D(multiClippingPlanesLength, vec2((float(i) + 0.5)/float(" +
     arrayLength +
@@ -111,7 +110,7 @@ function clippingFunctionIntersect(arrayLength, maxLength) {
     "             clipNormal = clippingPlane.xyz;\n" +
     "             clipPosition = -clippingPlane.w * clipNormal;\n" +
     "             float amount = dot(clipNormal, (position.xyz - clipPosition)) / pixelWidth;\n" +
-    "             clipAmount = max(amount, clipAmount);\n" +
+    "             thisCollectionClipAmount = max(amount, thisCollectionClipAmount);\n" +
     "             thisOneClipped = thisOneClipped && (amount <= 0.0);\n" +
     "             count++;\n" +
     "             if(thisCollectionLength == 0) break;\n" +
@@ -120,6 +119,8 @@ function clippingFunctionIntersect(arrayLength, maxLength) {
     "         {\n" +
     "             discard;\n" +
     "         }\n" +
+    "         if(clipAmount == 0.0) clipAmount = thisCollectionClipAmount;\n" +
+    "         else if(thisCollectionClipAmount != 0.0) clipAmount = min(clipAmount, thisCollectionClipAmount);\n" +
     "    }\n" +
     "    return clipAmount;\n" +
     "}\n";
