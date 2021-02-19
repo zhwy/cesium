@@ -172,7 +172,7 @@ Object.defineProperties(QuadtreePrimitive.prototype, {
    * @memberof QuadtreePrimitive.prototype
    */
   tileProvider: {
-    get: function () {
+    get: function() {
       return this._tileProvider;
     },
   },
@@ -184,13 +184,13 @@ Object.defineProperties(QuadtreePrimitive.prototype, {
    * @type {Event}
    */
   tileLoadProgressEvent: {
-    get: function () {
+    get: function() {
       return this._tileLoadProgressEvent;
     },
   },
 
   occluders: {
-    get: function () {
+    get: function() {
       return this._occluders;
     },
   },
@@ -202,7 +202,7 @@ Object.defineProperties(QuadtreePrimitive.prototype, {
  *
  * @memberof QuadtreePrimitive
  */
-QuadtreePrimitive.prototype.invalidateAllTiles = function () {
+QuadtreePrimitive.prototype.invalidateAllTiles = function() {
   this._tilesInvalidated = true;
 };
 
@@ -245,7 +245,7 @@ function invalidateAllTiles(primitive) {
  * @param {Function} tileFunction The function to invoke for each loaded tile.  The
  *        function is passed a reference to the tile as its only parameter.
  */
-QuadtreePrimitive.prototype.forEachLoadedTile = function (tileFunction) {
+QuadtreePrimitive.prototype.forEachLoadedTile = function(tileFunction) {
   var tile = this._tileReplacementQueue.head;
   while (defined(tile)) {
     if (tile.state !== QuadtreeTileLoadState.START) {
@@ -262,7 +262,7 @@ QuadtreePrimitive.prototype.forEachLoadedTile = function (tileFunction) {
  * @param {Function} tileFunction The function to invoke for each rendered tile.  The
  *        function is passed a reference to the tile as its only parameter.
  */
-QuadtreePrimitive.prototype.forEachRenderedTile = function (tileFunction) {
+QuadtreePrimitive.prototype.forEachRenderedTile = function(tileFunction) {
   var tilesRendered = this._tilesToRender;
   for (var i = 0, len = tilesRendered.length; i < len; ++i) {
     tileFunction(tilesRendered[i]);
@@ -277,7 +277,7 @@ QuadtreePrimitive.prototype.forEachRenderedTile = function (tileFunction) {
  * @param {Function} callback The function to be called when a new tile is loaded containing cartographic.
  * @returns {Function} The function to remove this callback from the quadtree.
  */
-QuadtreePrimitive.prototype.updateHeight = function (cartographic, callback) {
+QuadtreePrimitive.prototype.updateHeight = function(cartographic, callback) {
   var primitive = this;
   var object = {
     positionOnEllipsoidSurface: undefined,
@@ -286,7 +286,7 @@ QuadtreePrimitive.prototype.updateHeight = function (cartographic, callback) {
     callback: callback,
   };
 
-  object.removeFunc = function () {
+  object.removeFunc = function() {
     var addedCallbacks = primitive._addHeightCallbacks;
     var length = addedCallbacks.length;
     for (var i = 0; i < length; ++i) {
@@ -306,7 +306,7 @@ QuadtreePrimitive.prototype.updateHeight = function (cartographic, callback) {
  * Updates the tile provider imagery and continues to process the tile load queue.
  * @private
  */
-QuadtreePrimitive.prototype.update = function (frameState) {
+QuadtreePrimitive.prototype.update = function(frameState) {
   if (defined(this._tileProvider.update)) {
     this._tileProvider.update(frameState);
   }
@@ -330,7 +330,7 @@ function clearTileLoadQueue(primitive) {
  * Initializes values for a new render frame and prepare the tile load queue.
  * @private
  */
-QuadtreePrimitive.prototype.beginFrame = function (frameState) {
+QuadtreePrimitive.prototype.beginFrame = function(frameState) {
   var passes = frameState.passes;
   if (!passes.render) {
     return;
@@ -357,7 +357,7 @@ QuadtreePrimitive.prototype.beginFrame = function (frameState) {
  * Selects new tiles to load based on the frame state and creates render commands.
  * @private
  */
-QuadtreePrimitive.prototype.render = function (frameState) {
+QuadtreePrimitive.prototype.render = function(frameState) {
   var passes = frameState.passes;
   var tileProvider = this._tileProvider;
 
@@ -401,7 +401,7 @@ function updateTileLoadProgress(primitive, frameState) {
 
   var debug = primitive._debug;
   if (debug.enableDebugOutput && !debug.suspendLodUpdate) {
-    debug.maxDepth = primitive._tilesToRender.reduce(function (max, tile) {
+    debug.maxDepth = primitive._tilesToRender.reduce(function(max, tile) {
       return Math.max(max, tile.level);
     }, -1);
     debug.tilesRendered = primitive._tilesToRender.length;
@@ -416,17 +416,17 @@ function updateTileLoadProgress(primitive, frameState) {
     ) {
       console.log(
         "Visited " +
-          debug.tilesVisited +
-          ", Rendered: " +
-          debug.tilesRendered +
-          ", Culled: " +
-          debug.tilesCulled +
-          ", Max Depth Rendered: " +
-          debug.maxDepth +
-          ", Max Depth Visited: " +
-          debug.maxDepthVisited +
-          ", Waiting for children: " +
-          debug.tilesWaitingForChildren
+        debug.tilesVisited +
+        ", Rendered: " +
+        debug.tilesRendered +
+        ", Culled: " +
+        debug.tilesCulled +
+        ", Max Depth Rendered: " +
+        debug.maxDepth +
+        ", Max Depth Visited: " +
+        debug.maxDepthVisited +
+        ", Waiting for children: " +
+        debug.tilesWaitingForChildren
       );
 
       debug.lastTilesVisited = debug.tilesVisited;
@@ -443,7 +443,7 @@ function updateTileLoadProgress(primitive, frameState) {
  * Updates terrain heights.
  * @private
  */
-QuadtreePrimitive.prototype.endFrame = function (frameState) {
+QuadtreePrimitive.prototype.endFrame = function(frameState) {
   var passes = frameState.passes;
   if (!passes.render || frameState.mode === SceneMode.MORPHING) {
     // Only process the load queue for a single pass.
@@ -469,7 +469,7 @@ QuadtreePrimitive.prototype.endFrame = function (frameState) {
  *
  * @see QuadtreePrimitive#destroy
  */
-QuadtreePrimitive.prototype.isDestroyed = function () {
+QuadtreePrimitive.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -491,7 +491,7 @@ QuadtreePrimitive.prototype.isDestroyed = function () {
  *
  * @see QuadtreePrimitive#isDestroyed
  */
-QuadtreePrimitive.prototype.destroy = function () {
+QuadtreePrimitive.prototype.destroy = function() {
   this._tileProvider = this._tileProvider && this._tileProvider.destroy();
 };
 
@@ -669,7 +669,7 @@ function TraversalQuadDetails() {
   this.northeast = new TraversalDetails();
 }
 
-TraversalQuadDetails.prototype.combine = function (result) {
+TraversalQuadDetails.prototype.combine = function(result) {
   var southwest = this.southwest;
   var southeast = this.southeast;
   var northwest = this.northwest;
@@ -770,7 +770,7 @@ function visitTile(
       TileSelectionResult.RENDERED;
     var twoCulledOrNotVisited =
       TileSelectionResult.originalResult(lastFrameSelectionResult) ===
-        TileSelectionResult.CULLED ||
+      TileSelectionResult.CULLED ||
       lastFrameSelectionResult === TileSelectionResult.NONE;
     var threeCompletelyLoaded = tile.state === QuadtreeTileLoadState.DONE;
 

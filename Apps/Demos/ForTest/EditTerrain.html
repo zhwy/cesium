@@ -9,6 +9,7 @@
     <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
     <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <script src="https://unpkg.com/@turf/turf@6.3.0/turf.min.js"></script>
     <title>地形裁剪</title>
     <style>
         @import url(../../../../Build/Cesium/Widgets/widgets.css);
@@ -47,10 +48,8 @@
             terrainProvider: Cesium.createWorldTerrain(),
             imageryProvider: new Cesium.UrlTemplateImageryProvider({
                 url:
-                    "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-                maximumLevel: 20,
-                tileWidth: 512,
-                tileHeight: 512,
+                    "https://t6.tianditu.gov.cn/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
+                maximumLevel: 18,
             }),
         });
         window._viewer = viewer;
@@ -69,27 +68,116 @@
             },
         });
         viewer.zoomTo(entity);
+        viewer.imageryLayers.addImageryProvider(new Cesium.GridImageryProvider());
+        viewer.imageryLayers.addImageryProvider(new Cesium.TileCoordinatesImageryProvider());
+
+        var terrainProvider = viewer.terrainProvider;
+        var quadtree = viewer.scene.globe._surface._tileProvider.quadtree;
 
         var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
         var positions = [];
+        var test = [
+            [120.02432069472383, 29.859768355740627, 499.25229002000157]
+            , [120.02431769365397, 29.853160209873, 413.1306800247492]
+            , [120.02809843102996, 29.85265497030581, 327.45249589394643]
+            , [120.03310481469315, 29.854566525518585, 480.499474709982]
+        ];
+        terrainProvider._terrainEdits.push(generateTin(test));
 
         handler.setInputAction(function(movement) {
             var worldPosition = viewer.scene.pickPosition(movement.position);
             if (Cesium.defined(worldPosition)) {
-                positions.push(worldPosition);
-                console.log(Cesium.Cartographic.fromCartesian(worldPosition))
+                var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+                positions.push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude), carto.height]);
+                console.log(carto);
             }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
         handler.setInputAction(function(movement) {
             var worldPosition = viewer.scene.pickPosition(movement.position);
             if (Cesium.defined(worldPosition)) {
-                positions.push(worldPosition);
+                var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+                positions.push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude), carto.height]);
                 if (positions.length > 2) {
+                    var terrainEdits = terrainProvider._terrainEdits;
+
+                    terrainEdits.push(generateTin(positions));
+
+                    setTimeout(() => {
+                        quadtree._levelZeroTiles = undefined;
+                        // viewer.terrainProvider = Cesium.createWorldTerrain({
+                        //     terrainEdits: terrainEdits
+                        // });
+                        // terrainProvider = viewer.terrainProvider;
+                        // quadtree._levelZeroTiles.forEach(t => {
+                        //     quadtree.tileProvider.loadTile(viewer.scene.frameState, t)
+                        // })
+                    }, 100)
+
+
                     positions = [];
                 }
             }
         }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+        function generateTin(positions) {
+            var points = positions.map(p => {
+                return turf.point([p[0], p[1]], {
+                    z: p[2]
+                })
+            });
+            var collection = turf.featureCollection(points);
+            var tin = turf.tin(collection, 'z');
+            tin.features.forEach(fea => {
+                var coords = fea.geometry.coordinates[0];
+                coords[0].push(fea.properties.a);
+                coords[1].push(fea.properties.b);
+                coords[2].push(fea.properties.c);
+                coords[3].push(fea.properties.a);
+            })
+
+            var polygon = turf.convex(collection);
+
+            var promise = Cesium.GeoJsonDataSource.load(tin);
+            promise.then(ds => {
+                viewer.dataSources.add(ds);
+                ds.entities._entities._array.forEach(entity => {
+                    var color = Cesium.Color.fromRandom({
+                        alpha: 0.5
+                    });
+                    var color2 = Cesium.Color.clone(color);
+                    color2.alpha = 1;
+                    var pos = entity.polygon.hierarchy.getValue().positions;
+                    Object.assign(entity.polygon, {
+                        material: color,
+                        // perPositionHeight: true,
+                        clampToGround: true,
+                        outline: false,
+                    });
+                    entity.polyline = {
+                        positions: pos,
+                        material: new Cesium.ColorMaterialProperty(color2),
+                        with: 2,
+                        depthFailMaterial: new Cesium.ColorMaterialProperty(color2)
+                    }
+
+                })
+                ds.entities.add({
+                    polyline: {
+                        positions: polygon.geometry.coordinates[0].map(p => Cesium.Cartesian3.fromDegrees(p[0], p[1])),
+                        clampToGround: true,
+                        material: Cesium.Color.RED
+                    }
+                })
+
+            })
+            console.log({ polygon, tin, positions })
+
+            return {
+                polygon: polygon,
+                polygonTriangles: tin.features
+            }
+        }
     </script>
 </body>
 

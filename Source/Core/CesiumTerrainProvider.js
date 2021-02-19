@@ -21,6 +21,9 @@ import RuntimeError from "./RuntimeError.js";
 import TerrainProvider from "./TerrainProvider.js";
 import TileAvailability from "./TileAvailability.js";
 import TileProviderError from "./TileProviderError.js";
+import Rectangle from "./Rectangle.js";
+import CesiumMath from "./Math.js";
+const MAX_SHORT = 32767;
 
 function LayerInformation(layer) {
   this.resource = layer.resource;
@@ -41,7 +44,7 @@ function LayerInformation(layer) {
  * A {@link TerrainProvider} that accesses terrain data in a Cesium terrain format.
  *
  * @alias CesiumTerrainProvider
- * @constructor
+ * @varructor
  *
  * @param {Object} options Object with the following properties:
  * @param {Resource|String|Promise<Resource>|Promise<String>} options.url The URL of the Cesium terrain server.
@@ -76,6 +79,7 @@ function CesiumTerrainProvider(options) {
   this._hasWaterMask = false;
   this._hasVertexNormals = false;
   this._ellipsoid = options.ellipsoid;
+  this._terrainEdits = defaultValue(options.terrainEdits, []);
 
   /**
    * Boolean flag that indicates if the client should request vertex normals from the server.
@@ -129,7 +133,7 @@ function CesiumTerrainProvider(options) {
   var overallAvailability = [];
   var overallMaxZoom = 0;
   when(options.url)
-    .then(function (url) {
+    .then(function(url) {
       var resource = Resource.createIfNeeded(url);
       resource.appendForwardSlash();
       lastResource = resource;
@@ -142,7 +146,7 @@ function CesiumTerrainProvider(options) {
 
       requestLayerJson();
     })
-    .otherwise(function (e) {
+    .otherwise(function(e) {
       deferred.reject(e);
     });
 
@@ -417,7 +421,7 @@ function CesiumTerrainProvider(options) {
   }
 
   function metadataSuccess(data) {
-    parseMetadataSuccess(data).then(function () {
+    parseMetadataSuccess(data).then(function() {
       if (defined(metadataError)) {
         return;
       }
@@ -493,7 +497,7 @@ var QuantizedMeshExtensionIds = {
    * Oct-Encoded Per-Vertex Normals are included as an extension to the tile mesh
    *
    * @type {Number}
-   * @constant
+   * @varant
    * @default 1
    */
   OCT_VERTEX_NORMALS: 1,
@@ -501,7 +505,7 @@ var QuantizedMeshExtensionIds = {
    * A watermask is included as an extension to the tile mesh
    *
    * @type {Number}
-   * @constant
+   * @varant
    * @default 2
    */
   WATER_MASK: 2,
@@ -509,7 +513,7 @@ var QuantizedMeshExtensionIds = {
    * A json object contain metadata about the tile
    *
    * @type {Number}
-   * @constant
+   * @varant
    * @default 4
    */
   METADATA: 4,
@@ -794,6 +798,77 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, layer) {
   });
 }
 
+function rectangleToPolygon(rectangle) {
+  var west = CesiumMath.toDegrees(rectangle.west);
+  var east = CesiumMath.toDegrees(rectangle.east);
+  var south = CesiumMath.toDegrees(rectangle.south);
+  var north = CesiumMath.toDegrees(rectangle.north);
+  return turf.polygon([[[west, south], [west, north], [east, north], [east, south], [west, south]]]);
+}
+
+function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
+  var data = terrainData;
+  var minimumHeight = data._minimumHeight;
+  var maximumHeight = data._maximumHeight;
+
+  var quantizedVertices = data._quantizedVertices;
+  var vertexCount = quantizedVertices.length / 3;
+
+  var positions = [];
+  for (let i = 0; i < vertexCount; i++) {
+    var rawU = quantizedVertices[i];
+    var rawV = quantizedVertices[i + vertexCount];
+    var rawH = quantizedVertices[i + vertexCount * 2];
+
+    var u = rawU / MAX_SHORT;
+    var v = rawV / MAX_SHORT;
+    var longitude = Cesium.Math.toDegrees(Cesium.Math.lerp(tileRectangle.west, tileRectangle.east, u));
+    var latitude = Cesium.Math.toDegrees(Cesium.Math.lerp(tileRectangle.south, tileRectangle.north, v));
+
+    let height = Cesium.Math.lerp(minimumHeight, maximumHeight, rawH / MAX_SHORT);
+    var currentPoint = turf.point([longitude, latitude]);
+    var relevantEdit = terrainEdits.find(edit => turf.booleanPointInPolygon(currentPoint, edit.polygon));
+    if (relevantEdit) {
+      var relevantTriangle = relevantEdit.polygonTriangles.find(triangle =>
+        turf.booleanPointInPolygon(currentPoint, triangle)
+      );
+      if (relevantTriangle) {
+        height = turf.planepoint(currentPoint, relevantTriangle);
+      }
+    }
+    positions.push([longitude, latitude, height]);
+  }
+
+  // TODO: split mesh triangles that are crossing the user polygon's perimiter and recreate mesh
+
+  var heights = positions.map(p => p[2]);
+  var newMinHeight = Math.min(...heights);
+  var newMaxHeight = Math.max(...heights);
+
+  var newQuantizedVertices = new Uint16Array(positions.length * 3);
+  positions.forEach((p, i) => {
+    var lonRad = Cesium.Math.toRadians(p[0]);
+    newQuantizedVertices[i] = Math.round(
+      Cesium.Math.lerp(MAX_SHORT, 0, (lonRad - tileRectangle.east) / (tileRectangle.west - tileRectangle.east))
+    );
+
+    var latRad = Cesium.Math.toRadians(p[1]);
+    newQuantizedVertices[i + positions.length] = Math.round(
+      Cesium.Math.lerp(MAX_SHORT, 0, (latRad - tileRectangle.north) / (tileRectangle.south - tileRectangle.north))
+    );
+
+    var relativeHeight = Math.round(
+      Cesium.Math.lerp(0, MAX_SHORT, (p[2] - newMinHeight) / (newMaxHeight - newMinHeight))
+    );
+    newQuantizedVertices[i + positions.length * 2] = relativeHeight;
+  });
+  data._minimumHeight = newMinHeight;
+  data._maximumHeight = newMaxHeight;
+  data._quantizedVertices = newQuantizedVertices;
+
+  return data;
+}
+
 /**
  * Requests the geometry for a given tile.  This function should not be called before
  * {@link CesiumTerrainProvider#ready} returns true.  The result must include terrain data and
@@ -811,7 +886,7 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, layer) {
  * @exception {DeveloperError} This function must not be called before {@link CesiumTerrainProvider#ready}
  *            returns true.
  */
-CesiumTerrainProvider.prototype.requestTileGeometry = function (
+CesiumTerrainProvider.prototype.requestTileGeometry = function(
   x,
   y,
   level,
@@ -845,7 +920,28 @@ CesiumTerrainProvider.prototype.requestTileGeometry = function (
     }
   }
 
-  return requestTileGeometry(this, x, y, level, layerToUse, request);
+  // return requestTileGeometry(this, x, y, level, layerToUse, request);
+  var promise = requestTileGeometry(this, x, y, level, layerToUse, request);
+  if (!defined(promise) || this._terrainEdits.length === 0) return promise;
+  if (!defined(turf)) {
+    console.warn('Modifying terrain should enable turf. Please set the turf resource.');
+    return promise;
+  }
+
+  var tileRectangle = this._tilingScheme.tileXYToRectangle(x, y, level);
+  var tilePolygon = rectangleToPolygon(tileRectangle);
+  var relevantEdits = this._terrainEdits.filter(
+    edit =>
+      // turf.booleanOverlap(edit.polygon, tilePolygon) || turf.booleanContains(edit.polygon, tilePolygon) || turf.booleanContains(tilePolygon, edit.polygon)
+      turf.booleanIntersects(edit.polygon, tilePolygon)
+  );
+  if (relevantEdits.length === 0) {
+    return promise;
+  }
+
+  return promise.then(data => {
+    return modifyTerrainTile(data, tileRectangle, relevantEdits);
+  });
 };
 
 function requestTileGeometry(provider, x, y, level, layerToUse, request) {
@@ -920,7 +1016,7 @@ function requestTileGeometry(provider, x, y, level, layerToUse, request) {
     return undefined;
   }
 
-  return promise.then(function (buffer) {
+  return promise.then(function(buffer) {
     if (defined(provider._heightmapStructure)) {
       return createHeightmapTerrainData(provider, buffer, level, x, y);
     }
@@ -944,7 +1040,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {Event}
    */
   errorEvent: {
-    get: function () {
+    get: function() {
       return this._errorEvent;
     },
   },
@@ -956,7 +1052,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {Credit}
    */
   credit: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug)
       if (!this._ready) {
         throw new DeveloperError(
@@ -976,7 +1072,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {GeographicTilingScheme}
    */
   tilingScheme: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug)
       if (!this._ready) {
         throw new DeveloperError(
@@ -995,7 +1091,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {Boolean}
    */
   ready: {
-    get: function () {
+    get: function() {
       return this._ready;
     },
   },
@@ -1007,7 +1103,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @readonly
    */
   readyPromise: {
-    get: function () {
+    get: function() {
       return this._readyPromise.promise;
     },
   },
@@ -1022,7 +1118,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @exception {DeveloperError} This property must not be called before {@link CesiumTerrainProvider#ready}
    */
   hasWaterMask: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug)
       if (!this._ready) {
         throw new DeveloperError(
@@ -1043,7 +1139,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @exception {DeveloperError} This property must not be called before {@link CesiumTerrainProvider#ready}
    */
   hasVertexNormals: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug)
       if (!this._ready) {
         throw new DeveloperError(
@@ -1065,7 +1161,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @exception {DeveloperError} This property must not be called before {@link CesiumTerrainProvider#ready}
    */
   hasMetadata: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug)
       if (!this._ready) {
         throw new DeveloperError(
@@ -1087,7 +1183,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {Boolean}
    */
   requestVertexNormals: {
-    get: function () {
+    get: function() {
       return this._requestVertexNormals;
     },
   },
@@ -1100,7 +1196,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {Boolean}
    */
   requestWaterMask: {
-    get: function () {
+    get: function() {
       return this._requestWaterMask;
     },
   },
@@ -1113,7 +1209,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {Boolean}
    */
   requestMetadata: {
-    get: function () {
+    get: function() {
       return this._requestMetadata;
     },
   },
@@ -1130,7 +1226,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
    * @type {TileAvailability}
    */
   availability: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug)
       if (!this._ready) {
         throw new DeveloperError(
@@ -1149,7 +1245,7 @@ Object.defineProperties(CesiumTerrainProvider.prototype, {
  * @param {Number} level The tile level for which to get the maximum geometric error.
  * @returns {Number} The maximum geometric error.
  */
-CesiumTerrainProvider.prototype.getLevelMaximumGeometricError = function (
+CesiumTerrainProvider.prototype.getLevelMaximumGeometricError = function(
   level
 ) {
   return this._levelZeroMaximumGeometricError / (1 << level);
@@ -1163,7 +1259,7 @@ CesiumTerrainProvider.prototype.getLevelMaximumGeometricError = function (
  * @param {Number} level The level of the tile for which to request geometry.
  * @returns {Boolean} Undefined if not supported or availability is unknown, otherwise true or false.
  */
-CesiumTerrainProvider.prototype.getTileDataAvailable = function (x, y, level) {
+CesiumTerrainProvider.prototype.getTileDataAvailable = function(x, y, level) {
   if (!defined(this._availability)) {
     return undefined;
   }
@@ -1201,7 +1297,7 @@ CesiumTerrainProvider.prototype.getTileDataAvailable = function (x, y, level) {
  * @param {Number} level The level of the tile for which to request geometry.
  * @returns {undefined|Promise<void>} Undefined if nothing need to be loaded or a Promise that resolves when all required tiles are loaded
  */
-CesiumTerrainProvider.prototype.loadTileDataAvailability = function (
+CesiumTerrainProvider.prototype.loadTileDataAvailability = function(
   x,
   y,
   level
@@ -1256,7 +1352,7 @@ function checkLayer(provider, x, y, level, layer, topLayer) {
   }
 
   var cacheKey;
-  var deleteFromCache = function () {
+  var deleteFromCache = function() {
     delete layer.availabilityPromiseCache[cacheKey];
   };
   var availabilityTilesLoaded = layer.availabilityTilesLoaded;

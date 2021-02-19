@@ -37,6 +37,7 @@ function createWorldTerrain(options) {
     url: IonResource.fromAssetId(1),
     requestVertexNormals: defaultValue(options.requestVertexNormals, false),
     requestWaterMask: defaultValue(options.requestWaterMask, false),
+    terrainEdits: defaultValue(options.terrainEdits, [])
   });
 }
 export default createWorldTerrain;
