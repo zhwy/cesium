@@ -76,6 +76,32 @@
         },
       }),
       new Cesium.ProviderViewModel({
+        name: "Esri卫星",
+        tooltip: "Esri卫星256x256",
+        iconUrl: "",
+        category: "卫星",
+        creationFunction: function() {
+          return new Cesium.ArcGisMapServerImageryProvider({
+            url:
+              "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer",
+          });
+        },
+      }),
+      new Cesium.ProviderViewModel({
+        name: "Esri卫星",
+        tooltip: "Esri卫星512x512",
+        iconUrl: "",
+        category: "卫星",
+        creationFunction: function() {
+          return new Cesium.ArcGisMapServerImageryProvider({
+            url:
+              "https://services.arcgisonline.com/arcgis/rest/services/ESRI_Imagery_World_2D/MapServer",
+            tileWidth: 512,
+            tileHeight: 512,
+          });
+        },
+      }),
+      new Cesium.ProviderViewModel({
         name: "mapbox暗黑",
         tooltip: "Map Box 暗黑风格",
         iconUrl: "",
