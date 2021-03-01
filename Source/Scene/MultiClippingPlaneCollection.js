@@ -89,7 +89,7 @@ function MultiClippingPlaneCollection(options) {
   var collections = options.collections;
   var me = this;
   if (defined(collections)) {
-    collections.forEach((p) => {
+    collections.forEach(function (p) {
       me.add(p);
     });
   }
@@ -144,11 +144,12 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    */
   collectionsState: {
     get: function () {
-      var state = "";
-      this._multiCollections.forEach((p, i) => {
-        state += `${p.enabled ? "+" : "-"}${i}${p.clippingPlanesState}`;
-      });
-      return state;
+      // var state = 0;
+      // this._multiCollections.forEach(function (p, i) {
+      //   // state += (p.enabled ? "+" : "-") + i + p.clippingPlanesState;
+      //   // state += p.length;
+      // });
+      return this.length;
     },
   },
 
@@ -213,7 +214,11 @@ MultiClippingPlaneCollection.prototype.get = function (index) {
  * @returns {Bollean} <code>true</code> if this collection contains the ClippingPlaneCollection, <code>false</code> otherwise.
  */
 MultiClippingPlaneCollection.prototype.contains = function (collection) {
-  return this._multiCollections.findIndex((p) => p === collection) !== -1;
+  return (
+    this._multiCollections.findIndex(function (p) {
+      return p === collection;
+    }) !== -1
+  );
 };
 
 /**
@@ -224,7 +229,9 @@ MultiClippingPlaneCollection.prototype.contains = function (collection) {
  */
 MultiClippingPlaneCollection.prototype.remove = function (collection) {
   var collections = this._multiCollections;
-  var index = collections.findIndex((p) => p === collection);
+  var index = collections.findIndex(function (p) {
+    return p === collection;
+  });
 
   if (index === -1) {
     return false;
@@ -245,7 +252,7 @@ MultiClippingPlaneCollection.prototype.remove = function (collection) {
  * Removes all ClippingPlaneCollection from the collection.
  */
 MultiClippingPlaneCollection.prototype.removeAll = function () {
-  this._multiCollections.forEach((collection) => {
+  this._multiCollections.forEach(function (collection) {
     if (collection instanceof ClippingPlaneCollection) {
       collection.destroy();
     }
@@ -263,7 +270,7 @@ MultiClippingPlaneCollection.prototype.removeAll = function () {
  */
 MultiClippingPlaneCollection.prototype.update = function (frameState) {
   var collections = this._multiCollections;
-  collections.forEach((p) => {
+  collections.forEach(function (p) {
     if (p.enabled) p.update(frameState);
   });
 
@@ -301,7 +308,7 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
       var lengthArrayBuffer = this._lengthArrayBuffer;
 
       var startIndex = 0;
-      collections.forEach((p, i) => {
+      collections.forEach(function (p, i) {
         // if (p.enabled) {
         // var nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
         p.concatArrayBufferView(context, arrayBuffer, startIndex);
@@ -391,7 +398,7 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
  * @see ClippingPlaneCollection#isDestroyed
  */
 MultiClippingPlaneCollection.prototype.destroy = function () {
-  this._multiCollections.forEach((collection) => {
+  this._multiCollections.forEach(function (collection) {
     if (collection instanceof ClippingPlaneCollection) {
       collection.destroy();
     }
