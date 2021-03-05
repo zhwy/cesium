@@ -144,12 +144,12 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    */
   collectionsState: {
     get: function () {
-      // var state = 0;
-      // this._multiCollections.forEach(function (p, i) {
-      //   // state += (p.enabled ? "+" : "-") + i + p.clippingPlanesState;
-      //   // state += p.length;
-      // });
-      return this.length;
+      var state = 0;
+      this._multiCollections.forEach(function (p, i) {
+        // state += (p.enabled ? "+" : "-") + i + p.clippingPlanesState;
+        state |= p.clippingPlanesState;
+      });
+      return state;
     },
   },
 

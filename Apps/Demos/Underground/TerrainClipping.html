@@ -114,19 +114,27 @@
         ],
       });
 
-      globe.multiClippingPlanes = new Cesium.MultiClippingPlaneCollection({
-        collections: [clippingPlanecollection1, clippingPlanecollection2],
+      var multiCollections = new Cesium.MultiClippingPlaneCollection({
+        collections: [],
         // modelMatrix: entity.computeModelMatrix(Cesium.JulianDate.now()),
         edgeWidth: 5,
         edgeColor: Cesium.Color.WHITE,
       });
+      globe.multiClippingPlanes = multiCollections;
 
       var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       var positions = [];
 
+      var collection;
+
       handler.setInputAction(function (movement) {
         var worldPosition = viewer.scene.pickPosition(movement.position);
         if (Cesium.defined(worldPosition)) {
+          var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+
+          // positions.push(
+          //   Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0)
+          // );
           positions.push(worldPosition);
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -136,9 +144,11 @@
         if (Cesium.defined(worldPosition)) {
           positions.push(worldPosition);
           if (positions.length > 2) {
-            globe.multiClippingPlanes.add(
-              generateClippingPlanesCollection(positions)
-            );
+            if (collection) {
+              multiCollections.remove(collection);
+            }
+            collection = generateClippingPlanesCollection(positions);
+            multiCollections.add(collection);
             positions = [];
           }
         }
