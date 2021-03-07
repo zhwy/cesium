@@ -1113,25 +1113,6 @@ defineProperties(Cesium3DTileset.prototype, {
   },
 
   /**
-   * The url to a tileset JSON file.
-   *
-   * @memberof Cesium3DTileset.prototype
-   *
-   * @type {String}
-   * @readonly
-   * @deprecated
-   */
-  url: {
-    get: function () {
-      deprecationWarning(
-        "Cesium3DTileset.url",
-        "Cesium3DTileset.url has been deprecated and will be removed in CesiumJS 1.79.  Instead, use Cesium3DTileset.resource.url to retrieve the url value."
-      );
-      return this._url;
-    },
-  },
-
-  /**
    * The resource used to fetch the tileset JSON file
    *
    * @memberof Cesium3DTileset.prototype
@@ -2455,6 +2436,25 @@ function resetMinimumMaximum(tileset) {
   tileset._maximumPriority.distance = -Number.MAX_VALUE;
   tileset._minimumPriority.reverseScreenSpaceError = Number.MAX_VALUE;
   tileset._maximumPriority.reverseScreenSpaceError = -Number.MAX_VALUE;
+}
+
+function detectModelMatrixChanged(tileset, frameState) {
+  if (
+    frameState.frameNumber !== tileset._updatedModelMatrixFrame ||
+    !defined(tileset._previousModelMatrix)
+  ) {
+    tileset._updatedModelMatrixFrame = frameState.frameNumber;
+    tileset._modelMatrixChanged = !Matrix4.equals(
+      tileset.modelMatrix,
+      tileset._previousModelMatrix
+    );
+    if (tileset._modelMatrixChanged) {
+      tileset._previousModelMatrix = Matrix4.clone(
+        tileset.modelMatrix,
+        tileset._previousModelMatrix
+      );
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
