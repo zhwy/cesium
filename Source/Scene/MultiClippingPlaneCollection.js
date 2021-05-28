@@ -310,22 +310,22 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
       var startIndex = 0;
       collections.forEach(function (p, i) {
         // if (p.enabled) {
-        // var nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
-        p.concatArrayBufferView(context, arrayBuffer, startIndex);
-        // var nowDataIndex = 0;
+
+        var nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
+        var nowDataIndex = 0;
         // exclude zeros (data with height = 1)
-        // for (var j = 0; j < p.length; ++j) {
+        for (var j = 0; j < p.length; ++j) {
+          arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
+          arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
+          arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
+          arrayBuffer[startIndex + 3] = nowDataBuffer[nowDataIndex + 3];
 
-        //     arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
-        //     arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
-        //     arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
-        //     arrayBuffer[startIndex + 3] = nowDataBuffer[nowDataIndex + 3];
-
-        //     nowDataIndex += 4; // each plane is 4 floats
-        //     startIndex += 4;
-        // }
-        startIndex += p.texture.width * 4;
+          nowDataIndex += 4; // each plane is 4 floats
+          startIndex += 4;
+        }
         lengthArrayBuffer[i * 4 + 3] = p.length;
+
+        // startIndex += p.texture.width * 4;
         // }
       });
 

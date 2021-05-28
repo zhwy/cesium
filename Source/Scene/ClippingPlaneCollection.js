@@ -727,29 +727,6 @@ ClippingPlaneCollection.getTextureResolution = function(
 };
 
 /**
- * 
- * @param {*} bufferView 
- * @param {*} startIndex 
- */
-ClippingPlaneCollection.prototype.concatArrayBufferView = function(context, arrayBuffer, startIndex) {
-  var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
-  var nowDataBuffer = useFloatTexture ? this._float32View : this._uint8View;
-
-  var nowDataIndex = 0;
-  // exclude zeros
-  for (var i = 0; i < this._planes.length; ++i) {
-
-    arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
-    arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
-    arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
-    arrayBuffer[startIndex + 3] = nowDataBuffer[nowDataIndex + 3];
-
-    nowDataIndex += 4; // each plane is 4 floats
-    startIndex += 4;
-  }
-}
-
-/**
  * Returns true if this object was destroyed; otherwise, false.
  * <br /><br />
  * If this object was destroyed, it should not be used; calling any function other than

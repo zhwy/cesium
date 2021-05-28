@@ -46,13 +46,6 @@
       var modelHeight;
       viewer = new Cesium.Viewer("cesiumContainer", {
         terrainProvider: Cesium.createWorldTerrain(),
-        imageryProvider: new Cesium.UrlTemplateImageryProvider({
-          url:
-            "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-          maximumLevel: 20,
-          tileWidth: 512,
-          tileHeight: 512,
-        }),
       });
       window._viewer = viewer;
 
@@ -117,6 +110,7 @@
       var multiCollections = new Cesium.MultiClippingPlaneCollection({
         collections: [],
         // modelMatrix: entity.computeModelMatrix(Cesium.JulianDate.now()),
+        modelMatrix: Cesium.Matrix4.IDENTITY,
         edgeWidth: 5,
         edgeColor: Cesium.Color.WHITE,
       });
@@ -144,9 +138,9 @@
         if (Cesium.defined(worldPosition)) {
           positions.push(worldPosition);
           if (positions.length > 2) {
-            if (collection) {
-              multiCollections.remove(collection);
-            }
+            // if (collection) {
+            //   multiCollections.remove(collection);
+            // }
             collection = generateClippingPlanesCollection(positions);
             multiCollections.add(collection);
             positions = [];
@@ -199,6 +193,7 @@
         }
         return new Cesium.ClippingPlaneCollection({
           planes: clippingPlanes,
+          modelMatrix: Cesium.Matrix4.IDENTITY,
         });
       }
     </script>
