@@ -73,7 +73,7 @@ function get2DYPositionFraction(useWebMercatorProjection) {
     : get2DYPositionFractionGeographicProjection;
 }
 
-GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
+GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
   var frameState = options.frameState;
   var surfaceTile = options.surfaceTile;
   var numberOfDayTextures = options.numberOfDayTextures;
@@ -107,6 +107,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   var colorCorrect = options.colorCorrect;
   var highlightFillTile = options.highlightFillTile;
   var colorToAlpha = options.colorToAlpha;
+  var hasGeodeticSurfaceNormals = options.hasGeodeticSurfaceNormals;
+  var hasExaggeration = options.hasExaggeration;
   var showUndergroundColor = options.showUndergroundColor;
   var translucent = options.translucent;
 
@@ -162,11 +164,12 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     (colorCorrect << 23) |
     (highlightFillTile << 24) |
     (colorToAlpha << 25) |
-    (showUndergroundColor << 26) |
-    (translucent << 27) |
-    (applyDayNightAlpha << 28) |
-    (enableMultiClippingPlanes << 29);
-
+    (hasGeodeticSurfaceNormals << 26) |
+    (hasExaggeration << 27) |
+    (showUndergroundColor << 28) |
+    (translucent << 29) |
+    (applyDayNightAlpha << 30) |
+    (enableMultiClippingPlanes << 31);
   var currentClippingShaderState = 0;
   if (defined(clippingPlanes) && clippingPlanes.length > 0) {
     currentClippingShaderState = enableClippingPlanes
@@ -319,6 +322,14 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       fs.defines.push("HIGHLIGHT_FILL_TILE");
     }
 
+    if (hasGeodeticSurfaceNormals) {
+      vs.defines.push("GEODETIC_SURFACE_NORMALS");
+    }
+
+    if (hasExaggeration) {
+      vs.defines.push("EXAGGERATION");
+    }
+
     var computeDayColor =
       "\
     vec4 computeDayColor(vec4 initialColor, vec3 textureCoordinates, float nightBlend)\n\
@@ -427,7 +438,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   return surfaceShader.shaderProgram;
 };
 
-GlobeSurfaceShaderSet.prototype.destroy = function () {
+GlobeSurfaceShaderSet.prototype.destroy = function() {
   var flags;
   var shader;
 

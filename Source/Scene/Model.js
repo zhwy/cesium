@@ -48,7 +48,7 @@ import addDefaults from "../ThirdParty/GltfPipeline/addDefaults.js";
 import addPipelineExtras from "../ThirdParty/GltfPipeline/addPipelineExtras.js";
 import ForEach from "../ThirdParty/GltfPipeline/ForEach.js";
 import getAccessorByteStride from "../ThirdParty/GltfPipeline/getAccessorByteStride.js";
-import hasExtension from "../ThirdParty/GltfPipeline/hasExtension.js";
+import usesExtension from "../ThirdParty/GltfPipeline/usesExtension.js";
 import numberOfComponentsForType from "../ThirdParty/GltfPipeline/numberOfComponentsForType.js";
 import parseGlb from "../ThirdParty/GltfPipeline/parseGlb.js";
 import updateVersion from "../ThirdParty/GltfPipeline/updateVersion.js";
@@ -1806,7 +1806,7 @@ function parseBufferViews(model) {
 function parseTechniques(model) {
   // retain references to gltf techniques
   var gltf = model.gltf;
-  if (!hasExtension(gltf, "KHR_techniques_webgl")) {
+  if (!usesExtension(gltf, "KHR_techniques_webgl")) {
     return;
   }
 
@@ -1902,7 +1902,7 @@ function parseArticulations(model) {
 
   var gltf = model.gltf;
   if (
-    !hasExtension(gltf, "AGI_articulations") ||
+    !usesExtension(gltf, "AGI_articulations") ||
     !defined(gltf.extensions) ||
     !defined(gltf.extensions.AGI_articulations)
   ) {
@@ -2032,7 +2032,10 @@ function parseTextures(model, context, supportsWebP) {
       } else if (crnRegex.test(uri)) {
         promise = loadCRN(imageResource);
       } else {
-        promise = imageResource.fetchImage();
+        promise = imageResource.fetchImage({
+          skipColorSpaceConversion: true,
+          preferImageBitmap: true,
+        });
       }
       promise
         .then(imageLoad(model, id, imageId))
@@ -2779,6 +2782,7 @@ function loadTexturesFromBufferViews(model) {
         uint8Array: loadResources.getBuffer(bufferView),
         format: gltfTexture.mimeType,
         flipY: false,
+        skipColorSpaceConversion: true,
       })
         .then(onload)
         .otherwise(onerror);
@@ -2958,6 +2962,7 @@ function createTexture(gltfTexture, model, context) {
       pixelDatatype: texture.type,
       sampler: sampler,
       flipY: false,
+      skipColorSpaceConversion: true,
     });
     // GLTF_SPEC: Support TEXTURE_CUBE_MAP.  https://github.com/KhronosGroup/glTF/issues/40
     if (mipmap) {
