@@ -932,7 +932,7 @@ function Cesium3DTileset(options) {
   var that = this;
   var resource;
   when(options.url)
-    .then(function (url) {
+    .then(function(url) {
       var basePath;
       resource = Resource.createIfNeeded(url);
       that._resource = resource;
@@ -951,12 +951,12 @@ function Cesium3DTileset(options) {
 
       return Cesium3DTileset.loadJson(resource);
     })
-    .then(function (tilesetJson) {
+    .then(function(tilesetJson) {
       // This needs to be called before loadTileset() so tile metadata
       // can be initialized synchronously in the Cesium3DTile constructor
       return processMetadataExtension(that, tilesetJson);
     })
-    .then(function (tilesetJson) {
+    .then(function(tilesetJson) {
       that._root = that.loadTileset(resource, tilesetJson);
       var gltfUpAxis = defined(tilesetJson.asset.gltfUpAxis)
         ? Axis.fromName(tilesetJson.asset.gltfUpAxis)
@@ -1016,7 +1016,7 @@ function Cesium3DTileset(options) {
 
       that._readyPromise.resolve(that);
     })
-    .otherwise(function (error) {
+    .otherwise(function(error) {
       that._readyPromise.reject(error);
     });
 }
@@ -1037,7 +1037,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @exception {DeveloperError} The tileset is not loaded.  Use Cesium3DTileset.readyPromise or wait for Cesium3DTileset.ready to be true.
    */
   asset: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug);
       if (!this.ready) {
         throw new DeveloperError(
@@ -1057,10 +1057,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @type {ClippingPlaneCollection}
    */
   clippingPlanes: {
-    get: function () {
+    get: function() {
       return this._clippingPlanes;
     },
-    set: function (value) {
+    set: function(value) {
       ClippingPlaneCollection.setOwner(value, this, "_clippingPlanes");
     },
   },
@@ -1087,7 +1087,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @see Cesium3DTileFeature#setProperty
    */
   properties: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug);
       if (!this.ready) {
         throw new DeveloperError(
@@ -1112,7 +1112,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @default false
    */
   ready: {
-    get: function () {
+    get: function() {
       return defined(this._root);
     },
   },
@@ -1140,7 +1140,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * });
    */
   readyPromise: {
-    get: function () {
+    get: function() {
       return this._readyPromise.promise;
     },
   },
@@ -1159,7 +1159,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @see Cesium3DTileset#allTilesLoaded
    */
   tilesLoaded: {
-    get: function () {
+    get: function() {
       return this._tilesLoaded;
     },
   },
@@ -1173,7 +1173,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @readonly
    */
   resource: {
-    get: function () {
+    get: function() {
       return this._resource;
     },
   },
@@ -1188,7 +1188,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @deprecated
    */
   basePath: {
-    get: function () {
+    get: function() {
       deprecationWarning(
         "Cesium3DTileset.basePath",
         "Cesium3DTileset.basePath has been deprecated. All tiles are relative to the url of the tileset JSON file that contains them. Use the url property instead."
@@ -1236,10 +1236,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @see {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification/Styling|3D Tiles Styling language}
    */
   style: {
-    get: function () {
+    get: function() {
       return this._styleEngine.style;
     },
-    set: function (value) {
+    set: function(value) {
       this._styleEngine.style = value;
     },
   },
@@ -1265,10 +1265,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @exception {DeveloperError} <code>maximumScreenSpaceError</code> must be greater than or equal to zero.
    */
   maximumScreenSpaceError: {
-    get: function () {
+    get: function() {
       return this._maximumScreenSpaceError;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       Check.typeOf.number.greaterThanOrEquals(
         "maximumScreenSpaceError",
@@ -1309,10 +1309,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @see Cesium3DTileset#totalMemoryUsageInBytes
    */
   maximumMemoryUsage: {
-    get: function () {
+    get: function() {
       return this._maximumMemoryUsage;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       Check.typeOf.number.greaterThanOrEquals("value", value, 0);
       //>>includeEnd('debug');
@@ -1332,7 +1332,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @exception {DeveloperError} The tileset is not loaded.  Use Cesium3DTileset.readyPromise or wait for Cesium3DTileset.ready to be true.
    */
   root: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug);
       if (!this.ready) {
         throw new DeveloperError(
@@ -1366,7 +1366,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * });
    */
   boundingSphere: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug);
       if (!this.ready) {
         throw new DeveloperError(
@@ -1399,10 +1399,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
    */
   modelMatrix: {
-    get: function () {
+    get: function() {
       return this._modelMatrix;
     },
-    set: function (value) {
+    set: function(value) {
       this._modelMatrix = Matrix4.clone(value, this._modelMatrix);
     },
   },
@@ -1416,7 +1416,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @readonly
    */
   timeSinceLoad: {
-    get: function () {
+    get: function() {
       return this._timeSinceLoad;
     },
   },
@@ -1434,7 +1434,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @see Cesium3DTileset#maximumMemoryUsage
    */
   totalMemoryUsageInBytes: {
-    get: function () {
+    get: function() {
       var statistics = this._statistics;
       return (
         statistics.texturesByteLength +
@@ -1448,7 +1448,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @private
    */
   clippingPlanesOriginMatrix: {
-    get: function () {
+    get: function() {
       if (!defined(this._clippingPlanesOriginMatrix)) {
         return Matrix4.IDENTITY;
       }
@@ -1470,7 +1470,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @private
    */
   styleEngine: {
-    get: function () {
+    get: function() {
       return this._styleEngine;
     },
   },
@@ -1479,7 +1479,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @private
    */
   statistics: {
-    get: function () {
+    get: function() {
       return this._statistics;
     },
   },
@@ -1512,7 +1512,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @readonly
    */
   classificationType: {
-    get: function () {
+    get: function() {
       return this._classificationType;
     },
   },
@@ -1526,7 +1526,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @readonly
    */
   ellipsoid: {
-    get: function () {
+    get: function() {
       return this._ellipsoid;
     },
   },
@@ -1542,10 +1542,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @default 0.3
    */
   foveatedConeSize: {
-    get: function () {
+    get: function() {
       return this._foveatedConeSize;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       Check.typeOf.number.greaterThanOrEquals("foveatedConeSize", value, 0.0);
       Check.typeOf.number.lessThanOrEquals("foveatedConeSize", value, 1.0);
@@ -1565,10 +1565,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @default 0.0
    */
   foveatedMinimumScreenSpaceErrorRelaxation: {
-    get: function () {
+    get: function() {
       return this._foveatedMinimumScreenSpaceErrorRelaxation;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       Check.typeOf.number.greaterThanOrEquals(
         "foveatedMinimumScreenSpaceErrorRelaxation",
@@ -1600,7 +1600,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @see {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification#specifying-extensions-and-application-specific-extras|Extras in the 3D Tiles specification.}
    */
   extras: {
-    get: function () {
+    get: function() {
       //>>includeStart('debug', pragmas.debug);
       if (!this.ready) {
         throw new DeveloperError(
@@ -1623,10 +1623,10 @@ defineProperties(Cesium3DTileset.prototype, {
    * @default Cartesian2(1.0, 1.0)
    */
   imageBasedLightingFactor: {
-    get: function () {
+    get: function() {
       return this._imageBasedLightingFactor;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       Check.typeOf.object("imageBasedLightingFactor", value);
       Check.typeOf.number.greaterThanOrEquals(
@@ -1665,7 +1665,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @default false
    */
   vectorClassificationOnly: {
-    get: function () {
+    get: function() {
       return this._vectorClassificationOnly;
     },
   },
@@ -1677,7 +1677,7 @@ defineProperties(Cesium3DTileset.prototype, {
  * @param {Resource|String} tilesetUrl The url of the json file to be fetched
  * @returns {Promise.<Object>} A promise that resolves with the fetched json data
  */
-Cesium3DTileset.loadJson = function (tilesetUrl) {
+Cesium3DTileset.loadJson = function(tilesetUrl) {
   var resource = Resource.createIfNeeded(tilesetUrl);
   return resource.fetchJson();
 };
@@ -1686,7 +1686,7 @@ Cesium3DTileset.loadJson = function (tilesetUrl) {
  * Marks the tileset's {@link Cesium3DTileset#style} as dirty, which forces all
  * features to re-evaluate the style in the next frame each is visible.
  */
-Cesium3DTileset.prototype.makeStyleDirty = function () {
+Cesium3DTileset.prototype.makeStyleDirty = function() {
   this._styleEngine.makeDirty();
 };
 
@@ -1695,7 +1695,7 @@ Cesium3DTileset.prototype.makeStyleDirty = function () {
  *
  * @private
  */
-Cesium3DTileset.prototype.loadTileset = function (
+Cesium3DTileset.prototype.loadTileset = function(
   resource,
   tilesetJson,
   parentTile
@@ -1851,7 +1851,7 @@ function processMetadataExtension(tileset, tilesetJson) {
   }
   tileset._schemaLoader = schemaLoader;
 
-  return schemaLoader.promise.then(function (schemaLoader) {
+  return schemaLoader.promise.then(function(schemaLoader) {
     tileset.metadata = new Cesium3DTilesetMetadata({
       schema: schemaLoader.schema,
       extension: extension,
@@ -2002,14 +2002,14 @@ function requestContent(tileset, tile) {
       statistics.decrementLoadCounts(tile.content);
       --statistics.numberOfTilesWithContentReady;
     }
-
-    tileset._requestedTilesInFlight.push(tile);
-
-    tile.contentReadyToProcessPromise.then(addToProcessingQueue(tileset, tile));
-    tile.contentReadyPromise
-      .then(handleTileSuccess(tileset, tile))
-      .otherwise(handleTileFailure(tileset, tile));
   }
+
+  tileset._requestedTilesInFlight.push(tile);
+
+  tile.contentReadyToProcessPromise.then(addToProcessingQueue(tileset, tile));
+  tile.contentReadyPromise
+    .then(handleTileSuccess(tileset, tile))
+    .otherwise(handleTileFailure(tileset, tile));
 
 }
 
@@ -2021,7 +2021,7 @@ function sortRequestByPriority(a, b) {
  * Perform any pass invariant tasks here. Called after the render pass.
  * @private
  */
-Cesium3DTileset.prototype.postPassesUpdate = function (frameState) {
+Cesium3DTileset.prototype.postPassesUpdate = function(frameState) {
   if (!this.ready) {
     return;
   }
@@ -2036,7 +2036,7 @@ Cesium3DTileset.prototype.postPassesUpdate = function (frameState) {
  * Perform any pass invariant tasks here. Called before any passes are executed.
  * @private
  */
-Cesium3DTileset.prototype.prePassesUpdate = function (frameState) {
+Cesium3DTileset.prototype.prePassesUpdate = function(frameState) {
   if (!this.ready) {
     return;
   }
@@ -2113,7 +2113,7 @@ function requestTiles(tileset, isAsync) {
 }
 
 function addToProcessingQueue(tileset, tile) {
-  return function () {
+  return function() {
     tileset._processingQueue.push(tile);
 
     ++tileset._statistics.numberOfTilesProcessing;
@@ -2121,7 +2121,7 @@ function addToProcessingQueue(tileset, tile) {
 }
 
 function handleTileFailure(tileset, tile) {
-  return function (error) {
+  return function(error) {
     if (tileset._processingQueue.indexOf(tile) >= 0) {
       // Failed during processing
       --tileset._statistics.numberOfTilesProcessing;
@@ -2145,7 +2145,7 @@ function handleTileFailure(tileset, tile) {
 }
 
 function handleTileSuccess(tileset, tile) {
-  return function () {
+  return function() {
     --tileset._statistics.numberOfTilesProcessing;
 
     if (!tile.hasTilesetContent && !tile.hasImplicitContent) {
@@ -2504,7 +2504,7 @@ function destroyTile(tileset, tile) {
  * within the render loop.
  * </p>
  */
-Cesium3DTileset.prototype.trimLoadedTiles = function () {
+Cesium3DTileset.prototype.trimLoadedTiles = function() {
   this._cache.trim();
 };
 
@@ -2526,7 +2526,7 @@ function raiseLoadProgressEvent(tileset, frameState) {
     numberOfTilesProcessing !== lastNumberOfTilesProcessing;
 
   if (progressChanged) {
-    frameState.afterRender.push(function () {
+    frameState.afterRender.push(function() {
       tileset.loadProgress.raiseEvent(
         numberOfPendingRequests,
         numberOfTilesProcessing
@@ -2543,12 +2543,12 @@ function raiseLoadProgressEvent(tileset, frameState) {
   // may resolve outside of the update loop that then raise events, e.g.,
   // model's readyPromise.
   if (progressChanged && tileset._tilesLoaded) {
-    frameState.afterRender.push(function () {
+    frameState.afterRender.push(function() {
       tileset.allTilesLoaded.raiseEvent();
     });
     if (!tileset._initialTilesLoaded) {
       tileset._initialTilesLoaded = true;
-      frameState.afterRender.push(function () {
+      frameState.afterRender.push(function() {
         tileset.initialTilesLoaded.raiseEvent();
       });
     }
@@ -2635,14 +2635,14 @@ function update(tileset, frameState, passStatistics, passOptions) {
 /**
  * @private
  */
-Cesium3DTileset.prototype.update = function (frameState) {
+Cesium3DTileset.prototype.update = function(frameState) {
   this.updateForPass(frameState, frameState.tilesetPassState);
 };
 
 /**
  * @private
  */
-Cesium3DTileset.prototype.updateForPass = function (
+Cesium3DTileset.prototype.updateForPass = function(
   frameState,
   tilesetPassState
 ) {
@@ -2714,7 +2714,7 @@ Cesium3DTileset.prototype.updateForPass = function (
  *
  * @returns {Boolean} <code>true</code> if the tileset JSON file lists the extension in extensionsUsed; otherwise, <code>false</code>.
  */
-Cesium3DTileset.prototype.hasExtension = function (extensionName) {
+Cesium3DTileset.prototype.hasExtension = function(extensionName) {
   if (!defined(this._extensionsUsed)) {
     return false;
   }
@@ -2732,7 +2732,7 @@ Cesium3DTileset.prototype.hasExtension = function (extensionName) {
  *
  * @see Cesium3DTileset#destroy
  */
-Cesium3DTileset.prototype.isDestroyed = function () {
+Cesium3DTileset.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -2751,7 +2751,7 @@ Cesium3DTileset.prototype.isDestroyed = function () {
  *
  * @see Cesium3DTileset#isDestroyed
  */
-Cesium3DTileset.prototype.destroy = function () {
+Cesium3DTileset.prototype.destroy = function() {
   this._tileDebugLabels =
     this._tileDebugLabels && this._tileDebugLabels.destroy();
   this._clippingPlanes = this._clippingPlanes && this._clippingPlanes.destroy();
