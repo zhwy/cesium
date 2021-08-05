@@ -1024,8 +1024,7 @@ function fetchImage(options) {
     if (request.state !== RequestState.FAILED) {
       return when.reject(e);
     }
-
-    return resource.retryOnError(e).then(function(retry) {
+    return resource.retryOnError(e).then(function (retry) {
       if (retry) {
         // Reset request so it can try again
         request.state = RequestState.UNISSUED;
@@ -1038,7 +1037,6 @@ function fetchImage(options) {
           preferImageBitmap: preferImageBitmap,
         });
       }
-
       return when.reject(e);
     });
   });

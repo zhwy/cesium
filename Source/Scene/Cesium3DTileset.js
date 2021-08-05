@@ -52,7 +52,7 @@ import TileBoundingSphere from "./TileBoundingSphere.js";
 import TileOrientedBoundingBox from "./TileOrientedBoundingBox.js";
 
 /**
- * A {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification|3D Tiles tileset},
+ * A {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification|3D Tiles tileset},
  * used for streaming massive heterogeneous 3D geospatial datasets.
  *
  * @alias Cesium3DTileset
@@ -95,9 +95,11 @@ import TileOrientedBoundingBox from "./TileOrientedBoundingBox.js";
  * @param {Cartesian3} [options.lightColor] The color and intensity of the sunlight used to shade models.
  * @param {Number} [options.luminanceAtZenith=0.2] The sun's luminance at the zenith in kilo candela per meter squared to use for this model's procedural environment map.
  * @param {Cartesian3[]} [options.sphericalHarmonicCoefficients] The third order spherical harmonic coefficients used for the diffuse color of image-based lighting.
- * @param {String} [options.specularEnvironmentMaps] A URL to a KTX file that contains a cube map of the specular lighting and the convoluted specular mipmaps.
+ * @param {String} [options.specularEnvironmentMaps] A URL to a KTX2 file that contains a cube map of the specular lighting and the convoluted specular mipmaps.
  * @param {Boolean} [options.backFaceCulling=true] Whether to cull back-facing geometry. When true, back face culling is determined by the glTF material's doubleSided property; when false, back face culling is disabled.
+ * @param {Boolean} [options.showOutline=true] Whether to display the outline for models using the {@link https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/CESIUM_primitive_outline|CESIUM_primitive_outline} extension. When true, outlines are displayed. When false, outlines are not displayed.
  * @param {Boolean} [options.vectorClassificationOnly=false] Indicates that only the tileset's vector tiles should be used for classification.
+ * @param {Boolean} [options.vectorKeepDecodedPositions=false] Whether vector tiles should keep decoded positions in memory. This is used with {@link Cesium3DTileFeature.getPolylinePositions}.
  * @param {String} [options.debugHeatmapTilePropertyName] The tile variable to colorize as a heatmap. All rendered tiles will be colorized relative to each other's specified variable value.
  * @param {Boolean} [options.debugFreezeFrame=false] For debugging only. Determines if only the tiles from last frame should be used for rendering.
  * @param {Boolean} [options.debugColorizeTiles=false] For debugging only. When true, assigns a random color to each tile.
@@ -140,7 +142,7 @@ import TileOrientedBoundingBox from "./TileOrientedBoundingBox.js";
  *      dynamicScreenSpaceErrorHeightFalloff : 0.25
  * }));
  *
- * @see {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification|3D Tiles specification}
+ * @see {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification|3D Tiles specification}
  */
 function Cesium3DTileset(options) {
   options = defaultValue(options, defaultValue.EMPTY_OBJECT);
@@ -278,6 +280,11 @@ function Cesium3DTileset(options) {
 
   this._vectorClassificationOnly = defaultValue(
     options.vectorClassificationOnly,
+    false
+  );
+
+  this._vectorKeepDecodedPositions = defaultValue(
+    options.vectorKeepDecodedPositions,
     false
   );
 
@@ -772,6 +779,18 @@ function Cesium3DTileset(options) {
   this.backFaceCulling = defaultValue(options.backFaceCulling, true);
 
   /**
+   * Whether to display the outline for models using the
+   * {@link https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/CESIUM_primitive_outline|CESIUM_primitive_outline} extension.
+   * When true, outlines are displayed. When false, outlines are not displayed.
+   *
+   * @type {Boolean}
+   * @readonly
+   *
+   * @default true
+   */
+  this.showOutline = defaultValue(options.showOutline, true);
+
+  /**
    * This property is for debugging only; it is not optimized for production use.
    * <p>
    * Determines if only the tiles from last frame should be used for rendering.  This
@@ -1025,7 +1044,7 @@ defineProperties(Cesium3DTileset.prototype, {
   /**
    * Gets the tileset's asset object property, which contains metadata about the tileset.
    * <p>
-   * See the {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification#reference-asset|asset schema reference}
+   * See the {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification#reference-asset|asset schema reference}
    * in the 3D Tiles spec for the full set of properties.
    * </p>
    *
@@ -1068,7 +1087,7 @@ defineProperties(Cesium3DTileset.prototype, {
   /**
    * Gets the tileset's properties dictionary object, which contains metadata about per-feature properties.
    * <p>
-   * See the {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification#reference-properties|properties schema reference}
+   * See the {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification#reference-properties|properties schema reference}
    * in the 3D Tiles spec for the full set of properties.
    * </p>
    *
@@ -1199,7 +1218,7 @@ defineProperties(Cesium3DTileset.prototype, {
 
   /**
    * The style, defined using the
-   * {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification/Styling|3D Tiles Styling language},
+   * {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification/Styling|3D Tiles Styling language},
    * applied to each feature in the tileset.
    * <p>
    * Assign <code>undefined</code> to remove the style, which will restore the visual
@@ -1210,6 +1229,13 @@ defineProperties(Cesium3DTileset.prototype, {
    * event is raised, so code in <code>tileVisible</code> can manually set a feature's
    * properties (e.g. color and show) after the style is applied. When
    * a new style is assigned any manually set properties are overwritten.
+   * </p>
+   * <p>
+   * Use an always "true" condition to specify the Color for all objects that are not
+   * overridden by pre-existing conditions. Otherwise, the default color Cesium.Color.White
+   * will be used. Similarly, use an always "true" condition to specify the show property
+   * for all objects that are not overridden by pre-existing conditions. Otherwise, the
+   * default show value true will be used.
    * </p>
    *
    * @memberof Cesium3DTileset.prototype
@@ -1233,7 +1259,7 @@ defineProperties(Cesium3DTileset.prototype, {
    *    }
    * });
    *
-   * @see {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification/Styling|3D Tiles Styling language}
+   * @see {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification/Styling|3D Tiles Styling language}
    */
   style: {
     get: function() {
@@ -1597,7 +1623,7 @@ defineProperties(Cesium3DTileset.prototype, {
    * @type {*}
    * @readonly
    *
-   * @see {@link https://github.com/AnalyticalGraphicsInc/3d-tiles/tree/master/specification#specifying-extensions-and-application-specific-extras|Extras in the 3D Tiles specification.}
+   * @see {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification#specifying-extensions-and-application-specific-extras|Extras in the 3D Tiles specification.}
    */
   extras: {
     get: function() {
@@ -1667,6 +1693,23 @@ defineProperties(Cesium3DTileset.prototype, {
   vectorClassificationOnly: {
     get: function() {
       return this._vectorClassificationOnly;
+    },
+  },
+
+  /**
+   * Whether vector tiles should keep decoded positions in memory.
+   * This is used with {@link Cesium3DTileFeature.getPolylinePositions}.
+   *
+   * @memberof Cesium3DTileset.prototype
+   *
+   * @experimental This feature is using part of the 3D Tiles spec that is not final and is subject to change without Cesium's standard deprecation policy.
+   *
+   * @type {Boolean}
+   * @default false
+   */
+  vectorKeepDecodedPositions: {
+    get: function () {
+      return this._vectorKeepDecodedPositions;
     },
   },
 });
