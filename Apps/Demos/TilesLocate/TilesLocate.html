@@ -62,7 +62,7 @@
       var inverse = new Cesium.Matrix4();
 
       tileset.readyPromise.then(() => {
-        inverse = Cesium.Matrix4.inverse(tileset._root.transform, inverse);
+        inverse = Cesium.Matrix4.inverse(tileset._root.transform, inverse); // 要用原始tileset的transofrom（tileset.json中的）计算逆
 
         // 位置
         var newPos = Cesium.Cartesian3.fromRadians(
