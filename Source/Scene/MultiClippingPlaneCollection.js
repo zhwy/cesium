@@ -356,9 +356,11 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
         });
       }
       this._dataTexture.copyFrom({
-        width: widthTotal,
-        height: height,
-        arrayBufferView: arrayBuffer,
+        source: {
+          width: widthTotal,
+          height: height,
+          arrayBufferView: arrayBuffer,
+        },
       });
 
       this._lengthTexture = new Texture({
@@ -371,9 +373,11 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
         flipY: false,
       });
       this._lengthTexture.copyFrom({
-        width: collections.length,
-        height: 1,
-        arrayBufferView: lengthArrayBuffer,
+        source: {
+          width: collections.length,
+          height: 1,
+          arrayBufferView: lengthArrayBuffer,
+        },
       });
     }
 
