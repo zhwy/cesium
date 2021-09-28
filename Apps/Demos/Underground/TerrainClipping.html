@@ -108,9 +108,9 @@
       });
 
       var multiCollections = new Cesium.MultiClippingPlaneCollection({
-        collections: [clippingPlanecollection1, clippingPlanecollection2],
-        modelMatrix: entity.computeModelMatrix(Cesium.JulianDate.now()),
-        // modelMatrix: Cesium.Matrix4.IDENTITY,
+        collections: [],
+        // modelMatrix: entity.computeModelMatrix(Cesium.JulianDate.now()),
+        modelMatrix: Cesium.Matrix4.IDENTITY,
         edgeWidth: 5,
         edgeColor: Cesium.Color.WHITE,
       });

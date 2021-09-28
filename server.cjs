@@ -66,7 +66,7 @@
 
   const app = express();
   app.use(compression());
-  app.use(function(req, res, next) {
+  app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header(
       "Access-Control-Allow-Headers",
@@ -84,7 +84,7 @@
       next();
     });
 
-    readStream.on("data", function(chunk) {
+    readStream.on("data", function (chunk) {
       if (chunk.equals(gzipHeader)) {
         res.header("Content-Encoding", "gzip");
       }
@@ -125,7 +125,7 @@
   function filterHeaders(req, headers) {
     const result = {};
     // filter out headers that are listed in the regex above
-    Object.keys(headers).forEach(function(name) {
+    Object.keys(headers).forEach(function (name) {
       if (!dontProxyHeaderRegex.test(name)) {
         result[name] = headers[name];
       }
@@ -136,12 +136,12 @@
   const upstreamProxy = argv["upstream-proxy"];
   const bypassUpstreamProxyHosts = {};
   if (argv["bypass-upstream-proxy-hosts"]) {
-    argv["bypass-upstream-proxy-hosts"].split(",").forEach(function(host) {
+    argv["bypass-upstream-proxy-hosts"].split(",").forEach(function (host) {
       bypassUpstreamProxyHosts[host.toLowerCase()] = true;
     });
   }
 
-  app.get("/proxy/*", function(req, res, next) {
+  app.get("/proxy/*", function (req, res, next) {
     // look for request like http://localhost:8080/proxy/http://example.com/file?query=1
     let remoteUrl = getRemoteUrlFromParam(req);
     if (!remoteUrl) {
@@ -190,7 +190,7 @@
   const server = app.listen(
     argv.port,
     argv.public ? undefined : "localhost",
-    function() {
+    function () {
       if (argv.public) {
         console.log(
           "Cesium development server running publicly.  Connect to http://localhost:%d/",
@@ -205,7 +205,7 @@
     }
   );
 
-  server.on("error", function(e) {
+  server.on("error", function (e) {
     if (e.code === "EADDRINUSE") {
       console.log(
         "Error: Port %d is already in use, select a different port.",
@@ -225,7 +225,7 @@
     process.exit(1);
   });
 
-  server.on("close", function() {
+  server.on("close", function () {
     console.log("Cesium development server stopped.");
   });
 
@@ -233,7 +233,7 @@
   process.on("SIGINT", function () {
     if (isFirstSig) {
       console.log("Cesium development server shutting down.");
-      server.close(function() {
+      server.close(function () {
         process.exit(0);
       });
       isFirstSig = false;
