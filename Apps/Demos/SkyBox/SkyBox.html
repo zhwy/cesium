@@ -37,17 +37,17 @@
 
       var viewer = new Cesium.Viewer("cesiumContainer", {
         nearGroundSkyBoxShowHeight: 10000,
-        // nearGroundSkybox:new Cesium.SkyBox({
-        //   nearGround:true,
-        //   sources:{
-        //               positiveX: "./pictures/test/px.bmp",
-        //   negativeX: "./pictures/test/nx.bmp",
-        //   positiveY: "./pictures/test/py.bmp",
-        //   negativeY: "./pictures/test/ny.bmp",
-        //   positiveZ: "./pictures/test/pz.bmp",
-        //   negativeZ: "./pictures/test/nz.bmp",
-        //   }
-        // })
+        nearGroundSkyBox: new Cesium.SkyBox({
+          nearGround: true,
+          sources: {
+            positiveX: "./pictures/test/px.jpg",
+            negativeX: "./pictures/test/nx.jpg",
+            positiveY: "./pictures/test/py.jpg",
+            negativeY: "./pictures/test/ny.jpg",
+            positiveZ: "./pictures/test/pz.jpg",
+            negativeZ: "./pictures/test/nz.jpg",
+          },
+        }),
       });
       window._viewer = viewer;
       viewer.camera.setView({
