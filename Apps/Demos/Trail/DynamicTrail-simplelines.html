@@ -38,6 +38,7 @@
       var viewer = new Cesium.Viewer("cesiumContainer");
       viewer.scene.debugShowFramesPerSecond = true;
       viewer.targetFrameRate = 60;
+
       var supportsImageRenderingPixelated =
         viewer.cesiumWidget._supportsImageRenderingPixelated;
       if (supportsImageRenderingPixelated) {
@@ -48,7 +49,7 @@
         viewer.resolutionScale = vtxf_dpr;
       }
 
-      var material = Cesium.Material.fromType(
+      var invisibleMaterial = Cesium.Material.fromType(
         Cesium.Material.PolylineTrailType2,
         {
           color: new Cesium.Color(1, 1, 1, 0.01),
@@ -58,6 +59,7 @@
           length: 0.1,
         }
       );
+
       var trails = [];
       var singleMaterial = Cesium.Material.fromType(
         Cesium.Material.PolylineTrailType2,
@@ -69,7 +71,9 @@
           length: 0.1,
         }
       );
-      Cesium.GeoJsonDataSource.load("./trails.json").then(function (ds) {
+      Cesium.GeoJsonDataSource.load("./simplelines.geojson").then(function (
+        ds
+      ) {
         var instances = [];
         ds.entities.values.forEach((entity, i) => {
           if (i == 0) {
@@ -98,19 +102,8 @@
             geometry: geo,
           });
           instances.push(instance);
-          // trail = viewer.scene.primitives.add(
-          //   new Cesium.Primitive({
-          //     geometryInstances: instance,
-          //     appearance: new Cesium.PolylineMaterialAppearance({
-          //       material: material,
-          //     }),
-          //     // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-          //     //   material: material,
-          //     // }),
-          //   })
-          // );
-          // trails.push(trail);
         });
+
         var trailCollection = viewer.scene.primitives.add(
           new Cesium.Primitive({
             geometryInstances: instances,
@@ -118,25 +111,12 @@
               material: singleMaterial,
             }),
             // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-            //   material: material,
+            //   material: invisibleMaterial,
             // }),
           })
         );
-        // trail = scene.primitives.add(
-        //   new Cesium.Primitive({
-        //     geometryInstances: instances,
-        //     appearance: new Cesium.PolylineMaterialAppearance({
-        //       material: material,
-        //     }),
-        //     depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-        //       material: material,
-        //     }),
-        //   })
-        // );
+
         viewer.scene.preRender.addEventListener(() => {
-          // trails.forEach(trail => {
-          //   trail.appearance.material.uniforms.time++;
-          // })
           trailCollection.appearance.material.uniforms.time++;
         });
       });

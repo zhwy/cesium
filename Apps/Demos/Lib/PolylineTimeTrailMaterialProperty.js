@@ -10,25 +10,24 @@ function PolylineTimeTrailMaterialProperty(options) {
 
   this.duration = options.duration || 10;
 
-  this.trailImage = options.trailImage || Cesium.Material.PolylineTimeTrailImage;
+  this.image = options.image || Cesium.Material.PolylineTimeTrailImage;
 
   this._time = performance.now();
 
   this.repeat = options.repeat || 1;
 
   this.length = options.length || 1;
-
 }
 
 Cesium.defineProperties(PolylineTimeTrailMaterialProperty.prototype, {
   isConstant: {
-    get: function() {
+    get: function () {
       return false;
     },
   },
 
   definitionChanged: {
-    get: function() {
+    get: function () {
       return this._definitionChanged;
     },
   },
@@ -36,11 +35,11 @@ Cesium.defineProperties(PolylineTimeTrailMaterialProperty.prototype, {
   color: Cesium.createPropertyDescriptor("color"),
 });
 
-PolylineTimeTrailMaterialProperty.prototype.getType = function(time) {
+PolylineTimeTrailMaterialProperty.prototype.getType = function (time) {
   return "PolylineTimeTrail";
 };
 
-PolylineTimeTrailMaterialProperty.prototype.getValue = function(time, result) {
+PolylineTimeTrailMaterialProperty.prototype.getValue = function (time, result) {
   if (!Cesium.defined(result)) {
     result = {};
   }
@@ -52,9 +51,7 @@ PolylineTimeTrailMaterialProperty.prototype.getValue = function(time, result) {
     result.color
   );
 
-  result.image = Cesium.Material.PolylineTimeTrailImage;
-
-  // result.image = this.trailImage;
+  result.image = this.image;
 
   result.time =
     ((performance.now() - this._time) % this.duration) / this.duration;
@@ -62,7 +59,7 @@ PolylineTimeTrailMaterialProperty.prototype.getValue = function(time, result) {
   return result;
 };
 
-PolylineTimeTrailMaterialProperty.prototype.equals = function(other) {
+PolylineTimeTrailMaterialProperty.prototype.equals = function (other) {
   return (
     this === other ||
     (other instanceof PolylineTimeTrailMaterialProperty &&
@@ -74,76 +71,65 @@ Cesium.Material.PolylineTimeTrailType = "PolylineTimeTrail";
 
 Cesium.Material.PolylineTimeTrailImage = "./red.png";
 
-Cesium.Material.PolylineTimeTrailSpeedCoolor = "./color.png";
+Cesium.Material._materialCache.addMaterial(
+  Cesium.Material.PolylineTimeTrailType,
+  {
+    fabric: {
+      type: Cesium.Material.PolylineTimeTrailType,
 
-Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTimeTrailType, {
-  fabric: {
-    type: Cesium.Material.PolylineTimeTrailType,
+      uniforms: {
+        color: new Cesium.Color(1.0, 0.0, 0.0, 1),
 
-    uniforms: {
-      color: new Cesium.Color(1.0, 0.0, 0.0, 1),
+        image: Cesium.Material.PolylineTimeTrailImage,
 
-      image: Cesium.Material.PolylineTimeTrailImage,
+        time: 0,
 
-      speedColor: "./color.png",
+        duration: 1000,
 
-      time: 0,
+        repeat: 1,
 
-      duration: 1000,
+        length: 1,
+      },
+      source: `
 
-      repeat: 1,
-
-      length: 1,
-
-      test: "./color.png" // to think 将速度纹理写入几何属性，创建类似PerInstanceColorAppearance，读取每个几何中的速度纹理，
-      // 就不需要每个geometry instance都创建一个primitive
-    },
-
-    source: `
-
-    czm_material czm_getMaterial(czm_materialInput materialInput)    
+    varying vec4 v_timeOffset;
+    varying float v_segments;
+    czm_material czm_getMaterial(czm_materialInput materialInput)
 {
 
-    czm_material material = czm_getDefaultMaterial(materialInput); 
+    czm_material material = czm_getDefaultMaterial(materialInput);
 
-    vec2 st = materialInput.st; 
+    vec2 st = materialInput.st;
 
-    float _duration = duration;
+    float offset = v_timeOffset.x;
+    float timeLength = v_timeOffset.y;
+    float idx = v_timeOffset.z;
+    float _segments = v_timeOffset.w;
 
-    float _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
+    float normalizedTime = ( time - (duration * floor(time / duration) ) ) / duration;
 
-    // if(_time == 0.){
-    //   _time = 1.;
-    // }
-    
+    if( normalizedTime < offset || normalizedTime > (offset + timeLength * 1.1)) discard; // 留一个拖尾效果
 
-    vec4 speed = texture2D(test, vec2(_time, 0)); 
+    float _time = ( idx - 1.) / _segments + ( normalizedTime - offset) / _segments / timeLength;
 
-    vec4 colorImage = texture2D(image, vec2(smoothstep((1. - length) ,1. ,fract((st.s - _time) * repeat)), st.t));
+    // if(abs(st.s - _time) > 0.02 * timeLength) discard;
 
-    // vec4 colorImage = texture2D(image, vec2(fract((st.s - _time) * repeat), st.t));
-
-    vec4 speedImage = texture2D(speedColor, vec2(speed.x, st.t));
+    // todo 应该用每段长度和总长的比例来校正每段拖尾的效果
+    // 从材质uniforms传递贴图，顶点仅存储属于哪一条数据的哪一段
+    vec4 colorImage = texture2D(image, vec2(smoothstep((1. - length * timeLength), 1., fract((st.s - _time) * repeat)), st.t));
 
     material.alpha = colorImage.a * color.a;
 
+    material.diffuse = color.rgb;
 
-    // 不要渐变
-    // material.alpha = 0.;
-    // if(colorImage.a >= 0.5)
-    //   material.alpha = color.a;
-
-    // material.diffuse = color.rgb; //相同颜色
-
-    material.diffuse = speedImage.rgb; //不同速度颜色不同
-
-    return material; 
+    return material;
 
 } `,
-  },
-  translucent: function(material) {
-    return true;
-  },
-});
+    },
+    translucent: function (material) {
+      return true;
+    },
+  }
+);
 
 Cesium.PolylineTimeTrailMaterialProperty = PolylineTimeTrailMaterialProperty;

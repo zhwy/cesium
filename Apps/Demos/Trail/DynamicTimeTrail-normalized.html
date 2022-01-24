@@ -67,7 +67,8 @@
         var endTime = Cesium.JulianDate.fromDate(
           new Date(res.times[res.times.length - 1] * 1000)
         );
-        var singleMaterial = Cesium.Material.fromType(
+
+        var invisibleMaterial = Cesium.Material.fromType(
           Cesium.Material.PolylineTrailType2,
           {
             color: new Cesium.Color(1, 1, 1, 0),
@@ -113,12 +114,10 @@
                   time: 0,
                 }
               ),
-              // vertexShaderSource: vertexSource
             }),
             asynchronous: false,
             // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-            //   material: singleMaterial,
-            //   // vertexShaderSource: vertexSource
+            //   material: invisibleMaterial,
             // }),
           })
         );
