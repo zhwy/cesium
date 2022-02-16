@@ -6,6 +6,7 @@ import destroyObject from "../Core/destroyObject.js";
 import DeveloperError from "../Core/DeveloperError.js";
 import GeometryPipeline from "../Core/GeometryPipeline.js";
 import Matrix4 from "../Core/Matrix4.js";
+import Matrix3 from "../Core/Matrix3.js";
 import VertexFormat from "../Core/VertexFormat.js";
 import BufferUsage from "../Renderer/BufferUsage.js";
 import CubeMap from "../Renderer/CubeMap.js";
@@ -19,6 +20,7 @@ import SkyBoxFS from "../Shaders/SkyBoxFS.js";
 import SkyBoxVS from "../Shaders/SkyBoxVS.js";
 import BlendingState from "./BlendingState.js";
 import SceneMode from "./SceneMode.js";
+import Transforms from "../Core/Transforms.js";
 
 /**
  * A sky box around the scene to draw stars.  The sky box is defined using the True Equator Mean Equinox (TEME) axes.
@@ -62,6 +64,8 @@ function SkyBox(options) {
    */
   this.sources = options.sources;
   this._sources = undefined;
+
+  this.nearGround = options.nearGround;
 
   /**
    * Determines if the sky box will be shown.
@@ -165,6 +169,15 @@ SkyBox.prototype.update = function (frameState, useHdr) {
     command.uniformMap = {
       u_cubeMap: function () {
         return that._cubeMap;
+      },
+      u_rotateMatrix: function () {
+        if (that.nearGround) {
+          command.modelMatrix = Transforms.eastNorthUpToFixedFrame(
+            frameState.camera._positionWC
+          );
+          return Matrix4.getMatrix3(command.modelMatrix, new Matrix3());
+        }
+        return Matrix3.IDENTITY;
       },
     };
 

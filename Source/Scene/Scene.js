@@ -306,6 +306,25 @@ function Scene(options) {
   this.skyBox = undefined;
 
   /**
+   * The {@link SkyBox} used to draw the near-ground sky.
+   *
+   * @type {SkyBox}
+   * @default undefined
+   *
+   * @see Scene#backgroundColor
+   */
+  this.nearGroundSkyBox = undefined;
+
+  /**
+   * Height used to switch to the near-ground skybox.
+   *
+   * @type {Number}
+   * @default 5000.0
+   *
+   */
+  this.nearGroundSkyBoxShowHeight = 5000.0;
+
+  /**
    * The sky atmosphere drawn around the globe.
    *
    * @type {SkyAtmosphere}
@@ -4381,6 +4400,8 @@ Scene.prototype.destroy = function () {
     this._groundPrimitives && this._groundPrimitives.destroy();
   this._globe = this._globe && this._globe.destroy();
   this.skyBox = this.skyBox && this.skyBox.destroy();
+  this.nearGroundSkyBox =
+    this.nearGroundSkyBox && this.nearGroundSkyBox.destroy();
   this.skyAtmosphere = this.skyAtmosphere && this.skyAtmosphere.destroy();
   this._debugSphere = this._debugSphere && this._debugSphere.destroy();
   this.sun = this.sun && this.sun.destroy();

@@ -146,7 +146,7 @@
             // }
             collection = generateClippingPlanesCollection(positions);
             multiCollections.add(collection);
-            drawExcavation(cartos);
+            drawExcavation(positions);
             positions = [];
             cartos = [];
           }
@@ -204,11 +204,10 @@
 
       function drawExcavation(points) {
         const samples = [];
-        for (let i = 1; i < points.length; i++) {}
 
         viewer.entities.add({
           polygon: {
-            hierarchy: points,
+            hierarchy: new Cesium.PolygonHierarchy(points),
             extrudedHeight: -3,
             perPositionHeight: true,
             material: new Cesium.ImageMaterialProperty({

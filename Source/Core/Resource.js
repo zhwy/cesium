@@ -999,7 +999,7 @@ function fetchImage(options) {
 
   const request = resource.request;
   request.url = resource.url;
-  const url = resource.url;
+  var url = resource.url;
   request.requestFunction = function () {
     let crossOrigin = false;
 
@@ -1010,7 +1010,7 @@ function fetchImage(options) {
 
     const deferred = when.defer();
     Resource._Implementations.createImage(
-      url,
+      request,
       crossOrigin,
       deferred,
       flipY,
@@ -2021,7 +2021,7 @@ function loadImageElement(url, crossOrigin, deferred) {
 }
 
 Resource._Implementations.createImage = function (
-  url,
+  request,
   crossOrigin,
   deferred,
   flipY,

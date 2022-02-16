@@ -877,53 +877,43 @@ Cesium3DTileBatchTable.prototype.addDerivedCommands = function (
       if (!defined(derivedCommands.translucent)) {
         derivedCommands.translucent = deriveTranslucentCommand(originalCommand);
       }
+    }
 
-      if (
-        styleCommandsNeeded !== StyleCommandsNeeded.ALL_OPAQUE &&
-        command.pass !== Pass.TRANSLUCENT
-      ) {
-        if (!defined(derivedCommands.translucent)) {
-          derivedCommands.translucent = deriveTranslucentCommand(
-            originalCommand
-          );
-        }
+    if (
+      styleCommandsNeeded !== StyleCommandsNeeded.ALL_TRANSLUCENT &&
+      command.pass !== Pass.TRANSLUCENT
+    ) {
+      if (!defined(derivedCommands.opaque)) {
+        derivedCommands.opaque = deriveOpaqueCommand(originalCommand);
       }
 
-      if (
-        styleCommandsNeeded !== StyleCommandsNeeded.ALL_TRANSLUCENT &&
-        command.pass !== Pass.TRANSLUCENT
-      ) {
-        if (!defined(derivedCommands.opaque)) {
-          derivedCommands.opaque = deriveOpaqueCommand(originalCommand);
-        }
-
-        if (bivariateVisibilityTest) {
-          if (!finalResolution) {
-            if (!defined(derivedCommands.zback)) {
-              derivedCommands.zback = deriveZBackfaceCommand(
-                frameState.context,
-                originalCommand
-              );
-            }
-            tileset._backfaceCommands.push(derivedCommands.zback);
+      if (bivariateVisibilityTest) {
+        if (!finalResolution) {
+          if (!defined(derivedCommands.zback)) {
+            derivedCommands.zback = deriveZBackfaceCommand(
+              frameState.context,
+              originalCommand
+            );
           }
-          if (
-            !defined(derivedCommands.stencil) ||
-            tile._selectionDepth !==
-              getLastSelectionDepth(derivedCommands.stencil)
-          ) {
-            if (command.renderState.depthMask) {
-              derivedCommands.stencil = deriveStencilCommand(
-                originalCommand,
-                tile._selectionDepth
-              );
-            } else {
-              // Ignore if tile does not write depth
-              derivedCommands.stencil = derivedCommands.opaque;
-            }
+          tileset._backfaceCommands.push(derivedCommands.zback);
+        }
+        if (
+          !defined(derivedCommands.stencil) ||
+          tile._selectionDepth !==
+            getLastSelectionDepth(derivedCommands.stencil)
+        ) {
+          if (command.renderState.depthMask) {
+            derivedCommands.stencil = deriveStencilCommand(
+              originalCommand,
+              tile._selectionDepth
+            );
+          } else {
+            // Ignore if tile does not write depth
+            derivedCommands.stencil = derivedCommands.opaque;
           }
         }
       }
+    }
 
     const opaqueCommand = bivariateVisibilityTest
       ? derivedCommands.stencil
@@ -950,6 +940,12 @@ Cesium3DTileBatchTable.prototype.addDerivedCommands = function (
         commandList[i] = opaqueCommand;
         commandList.push(translucentCommand);
       }
+    } else {
+      // Command was originally translucent so no need to derive new commands;
+      // as of now, a style can't change an originally translucent feature to
+      // opaque since the style's alpha is modulated, not a replacement.  When
+      // this changes, we need to derive new opaque commands here.
+      commandList[i] = originalCommand;
     }
   }
 };
