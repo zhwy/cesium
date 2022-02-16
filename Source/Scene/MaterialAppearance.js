@@ -10,6 +10,9 @@ import TexturedMaterialAppearanceVS from "../Shaders/Appearances/TexturedMateria
 import Appearance from "./Appearance.js";
 import Material from "./Material.js";
 
+import EllipsoidSurfaceAppearanceFS from "../Shaders/Appearances/EllipsoidSurfaceAppearanceFS.js";
+import EllipsoidSurfaceAppearanceVS from "../Shaders/Appearances/EllipsoidSurfaceAppearanceVS.js";
+
 /**
      * An appearance for arbitrary geometry (as opposed to {@link EllipsoidSurfaceAppearance}, for example)
      * that supports shading with materials.
@@ -79,14 +82,26 @@ function MaterialAppearance(options) {
    */
   this.translucent = translucent;
 
-  this._vertexShaderSource = defaultValue(
-    options.vertexShaderSource,
-    materialSupport.vertexShaderSource
-  );
-  this._fragmentShaderSource = defaultValue(
-    options.fragmentShaderSource,
-    materialSupport.fragmentShaderSource
-  );
+  if (this.material.type === Material.WaterType) {
+    this._vertexShaderSource = defaultValue(
+      options.vertexShaderSource,
+      EllipsoidSurfaceAppearanceVS
+    );
+    this._fragmentShaderSource = defaultValue(
+      options.fragmentShaderSource,
+      EllipsoidSurfaceAppearanceFS
+    );
+  } else {
+    this._vertexShaderSource = defaultValue(
+      options.vertexShaderSource,
+      materialSupport.vertexShaderSource
+    );
+    this._fragmentShaderSource = defaultValue(
+      options.fragmentShaderSource,
+      materialSupport.fragmentShaderSource
+    );
+  }
+
   this._renderState = Appearance.getDefaultRenderState(
     translucent,
     closed,
