@@ -36,6 +36,9 @@ describe(
     const microcosm = "./Data/Models/GltfLoader/Microcosm/glTF/microcosm.gltf";
     const boxInstanced =
       "./Data/Models/GltfLoader/BoxInstanced/glTF/box-instanced.gltf";
+    const boxBackFaceCullingUrl =
+      "./Data/Models/Box-Back-Face-Culling/Box-Back-Face-Culling.gltf";
+    const boxBackFaceCullingOffset = new HeadingPitchRange(Math.PI / 2, 0, 2.0);
 
     let scene;
 
@@ -480,6 +483,152 @@ describe(
         expect(Matrix4.equals(sceneGraph.computedModelMatrix, transform)).toBe(
           true
         );
+      });
+    });
+
+    it("changing model matrix affects bounding sphere", function () {
+      const translation = new Cartesian3(10, 0, 0);
+      return loadAndZoomToModelExperimental(
+        { gltf: boxTexturedGlbUrl, upAxis: Axis.Z, forwardAxis: Axis.X },
+        scene
+      ).then(function (model) {
+        const transform = Matrix4.fromTranslation(translation);
+        expect(model.boundingSphere.center).toEqual(new Cartesian3());
+
+        Matrix4.multiplyTransformation(
+          model.modelMatrix,
+          transform,
+          model.modelMatrix
+        );
+        scene.renderForSpecs();
+
+        expect(model.boundingSphere.center).toEqual(translation);
+      });
+    });
+
+    it("enables back-face culling", function () {
+      return loadAndZoomToModelExperimental(
+        {
+          gltf: boxBackFaceCullingUrl,
+          backFaceCulling: true,
+          offset: boxBackFaceCullingOffset,
+        },
+        scene
+      ).then(function (model) {
+        const renderOptions = {
+          scene: scene,
+          time: new JulianDate(2456659.0004050927),
+        };
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).toEqual([0, 0, 0, 255]);
+        });
+      });
+    });
+
+    it("disables back-face culling", function () {
+      return loadAndZoomToModelExperimental(
+        {
+          gltf: boxBackFaceCullingUrl,
+          backFaceCulling: false,
+          offset: boxBackFaceCullingOffset,
+        },
+        scene
+      ).then(function (model) {
+        const renderOptions = {
+          scene: scene,
+          time: new JulianDate(2456659.0004050927),
+        };
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).not.toEqual([0, 0, 0, 255]);
+        });
+      });
+    });
+
+    it("ignores back-face culling when translucent", function () {
+      return loadAndZoomToModelExperimental(
+        {
+          gltf: boxBackFaceCullingUrl,
+          backFaceCulling: true,
+          offset: boxBackFaceCullingOffset,
+        },
+        scene
+      ).then(function (model) {
+        const renderOptions = {
+          scene: scene,
+          time: new JulianDate(2456659.0004050927),
+        };
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).toEqual([0, 0, 0, 255]);
+        });
+
+        model.color = new Color(0, 0, 1.0, 0.5);
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).not.toEqual([0, 0, 0, 255]);
+        });
+      });
+    });
+
+    it("toggles back-face culling at runtime", function () {
+      return loadAndZoomToModelExperimental(
+        {
+          gltf: boxBackFaceCullingUrl,
+          backFaceCulling: false,
+          offset: boxBackFaceCullingOffset,
+        },
+        scene
+      ).then(function (model) {
+        const renderOptions = {
+          scene: scene,
+          time: new JulianDate(2456659.0004050927),
+        };
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).not.toEqual([0, 0, 0, 255]);
+        });
+
+        model.backFaceCulling = true;
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).toEqual([0, 0, 0, 255]);
+        });
+      });
+    });
+
+    it("ignores back-face culling toggles when translucent", function () {
+      return loadAndZoomToModelExperimental(
+        {
+          gltf: boxBackFaceCullingUrl,
+          backFaceCulling: false,
+          offset: boxBackFaceCullingOffset,
+        },
+        scene
+      ).then(function (model) {
+        const renderOptions = {
+          scene: scene,
+          time: new JulianDate(2456659.0004050927),
+        };
+
+        model.color = new Color(0, 0, 1.0, 0.5);
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).not.toEqual([0, 0, 0, 255]);
+        });
+
+        model.backFaceCulling = true;
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).not.toEqual([0, 0, 0, 255]);
+        });
+
+        model.backFaceCulling = false;
+
+        expect(renderOptions).toRenderAndCall(function (rgba) {
+          expect(rgba).not.toEqual([0, 0, 0, 255]);
+        });
       });
     });
 
