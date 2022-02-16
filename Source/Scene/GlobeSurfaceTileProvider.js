@@ -114,6 +114,8 @@ function GlobeSurfaceTileProvider(options) {
   this.undergroundColor = undefined;
   this.undergroundColorAlphaByDistance = undefined;
 
+  this.lambertDiffuseMultiplier = 0.0;
+
   this.materialUniformMap = undefined;
   this._materialUniformMap = undefined;
 
@@ -1853,6 +1855,9 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
     u_undergroundColorAlphaByDistance: function () {
       return this.properties.undergroundColorAlphaByDistance;
     },
+    u_lambertDiffuseMultiplier: function () {
+      return this.properties.lambertDiffuseMultiplier;
+    },
 
     // make a separate object so that changes to the properties are seen on
     // derived commands that combine another uniform map with this one.
@@ -1907,6 +1912,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       localizedTranslucencyRectangle: new Cartesian4(),
       undergroundColor: Color.clone(Color.TRANSPARENT),
       undergroundColorAlphaByDistance: new Cartesian4(),
+      lambertDiffuseMultiplier: 0.0,
     },
   };
 
@@ -2113,7 +2119,7 @@ var surfaceShaderSetOptionsScratch = {
 };
 
 var defaultUndergroundColor = Color.TRANSPARENT;
-var defaultundergroundColorAlphaByDistance = new NearFarScalar();
+var defaultUndergroundColorAlphaByDistance = new NearFarScalar();
 
 function addDrawCommandsForTile(tileProvider, tile, frameState) {
   var surfaceTile = tile.data;
@@ -2167,7 +2173,7 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
   );
   var undergroundColorAlphaByDistance = defaultValue(
     tileProvider.undergroundColorAlphaByDistance,
-    defaultundergroundColorAlphaByDistance
+    defaultUndergroundColorAlphaByDistance
   );
   var showUndergroundColor =
     isUndergroundVisible(tileProvider, frameState) &&
@@ -2175,6 +2181,8 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
     undergroundColor.alpha > 0.0 &&
     (undergroundColorAlphaByDistance.nearValue > 0.0 ||
       undergroundColorAlphaByDistance.farValue > 0.0);
+
+  var lambertDiffuseMultiplier = tileProvider.lambertDiffuseMultiplier;
 
   var showReflectiveOcean =
     tileProvider.hasWaterMask && defined(waterMaskTexture);
@@ -2451,6 +2459,8 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
       uniformMapProperties.undergroundColorAlphaByDistance
     );
     Color.clone(undergroundColor, uniformMapProperties.undergroundColor);
+
+    uniformMapProperties.lambertDiffuseMultiplier = lambertDiffuseMultiplier;
 
     var highlightFillTile =
       !defined(surfaceTile.vertexArray) &&
