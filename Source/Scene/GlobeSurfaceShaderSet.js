@@ -38,14 +38,14 @@ function GlobeSurfaceShaderSet() {
 }
 
 function getPositionMode(sceneMode) {
-  var getPosition3DMode =
+  const getPosition3DMode =
     "vec4 getPosition(vec3 position, float height, vec2 textureCoordinates) { return getPosition3DMode(position, height, textureCoordinates); }";
-  var getPositionColumbusViewAnd2DMode =
+  const getPositionColumbusViewAnd2DMode =
     "vec4 getPosition(vec3 position, float height, vec2 textureCoordinates) { return getPositionColumbusViewMode(position, height, textureCoordinates); }";
-  var getPositionMorphingMode =
+  const getPositionMorphingMode =
     "vec4 getPosition(vec3 position, float height, vec2 textureCoordinates) { return getPositionMorphingMode(position, height, textureCoordinates); }";
 
-  var positionMode;
+  let positionMode;
 
   switch (sceneMode) {
     case SceneMode.SCENE3D:
@@ -64,81 +64,81 @@ function getPositionMode(sceneMode) {
 }
 
 function get2DYPositionFraction(useWebMercatorProjection) {
-  var get2DYPositionFractionGeographicProjection =
+  const get2DYPositionFractionGeographicProjection =
     "float get2DYPositionFraction(vec2 textureCoordinates) { return get2DGeographicYPositionFraction(textureCoordinates); }";
-  var get2DYPositionFractionMercatorProjection =
+  const get2DYPositionFractionMercatorProjection =
     "float get2DYPositionFraction(vec2 textureCoordinates) { return get2DMercatorYPositionFraction(textureCoordinates); }";
   return useWebMercatorProjection
     ? get2DYPositionFractionMercatorProjection
     : get2DYPositionFractionGeographicProjection;
 }
 
-GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
-  var frameState = options.frameState;
-  var surfaceTile = options.surfaceTile;
-  var numberOfDayTextures = options.numberOfDayTextures;
-  var applyBrightness = options.applyBrightness;
-  var applyContrast = options.applyContrast;
-  var applyHue = options.applyHue;
-  var applySaturation = options.applySaturation;
-  var applyGamma = options.applyGamma;
-  var applyAlpha = options.applyAlpha;
-  var applyDayNightAlpha = options.applyDayNightAlpha;
-  var applySplit = options.applySplit;
-  var showReflectiveOcean = options.showReflectiveOcean;
-  var showOceanWaves = options.showOceanWaves;
-  var enableLighting = options.enableLighting;
-  var dynamicAtmosphereLighting = options.dynamicAtmosphereLighting;
-  var dynamicAtmosphereLightingFromSun =
+GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
+  const frameState = options.frameState;
+  const surfaceTile = options.surfaceTile;
+  const numberOfDayTextures = options.numberOfDayTextures;
+  const applyBrightness = options.applyBrightness;
+  const applyContrast = options.applyContrast;
+  const applyHue = options.applyHue;
+  const applySaturation = options.applySaturation;
+  const applyGamma = options.applyGamma;
+  const applyAlpha = options.applyAlpha;
+  const applyDayNightAlpha = options.applyDayNightAlpha;
+  const applySplit = options.applySplit;
+  const showReflectiveOcean = options.showReflectiveOcean;
+  const showOceanWaves = options.showOceanWaves;
+  const enableLighting = options.enableLighting;
+  const dynamicAtmosphereLighting = options.dynamicAtmosphereLighting;
+  const dynamicAtmosphereLightingFromSun =
     options.dynamicAtmosphereLightingFromSun;
-  var showGroundAtmosphere = options.showGroundAtmosphere;
-  var perFragmentGroundAtmosphere = options.perFragmentGroundAtmosphere;
-  var hasVertexNormals = options.hasVertexNormals;
-  var useWebMercatorProjection = options.useWebMercatorProjection;
-  var enableFog = options.enableFog;
-  var enableClippingPlanes = options.enableClippingPlanes;
-  var multiClippingPlanes = options.multiClippingPlanes;
-  var enableMultiClippingPlanes =
+  const showGroundAtmosphere = options.showGroundAtmosphere;
+  const perFragmentGroundAtmosphere = options.perFragmentGroundAtmosphere;
+  const hasVertexNormals = options.hasVertexNormals;
+  const useWebMercatorProjection = options.useWebMercatorProjection;
+  const enableFog = options.enableFog;
+  const enableClippingPlanes = options.enableClippingPlanes;
+  const multiClippingPlanes = options.multiClippingPlanes;
+  const enableMultiClippingPlanes =
     defined(multiClippingPlanes) && multiClippingPlanes.length > 0;
   // if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) enableClippingPlanes = true;
-  var clippingPlanes = options.clippingPlanes;
-  var clippedByBoundaries = options.clippedByBoundaries;
-  var hasImageryLayerCutout = options.hasImageryLayerCutout;
-  var colorCorrect = options.colorCorrect;
-  var highlightFillTile = options.highlightFillTile;
-  var colorToAlpha = options.colorToAlpha;
-  var hasGeodeticSurfaceNormals = options.hasGeodeticSurfaceNormals;
-  var hasExaggeration = options.hasExaggeration;
-  var showUndergroundColor = options.showUndergroundColor;
-  var translucent = options.translucent;
+  const clippingPlanes = options.clippingPlanes;
+  const clippedByBoundaries = options.clippedByBoundaries;
+  const hasImageryLayerCutout = options.hasImageryLayerCutout;
+  const colorCorrect = options.colorCorrect;
+  const highlightFillTile = options.highlightFillTile;
+  const colorToAlpha = options.colorToAlpha;
+  const hasGeodeticSurfaceNormals = options.hasGeodeticSurfaceNormals;
+  const hasExaggeration = options.hasExaggeration;
+  const showUndergroundColor = options.showUndergroundColor;
+  const translucent = options.translucent;
 
-  var quantization = 0;
-  var quantizationDefine = "";
+  let quantization = 0;
+  let quantizationDefine = "";
 
-  var mesh = surfaceTile.renderedMesh;
-  var terrainEncoding = mesh.encoding;
-  var quantizationMode = terrainEncoding.quantization;
+  const mesh = surfaceTile.renderedMesh;
+  const terrainEncoding = mesh.encoding;
+  const quantizationMode = terrainEncoding.quantization;
   if (quantizationMode === TerrainQuantization.BITS12) {
     quantization = 1;
     quantizationDefine = "QUANTIZATION_BITS12";
   }
 
-  var cartographicLimitRectangleFlag = 0;
-  var cartographicLimitRectangleDefine = "";
+  let cartographicLimitRectangleFlag = 0;
+  let cartographicLimitRectangleDefine = "";
   if (clippedByBoundaries) {
     cartographicLimitRectangleFlag = 1;
     cartographicLimitRectangleDefine = "TILE_LIMIT_RECTANGLE";
   }
 
-  var imageryCutoutFlag = 0;
-  var imageryCutoutDefine = "";
+  let imageryCutoutFlag = 0;
+  let imageryCutoutDefine = "";
   if (hasImageryLayerCutout) {
     imageryCutoutFlag = 1;
     imageryCutoutDefine = "APPLY_IMAGERY_CUTOUT";
   }
 
-  var sceneMode = frameState.mode;
-  var flags =
+  const sceneMode = frameState.mode;
+  const flags =
     sceneMode |
     (applyBrightness << 2) |
     (applyContrast << 3) |
@@ -170,19 +170,19 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
     (translucent << 29) |
     (applyDayNightAlpha << 30) |
     (enableMultiClippingPlanes << 31);
-  var currentClippingShaderState = 0;
+  let currentClippingShaderState = 0;
   if (defined(clippingPlanes) && clippingPlanes.length > 0) {
     currentClippingShaderState = enableClippingPlanes
       ? clippingPlanes.clippingPlanesState
       : 0;
   }
 
-  var currentMultiClippingShaderState = 0;
+  let currentMultiClippingShaderState = 0;
   if (enableMultiClippingPlanes) {
     currentMultiClippingShaderState = multiClippingPlanes.collectionsState;
   }
 
-  var surfaceShader = surfaceTile.surfaceShader;
+  let surfaceShader = surfaceTile.surfaceShader;
   if (
     defined(surfaceShader) &&
     surfaceShader.numberOfDayTextures === numberOfDayTextures &&
@@ -195,7 +195,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
   }
 
   // New tile, or tile changed number of textures, flags, or clipping planes
-  var shadersByFlags = this._shadersByTexturesFlags[numberOfDayTextures];
+  let shadersByFlags = this._shadersByTexturesFlags[numberOfDayTextures];
   if (!defined(shadersByFlags)) {
     shadersByFlags = this._shadersByTexturesFlags[numberOfDayTextures] = [];
   }
@@ -208,8 +208,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
     surfaceShader.multiClippingShaderState !== currentMultiClippingShaderState
   ) {
     // Cache miss - we've never seen this combination of numberOfDayTextures and flags before.
-    var vs = this.baseVertexShaderSource.clone();
-    var fs = this.baseFragmentShaderSource.clone();
+    const vs = this.baseVertexShaderSource.clone();
+    const fs = this.baseFragmentShaderSource.clone();
 
     if (currentClippingShaderState !== 0 && !defined(multiClippingPlanes)) {
       fs.sources.unshift(
@@ -330,7 +330,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
       vs.defines.push("EXAGGERATION");
     }
 
-    var computeDayColor =
+    let computeDayColor =
       "\
     vec4 computeDayColor(vec4 initialColor, vec3 textureCoordinates, float nightBlend)\n\
     {\n\
@@ -343,7 +343,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
         bool texelUnclipped;\n";
     }
 
-    for (var i = 0; i < numberOfDayTextures; ++i) {
+    for (let i = 0; i < numberOfDayTextures; ++i) {
       if (hasImageryLayerCutout) {
         computeDayColor +=
           "\
@@ -417,7 +417,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
     vs.sources.push(getPositionMode(sceneMode));
     vs.sources.push(get2DYPositionFraction(useWebMercatorProjection));
 
-    var shader = ShaderProgram.fromCache({
+    const shader = ShaderProgram.fromCache({
       context: frameState.context,
       vertexShaderSource: vs,
       fragmentShaderSource: fs,
@@ -438,14 +438,14 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function(options) {
   return surfaceShader.shaderProgram;
 };
 
-GlobeSurfaceShaderSet.prototype.destroy = function() {
-  var flags;
-  var shader;
+GlobeSurfaceShaderSet.prototype.destroy = function () {
+  let flags;
+  let shader;
 
-  var shadersByTexturesFlags = this._shadersByTexturesFlags;
-  for (var textureCount in shadersByTexturesFlags) {
+  const shadersByTexturesFlags = this._shadersByTexturesFlags;
+  for (const textureCount in shadersByTexturesFlags) {
     if (shadersByTexturesFlags.hasOwnProperty(textureCount)) {
-      var shadersByFlags = shadersByTexturesFlags[textureCount];
+      const shadersByFlags = shadersByTexturesFlags[textureCount];
       if (!defined(shadersByFlags)) {
         continue;
       }

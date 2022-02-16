@@ -32,15 +32,15 @@ import PostProcessStageSampleMode from "./PostProcessStageSampleMode.js";
  *
  * @namespace PostProcessStageLibrary
  */
-var PostProcessStageLibrary = {};
+const PostProcessStageLibrary = {};
 
 function createBlur(name) {
-  var delta = 1.0;
-  var sigma = 2.0;
-  var stepSize = 1.0;
+  const delta = 1.0;
+  const sigma = 2.0;
+  const stepSize = 1.0;
 
-  var blurShader = "#define USE_STEP_SIZE\n" + GaussianBlur1D;
-  var blurX = new PostProcessStage({
+  const blurShader = "#define USE_STEP_SIZE\n" + GaussianBlur1D;
+  const blurX = new PostProcessStage({
     name: name + "_x_direction",
     fragmentShader: blurShader,
     uniforms: {
@@ -51,7 +51,7 @@ function createBlur(name) {
     },
     sampleMode: PostProcessStageSampleMode.LINEAR,
   });
-  var blurY = new PostProcessStage({
+  const blurY = new PostProcessStage({
     name: name + "_y_direction",
     fragmentShader: blurShader,
     uniforms: {
@@ -63,35 +63,35 @@ function createBlur(name) {
     sampleMode: PostProcessStageSampleMode.LINEAR,
   });
 
-  var uniforms = {};
+  const uniforms = {};
   Object.defineProperties(uniforms, {
     delta: {
-      get: function() {
+      get: function () {
         return blurX.uniforms.delta;
       },
-      set: function(value) {
-        var blurXUniforms = blurX.uniforms;
-        var blurYUniforms = blurY.uniforms;
+      set: function (value) {
+        const blurXUniforms = blurX.uniforms;
+        const blurYUniforms = blurY.uniforms;
         blurXUniforms.delta = blurYUniforms.delta = value;
       },
     },
     sigma: {
-      get: function() {
+      get: function () {
         return blurX.uniforms.sigma;
       },
-      set: function(value) {
-        var blurXUniforms = blurX.uniforms;
-        var blurYUniforms = blurY.uniforms;
+      set: function (value) {
+        const blurXUniforms = blurX.uniforms;
+        const blurYUniforms = blurY.uniforms;
         blurXUniforms.sigma = blurYUniforms.sigma = value;
       },
     },
     stepSize: {
-      get: function() {
+      get: function () {
         return blurX.uniforms.stepSize;
       },
-      set: function(value) {
-        var blurXUniforms = blurX.uniforms;
-        var blurYUniforms = blurY.uniforms;
+      set: function (value) {
+        const blurXUniforms = blurX.uniforms;
+        const blurYUniforms = blurY.uniforms;
         blurXUniforms.stepSize = blurYUniforms.stepSize = value;
       },
     },
@@ -115,7 +115,7 @@ function createBlur(name) {
  * </p>
  * @return {PostProcessStageComposite} A post-process stage that applies a Gaussian blur to the input texture.
  */
-PostProcessStageLibrary.createBlurStage = function() {
+PostProcessStageLibrary.createBlurStage = function () {
   return createBlur("czm_blur");
 };
 
@@ -137,9 +137,9 @@ PostProcessStageLibrary.createBlurStage = function() {
  * </p>
  * @return {PostProcessStageComposite} A post-process stage that applies a depth of field effect.
  */
-PostProcessStageLibrary.createDepthOfFieldStage = function() {
-  var blur = createBlur("czm_depth_of_field_blur");
-  var dof = new PostProcessStage({
+PostProcessStageLibrary.createDepthOfFieldStage = function () {
+  const blur = createBlur("czm_depth_of_field_blur");
+  const dof = new PostProcessStage({
     name: "czm_depth_of_field_composite",
     fragmentShader: DepthOfField,
     uniforms: {
@@ -148,37 +148,37 @@ PostProcessStageLibrary.createDepthOfFieldStage = function() {
     },
   });
 
-  var uniforms = {};
+  const uniforms = {};
   Object.defineProperties(uniforms, {
     focalDistance: {
-      get: function() {
+      get: function () {
         return dof.uniforms.focalDistance;
       },
-      set: function(value) {
+      set: function (value) {
         dof.uniforms.focalDistance = value;
       },
     },
     delta: {
-      get: function() {
+      get: function () {
         return blur.uniforms.delta;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.delta = value;
       },
     },
     sigma: {
-      get: function() {
+      get: function () {
         return blur.uniforms.sigma;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.sigma = value;
       },
     },
     stepSize: {
-      get: function() {
+      get: function () {
         return blur.uniforms.stepSize;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.stepSize = value;
       },
     },
@@ -203,7 +203,7 @@ PostProcessStageLibrary.createDepthOfFieldStage = function() {
  * @see {Context#depthTexture}
  * @see {@link http://www.khronos.org/registry/webgl/extensions/WEBGL_depth_texture/|WEBGL_depth_texture}
  */
-PostProcessStageLibrary.isDepthOfFieldSupported = function(scene) {
+PostProcessStageLibrary.isDepthOfFieldSupported = function (scene) {
   return scene.context.depthTexture;
 };
 
@@ -226,20 +226,20 @@ PostProcessStageLibrary.isDepthOfFieldSupported = function(scene) {
  *
  * @example
  * // multiple silhouette effects
- * var yellowEdge = Cesium.PostProcessLibrary.createEdgeDetectionStage();
+ * const yellowEdge = Cesium.PostProcessLibrary.createEdgeDetectionStage();
  * yellowEdge.uniforms.color = Cesium.Color.YELLOW;
  * yellowEdge.selected = [feature0];
  *
- * var greenEdge = Cesium.PostProcessLibrary.createEdgeDetectionStage();
+ * const greenEdge = Cesium.PostProcessLibrary.createEdgeDetectionStage();
  * greenEdge.uniforms.color = Cesium.Color.LIME;
  * greenEdge.selected = [feature1];
  *
  * // draw edges around feature0 and feature1
  * postProcessStages.add(Cesium.PostProcessLibrary.createSilhouetteStage([yellowEdge, greenEdge]);
  */
-PostProcessStageLibrary.createEdgeDetectionStage = function() {
+PostProcessStageLibrary.createEdgeDetectionStage = function () {
   // unique name generated on call so more than one effect can be added
-  var name = createGuid();
+  const name = createGuid();
   return new PostProcessStage({
     name: "czm_edge_detection_" + name,
     fragmentShader: EdgeDetection,
@@ -262,7 +262,7 @@ PostProcessStageLibrary.createEdgeDetectionStage = function() {
  * @see {Context#depthTexture}
  * @see {@link http://www.khronos.org/registry/webgl/extensions/WEBGL_depth_texture/|WEBGL_depth_texture}
  */
-PostProcessStageLibrary.isEdgeDetectionSupported = function(scene) {
+PostProcessStageLibrary.isEdgeDetectionSupported = function (scene) {
   return scene.context.depthTexture;
 };
 
@@ -271,16 +271,16 @@ function getSilhouetteEdgeDetection(edgeDetectionStages) {
     return PostProcessStageLibrary.createEdgeDetectionStage();
   }
 
-  var edgeDetection = new PostProcessStageComposite({
+  const edgeDetection = new PostProcessStageComposite({
     name: "czm_edge_detection_multiple",
     stages: edgeDetectionStages,
     inputPreviousStageTexture: false,
   });
 
-  var compositeUniforms = {};
-  var fsDecl = "";
-  var fsLoop = "";
-  for (var i = 0; i < edgeDetectionStages.length; ++i) {
+  const compositeUniforms = {};
+  let fsDecl = "";
+  let fsLoop = "";
+  for (let i = 0; i < edgeDetectionStages.length; ++i) {
     fsDecl += "uniform sampler2D edgeTexture" + i + "; \n";
     fsLoop +=
       "        vec4 edge" +
@@ -300,7 +300,7 @@ function getSilhouetteEdgeDetection(edgeDetectionStages) {
     compositeUniforms["edgeTexture" + i] = edgeDetectionStages[i].name;
   }
 
-  var fs =
+  const fs =
     fsDecl +
     "varying vec2 v_textureCoordinates; \n" +
     "void main() { \n" +
@@ -314,7 +314,7 @@ function getSilhouetteEdgeDetection(edgeDetectionStages) {
     "    gl_FragColor = color; \n" +
     "} \n";
 
-  var edgeComposite = new PostProcessStage({
+  const edgeComposite = new PostProcessStage({
     name: "czm_edge_detection_combine",
     fragmentShader: fs,
     uniforms: compositeUniforms,
@@ -340,9 +340,9 @@ function getSilhouetteEdgeDetection(edgeDetectionStages) {
  * @param {PostProcessStage[]} [edgeDetectionStages] An array of edge detection post process stages.
  * @return {PostProcessStageComposite} A post-process stage that applies a silhouette effect.
  */
-PostProcessStageLibrary.createSilhouetteStage = function(edgeDetectionStages) {
-  var edgeDetection = getSilhouetteEdgeDetection(edgeDetectionStages);
-  var silhouetteProcess = new PostProcessStage({
+PostProcessStageLibrary.createSilhouetteStage = function (edgeDetectionStages) {
+  const edgeDetection = getSilhouetteEdgeDetection(edgeDetectionStages);
+  const silhouetteProcess = new PostProcessStage({
     name: "czm_silhouette_color_edges",
     fragmentShader: Silhouette,
     uniforms: {
@@ -370,7 +370,7 @@ PostProcessStageLibrary.createSilhouetteStage = function(edgeDetectionStages) {
  * @see {Context#depthTexture}
  * @see {@link http://www.khronos.org/registry/webgl/extensions/WEBGL_depth_texture/|WEBGL_depth_texture}
  */
-PostProcessStageLibrary.isSilhouetteSupported = function(scene) {
+PostProcessStageLibrary.isSilhouetteSupported = function (scene) {
   return scene.context.depthTexture;
 };
 
@@ -397,8 +397,8 @@ PostProcessStageLibrary.isSilhouetteSupported = function(scene) {
  *
  * @private
  */
-PostProcessStageLibrary.createBloomStage = function() {
-  var contrastBias = new PostProcessStage({
+PostProcessStageLibrary.createBloomStage = function () {
+  const contrastBias = new PostProcessStage({
     name: "czm_bloom_contrast_bias",
     fragmentShader: ContrastBias,
     uniforms: {
@@ -406,13 +406,13 @@ PostProcessStageLibrary.createBloomStage = function() {
       brightness: -0.3,
     },
   });
-  var blur = createBlur("czm_bloom_blur");
-  var generateComposite = new PostProcessStageComposite({
+  const blur = createBlur("czm_bloom_blur");
+  const generateComposite = new PostProcessStageComposite({
     name: "czm_bloom_contrast_bias_blur",
     stages: [contrastBias, blur],
   });
 
-  var bloomComposite = new PostProcessStage({
+  const bloomComposite = new PostProcessStage({
     name: "czm_bloom_generate_composite",
     fragmentShader: BloomComposite,
     uniforms: {
@@ -421,53 +421,53 @@ PostProcessStageLibrary.createBloomStage = function() {
     },
   });
 
-  var uniforms = {};
+  const uniforms = {};
   Object.defineProperties(uniforms, {
     glowOnly: {
-      get: function() {
+      get: function () {
         return bloomComposite.uniforms.glowOnly;
       },
-      set: function(value) {
+      set: function (value) {
         bloomComposite.uniforms.glowOnly = value;
       },
     },
     contrast: {
-      get: function() {
+      get: function () {
         return contrastBias.uniforms.contrast;
       },
-      set: function(value) {
+      set: function (value) {
         contrastBias.uniforms.contrast = value;
       },
     },
     brightness: {
-      get: function() {
+      get: function () {
         return contrastBias.uniforms.brightness;
       },
-      set: function(value) {
+      set: function (value) {
         contrastBias.uniforms.brightness = value;
       },
     },
     delta: {
-      get: function() {
+      get: function () {
         return blur.uniforms.delta;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.delta = value;
       },
     },
     sigma: {
-      get: function() {
+      get: function () {
         return blur.uniforms.sigma;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.sigma = value;
       },
     },
     stepSize: {
-      get: function() {
+      get: function () {
         return blur.uniforms.stepSize;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.stepSize = value;
       },
     },
@@ -513,8 +513,8 @@ PostProcessStageLibrary.createBloomStage = function() {
  *
  * @private
  */
-PostProcessStageLibrary.createAmbientOcclusionStage = function() {
-  var generate = new PostProcessStage({
+PostProcessStageLibrary.createAmbientOcclusionStage = function () {
+  const generate = new PostProcessStage({
     name: "czm_ambient_occlusion_generate",
     fragmentShader: AmbientOcclusionGenerate,
     uniforms: {
@@ -526,14 +526,14 @@ PostProcessStageLibrary.createAmbientOcclusionStage = function() {
       randomTexture: undefined,
     },
   });
-  var blur = createBlur("czm_ambient_occlusion_blur");
+  const blur = createBlur("czm_ambient_occlusion_blur");
   blur.uniforms.stepSize = 0.86;
-  var generateAndBlur = new PostProcessStageComposite({
+  const generateAndBlur = new PostProcessStageComposite({
     name: "czm_ambient_occlusion_generate_blur",
     stages: [generate, blur],
   });
 
-  var ambientOcclusionModulate = new PostProcessStage({
+  const ambientOcclusionModulate = new PostProcessStage({
     name: "czm_ambient_occlusion_composite",
     fragmentShader: AmbientOcclusionModulate,
     uniforms: {
@@ -542,85 +542,85 @@ PostProcessStageLibrary.createAmbientOcclusionStage = function() {
     },
   });
 
-  var uniforms = {};
+  const uniforms = {};
   Object.defineProperties(uniforms, {
     intensity: {
-      get: function() {
+      get: function () {
         return generate.uniforms.intensity;
       },
-      set: function(value) {
+      set: function (value) {
         generate.uniforms.intensity = value;
       },
     },
     bias: {
-      get: function() {
+      get: function () {
         return generate.uniforms.bias;
       },
-      set: function(value) {
+      set: function (value) {
         generate.uniforms.bias = value;
       },
     },
     lengthCap: {
-      get: function() {
+      get: function () {
         return generate.uniforms.lengthCap;
       },
-      set: function(value) {
+      set: function (value) {
         generate.uniforms.lengthCap = value;
       },
     },
     stepSize: {
-      get: function() {
+      get: function () {
         return generate.uniforms.stepSize;
       },
-      set: function(value) {
+      set: function (value) {
         generate.uniforms.stepSize = value;
       },
     },
     frustumLength: {
-      get: function() {
+      get: function () {
         return generate.uniforms.frustumLength;
       },
-      set: function(value) {
+      set: function (value) {
         generate.uniforms.frustumLength = value;
       },
     },
     randomTexture: {
-      get: function() {
+      get: function () {
         return generate.uniforms.randomTexture;
       },
-      set: function(value) {
+      set: function (value) {
         generate.uniforms.randomTexture = value;
       },
     },
     delta: {
-      get: function() {
+      get: function () {
         return blur.uniforms.delta;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.delta = value;
       },
     },
     sigma: {
-      get: function() {
+      get: function () {
         return blur.uniforms.sigma;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.sigma = value;
       },
     },
     blurStepSize: {
-      get: function() {
+      get: function () {
         return blur.uniforms.stepSize;
       },
-      set: function(value) {
+      set: function (value) {
         blur.uniforms.stepSize = value;
       },
     },
     ambientOcclusionOnly: {
-      get: function() {
+      get: function () {
         return ambientOcclusionModulate.uniforms.ambientOcclusionOnly;
       },
-      set: function(value) {
+      set: function (value) {
         ambientOcclusionModulate.uniforms.ambientOcclusionOnly = value;
       },
     },
@@ -646,11 +646,11 @@ PostProcessStageLibrary.createAmbientOcclusionStage = function() {
  * @see {Context#depthTexture}
  * @see {@link http://www.khronos.org/registry/webgl/extensions/WEBGL_depth_texture/|WEBGL_depth_texture}
  */
-PostProcessStageLibrary.isAmbientOcclusionSupported = function(scene) {
+PostProcessStageLibrary.isAmbientOcclusionSupported = function (scene) {
   return scene.context.depthTexture;
 };
 
-var fxaaFS = "#define FXAA_QUALITY_PRESET 39 \n" + FXAA3_11 + "\n" + FXAA;
+const fxaaFS = "#define FXAA_QUALITY_PRESET 39 \n" + FXAA3_11 + "\n" + FXAA;
 
 /**
  * Creates a post-process stage that applies Fast Approximate Anti-aliasing (FXAA) to the input texture.
@@ -658,7 +658,7 @@ var fxaaFS = "#define FXAA_QUALITY_PRESET 39 \n" + FXAA3_11 + "\n" + FXAA;
  *
  * @private
  */
-PostProcessStageLibrary.createFXAAStage = function() {
+PostProcessStageLibrary.createFXAAStage = function () {
   return new PostProcessStage({
     name: "czm_FXAA",
     fragmentShader: fxaaFS,
@@ -672,10 +672,10 @@ PostProcessStageLibrary.createFXAAStage = function() {
  * @return {PostProcessStage} A post-process stage that applies ACES tonemapping operator.
  * @private
  */
-PostProcessStageLibrary.createAcesTonemappingStage = function(
+PostProcessStageLibrary.createAcesTonemappingStage = function (
   useAutoExposure
 ) {
-  var fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
+  let fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
   fs += AcesTonemapping;
   return new PostProcessStage({
     name: "czm_aces",
@@ -692,10 +692,10 @@ PostProcessStageLibrary.createAcesTonemappingStage = function(
  * @return {PostProcessStage} A post-process stage that applies filmic tonemapping operator.
  * @private
  */
-PostProcessStageLibrary.createFilmicTonemappingStage = function(
+PostProcessStageLibrary.createFilmicTonemappingStage = function (
   useAutoExposure
 ) {
-  var fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
+  let fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
   fs += FilmicTonemapping;
   return new PostProcessStage({
     name: "czm_filmic",
@@ -712,10 +712,10 @@ PostProcessStageLibrary.createFilmicTonemappingStage = function(
  * @return {PostProcessStage} A post-process stage that applies Reinhard tonemapping operator.
  * @private
  */
-PostProcessStageLibrary.createReinhardTonemappingStage = function(
+PostProcessStageLibrary.createReinhardTonemappingStage = function (
   useAutoExposure
 ) {
-  var fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
+  let fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
   fs += ReinhardTonemapping;
   return new PostProcessStage({
     name: "czm_reinhard",
@@ -732,10 +732,10 @@ PostProcessStageLibrary.createReinhardTonemappingStage = function(
  * @return {PostProcessStage} A post-process stage that applies modified Reinhard tonemapping operator.
  * @private
  */
-PostProcessStageLibrary.createModifiedReinhardTonemappingStage = function(
+PostProcessStageLibrary.createModifiedReinhardTonemappingStage = function (
   useAutoExposure
 ) {
-  var fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
+  let fs = useAutoExposure ? "#define AUTO_EXPOSURE\n" : "";
   fs += ModifiedReinhardTonemapping;
   return new PostProcessStage({
     name: "czm_modified_reinhard",
@@ -752,7 +752,7 @@ PostProcessStageLibrary.createModifiedReinhardTonemappingStage = function(
  * @return {PostProcessStage} A post-process stage that finds the average luminance of the input texture.
  * @private
  */
-PostProcessStageLibrary.createAutoExposureStage = function() {
+PostProcessStageLibrary.createAutoExposureStage = function () {
   return new AutoExposure();
 };
 
@@ -763,7 +763,7 @@ PostProcessStageLibrary.createAutoExposureStage = function() {
  * </p>
  * @return {PostProcessStage} A post-process stage that renders the input texture with black and white gradations.
  */
-PostProcessStageLibrary.createBlackAndWhiteStage = function() {
+PostProcessStageLibrary.createBlackAndWhiteStage = function () {
   return new PostProcessStage({
     name: "czm_black_and_white",
     fragmentShader: BlackAndWhite,
@@ -780,7 +780,7 @@ PostProcessStageLibrary.createBlackAndWhiteStage = function() {
  * </p>
  * @return {PostProcessStage} A post-process stage that saturates the input texture.
  */
-PostProcessStageLibrary.createBrightnessStage = function() {
+PostProcessStageLibrary.createBrightnessStage = function () {
   return new PostProcessStage({
     name: "czm_brightness",
     fragmentShader: Brightness,
@@ -794,7 +794,7 @@ PostProcessStageLibrary.createBrightnessStage = function() {
  * Creates a post-process stage that adds a night vision effect to the input texture.
  * @return {PostProcessStage} A post-process stage that adds a night vision effect to the input texture.
  */
-PostProcessStageLibrary.createNightVisionStage = function() {
+PostProcessStageLibrary.createNightVisionStage = function () {
   return new PostProcessStage({
     name: "czm_night_vision",
     fragmentShader: NightVision,
@@ -807,7 +807,7 @@ PostProcessStageLibrary.createNightVisionStage = function() {
  *
  * @private
  */
-PostProcessStageLibrary.createDepthViewStage = function() {
+PostProcessStageLibrary.createDepthViewStage = function () {
   return new PostProcessStage({
     name: "czm_depth_view",
     fragmentShader: DepthView,
@@ -832,7 +832,7 @@ PostProcessStageLibrary.createDepthViewStage = function() {
  * </p>
  * @return {PostProcessStage} A post-process stage for applying a lens flare effect.
  */
-PostProcessStageLibrary.createLensFlareStage = function() {
+PostProcessStageLibrary.createLensFlareStage = function () {
   return new PostProcessStage({
     name: "czm_lens_flare",
     fragmentShader: LensFlare,
