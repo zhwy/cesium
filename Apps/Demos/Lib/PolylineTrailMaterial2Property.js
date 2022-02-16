@@ -26,13 +26,13 @@ function PolylineTrailMaterial2Property(options) {
 
 Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
   isConstant: {
-    get: function() {
+    get: function () {
       return false;
     },
   },
 
   definitionChanged: {
-    get: function() {
+    get: function () {
       return this._definitionChanged;
     },
   },
@@ -40,11 +40,11 @@ Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
   color: Cesium.createPropertyDescriptor("color"),
 });
 
-PolylineTrailMaterial2Property.prototype.getType = function(time) {
+PolylineTrailMaterial2Property.prototype.getType = function (time) {
   return "PolylineTrail2";
 };
 
-PolylineTrailMaterial2Property.prototype.getValue = function(time, result) {
+PolylineTrailMaterial2Property.prototype.getValue = function (time, result) {
   if (!Cesium.defined(result)) {
     result = {};
   }
@@ -66,7 +66,7 @@ PolylineTrailMaterial2Property.prototype.getValue = function(time, result) {
   return result;
 };
 
-PolylineTrailMaterial2Property.prototype.equals = function(other) {
+PolylineTrailMaterial2Property.prototype.equals = function (other) {
   return (
     this === other ||
     (other instanceof PolylineTrailMaterial2Property &&
@@ -93,32 +93,35 @@ Cesium.Material._materialCache.addMaterial(Cesium.Material.PolylineTrailType2, {
 
       repeat: 1,
 
-      length: 1
+      length: 1,
     },
 
-    source: `czm_material czm_getMaterial(czm_materialInput materialInput)    
+    source: `czm_material czm_getMaterial(czm_materialInput materialInput)
 {
 
-    czm_material material = czm_getDefaultMaterial(materialInput); 
+    czm_material material = czm_getDefaultMaterial(materialInput);
 
-    vec2 st = materialInput.st; 
+    vec2 st = materialInput.st;
 
-    float _duration = duration;
+    float _time = ( time - (duration * floor(time / duration) ) ) / duration;
 
-    float _time = ( time - (_duration * floor(time / _duration) ) ) / _duration;
-
-    vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t)); 
+    vec4 colorImage = texture2D(image, vec2(smoothstep(1. - length ,1. ,fract(st.s * repeat - _time * repeat)), st.t));
 
     material.alpha = colorImage.a * color.a;
 
-    material.diffuse = color.rgb; 
+    // 不要渐变
+    // material.alpha = 0.;
+    // if(colorImage.a >= 0.5)
+    //   material.alpha = color.a;
 
-    return material; 
+    material.diffuse = color.rgb;
+
+    return material;
 
 } `,
   },
 
-  translucent: function(material) {
+  translucent: function (material) {
     return true;
   },
 });

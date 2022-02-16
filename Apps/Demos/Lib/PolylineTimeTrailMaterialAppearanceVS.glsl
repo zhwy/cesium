@@ -177,10 +177,6 @@ vec4 getPolylineWindowCoordinates(vec4 position, vec4 previous, vec4 next, float
     return getPolylineWindowCoordinatesEC(positionEC, prevEC, nextEC, expandDirection, width, usePrevious, angle);
 }
 
-
-
-
-
 // PolylineMaterialAppearanceVS.glsl
 attribute vec3 position3DHigh;
 attribute vec3 position3DLow;
@@ -191,10 +187,12 @@ attribute vec3 nextPosition3DLow;
 attribute vec2 expandAndWidth;
 attribute vec2 st;
 attribute float batchId;
+attribute vec4 timeOffset;
 
 varying float v_width;
 varying vec2 v_st;
 varying float v_polylineAngle;
+varying vec4 v_timeOffset;
 
 void main()
 {
@@ -214,5 +212,5 @@ void main()
     v_st.s = st.s;
     v_st.t = czm_writeNonPerspective(st.t, gl_Position.w);
     v_polylineAngle = angle;
-    v_speed = speed;
+    v_timeOffset = timeOffset;
 }
