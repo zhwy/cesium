@@ -9,6 +9,9 @@ import Matrix4 from "../Core/Matrix4.js";
 import PolylineGeometry from "../Core/PolylineGeometry.js";
 import PolylineColorAppearance from "./PolylineColorAppearance.js";
 import Primitive from "./Primitive.js";
+import PolylineMaterialAppearance from "./PolylineMaterialAppearance.js";
+import Material from "./Material.js";
+import ColorGeometryInstanceAttribute from "../Core/ColorGeometryInstanceAttribute.js";
 
 /**
  * Draws the axes of a reference frame defined by a matrix that transforms to world
@@ -33,7 +36,7 @@ import Primitive from "./Primitive.js";
  * @param {Color} [options.xColor=Color.RED] Color for axis x
  * @param {Color} [options.yColor=Color.GREEN] Color for axis y
  * @param {Color} [options.zColor=Color.BLUE] Color for axis z
- * 
+ *
  * @example
  * primitives.add(new Cesium.DebugModelMatrixPrimitiveNew({
  *   modelMatrix : primitive.modelMatrix,  // primitive to debug
@@ -105,7 +108,7 @@ function DebugModelMatrixPrimitiveNew(options) {
 /**
  * @private
  */
-DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
+DebugModelMatrixPrimitiveNew.prototype.update = function (frameState) {
   if (!this.show) {
     return;
   }
@@ -126,7 +129,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
     this._id = this.id;
     this._xColor = this.xColor;
     this._yColor = this.yColor;
-    this._zColor = this.zColor
+    this._zColor = this.zColor;
 
     if (defined(this._primitive)) {
       this._primitive.destroy();
@@ -145,7 +148,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
       geometry: new PolylineGeometry({
         positions: [Cartesian3.ZERO, Cartesian3.UNIT_X],
         width: this.width,
-        vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
+        vertexFormat: PolylineMaterialAppearance.VERTEX_FORMAT,
         colors: [this.xColor, this.xColor],
         arcType: ArcType.NONE,
       }),
@@ -159,12 +162,15 @@ DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
         id: this.id,
       },
       pickPrimitive: this,
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(this.xColor),
+      },
     });
     var y = new GeometryInstance({
       geometry: new PolylineGeometry({
         positions: [Cartesian3.ZERO, Cartesian3.UNIT_Y],
         width: this.width,
-        vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
+        vertexFormat: PolylineMaterialAppearance.VERTEX_FORMAT,
         colors: [this.yColor, this.yColor],
         arcType: ArcType.NONE,
       }),
@@ -178,12 +184,15 @@ DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
         id: this.id,
       },
       pickPrimitive: this,
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(this.yColor),
+      },
     });
     var z = new GeometryInstance({
       geometry: new PolylineGeometry({
         positions: [Cartesian3.ZERO, Cartesian3.UNIT_Z],
         width: this.width,
-        vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
+        vertexFormat: PolylineMaterialAppearance.VERTEX_FORMAT,
         colors: [this.zColor, this.zColor],
         arcType: ArcType.NONE,
       }),
@@ -197,13 +206,18 @@ DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
         id: this.id,
       },
       pickPrimitive: this,
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(this.zColor),
+      },
     });
 
     this._primitive = new Primitive({
       geometryInstances: [x, y, z],
-      appearance: new PolylineColorAppearance(),
+      appearance: new PolylineMaterialAppearance({
+        material: Material.fromType("PolylineArrow"),
+      }),
       asynchronous: false,
-      releaseGeometryInstances: false
+      releaseGeometryInstances: false,
     });
   }
 
@@ -221,7 +235,7 @@ DebugModelMatrixPrimitiveNew.prototype.update = function(frameState) {
  *
  * @see DebugModelMatrixPrimitiveNew#destroy
  */
-DebugModelMatrixPrimitiveNew.prototype.isDestroyed = function() {
+DebugModelMatrixPrimitiveNew.prototype.isDestroyed = function () {
   return false;
 };
 
@@ -241,7 +255,7 @@ DebugModelMatrixPrimitiveNew.prototype.isDestroyed = function() {
  *
  * @see DebugModelMatrixPrimitiveNew#isDestroyed
  */
-DebugModelMatrixPrimitiveNew.prototype.destroy = function() {
+DebugModelMatrixPrimitiveNew.prototype.destroy = function () {
   this._primitive = this._primitive && this._primitive.destroy();
   return destroyObject(this);
 };
