@@ -39,7 +39,7 @@
 
     var totalTime = 10000;
 
-    for (var i = 0; i < 100; i++) {
+    for (var i = 0; i < 2; i++) {
       var lng = 120 + 0.1 * i;
 
       var positions = new Cesium.SampledPositionProperty();
@@ -56,7 +56,7 @@
         endPos
       );
 
-      var hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-90), 0, 0);
+      var hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
       var orientation = Cesium.Transforms.headingPitchRollQuaternion(startPos, hpr);
 
       var line = viewer.entities.add({
@@ -71,7 +71,8 @@
         // },
         model: {
           uri: "../../SampleData/models/CesiumAir/Cesium_Air.glb",
-          scale: 100
+          scale: 100,
+          forwardAxis: Cesium.Axis.X
         },
         position: startPos,
         orientation: orientation

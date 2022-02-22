@@ -105,6 +105,7 @@ function ModelGraphics(options) {
   this._articulationsSubscription = undefined;
   this._clippingPlanes = undefined;
   this._clippingPlanesSubscription = undefined;
+  this._forwardAxis = undefined;
 
   this.merge(defaultValue(options, defaultValue.EMPTY_OBJECT));
 }
@@ -117,7 +118,7 @@ Object.defineProperties(ModelGraphics.prototype, {
    * @readonly
    */
   definitionChanged: {
-    get: function () {
+    get: function() {
       return this._definitionChanged;
     },
   },
@@ -308,6 +309,8 @@ Object.defineProperties(ModelGraphics.prototype, {
    * @type {Property|undefined}
    */
   clippingPlanes: createPropertyDescriptor("clippingPlanes"),
+
+  forwardAxis: createPropertyDescriptor("forwardAxis"),
 });
 
 /**
@@ -316,7 +319,7 @@ Object.defineProperties(ModelGraphics.prototype, {
  * @param {ModelGraphics} [result] The object onto which to store the result.
  * @returns {ModelGraphics} The modified result parameter or a new instance if one was not provided.
  */
-ModelGraphics.prototype.clone = function (result) {
+ModelGraphics.prototype.clone = function(result) {
   if (!defined(result)) {
     return new ModelGraphics(this);
   }
@@ -340,6 +343,7 @@ ModelGraphics.prototype.clone = function (result) {
   result.nodeTransformations = this.nodeTransformations;
   result.articulations = this.articulations;
   result.clippingPlanes = this.clippingPlanes;
+  result.forwardAxis = this.forwardAxis;
   return result;
 };
 
@@ -349,7 +353,7 @@ ModelGraphics.prototype.clone = function (result) {
  *
  * @param {ModelGraphics} source The object to be merged into this object.
  */
-ModelGraphics.prototype.merge = function (source) {
+ModelGraphics.prototype.merge = function(source) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(source)) {
     throw new DeveloperError("source is required.");
@@ -407,6 +411,10 @@ ModelGraphics.prototype.merge = function (source) {
   this.clippingPlanes = defaultValue(
     this.clippingPlanes,
     source.clippingPlanes
+  );
+  this.forwardAxis = defaultValue(
+    this.forwardAxis,
+    source.forwardAxis
   );
 
   const sourceNodeTransformations = source.nodeTransformations;
