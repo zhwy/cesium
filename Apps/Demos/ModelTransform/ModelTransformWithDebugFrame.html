@@ -1,424 +1,426 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>利用坐标轴移动</title>
-    <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>利用坐标轴移动</title>
+  <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
+  <style>
+    @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      #toolbar {
-        background: rgba(42, 42, 42, 0.8);
-        padding: 4px;
-        border-radius: 4px;
-        position: absolute;
-        top: 10px;
-        left: 10px;
-      }
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
 
-      #toolbar input {
-        vertical-align: middle;
-        padding-top: 2px;
-        padding-bottom: 2px;
-      }
+    #toolbar {
+      background: rgba(42, 42, 42, 0.8);
+      padding: 4px;
+      border-radius: 4px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
 
-      .actions {
-        position: absolute;
-        margin: 10px;
-        top: 0;
-        left: 0;
-        z-index: 99;
-      }
-    </style>
-  </head>
+    #toolbar input {
+      vertical-align: middle;
+      padding-top: 2px;
+      padding-bottom: 2px;
+    }
 
-  <body>
-    <div id="cesiumContainer">
-      <div class="actions">
-        <button id="translate">平移</button>
-        <button id="rotate">旋转</button>
-      </div>
+    .actions {
+      position: absolute;
+      margin: 10px;
+      top: 0;
+      left: 0;
+      z-index: 99;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer">
+    <div class="actions">
+      <button id="translate">平移</button>
+      <button id="rotate">旋转</button>
     </div>
-    <script type="module">
-      /* eslint-disable */
-      import * as Cesium from "../../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../../Source";
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+  </div>
+  <script type="module">
+    /* eslint-disable */
+    import * as Cesium from "../../../Source/Cesium.js";
+    import PositionEditor from "./PositionEditor.js";
 
-      enableDropModel();
+    window.CESIUM_BASE_URL = "../../../Source";
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-      let viewer = new Cesium.Viewer("cesiumContainer", {
-        timeline: false,
-        animation: false,
+    enableDropModel();
+
+    let viewer = new Cesium.Viewer("cesiumContainer", {
+      timeline: false,
+      animation: false,
+    });
+    window._viewer = viewer;
+    // viewer.scene.globe.show = false;
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    initEvent();
+
+    //放置到对应位置
+    let orgPos = Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 50);
+
+    let modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+      orgPos,
+      new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(0), 0, 0)
+    );
+
+    let model = viewer.scene.primitives.add(
+      Cesium.Model.fromGltf({
+        url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
+        modelMatrix: modelMatrix,
+        debugShowBoundingVolume: false,
+      })
+    );
+    model.readyPromise.then(function(arg) {
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(
+          116.790876,
+          36.498398,
+          100
+        ),
+        duration: 0,
       });
-      window._viewer = viewer;
-      // viewer.scene.globe.show = false;
-      viewer.scene.globe.depthTestAgainstTerrain = true;
-      initEvent();
+    });
 
-      //放置到对应位置
-      let orgPos = Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 50);
+    let translationFrame = viewer.scene.primitives.add(
+      new PositionEditor({
+        length: 300,
+        modelMatrix: modelMatrix,
+        id: {
+          model: model,
+          type: "translation",
+        },
+        width: 20,
+        show: false,
+      })
+    );
 
-      let modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
-        orgPos,
+    let rotationFrame = viewer.scene.primitives.add(
+      new PositionEditor({
+        length: 300,
+        modelMatrix: modelMatrix,
+        id: {
+          model: model,
+          type: "rotation",
+        },
+        width: 20,
+        show: false,
+      })
+    );
+
+    document.getElementById("translate").onclick = () => {
+      translationFrame.show = true;
+      rotationFrame.show = false;
+      //更新坐标轴
+      let modelPos = Cesium.Matrix4.multiplyByPoint(
+        model.modelMatrix,
+        new Cesium.Cartesian3(),
+        new Cesium.Cartesian3()
+      );
+      let framNewMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+        modelPos,
         new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(0), 0, 0)
       );
+      translationFrame.modelMatrix = framNewMatrix;
+    };
 
-      let model = viewer.scene.primitives.add(
-        Cesium.Model.fromGltf({
-          url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
-          modelMatrix: modelMatrix,
-          debugShowBoundingVolume: false,
-        })
-      );
-      model.readyPromise.then(function (arg) {
-        viewer.camera.setView({
-          destination: Cesium.Cartesian3.fromDegrees(
-            116.790876,
-            36.498398,
-            100
-          ),
-          duration: 0,
-        });
-      });
+    document.getElementById("rotate").onclick = () => {
+      translationFrame.show = false;
+      rotationFrame.show = true;
+      rotationFrame.modelMatrix = model.modelMatrix;
+    };
 
-      let translationFrame = viewer.scene.primitives.add(
-        new Cesium.DebugModelMatrixPrimitiveNew({
-          length: 100,
-          modelMatrix: modelMatrix,
-          id: {
-            model: model,
-            type: "translation",
-          },
-          width: 10,
-          show: false,
-        })
-      );
+    function initEvent() {
+      let handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+      let pickedObject = null;
+      let translateActiveFlag = false;
+      let startXY, startPos, surface;
 
-      let rotationFrame = viewer.scene.primitives.add(
-        new Cesium.DebugModelMatrixPrimitiveNew({
-          length: 100,
-          modelMatrix: modelMatrix,
-          id: {
-            model: model,
-            type: "rotation",
-          },
-          width: 10,
-          show: false,
-        })
-      );
+      let rotateActiveFlag = false;
 
-      document.getElementById("translate").onclick = () => {
-        translationFrame.show = true;
-        rotationFrame.show = false;
-        //更新坐标轴
-        let modelPos = Cesium.Matrix4.multiplyByPoint(
-          model.modelMatrix,
-          new Cesium.Cartesian3(),
-          new Cesium.Cartesian3()
-        );
-        let framNewMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
-          modelPos,
-          new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(0), 0, 0)
-        );
-        translationFrame.modelMatrix = framNewMatrix;
-      };
-
-      document.getElementById("rotate").onclick = () => {
-        translationFrame.show = false;
-        rotationFrame.show = true;
-        rotationFrame.modelMatrix = model.modelMatrix;
-      };
-
-      function initEvent() {
-        let handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
-        let pickedObject = null;
-        let translateActiveFlag = false;
-        let startXY, startPos, surface;
-
-        let rotateActiveFlag = false;
-
-        handler.setInputAction(function (movement) {
-          let picked = viewer.scene.pick(movement.position);
-          if (Cesium.defined(picked)) {
-            console.log(picked);
-            if (
-              picked &&
-              picked.primitive instanceof Cesium.DebugModelMatrixPrimitiveNew
-            ) {
-              if (picked.id.id.type == "translation") {
-                switch (picked.id.axis) {
-                  case "x":
-                    picked.primitive.xColor = Cesium.Color.YELLOW;
-                    break;
-                  case "y":
-                    picked.primitive.yColor = Cesium.Color.YELLOW;
-                    break;
-                  case "z":
-                    picked.primitive.zColor = Cesium.Color.YELLOW;
-                    break;
-                  default:
-                    break;
-                }
-                picked.id.id.model._allowPicking = false;
-                pickedObject = picked;
-                translateActiveFlag = true;
-                startXY = movement.position;
-                surface = viewer.scene.pickPosition(movement.position);
-                // surface = Cesium.Matrix4.multiplyByPoint(
-                //   model.modelMatrix,
-                //   model.boundingSphere.center,
-                //   new Cesium.Cartesian3()
-                // );
-                startPos = Cesium.Cartographic.fromCartesian(surface);
-
-                document.body.style.cursor = "pointer";
-                viewer.scene.screenSpaceCameraController.enableRotate = false; //锁定相机
-                viewer.scene.screenSpaceCameraController.enableTranslate = false;
+      handler.setInputAction(function(movement) {
+        let picked = viewer.scene.pick(movement.position);
+        if (Cesium.defined(picked)) {
+          console.log(picked);
+          if (
+            picked &&
+            picked.primitive instanceof PositionEditor
+          ) {
+            if (picked.id.id.type == "translation") {
+              switch (picked.id.axis) {
+                case "x":
+                  picked.primitive.xColor = Cesium.Color.YELLOW;
+                  break;
+                case "y":
+                  picked.primitive.yColor = Cesium.Color.YELLOW;
+                  break;
+                case "z":
+                  picked.primitive.zColor = Cesium.Color.YELLOW;
+                  break;
+                default:
+                  break;
               }
-              if (picked.id.id.type == "rotation") {
-                surface = viewer.scene.pickPosition(movement.position);
-                switch (picked.id.axis) {
-                  case "x":
-                    picked.primitive.xColor = Cesium.Color.YELLOW;
-                    break;
-                  case "y":
-                    picked.primitive.yColor = Cesium.Color.YELLOW;
-                    break;
-                  case "z":
-                    picked.primitive.zColor = Cesium.Color.YELLOW;
-                    break;
-                  default:
-                    break;
-                }
-                picked.id.id.model._allowPicking = false;
-                pickedObject = picked;
-                rotateActiveFlag = true;
+              picked.id.id.model._allowPicking = false;
+              pickedObject = picked;
+              translateActiveFlag = true;
+              startXY = movement.position;
+              surface = viewer.scene.pickPosition(movement.position);
+              // surface = Cesium.Matrix4.multiplyByPoint(
+              //   model.modelMatrix,
+              //   model.boundingSphere.center,
+              //   new Cesium.Cartesian3()
+              // );
+              startPos = Cesium.Cartographic.fromCartesian(surface);
 
-                document.body.style.cursor = "pointer";
-                viewer.scene.screenSpaceCameraController.enableRotate = false; //锁定相机
-                viewer.scene.screenSpaceCameraController.enableTranslate = false;
-              }
-            } else {
-              if (pickedObject) pickedObject.id.id.model._allowPicking = false;
-              pickedObject = null;
+              document.body.style.cursor = "pointer";
+              viewer.scene.screenSpaceCameraController.enableRotate = false; //锁定相机
+              viewer.scene.screenSpaceCameraController.enableTranslate = false;
             }
-          }
-        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+            if (picked.id.id.type == "rotation") {
+              surface = viewer.scene.pickPosition(movement.position);
+              switch (picked.id.axis) {
+                case "x":
+                  picked.primitive.xColor = Cesium.Color.YELLOW;
+                  break;
+                case "y":
+                  picked.primitive.yColor = Cesium.Color.YELLOW;
+                  break;
+                case "z":
+                  picked.primitive.zColor = Cesium.Color.YELLOW;
+                  break;
+                default:
+                  break;
+              }
+              picked.id.id.model._allowPicking = false;
+              pickedObject = picked;
+              rotateActiveFlag = true;
 
-        handler.setInputAction(function () {
-          translateActiveFlag = false;
-          rotateActiveFlag = false;
-          if (pickedObject) {
-            pickedObject.id.id.model._allowPicking = true;
-            pickedObject.primitive.xColor = Cesium.Color.RED;
-            pickedObject.primitive.yColor = Cesium.Color.GREEN;
-            pickedObject.primitive.zColor = Cesium.Color.BLUE;
+              document.body.style.cursor = "pointer";
+              viewer.scene.screenSpaceCameraController.enableRotate = false; //锁定相机
+              viewer.scene.screenSpaceCameraController.enableTranslate = false;
+            }
+          } else {
+            if (pickedObject) pickedObject.id.id.model._allowPicking = false;
             pickedObject = null;
           }
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-          document.body.style.cursor = "default";
-          viewer.scene.screenSpaceCameraController.enableRotate = true;
-          viewer.scene.screenSpaceCameraController.enableTranslate = true;
-        }, Cesium.ScreenSpaceEventType.LEFT_UP);
+      handler.setInputAction(function() {
+        translateActiveFlag = false;
+        rotateActiveFlag = false;
+        if (pickedObject) {
+          pickedObject.id.id.model._allowPicking = true;
+          pickedObject.primitive.xColor = Cesium.Color.RED;
+          pickedObject.primitive.yColor = Cesium.Color.GREEN;
+          pickedObject.primitive.zColor = Cesium.Color.BLUE;
+          pickedObject = null;
+        }
 
-        handler.setInputAction(function (movement) {
-          if (translateActiveFlag && pickedObject) {
-            let frame = pickedObject.primitive;
+        document.body.style.cursor = "default";
+        viewer.scene.screenSpaceCameraController.enableRotate = true;
+        viewer.scene.screenSpaceCameraController.enableTranslate = true;
+      }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
-            let ray = viewer.camera.getPickRay(movement.startPosition);
-            let cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+      handler.setInputAction(function(movement) {
+        if (translateActiveFlag && pickedObject) {
+          let frame = pickedObject.primitive;
 
-            if (cartesian) {
-              let toPos = Cesium.Cartographic.fromCartesian(cartesian);
-              let cameraDistance = Cesium.Cartesian3.distance(
-                surface,
-                viewer.camera.position
-              );
-              if (pickedObject.id.axis == "x") {
-                toPos.latitude = startPos.latitude;
-                let geodesic = new Cesium.EllipsoidGeodesic(startPos, toPos);
-                let distance = Cesium.Cartesian2.distance(
-                  new Cesium.Cartesian2(
-                    movement.startPosition.x,
-                    movement.startPosition.y
-                  ),
-                  new Cesium.Cartesian2(
-                    movement.endPosition.x,
-                    movement.endPosition.y
-                  )
-                );
-                geodesic.interpolateUsingSurfaceDistance(
-                  (distance * cameraDistance) / 1000,
-                  toPos
-                );
-                toPos.height = startPos.height;
-              } else if (pickedObject.id.axis == "y") {
-                toPos.longitude = startPos.longitude;
-                let geodesic = new Cesium.EllipsoidGeodesic(startPos, toPos);
-                let distance = Cesium.Cartesian2.distance(
-                  new Cesium.Cartesian2(
-                    movement.startPosition.x,
-                    movement.startPosition.y
-                  ),
-                  new Cesium.Cartesian2(
-                    movement.endPosition.x,
-                    movement.endPosition.y
-                  )
-                );
-                geodesic.interpolateUsingSurfaceDistance(
-                  (distance * cameraDistance) / 1000,
-                  toPos
-                );
-                toPos.height = startPos.height;
-              } else if (pickedObject.id.axis == "z") {
-                toPos.latitude = startPos.latitude;
-                toPos.longitude = startPos.longitude;
-                let distance =
-                  movement.startPosition.y - movement.endPosition.y;
-                toPos.height =
-                  startPos.height + (distance * cameraDistance) / 1000;
-              }
+          let ray = viewer.camera.getPickRay(movement.startPosition);
+          let cartesian = viewer.scene.globe.pick(ray, viewer.scene);
 
-              cartesian = Cesium.Cartographic.toCartesian(toPos);
-
-              let translation = Cesium.Cartesian3.subtract(
-                cartesian,
-                surface,
-                new Cesium.Cartesian3()
-              );
-
-              let tmp = Cesium.Matrix4.add(
-                frame.modelMatrix,
-                Cesium.Matrix4.fromTranslation(translation),
-                new Cesium.Matrix4()
-              );
-
-              frame.modelMatrix[12] = tmp[12];
-              frame.modelMatrix[13] = tmp[13];
-              frame.modelMatrix[14] = tmp[14];
-              model.modelMatrix[12] = tmp[12];
-              model.modelMatrix[13] = tmp[13];
-              model.modelMatrix[14] = tmp[14];
-              // console.log("move", {
-              //   lng: Cesium.Math.toDegrees(cartographic.longitude),
-              //   lat: Cesium.Math.toDegrees(cartographic.latitude),
-              // })
-
-              startXY = movement.startPosition;
-              surface = viewer.scene.pickPosition(movement.startPosition);
-              startPos = Cesium.Cartographic.fromCartesian(surface);
-            }
-          }
-          if (rotateActiveFlag && pickedObject) {
+          if (cartesian) {
+            let toPos = Cesium.Cartographic.fromCartesian(cartesian);
             let cameraDistance = Cesium.Cartesian3.distance(
               surface,
               viewer.camera.position
             );
-            let m3 = new Cesium.Matrix3();
-            switch (pickedObject.id.axis) {
-              case "x":
-                m3 = Cesium.Matrix3.fromRotationX(
-                  Cesium.Math.toRadians(
-                    ((movement.startPosition.x - movement.endPosition.x) *
-                      cameraDistance) /
-                      1000
-                  )
-                );
-                break;
-              case "y":
-                m3 = Cesium.Matrix3.fromRotationY(
-                  Cesium.Math.toRadians(
-                    ((movement.startPosition.x - movement.endPosition.x) *
-                      cameraDistance) /
-                      1000
-                  )
-                );
-                break;
-              case "z":
-                m3 = Cesium.Matrix3.fromRotationZ(
-                  Cesium.Math.toRadians(
-                    ((movement.endPosition.x - movement.startPosition.x) *
-                      cameraDistance) /
-                      1000
-                  )
-                );
-                break;
-              default:
-                break;
+            if (pickedObject.id.axis == "x") {
+              toPos.latitude = startPos.latitude;
+              let geodesic = new Cesium.EllipsoidGeodesic(startPos, toPos);
+              let distance = Cesium.Cartesian2.distance(
+                new Cesium.Cartesian2(
+                  movement.startPosition.x,
+                  movement.startPosition.y
+                ),
+                new Cesium.Cartesian2(
+                  movement.endPosition.x,
+                  movement.endPosition.y
+                )
+              );
+              geodesic.interpolateUsingSurfaceDistance(
+                (distance * cameraDistance) / 1000,
+                toPos
+              );
+              toPos.height = startPos.height;
+            } else if (pickedObject.id.axis == "y") {
+              toPos.longitude = startPos.longitude;
+              let geodesic = new Cesium.EllipsoidGeodesic(startPos, toPos);
+              let distance = Cesium.Cartesian2.distance(
+                new Cesium.Cartesian2(
+                  movement.startPosition.x,
+                  movement.startPosition.y
+                ),
+                new Cesium.Cartesian2(
+                  movement.endPosition.x,
+                  movement.endPosition.y
+                )
+              );
+              geodesic.interpolateUsingSurfaceDistance(
+                (distance * cameraDistance) / 1000,
+                toPos
+              );
+              toPos.height = startPos.height;
+            } else if (pickedObject.id.axis == "z") {
+              toPos.latitude = startPos.latitude;
+              toPos.longitude = startPos.longitude;
+              let distance =
+                movement.startPosition.y - movement.endPosition.y;
+              toPos.height =
+                startPos.height + (distance * cameraDistance) / 1000;
             }
-            let model = pickedObject.id.id.model,
-              frame = pickedObject.primitive;
-            model.modelMatrix = Cesium.Matrix4.multiplyByMatrix3(
-              model.modelMatrix,
-              m3,
+
+            cartesian = Cesium.Cartographic.toCartesian(toPos);
+
+            let translation = Cesium.Cartesian3.subtract(
+              cartesian,
+              surface,
+              new Cesium.Cartesian3()
+            );
+
+            let tmp = Cesium.Matrix4.add(
+              frame.modelMatrix,
+              Cesium.Matrix4.fromTranslation(translation),
               new Cesium.Matrix4()
             );
-            frame.modelMatrix = model.modelMatrix;
+
+            frame.modelMatrix[12] = tmp[12];
+            frame.modelMatrix[13] = tmp[13];
+            frame.modelMatrix[14] = tmp[14];
+            model.modelMatrix[12] = tmp[12];
+            model.modelMatrix[13] = tmp[13];
+            model.modelMatrix[14] = tmp[14];
+            // console.log("move", {
+            //   lng: Cesium.Math.toDegrees(cartographic.longitude),
+            //   lat: Cesium.Math.toDegrees(cartographic.latitude),
+            // })
+
+            startXY = movement.startPosition;
+            surface = viewer.scene.pickPosition(movement.startPosition);
+            startPos = Cesium.Cartographic.fromCartesian(surface);
           }
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+        }
+        if (rotateActiveFlag && pickedObject) {
+          let cameraDistance = Cesium.Cartesian3.distance(
+            surface,
+            viewer.camera.position
+          );
+          let m3 = new Cesium.Matrix3();
+          switch (pickedObject.id.axis) {
+            case "x":
+              m3 = Cesium.Matrix3.fromRotationX(
+                Cesium.Math.toRadians(
+                  ((movement.startPosition.x - movement.endPosition.x) *
+                    cameraDistance) /
+                  1000
+                )
+              );
+              break;
+            case "y":
+              m3 = Cesium.Matrix3.fromRotationY(
+                Cesium.Math.toRadians(
+                  ((movement.startPosition.x - movement.endPosition.x) *
+                    cameraDistance) /
+                  1000
+                )
+              );
+              break;
+            case "z":
+              m3 = Cesium.Matrix3.fromRotationZ(
+                Cesium.Math.toRadians(
+                  ((movement.endPosition.x - movement.startPosition.x) *
+                    cameraDistance) /
+                  1000
+                )
+              );
+              break;
+            default:
+              break;
+          }
+          let model = pickedObject.id.id.model,
+            frame = pickedObject.primitive;
+          model.modelMatrix = Cesium.Matrix4.multiplyByMatrix3(
+            model.modelMatrix,
+            m3,
+            new Cesium.Matrix4()
+          );
+          frame.modelMatrix = model.modelMatrix;
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    }
+
+    function enableDropModel() {
+      let dragModel;
+      function allowDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      function drop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        let df = e.dataTransfer;
+        let dropFiles = []; // 存放拖拽的文件对象
+        let reader = new FileReader();
+        debugger;
+        reader.readAsArrayBuffer(df.files[0]);
+        reader.onload = (res) => {
+          let width = getComputedStyle(viewer.container).width;
+          let height = getComputedStyle(_viewer.container).height;
+          width = Number(width.slice(0, -2));
+          height = Number(height.slice(0, -2));
+          let pos = viewer.scene.pickPosition({
+            x: width / 2,
+            y: height / 2,
+          });
+          let m = Cesium.Transforms.headingPitchRollToFixedFrame(
+            pos,
+            new Cesium.HeadingPitchRoll(0, 0, 0)
+          );
+          dragModel = new Cesium.Model({
+            gltf: reader.result,
+            modelMatrix: m,
+          });
+          viewer.scene.primitives.add(dragModel);
+        };
       }
 
-      function enableDropModel() {
-        let dragModel;
-        function allowDrop(e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        function drop(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          let df = e.dataTransfer;
-          let dropFiles = []; // 存放拖拽的文件对象
-          let reader = new FileReader();
-          debugger;
-          reader.readAsArrayBuffer(df.files[0]);
-          reader.onload = (res) => {
-            let width = getComputedStyle(viewer.container).width;
-            let height = getComputedStyle(_viewer.container).height;
-            width = Number(width.slice(0, -2));
-            height = Number(height.slice(0, -2));
-            let pos = viewer.scene.pickPosition({
-              x: width / 2,
-              y: height / 2,
-            });
-            let m = Cesium.Transforms.headingPitchRollToFixedFrame(
-              pos,
-              new Cesium.HeadingPitchRoll(0, 0, 0)
-            );
-            dragModel = new Cesium.Model({
-              gltf: reader.result,
-              modelMatrix: m,
-            });
-            viewer.scene.primitives.add(dragModel);
-          };
-        }
+      let container = document.getElementById("cesiumContainer");
+      container.ondragenter = allowDrop;
+      container.ondragover = allowDrop;
+      container.ondragleave = allowDrop;
+      container.ondrop = drop;
+    }
+  </script>
+</body>
 
-        let container = document.getElementById("cesiumContainer");
-        container.ondragenter = allowDrop;
-        container.ondragover = allowDrop;
-        container.ondragleave = allowDrop;
-        container.ondrop = drop;
-      }
-    </script>
-  </body>
 </html>
