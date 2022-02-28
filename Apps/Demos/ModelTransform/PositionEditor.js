@@ -75,6 +75,13 @@ const EditType = {
   SCALE: 2,
 };
 
+const getScaleFromTransform = function(m) {
+  const scalex = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+  const scaley = Math.sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]);
+  const scalez = Math.sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
+  return [scalex, scaley, scalez];
+}
+
 /**
  *
  *
@@ -174,7 +181,7 @@ function PositionEditor(options) {
   const viewer = this.viewer;
   let pickedObject = null;
 
-  this.handler.setInputAction(function (movement) {
+  this.handler.setInputAction(function(movement) {
     const picked = viewer.scene.pick(movement.position);
     if (Cesium.defined(picked)) {
       // console.log(picked);
@@ -192,7 +199,7 @@ function PositionEditor(options) {
     }
   }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-  this.handler.setInputAction(function () {
+  this.handler.setInputAction(function() {
     if (pickedObject) {
       // me.item._allowPicking = true;
       pickedObject.primitive.xColor = Cesium.Color.RED;
@@ -205,7 +212,7 @@ function PositionEditor(options) {
     viewer.scene.screenSpaceCameraController.enableTranslate = true;
   }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
-  this.handler.setInputAction(function (movement) {
+  this.handler.setInputAction(function(movement) {
     if (!pickedObject) {
       const hovered = viewer.scene.pick(movement.endPosition);
       if (Cesium.defined(hovered) && hovered.primitive === me) {
@@ -421,7 +428,8 @@ function PositionEditor(options) {
       );
 
       if (me.item) {
-        me.item.modelMatrix = me.modelMatrix.clone();
+        const scaleValue = getScaleFromTransform(me.item.modelMatrix);
+        Cesium.Matrix4.multiply(me.modelMatrix, Cesium.Matrix4.fromScale(new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])), me.item.modelMatrix);
       }
     } else if (me.type === EditType.SCALE) {
       const scaleMatrix = new Cesium.Matrix4();
@@ -448,11 +456,11 @@ function PositionEditor(options) {
           );
           Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
 
-          const scale =
+          const scalex =
             Cesium.Cartesian2.cross(direction, mouseDirection) > 0 ? 1.1 : 0.9;
 
           Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(scale, 1, 1),
+            new Cesium.Cartesian3(scalex, 1, 1),
             scaleMatrix
           );
 
@@ -471,11 +479,11 @@ function PositionEditor(options) {
           );
           Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
 
-          const scale =
+          const scaley =
             Cesium.Cartesian2.cross(direction, mouseDirection) > 0 ? 1.1 : 0.9;
 
           Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(1, scale, 1),
+            new Cesium.Cartesian3(1, scaley, 1),
             scaleMatrix
           );
           break;
@@ -493,11 +501,11 @@ function PositionEditor(options) {
           );
           Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
 
-          const scale =
+          const scalez =
             Cesium.Cartesian2.cross(direction, mouseDirection) > 0 ? 1.1 : 0.9;
 
           Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(1, 1, scale),
+            new Cesium.Cartesian3(1, 1, scalez),
             scaleMatrix
           );
           break;
@@ -583,7 +591,7 @@ function getScale(model, frameState) {
 /**
  * @private
  */
-PositionEditor.prototype.update = function (frameState) {
+PositionEditor.prototype.update = function(frameState) {
   if (!this.show) {
     return;
   }
@@ -609,7 +617,19 @@ PositionEditor.prototype.update = function (frameState) {
         this.type === EditType.ROTATE ||
         this.type === EditType.SCALE
       ) {
-        this.modelMatrix = this.item.modelMatrix.clone();
+        const m = this.item.modelMatrix.clone();
+        const scale = getScaleFromTransform(m);
+
+        m[0] /= scale[0];
+        m[1] /= scale[0];
+        m[2] /= scale[0];
+        m[4] /= scale[1];
+        m[5] /= scale[1];
+        m[6] /= scale[1];
+        m[8] /= scale[2];
+        m[9] /= scale[2];
+        m[10] /= scale[2]
+        this.modelMatrix = m;
       }
     }
 
@@ -784,7 +804,7 @@ PositionEditor.prototype.update = function (frameState) {
  *
  * @see PositionEditor#destroy
  */
-PositionEditor.prototype.isDestroyed = function () {
+PositionEditor.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -804,7 +824,7 @@ PositionEditor.prototype.isDestroyed = function () {
  *
  * @see PositionEditor#isDestroyed
  */
-PositionEditor.prototype.destroy = function () {
+PositionEditor.prototype.destroy = function() {
   this._primitive = this._primitive && this._primitive.destroy();
   return Cesium.destroyObject(this);
 };
