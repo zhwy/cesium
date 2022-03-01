@@ -75,12 +75,82 @@ const EditType = {
   SCALE: 2,
 };
 
-const getScaleFromTransform = function(m) {
+const getScaleFromTransform = function (m) {
   const scalex = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
   const scaley = Math.sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]);
   const scalez = Math.sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
   return [scalex, scaley, scalez];
+};
+
+const scaleMaterial = new Cesium.Material({
+  fabric: {
+    uniforms: {
+      color: Cesium.Color.WHITE,
+    },
+    source: `
+      #ifdef GL_OES_standard_derivatives
+#extension GL_OES_standard_derivatives : enable
+#endif
+
+uniform vec4 color;
+
+czm_material czm_getMaterial(czm_materialInput materialInput)
+{
+    czm_material material = czm_getDefaultMaterial(materialInput);
+
+    vec2 st = materialInput.st;
+
+#ifdef GL_OES_standard_derivatives
+    float base = 1.0 - abs(fwidth(st.s)) * 10.0 * czm_pixelRatio;
+#else
+    float base = 0.975; // 2.5% of the line will be the arrow head
+#endif
+
+    vec2 center = vec2(1.0, 0.5);
+    float ptOnUpperLine = 1.0;
+    float ptOnLowerLine = 0.0;
+
+    float halfWidth = 0.15;
+    float s = step(0.5 - halfWidth, st.t);
+    s *= 1.0 - step(0.5 + halfWidth, st.t);
+    s *= 1.0 - step(base, st.s);
+
+    float t = step(base, materialInput.st.s);
+    t *= 1.0 - step(ptOnUpperLine, st.t);
+    t *= step(ptOnLowerLine, st.t);
+
+    // Find the distance from the closest separator (region between two colors)
+    float dist;
+    if (st.s < base)
+    {
+        float d1 = abs(st.t - (0.5 - halfWidth));
+        float d2 = abs(st.t - (0.5 + halfWidth));
+        dist = min(d1, d2);
+    }
+    else
+    {
+        float d1 = czm_infinity;
+        if (st.t < 0.5 - halfWidth && st.t > 0.5 + halfWidth)
+        {
+            d1 = abs(st.s - base);
+        }
+        float d2 = abs(st.t - ptOnUpperLine);
+        float d3 = abs(st.t - ptOnLowerLine);
+        dist = min(min(d1, d2), d3);
+    }
+
+    vec4 outsideColor = vec4(0.0);
+    vec4 currentColor = mix(outsideColor, color, clamp(s + t, 0.0, 1.0));
+    vec4 outColor = czm_antialias(outsideColor, color, currentColor, dist);
+
+    outColor = czm_gammaCorrect(outColor);
+    material.diffuse = outColor.rgb;
+    material.alpha = outColor.a;
+    return material;
 }
+`,
+  },
+});
 
 /**
  *
@@ -181,7 +251,7 @@ function PositionEditor(options) {
   const viewer = this.viewer;
   let pickedObject = null;
 
-  this.handler.setInputAction(function(movement) {
+  this.handler.setInputAction(function (movement) {
     const picked = viewer.scene.pick(movement.position);
     if (Cesium.defined(picked)) {
       // console.log(picked);
@@ -199,7 +269,7 @@ function PositionEditor(options) {
     }
   }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-  this.handler.setInputAction(function() {
+  this.handler.setInputAction(function () {
     if (pickedObject) {
       // me.item._allowPicking = true;
       pickedObject.primitive.xColor = Cesium.Color.RED;
@@ -212,7 +282,7 @@ function PositionEditor(options) {
     viewer.scene.screenSpaceCameraController.enableTranslate = true;
   }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
-  this.handler.setInputAction(function(movement) {
+  this.handler.setInputAction(function (movement) {
     if (!pickedObject) {
       const hovered = viewer.scene.pick(movement.endPosition);
       if (Cesium.defined(hovered) && hovered.primitive === me) {
@@ -429,7 +499,13 @@ function PositionEditor(options) {
 
       if (me.item) {
         const scaleValue = getScaleFromTransform(me.item.modelMatrix);
-        Cesium.Matrix4.multiply(me.modelMatrix, Cesium.Matrix4.fromScale(new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])), me.item.modelMatrix);
+        Cesium.Matrix4.multiply(
+          me.modelMatrix,
+          Cesium.Matrix4.fromScale(
+            new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])
+          ),
+          me.item.modelMatrix
+        );
       }
     } else if (me.type === EditType.SCALE) {
       const scaleMatrix = new Cesium.Matrix4();
@@ -457,7 +533,7 @@ function PositionEditor(options) {
           Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
 
           const scalex =
-            Cesium.Cartesian2.cross(direction, mouseDirection) > 0 ? 1.1 : 0.9;
+            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
 
           Cesium.Matrix4.fromScale(
             new Cesium.Cartesian3(scalex, 1, 1),
@@ -480,7 +556,7 @@ function PositionEditor(options) {
           Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
 
           const scaley =
-            Cesium.Cartesian2.cross(direction, mouseDirection) > 0 ? 1.1 : 0.9;
+            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
 
           Cesium.Matrix4.fromScale(
             new Cesium.Cartesian3(1, scaley, 1),
@@ -502,7 +578,7 @@ function PositionEditor(options) {
           Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
 
           const scalez =
-            Cesium.Cartesian2.cross(direction, mouseDirection) > 0 ? 1.1 : 0.9;
+            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
 
           Cesium.Matrix4.fromScale(
             new Cesium.Cartesian3(1, 1, scalez),
@@ -591,7 +667,7 @@ function getScale(model, frameState) {
 /**
  * @private
  */
-PositionEditor.prototype.update = function(frameState) {
+PositionEditor.prototype.update = function (frameState) {
   if (!this.show) {
     return;
   }
@@ -628,7 +704,7 @@ PositionEditor.prototype.update = function(frameState) {
         m[6] /= scale[1];
         m[8] /= scale[2];
         m[9] /= scale[2];
-        m[10] /= scale[2]
+        m[10] /= scale[2];
         this.modelMatrix = m;
       }
     }
@@ -671,6 +747,9 @@ PositionEditor.prototype.update = function(frameState) {
       xpoints = [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_X];
       ypoints = [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_Y];
       zpoints = [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_Z];
+      if (this.type === EditType.SCALE) {
+        material = scaleMaterial;
+      }
     } else if (this.type === EditType.ROTATE) {
       material = Cesium.Material.fromType("Color", {
         color: Cesium.Color.WHITE,
@@ -804,7 +883,7 @@ PositionEditor.prototype.update = function(frameState) {
  *
  * @see PositionEditor#destroy
  */
-PositionEditor.prototype.isDestroyed = function() {
+PositionEditor.prototype.isDestroyed = function () {
   return false;
 };
 
@@ -824,7 +903,7 @@ PositionEditor.prototype.isDestroyed = function() {
  *
  * @see PositionEditor#isDestroyed
  */
-PositionEditor.prototype.destroy = function() {
+PositionEditor.prototype.destroy = function () {
   this._primitive = this._primitive && this._primitive.destroy();
   return Cesium.destroyObject(this);
 };
