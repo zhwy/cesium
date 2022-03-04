@@ -1,6 +1,7 @@
 import * as Cesium from "../../../Source/Cesium.js";
 import PolylineCommon from "./PolylineCommon.js";
 
+// rewrite the shaders to make PolylineMaterialAppearance accept per-instance color attribute
 const vs = `${PolylineCommon}
 attribute vec3 position3DHigh;
 attribute vec3 position3DLow;
@@ -73,15 +74,17 @@ const EditType = {
   TRANSLATE: 0,
   ROTATE: 1,
   SCALE: 2,
+  UNIFORM_SCALE: 3,
 };
 
-const getScaleFromTransform = function (m) {
+function getScaleFromTransform(m) {
   const scalex = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
   const scaley = Math.sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]);
   const scalez = Math.sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
   return [scalex, scaley, scalez];
-};
+}
 
+// modified from PolylineArrowMaterial.glsl, change the arrow to a rectangle
 const scaleMaterial = new Cesium.Material({
   fabric: {
     uniforms: {
@@ -152,6 +155,452 @@ czm_material czm_getMaterial(czm_materialInput materialInput)
   },
 });
 
+function addMouseEvent(handler, viewer, scope) {
+  let pickedObject = null;
+
+  handler.setInputAction(function (movement) {
+    const picked = viewer.scene.pick(movement.position);
+    if (Cesium.defined(picked)) {
+      // console.log(picked);
+      if (picked.primitive === scope) {
+        // scope.item._allowPicking = false;
+        pickedObject = picked;
+        viewer.scene.screenSpaceCameraController.enableRotate = false; // lock default map control
+        viewer.scene.screenSpaceCameraController.enableTranslate = false;
+        if (typeof scope.onDragStart === "function") {
+          scope.onDragStart();
+        }
+      } else {
+        // if (pickedObject) scope.item._allowPicking = false;
+        pickedObject = null;
+        viewer.scene.screenSpaceCameraController.enableRotate = true; // release default map control
+        viewer.scene.screenSpaceCameraController.enableTranslate = true;
+      }
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+  handler.setInputAction(function () {
+    if (pickedObject) {
+      // scope.item._allowPicking = true;
+      pickedObject.primitive.xColor = Cesium.Color.RED;
+      pickedObject.primitive.yColor = Cesium.Color.GREEN;
+      pickedObject.primitive.zColor = Cesium.Color.BLUE;
+      pickedObject = null;
+      if (typeof scope.onDragEnd === "function") {
+        scope.onDragEnd();
+      }
+    }
+
+    viewer.scene.screenSpaceCameraController.enableRotate = true; // release default map control
+    viewer.scene.screenSpaceCameraController.enableTranslate = true;
+  }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+  handler.setInputAction(function (movement) {
+    if (!pickedObject) {
+      const hovered = viewer.scene.pick(movement.endPosition);
+
+      // highlight the hovered axis
+      if (Cesium.defined(hovered) && hovered.primitive === scope) {
+        if (scope.type === EditType.UNIFORM_SCALE) {
+          viewer.canvas.style.cursor = "pointer";
+          scope.xColor = scope._highlightColor;
+          scope.yColor = scope._highlightColor;
+          scope.zColor = scope._highlightColor;
+        } else {
+          switch (hovered.id.axis) {
+            case "x":
+              scope.xColor = scope._highlightColor;
+              scope.yColor = scope._yOriginColor;
+              scope.zColor = scope._zOriginColor;
+              viewer.canvas.style.cursor = "pointer";
+              break;
+            case "y":
+              scope.yColor = scope._highlightColor;
+              scope.xColor = scope._xOriginColor;
+              scope.zColor = scope._zOriginColor;
+              viewer.canvas.style.cursor = "pointer";
+              break;
+            case "z":
+              scope.zColor = scope._highlightColor;
+              scope.xColor = scope._xOriginColor;
+              scope.yColor = scope._yOriginColor;
+              viewer.canvas.style.cursor = "pointer";
+              break;
+            default:
+              scope.xColor = scope._xOriginColor;
+              scope.yColor = scope._yOriginColor;
+              scope.zColor = scope._zOriginColor;
+              viewer.canvas.style.cursor = "default";
+              break;
+          }
+        }
+      } else {
+        viewer.canvas.style.cursor = "default";
+        scope.xColor = scope._xOriginColor;
+        scope.yColor = scope._yOriginColor;
+        scope.zColor = scope._zOriginColor;
+      }
+
+      return;
+    }
+
+    const m = scope.modelMatrix;
+    const origin = new Cesium.Cartesian3(m[12], m[13], m[14]); // item's cartesian coordinates
+    const transform = Cesium.Transforms.eastNorthUpToFixedFrame(origin); // east, north, up is the positive direction of x, y, z axis
+    // coords on the canvas
+    const windowOrigin = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
+      viewer.scene,
+      origin,
+      new Cesium.Cartesian2()
+    );
+    // the mouse's movement direction
+    const mouseDirection = new Cesium.Cartesian2(
+      movement.endPosition.x - movement.startPosition.x,
+      movement.endPosition.y - movement.startPosition.y
+    );
+
+    const minimumScale = 0.001;
+
+    if (scope.type === EditType.TRANSLATE) {
+      const translation = new Cesium.Matrix4(); // the translation matrix
+      const targetPoint = new Cesium.Cartesian3(); // new point after translating
+      const transVector = new Cesium.Cartesian3(); // the translation vector
+
+      switch (pickedObject.id.axis) {
+        case "x":
+          Cesium.Matrix4.multiplyByPoint(
+            transform,
+            Cesium.Cartesian3.UNIT_X,
+            targetPoint
+          );
+          break;
+        case "y":
+          Cesium.Matrix4.multiplyByPoint(
+            transform,
+            Cesium.Cartesian3.UNIT_Y,
+            targetPoint
+          );
+          break;
+        case "z":
+          Cesium.Matrix4.multiplyByPoint(
+            transform,
+            Cesium.Cartesian3.UNIT_Z,
+            targetPoint
+          );
+          break;
+        default:
+          break;
+      }
+
+      Cesium.Cartesian3.subtract(targetPoint, origin, transVector); // the same as Cesium.Matrix4.multiplyByVector(transform, AXIS_UNIT_VECTOR, result)
+
+      // target coords on the canvas
+      const windowEnd = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
+        viewer.scene,
+        targetPoint,
+        new Cesium.Cartesian2()
+      );
+
+      // the axis' direction on the canvas
+      const direction = Cesium.Cartesian2.subtract(
+        windowEnd,
+        windowOrigin,
+        new Cesium.Cartesian2()
+      );
+
+      // whether the mouse is moving in the positive direction of the axis
+      const angle = Cesium.Cartesian2.angleBetween(mouseDirection, direction);
+      const isMouseMoveInPositive = angle < Cesium.Math.PI_OVER_TWO ? 1 : -1;
+
+      const movePixelsAlongAxis =
+        Cesium.Cartesian2.magnitude(mouseDirection) * Math.abs(Math.cos(angle));
+
+      const metersPerPixel = viewer.camera.getPixelSize(
+        new Cesium.BoundingSphere(
+          origin,
+          Cesium.Cartesian3.magnitude(transVector)
+        ),
+        viewer.canvas.width,
+        viewer.canvas.height
+      );
+
+      Cesium.Matrix4.fromTranslation(
+        Cesium.Cartesian3.multiplyByScalar(
+          transVector,
+          isMouseMoveInPositive * metersPerPixel * movePixelsAlongAxis,
+          new Cesium.Cartesian3()
+        ),
+        translation
+      );
+
+      const tmp = Cesium.Matrix4.multiply(
+        translation,
+        scope.modelMatrix,
+        new Cesium.Matrix4()
+      );
+
+      // apply translation
+      scope.modelMatrix[12] = tmp[12];
+      scope.modelMatrix[13] = tmp[13];
+      scope.modelMatrix[14] = tmp[14];
+
+      const item = scope.item;
+      if (item) {
+        item.modelMatrix[12] = tmp[12];
+        item.modelMatrix[13] = tmp[13];
+        item.modelMatrix[14] = tmp[14];
+
+        if (typeof scope.onDragMoving === "function") {
+          scope.onDragMoving({
+            type: EditType.TRANSLATE,
+            result: new Cesium.Cartesian3(tmp[12], tmp[13], tmp[14]),
+          });
+        }
+      }
+    } else if (scope.type === EditType.ROTATE) {
+      const startVector = Cesium.Cartesian2.subtract(
+        new Cesium.Cartesian2(
+          movement.startPosition.x,
+          movement.startPosition.y
+        ),
+        windowOrigin,
+        new Cesium.Cartesian2()
+      );
+      const endVector = Cesium.Cartesian2.subtract(
+        new Cesium.Cartesian2(movement.endPosition.x, movement.endPosition.y),
+        windowOrigin,
+        new Cesium.Cartesian2()
+      );
+
+      // get the mouse movement direction
+      const isCounterClockWise =
+        Cesium.Cartesian2.cross(startVector, endVector) < 0 ? 1 : -1; // y axis is downwards on the canvas
+      let isCameraOnPositiveAxis;
+      const angle = Cesium.Cartesian2.angleBetween(startVector, endVector);
+      const org2Camera = Cesium.Cartesian3.subtract(
+        viewer.scene.camera.position,
+        origin,
+        new Cesium.Cartesian3()
+      );
+
+      const rotation = new Cesium.Matrix3();
+
+      const axis = new Cesium.Cartesian3();
+
+      switch (pickedObject.id.axis) {
+        case "x":
+          Cesium.Matrix4.multiplyByPointAsVector(
+            scope.modelMatrix,
+            Cesium.Cartesian3.UNIT_X,
+            axis
+          );
+          isCameraOnPositiveAxis =
+            Cesium.Cartesian3.dot(axis, org2Camera) > 0 ? 1 : -1;
+
+          Cesium.Matrix3.fromRotationX(
+            angle * isCameraOnPositiveAxis * isCounterClockWise,
+            rotation
+          );
+          break;
+        case "y":
+          Cesium.Matrix4.multiplyByPointAsVector(
+            scope.modelMatrix,
+            Cesium.Cartesian3.UNIT_Y,
+            axis
+          );
+          isCameraOnPositiveAxis =
+            Cesium.Cartesian3.dot(axis, org2Camera) > 0 ? 1 : -1;
+
+          Cesium.Matrix3.fromRotationY(
+            angle * isCameraOnPositiveAxis * isCounterClockWise,
+            rotation
+          );
+          break;
+        case "z":
+          Cesium.Matrix4.multiplyByPointAsVector(
+            scope.modelMatrix,
+            Cesium.Cartesian3.UNIT_Z,
+            axis
+          );
+          isCameraOnPositiveAxis =
+            Cesium.Cartesian3.dot(axis, org2Camera) > 0 ? 1 : -1;
+
+          Cesium.Matrix3.fromRotationZ(
+            angle * isCameraOnPositiveAxis * isCounterClockWise,
+            rotation
+          );
+          break;
+        default:
+          break;
+      }
+
+      // apply rotation to the editor, modelMatrix includes the translation
+      Cesium.Matrix4.multiplyByMatrix3(
+        scope.modelMatrix,
+        rotation,
+        scope.modelMatrix
+      );
+
+      if (scope.item) {
+        const scaleValue = getScaleFromTransform(scope.item.modelMatrix);
+        // calculate the item's new modelMatrix
+        Cesium.Matrix4.multiply(
+          scope.modelMatrix,
+          Cesium.Matrix4.fromScale(
+            new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])
+          ),
+          scope.item.modelMatrix
+        );
+
+        if (typeof scope.onDragMoving === "function") {
+          scope.onDragMoving({
+            type: EditType.ROTATE,
+            result: Cesium.Transforms.fixedFrameToHeadingPitchRoll(
+              scope.item.modelMatrix
+            ),
+          });
+        }
+      }
+    } else if (scope.type === EditType.SCALE) {
+      const scaleMatrix = new Cesium.Matrix4();
+      const targetPoint = new Cesium.Cartesian3();
+      const windowEnd = new Cesium.Cartesian2();
+      const direction = new Cesium.Cartesian2(); // the axis' direction on the canvas
+
+      const oldScale = getScaleFromTransform(scope.item.modelMatrix);
+
+      switch (pickedObject.id.axis) {
+        case "x":
+          Cesium.Matrix4.multiplyByPoint(
+            scope.modelMatrix,
+            Cesium.Cartesian3.UNIT_X,
+            targetPoint
+          );
+
+          Cesium.SceneTransforms.wgs84ToDrawingBufferCoordinates(
+            viewer.scene,
+            targetPoint,
+            windowEnd
+          );
+          Cesium.Cartesian2.subtract(windowEnd, windowOrigin, direction);
+
+          // whether the mouse moves along the positive direction
+          const scalex =
+            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
+
+          if (oldScale[0] <= minimumScale && scalex === 0.95) return;
+
+          Cesium.Matrix4.fromScale(
+            new Cesium.Cartesian3(scalex, 1, 1),
+            scaleMatrix
+          );
+
+          break;
+        case "y":
+          Cesium.Matrix4.multiplyByPoint(
+            scope.modelMatrix,
+            Cesium.Cartesian3.UNIT_Y,
+            targetPoint
+          );
+
+          Cesium.SceneTransforms.wgs84ToDrawingBufferCoordinates(
+            viewer.scene,
+            targetPoint,
+            windowEnd
+          );
+          Cesium.Cartesian2.subtract(windowEnd, windowOrigin, direction);
+
+          const scaley =
+            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
+
+          Cesium.Matrix4.fromScale(
+            new Cesium.Cartesian3(1, scaley, 1),
+            scaleMatrix
+          );
+
+          if (oldScale[1] <= minimumScale && scaley === 0.95) return;
+          break;
+        case "z":
+          Cesium.Matrix4.multiplyByPoint(
+            scope.modelMatrix,
+            Cesium.Cartesian3.UNIT_Z,
+            targetPoint
+          );
+
+          Cesium.SceneTransforms.wgs84ToDrawingBufferCoordinates(
+            viewer.scene,
+            targetPoint,
+            windowEnd
+          );
+          Cesium.Cartesian2.subtract(windowEnd, windowOrigin, direction);
+
+          const scalez =
+            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
+
+          Cesium.Matrix4.fromScale(
+            new Cesium.Cartesian3(1, 1, scalez),
+            scaleMatrix
+          );
+          if (oldScale[2] <= minimumScale && scalez === 0.95) return;
+          break;
+
+        default:
+          break;
+      }
+
+      if (scope.item) {
+        Cesium.Matrix4.multiply(
+          scope.item.modelMatrix,
+          scaleMatrix,
+          scope.item.modelMatrix
+        );
+        if (typeof scope.onDragMoving === "function") {
+          scope.onDragMoving({
+            type: EditType.SCALE,
+            result: getScaleFromTransform(scope.item.modelMatrix),
+          });
+        }
+      }
+    } else if (scope.type === EditType.UNIFORM_SCALE) {
+      const windowOriginToMouseVecotr = Cesium.Cartesian2.subtract(
+        new Cesium.Cartesian2(
+          movement.startPosition.x,
+          movement.startPosition.y
+        ),
+        windowOrigin,
+        new Cesium.Cartesian2()
+      );
+
+      // whether the mouse moves outward
+      const scale =
+        Cesium.Cartesian2.dot(windowOriginToMouseVecotr, mouseDirection) > 0
+          ? 1.05
+          : 0.95;
+
+      const scaleMatrix = Cesium.Matrix4.fromUniformScale(
+        scale,
+        new Cesium.Matrix4()
+      );
+
+      if (scope.item) {
+        const oldScale = getScaleFromTransform(scope.item.modelMatrix);
+        if (oldScale[0] <= minimumScale && scale === 0.95) return;
+        Cesium.Matrix4.multiply(
+          scope.item.modelMatrix,
+          scaleMatrix,
+          scope.item.modelMatrix
+        );
+        if (typeof scope.onDragMoving === "function") {
+          scope.onDragMoving({
+            type: EditType.SCALE,
+            result: getScaleFromTransform(scope.item.modelMatrix),
+          });
+        }
+      }
+    }
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+}
+
 /**
  *
  *
@@ -207,17 +656,6 @@ function PositionEditor(options) {
   this.show = Cesium.defaultValue(options.show, true);
 
   /**
-   * The 4x4 matrix that defines the reference frame, i.e., origin plus axes, to visualize.
-   *
-   * @type {Cesium.Matrix4}
-   * @default {@link Cesium.Matrix4.IDENTITY}
-   */
-  this.modelMatrix = Cesium.Matrix4.clone(
-    Cesium.defaultValue(options.modelMatrix, Cesium.Matrix4.IDENTITY)
-  );
-  this._modelMatrix = new Cesium.Matrix4();
-
-  /**
    * User-Cesium.defined value returned when the primitive is picked.
    *
    * @type {*}
@@ -240,364 +678,29 @@ function PositionEditor(options) {
   this.zColor = Cesium.defaultValue(options.zColor, Cesium.Color.BLUE);
   this._zColor = undefined;
   this._zOriginColor = this.zColor;
+  this.highlightColor = Cesium.defaultValue(
+    options.highlightColor,
+    Cesium.Color.YELLOW
+  );
+  this._highlightColor = undefined;
 
   this._primitive = undefined;
 
   this.item = options.item;
 
+  this._itemMatrix = options.item.modelMatrix.clone();
+
+  this.onDragMoving = options.onDragMoving;
+  this.onDragStart = options.onDragStart;
+  this.onDragEnd = options.onDragEnd;
+
   this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.canvas);
 
-  const me = this;
-  const viewer = this.viewer;
-  let pickedObject = null;
+  this.viewer.scene.primitives.add(this);
 
-  this.handler.setInputAction(function (movement) {
-    const picked = viewer.scene.pick(movement.position);
-    if (Cesium.defined(picked)) {
-      // console.log(picked);
-      if (picked.primitive === me) {
-        // me.item._allowPicking = false;
-        pickedObject = picked;
-        viewer.scene.screenSpaceCameraController.enableRotate = false; // lock default map control
-        viewer.scene.screenSpaceCameraController.enableTranslate = false;
-      } else {
-        // if (pickedObject) me.item._allowPicking = false;
-        pickedObject = null;
-        viewer.scene.screenSpaceCameraController.enableRotate = true; // release default map control
-        viewer.scene.screenSpaceCameraController.enableTranslate = true;
-      }
-    }
-  }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+  this.applyTransform = Cesium.defaultValue(options.applyTransform, true);
 
-  this.handler.setInputAction(function () {
-    if (pickedObject) {
-      // me.item._allowPicking = true;
-      pickedObject.primitive.xColor = Cesium.Color.RED;
-      pickedObject.primitive.yColor = Cesium.Color.GREEN;
-      pickedObject.primitive.zColor = Cesium.Color.BLUE;
-      pickedObject = null;
-    }
-
-    viewer.scene.screenSpaceCameraController.enableRotate = true; // release default map control
-    viewer.scene.screenSpaceCameraController.enableTranslate = true;
-  }, Cesium.ScreenSpaceEventType.LEFT_UP);
-
-  this.handler.setInputAction(function (movement) {
-    if (!pickedObject) {
-      const hovered = viewer.scene.pick(movement.endPosition);
-      if (Cesium.defined(hovered) && hovered.primitive === me) {
-        switch (hovered.id.axis) {
-          case "x":
-            me.xColor = Cesium.Color.YELLOW;
-            me.yColor = me._yOriginColor;
-            me.zColor = me._zOriginColor;
-            viewer.canvas.style.cursor = "pointer";
-            break;
-          case "y":
-            me.yColor = Cesium.Color.YELLOW;
-            me.xColor = me._xOriginColor;
-            me.zColor = me._zOriginColor;
-            viewer.canvas.style.cursor = "pointer";
-            break;
-          case "z":
-            me.zColor = Cesium.Color.YELLOW;
-            me.xColor = me._xOriginColor;
-            me.yColor = me._yOriginColor;
-            viewer.canvas.style.cursor = "pointer";
-            break;
-          default:
-            me.xColor = me._xOriginColor;
-            me.yColor = me._yOriginColor;
-            me.zColor = me._zOriginColor;
-            viewer.canvas.style.cursor = "default";
-            break;
-        }
-      } else {
-        viewer.canvas.style.cursor = "default";
-        me.xColor = me._xOriginColor;
-        me.yColor = me._yOriginColor;
-        me.zColor = me._zOriginColor;
-      }
-
-      return;
-    }
-
-    const m = me.modelMatrix;
-    const origin = new Cesium.Cartesian3(m[12], m[13], m[14]);
-    const transform = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
-    const cameraDistance =
-      Cesium.Cartesian3.distance(origin, viewer.camera.position) / 500;
-    const windowStart = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
-      viewer.scene,
-      origin,
-      new Cesium.Cartesian2()
-    );
-
-    if (me.type === EditType.TRANSLATE) {
-      const translation = new Cesium.Matrix4();
-      const newPoint = new Cesium.Cartesian3();
-      const transVector = new Cesium.Cartesian3();
-
-      switch (pickedObject.id.axis) {
-        case "x":
-          Cesium.Matrix4.multiplyByPoint(
-            transform,
-            Cesium.Cartesian3.UNIT_X,
-            newPoint
-          );
-          break;
-        case "y":
-          Cesium.Matrix4.multiplyByPoint(
-            transform,
-            Cesium.Cartesian3.UNIT_Y,
-            newPoint
-          );
-          break;
-        case "z":
-          Cesium.Matrix4.multiplyByPoint(
-            transform,
-            Cesium.Cartesian3.UNIT_Z,
-            newPoint
-          );
-          break;
-        default:
-          break;
-      }
-
-      Cesium.Cartesian3.subtract(newPoint, origin, transVector);
-
-      const windowEnd = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
-        viewer.scene,
-        newPoint,
-        new Cesium.Cartesian2()
-      );
-
-      const direction = Cesium.Cartesian2.subtract(
-        windowEnd,
-        windowStart,
-        new Cesium.Cartesian2()
-      );
-      const mouseDirection = new Cesium.Cartesian2(
-        movement.endPosition.x - movement.startPosition.x,
-        movement.endPosition.y - movement.startPosition.y
-      );
-
-      let scale = Cesium.Cartesian2.dot(mouseDirection, direction) > 0 ? 1 : -1;
-
-      Cesium.Matrix4.fromTranslation(
-        Cesium.Cartesian3.multiplyByScalar(
-          transVector,
-          scale * cameraDistance,
-          new Cesium.Cartesian3()
-        ),
-        translation
-      );
-
-      const tmp = Cesium.Matrix4.multiply(
-        translation,
-        me.modelMatrix,
-        new Cesium.Matrix4()
-      );
-
-      me.modelMatrix[12] = tmp[12];
-      me.modelMatrix[13] = tmp[13];
-      me.modelMatrix[14] = tmp[14];
-
-      const item = me.item;
-      if (item) {
-        item.modelMatrix[12] = tmp[12];
-        item.modelMatrix[13] = tmp[13];
-        item.modelMatrix[14] = tmp[14];
-      }
-    } else if (me.type === EditType.ROTATE) {
-      const windowOrigin = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
-        viewer.scene,
-        origin,
-        new Cesium.Cartesian2()
-      );
-
-      const startVector = Cesium.Cartesian2.subtract(
-        new Cesium.Cartesian2(
-          movement.startPosition.x,
-          movement.startPosition.y
-        ),
-        windowOrigin,
-        new Cesium.Cartesian2()
-      );
-      const endVector = Cesium.Cartesian2.subtract(
-        new Cesium.Cartesian2(movement.endPosition.x, movement.endPosition.y),
-        windowOrigin,
-        new Cesium.Cartesian2()
-      );
-
-      const isCounterClockWise =
-        Cesium.Cartesian2.cross(startVector, endVector) > 0 ? -1 : 1;
-      let isCameraPositive;
-      const angle = Cesium.Cartesian2.angleBetween(startVector, endVector);
-      const org2Camera = Cesium.Cartesian3.subtract(
-        viewer.scene.camera.position,
-        origin,
-        new Cesium.Cartesian3()
-      );
-
-      const rotation = new Cesium.Matrix3();
-
-      const axis = new Cesium.Cartesian3();
-
-      switch (pickedObject.id.axis) {
-        case "x":
-          Cesium.Matrix4.multiplyByPointAsVector(
-            me.modelMatrix,
-            Cesium.Cartesian3.UNIT_X,
-            axis
-          );
-          isCameraPositive =
-            Cesium.Cartesian3.dot(axis, org2Camera) > 0 ? 1 : -1;
-
-          Cesium.Matrix3.fromRotationX(
-            angle * isCameraPositive * isCounterClockWise,
-            rotation
-          );
-          break;
-        case "y":
-          Cesium.Matrix4.multiplyByPointAsVector(
-            me.modelMatrix,
-            Cesium.Cartesian3.UNIT_Y,
-            axis
-          );
-          isCameraPositive =
-            Cesium.Cartesian3.dot(axis, org2Camera) > 0 ? 1 : -1;
-
-          Cesium.Matrix3.fromRotationY(
-            angle * isCameraPositive * isCounterClockWise,
-            rotation
-          );
-          break;
-        case "z":
-          Cesium.Matrix4.multiplyByPointAsVector(
-            me.modelMatrix,
-            Cesium.Cartesian3.UNIT_Z,
-            axis
-          );
-          isCameraPositive =
-            Cesium.Cartesian3.dot(axis, org2Camera) > 0 ? 1 : -1;
-
-          Cesium.Matrix3.fromRotationZ(
-            angle * isCameraPositive * isCounterClockWise,
-            rotation
-          );
-          break;
-        default:
-          break;
-      }
-
-      Cesium.Matrix4.multiplyByMatrix3(
-        me.modelMatrix,
-        rotation,
-        me.modelMatrix
-      );
-
-      if (me.item) {
-        const scaleValue = getScaleFromTransform(me.item.modelMatrix);
-        Cesium.Matrix4.multiply(
-          me.modelMatrix,
-          Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])
-          ),
-          me.item.modelMatrix
-        );
-      }
-    } else if (me.type === EditType.SCALE) {
-      const scaleMatrix = new Cesium.Matrix4();
-      const newPoint = new Cesium.Cartesian3();
-      const windowEnd = new Cesium.Cartesian2();
-      const direction = new Cesium.Cartesian2();
-      const mouseDirection = new Cesium.Cartesian2(
-        movement.endPosition.x - movement.startPosition.x,
-        movement.endPosition.y - movement.startPosition.y
-      );
-
-      switch (pickedObject.id.axis) {
-        case "x":
-          Cesium.Matrix4.multiplyByPoint(
-            me.modelMatrix,
-            Cesium.Cartesian3.UNIT_X,
-            newPoint
-          );
-
-          Cesium.SceneTransforms.wgs84ToDrawingBufferCoordinates(
-            viewer.scene,
-            newPoint,
-            windowEnd
-          );
-          Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
-
-          const scalex =
-            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
-
-          Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(scalex, 1, 1),
-            scaleMatrix
-          );
-
-          break;
-        case "y":
-          Cesium.Matrix4.multiplyByPoint(
-            me.modelMatrix,
-            Cesium.Cartesian3.UNIT_Y,
-            newPoint
-          );
-
-          Cesium.SceneTransforms.wgs84ToDrawingBufferCoordinates(
-            viewer.scene,
-            newPoint,
-            windowEnd
-          );
-          Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
-
-          const scaley =
-            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
-
-          Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(1, scaley, 1),
-            scaleMatrix
-          );
-          break;
-        case "z":
-          Cesium.Matrix4.multiplyByPoint(
-            me.modelMatrix,
-            Cesium.Cartesian3.UNIT_Z,
-            newPoint
-          );
-
-          Cesium.SceneTransforms.wgs84ToDrawingBufferCoordinates(
-            viewer.scene,
-            newPoint,
-            windowEnd
-          );
-          Cesium.Cartesian2.subtract(windowEnd, windowStart, direction);
-
-          const scalez =
-            Cesium.Cartesian2.dot(direction, mouseDirection) > 0 ? 1.05 : 0.95;
-
-          Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(1, 1, scalez),
-            scaleMatrix
-          );
-          break;
-        default:
-          break;
-      }
-
-      if (me.item) {
-        Cesium.Matrix4.multiply(
-          me.item.modelMatrix,
-          scaleMatrix,
-          me.item.modelMatrix
-        );
-      }
-    }
-  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  addMouseEvent(this.handler, this.viewer, this);
 }
 
 const scratchBoundingSphere = new Cesium.BoundingSphere();
@@ -674,45 +777,59 @@ PositionEditor.prototype.update = function (frameState) {
 
   if (
     !Cesium.defined(this._primitive) ||
-    !Cesium.Matrix4.equals(this._modelMatrix, this.modelMatrix) ||
+    !Cesium.Matrix4.equals(this._itemMatrix, this.item.modelMatrix) || // watch the item's model matrix
     this._length !== this.length ||
     this._width !== this.width ||
     this._id !== this.id ||
     this._xColor !== this.xColor ||
     this._yColor !== this.yColor ||
     this._zColor !== this.zColor ||
-    this._type !== this.type
+    this._type !== this.type ||
+    this._highlightColor !== this.highlightColor
   ) {
-    if (this._type !== this.type) {
-      if (this.type === EditType.TRANSLATE) {
-        // reset the editor's modelMatrix to make the translation indicators point to axises
-        const m = this.item.modelMatrix;
-        const itemPos = new Cesium.Cartesian3(m[12], m[13], m[14]);
-        this.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(itemPos);
-      } else if (
-        this.type === EditType.ROTATE ||
-        this.type === EditType.SCALE
-      ) {
-        const m = this.item.modelMatrix.clone();
-        const scale = getScaleFromTransform(m);
+    // if (this._type !== this.type) {
+    if (this.type === EditType.TRANSLATE) {
+      // reset the editor's modelMatrix to make the translation indicators point to axises
+      const m = this.item.modelMatrix;
+      const itemPos = new Cesium.Cartesian3(m[12], m[13], m[14]);
+      this.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(itemPos);
+    } else if (
+      this.type === EditType.ROTATE ||
+      this.type === EditType.SCALE ||
+      this.type === EditType.UNIFORM_SCALE
+    ) {
+      const m = this.item.modelMatrix.clone();
+      const scale = getScaleFromTransform(m);
 
-        m[0] /= scale[0];
-        m[1] /= scale[0];
-        m[2] /= scale[0];
-        m[4] /= scale[1];
-        m[5] /= scale[1];
-        m[6] /= scale[1];
-        m[8] /= scale[2];
-        m[9] /= scale[2];
-        m[10] /= scale[2];
-        this.modelMatrix = m;
+      // remove the scaling transform but keep the translation and rotation
+      // shouldn't be zero
+      if (scale[0] === 0 || scale[1] === 0 || scale[2] === 0) {
+        new Cesium.DeveloperError(
+          "Can't get transform infomation from modelMatrix since scale is 0."
+        );
       }
-    }
+      m[0] /= scale[0];
+      m[1] /= scale[0];
+      m[2] /= scale[0];
+      m[4] /= scale[1];
+      m[5] /= scale[1];
+      m[6] /= scale[1];
+      m[8] /= scale[2];
+      m[9] /= scale[2];
+      m[10] /= scale[2];
 
-    this._modelMatrix = Cesium.Matrix4.clone(
-      this.modelMatrix,
-      this._modelMatrix
-    );
+      this.modelMatrix = m;
+      console.log(scale);
+    } else {
+      if (Cesium.defined(this._primitive)) {
+        this._primitive.destroy();
+      }
+      return;
+    }
+    // }
+
+    this._itemMatrix = this.item.modelMatrix.clone();
+
     this._length = this.length;
     this._width = this.width;
     this._id = this.id;
@@ -720,6 +837,7 @@ PositionEditor.prototype.update = function (frameState) {
     this._yColor = this.yColor;
     this._zColor = this.zColor;
     this._type = this.type;
+    this._highlightColor = this.highlightColor;
 
     if (Cesium.defined(this._primitive)) {
       this._primitive.destroy();
@@ -742,12 +860,16 @@ PositionEditor.prototype.update = function (frameState) {
       ypoints = [],
       zpoints = [];
 
-    if (this.type === EditType.TRANSLATE || this.type === EditType.SCALE) {
+    if (
+      this.type === EditType.TRANSLATE ||
+      this.type === EditType.SCALE ||
+      this.type === EditType.UNIFORM_SCALE
+    ) {
       material = Cesium.Material.fromType("PolylineArrow");
       xpoints = [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_X];
       ypoints = [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_Y];
       zpoints = [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_Z];
-      if (this.type === EditType.SCALE) {
+      if (this.type !== EditType.TRANSLATE) {
         material = scaleMaterial;
       }
     } else if (this.type === EditType.ROTATE) {
@@ -904,6 +1026,7 @@ PositionEditor.prototype.isDestroyed = function () {
  * @see PositionEditor#isDestroyed
  */
 PositionEditor.prototype.destroy = function () {
+  this.handler.destroy();
   this._primitive = this._primitive && this._primitive.destroy();
   return Cesium.destroyObject(this);
 };

@@ -91,6 +91,7 @@
           url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
           modelMatrix: modelMatrix,
           debugShowBoundingVolume: false,
+          scale: 1,
         })
       );
       model.readyPromise.then(function (arg) {
@@ -104,14 +105,26 @@
         });
       });
 
-      const editor = viewer.scene.primitives.add(
-        new PositionEditor({
-          modelMatrix: modelMatrix.clone(),
-          item: model,
-          show: true,
-          viewer,
-        })
-      );
+      // const editor = viewer.scene.primitives.add(
+      //   new PositionEditor({
+      //     modelMatrix: modelMatrix.clone(),
+      //     item: model,
+      //     show: true,
+      //     viewer,
+      //     outputFunction: (res) => {
+      //       console.log(res);
+      //     },
+      //   })
+      // );
+      const editor = new PositionEditor({
+        modelMatrix: modelMatrix.clone(),
+        item: model,
+        show: true,
+        viewer,
+        onDragMoving: (res) => {
+          console.log(res);
+        },
+      });
 
       document.getElementById("translate").onclick = () => {
         editor.type = PositionEditor.EditType.TRANSLATE;
