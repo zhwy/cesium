@@ -344,18 +344,18 @@ function addMouseEvent(handler, viewer, scope) {
       scope.modelMatrix[13] = tmp[13];
       scope.modelMatrix[14] = tmp[14];
 
-      const item = scope.item;
-      if (item) {
+      if (typeof scope.onDragMoving === "function") {
+        scope.onDragMoving({
+          type: EditType.TRANSLATE,
+          result: new Cesium.Cartesian3(tmp[12], tmp[13], tmp[14]),
+        });
+      }
+
+      if (scope.applyTransform) {
+        const item = scope.item;
         item.modelMatrix[12] = tmp[12];
         item.modelMatrix[13] = tmp[13];
         item.modelMatrix[14] = tmp[14];
-
-        if (typeof scope.onDragMoving === "function") {
-          scope.onDragMoving({
-            type: EditType.TRANSLATE,
-            result: new Cesium.Cartesian3(tmp[12], tmp[13], tmp[14]),
-          });
-        }
       }
     } else if (scope.type === EditType.ROTATE) {
       const startVector = Cesium.Cartesian2.subtract(
@@ -440,26 +440,28 @@ function addMouseEvent(handler, viewer, scope) {
         rotation,
         scope.modelMatrix
       );
+      const scaleValue = getScaleFromTransform(scope.item.modelMatrix);
 
-      if (scope.item) {
-        const scaleValue = getScaleFromTransform(scope.item.modelMatrix);
-        // calculate the item's new modelMatrix
-        Cesium.Matrix4.multiply(
-          scope.modelMatrix,
-          Cesium.Matrix4.fromScale(
-            new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])
+      // calculate the item's new modelMatrix
+      const finalTransform = Cesium.Matrix4.multiply(
+        scope.modelMatrix,
+        Cesium.Matrix4.fromScale(
+          new Cesium.Cartesian3(scaleValue[0], scaleValue[1], scaleValue[2])
+        ),
+        new Cesium.Matrix4()
+      );
+
+      if (typeof scope.onDragMoving === "function") {
+        scope.onDragMoving({
+          type: EditType.ROTATE,
+          result: Cesium.Transforms.fixedFrameToHeadingPitchRoll(
+            finalTransform
           ),
-          scope.item.modelMatrix
-        );
+        });
+      }
 
-        if (typeof scope.onDragMoving === "function") {
-          scope.onDragMoving({
-            type: EditType.ROTATE,
-            result: Cesium.Transforms.fixedFrameToHeadingPitchRoll(
-              scope.item.modelMatrix
-            ),
-          });
-        }
+      if (scope.applyTransform) {
+        Cesium.Matrix4.clone(finalTransform, scope.item.modelMatrix);
       }
     } else if (scope.type === EditType.SCALE) {
       const scaleMatrix = new Cesium.Matrix4();
@@ -548,18 +550,20 @@ function addMouseEvent(handler, viewer, scope) {
           break;
       }
 
-      if (scope.item) {
-        Cesium.Matrix4.multiply(
-          scope.item.modelMatrix,
-          scaleMatrix,
-          scope.item.modelMatrix
-        );
-        if (typeof scope.onDragMoving === "function") {
-          scope.onDragMoving({
-            type: EditType.SCALE,
-            result: getScaleFromTransform(scope.item.modelMatrix),
-          });
-        }
+      const finalTransform = Cesium.Matrix4.multiply(
+        scope.item.modelMatrix,
+        scaleMatrix,
+        new Cesium.Matrix4()
+      );
+      if (typeof scope.onDragMoving === "function") {
+        scope.onDragMoving({
+          type: EditType.SCALE,
+          result: getScaleFromTransform(finalTransform),
+        });
+      }
+
+      if (scope.applyTransform) {
+        Cesium.Matrix4.clone(finalTransform, scope.item.modelMatrix);
       }
     } else if (scope.type === EditType.UNIFORM_SCALE) {
       const windowOriginToMouseVecotr = Cesium.Cartesian2.subtract(
@@ -582,20 +586,24 @@ function addMouseEvent(handler, viewer, scope) {
         new Cesium.Matrix4()
       );
 
-      if (scope.item) {
-        const oldScale = getScaleFromTransform(scope.item.modelMatrix);
-        if (oldScale[0] <= minimumScale && scale === 0.95) return;
-        Cesium.Matrix4.multiply(
-          scope.item.modelMatrix,
-          scaleMatrix,
-          scope.item.modelMatrix
-        );
-        if (typeof scope.onDragMoving === "function") {
-          scope.onDragMoving({
-            type: EditType.SCALE,
-            result: getScaleFromTransform(scope.item.modelMatrix),
-          });
-        }
+      const oldScale = getScaleFromTransform(scope.item.modelMatrix);
+      if (oldScale[0] <= minimumScale && scale === 0.95) return;
+
+      const finalTransform = Cesium.Matrix4.multiply(
+        scope.item.modelMatrix,
+        scaleMatrix,
+        new Cesium.Matrix4()
+      );
+
+      if (typeof scope.onDragMoving === "function") {
+        scope.onDragMoving({
+          type: EditType.SCALE,
+          result: getScaleFromTransform(finalTransform),
+        });
+      }
+
+      if (scope.applyTransform) {
+        Cesium.Matrix4.clone(finalTransform, scope.item.modelMatrix);
       }
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
@@ -627,7 +635,15 @@ function addMouseEvent(handler, viewer, scope) {
 function PositionEditor(options) {
   options = Cesium.defaultValue(options, Cesium.defaultValue.EMPTY_OBJECT);
 
+  if (!Cesium.defined(options.viewer))
+    new Cesium.DeveloperError("Viewer must be assigned!");
+  if (!Cesium.defined(options.item))
+    new Cesium.DeveloperError("Item must be assigned!");
+  if (!Cesium.defined(options.item.modelMatrix))
+    new Cesium.DeveloperError("Item must have the modelMatrix attribute!");
+
   this.viewer = options.viewer;
+  this.item = options.item;
 
   /**
    * The length of the axes in meters.
@@ -686,9 +702,9 @@ function PositionEditor(options) {
 
   this._primitive = undefined;
 
-  this.item = options.item;
-
   this._itemMatrix = options.item.modelMatrix.clone();
+
+  this.applyTransform = Cesium.defaultValue(options.applyTransform, true);
 
   this.onDragMoving = options.onDragMoving;
   this.onDragStart = options.onDragStart;
@@ -697,8 +713,6 @@ function PositionEditor(options) {
   this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.canvas);
 
   this.viewer.scene.primitives.add(this);
-
-  this.applyTransform = Cesium.defaultValue(options.applyTransform, true);
 
   addMouseEvent(this.handler, this.viewer, this);
 }
@@ -819,7 +833,6 @@ PositionEditor.prototype.update = function (frameState) {
       m[10] /= scale[2];
 
       this.modelMatrix = m;
-      console.log(scale);
     } else {
       if (Cesium.defined(this._primitive)) {
         this._primitive.destroy();
