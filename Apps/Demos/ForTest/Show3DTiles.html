@@ -61,9 +61,12 @@
       });
       window._viewer = viewer;
       viewer.scene.logarithmicDepthBuffer = false;
+      viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
       var tileset = viewer.scene.primitives.add(
         new Cesium.Cesium3DTileset({
-          url: "../TilesLocate/tiles/tileset.json",
+          // url: "../TilesLocate/tiles/tileset.json",
+          url:
+            "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-1/tileset.json",
           debugShowBoundingVolume: false,
           skipLevelOfDetail: true,
           shadows: Cesium.ShadowMode.DISABLED,
@@ -168,6 +171,18 @@
         // _enableTranslate()
       });
       window._tileset = tileset;
+
+      var tileset2 = viewer.scene.primitives.add(
+        new Cesium.Cesium3DTileset({
+          url:
+            "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-2/tileset.json",
+          debugShowBoundingVolume: false,
+          skipLevelOfDetail: true,
+          shadows: Cesium.ShadowMode.DISABLED,
+          //   preferLeaves: true,
+          maximumScreenSpaceError: 16,
+        })
+      );
 
       // 移动模型
       function _enableTranslate() {

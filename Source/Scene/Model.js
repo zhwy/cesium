@@ -21,6 +21,8 @@ import getMagic from "../Core/getMagic.js";
 import getStringFromTypedArray from "../Core/getStringFromTypedArray.js";
 import IndexDatatype from "../Core/IndexDatatype.js";
 import loadImageFromTypedArray from "../Core/loadImageFromTypedArray.js";
+import loadCRN from "../Core/loadCRN.js";
+import loadKTX from "../Core/loadKTX.js";
 import loadKTX2 from "../Core/loadKTX2.js";
 import CesiumMath from "../Core/Math.js";
 import Matrix3 from "../Core/Matrix3.js";
@@ -2023,6 +2025,8 @@ function imageLoad(model, textureId) {
 }
 
 const ktx2Regex = /(^data:image\/ktx2)|(\.ktx2$)/i;
+const ktxRegex = /(^data:image\/ktx)|(\.ktx$)/i;
+const crnRegex = /(^data:image\/crn)|(\.crn$)/i;
 
 function parseTextures(model, context, supportsWebP) {
   const gltf = model.gltf;
@@ -2069,6 +2073,10 @@ function parseTextures(model, context, supportsWebP) {
       let promise;
       if (ktx2Regex.test(uri)) {
         promise = loadKTX2(imageResource);
+      } else if (ktxRegex.test(uri)) {
+        promise = loadKTX(imageResource);
+      } else if (crnRegex.test(uri)) {
+        promise = loadCRN(imageResource);
       } else {
         promise = imageResource.fetchImage({
           skipColorSpaceConversion: true,
@@ -2823,6 +2831,16 @@ function loadTexturesFromBufferViews(model) {
       // Look into SharedArrayBuffer at some point to get around this.
       const ktxBuffer = new Uint8Array(loadResources.getBuffer(bufferView));
       loadKTX2(ktxBuffer)
+        .then(imageLoad(model, gltfTexture.id, imageId))
+        .otherwise(onerror);
+      ++model._loadResources.pendingTextureLoads;
+    } else if (gltfTexture.mimeType === "image/ktx") {
+      loadKTX(loadResources.getBuffer(bufferView))
+        .then(imageLoad(model, gltfTexture.id, imageId))
+        .otherwise(onerror);
+      ++model._loadResources.pendingTextureLoads;
+    } else if (gltfTexture.mimeType === "image/crn") {
+      loadCRN(loadResources.getBuffer(bufferView))
         .then(imageLoad(model, gltfTexture.id, imageId))
         .otherwise(onerror);
       ++model._loadResources.pendingTextureLoads;
