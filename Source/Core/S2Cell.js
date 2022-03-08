@@ -216,8 +216,7 @@ S2Cell.isValidId = function (cellId) {
   }
 
   // Check trailing 1 bit is in one of the even bit positions allowed for the 30 levels, using a bitmask.
-  // eslint-disable-next-line no-undef
-  const lowestSetBit = cellId & (~cellId + BigInt(1));
+  var lowestSetBit = cellId & (~cellId + BigInt(1)); // eslint-disable-line
   // eslint-disable-next-line
   if (!(lowestSetBit & BigInt("0x1555555555555555"))) {
     return false;
@@ -330,11 +329,9 @@ S2Cell.prototype.getChild = function (index) {
   //>>includeEnd('debug');
 
   // Shift sentinel bit 2 positions to the right.
-  // eslint-disable-next-line no-undef
-  const newLsb = lsb(this._cellId) >> BigInt(2);
+  var newLsb = lsb(this._cellId) >> BigInt(2); // eslint-disable-line
   // Insert child index before the sentinel bit.
-  // eslint-disable-next-line no-undef
-  const childCellId = this._cellId + BigInt(2 * index + 1 - 4) * newLsb;
+  var childCellId = this._cellId + BigInt(2 * index + 1 - 4) * newLsb; // eslint-disable-line
   return new S2Cell(childCellId);
 };
 
@@ -351,11 +348,9 @@ S2Cell.prototype.getParent = function () {
   }
   //>>includeEnd('debug');
   // Shift the sentinel bit 2 positions to the left.
-  // eslint-disable-next-line no-undef
-  const newLsb = lsb(this._cellId) << BigInt(2);
+  var newLsb = lsb(this._cellId) << BigInt(2); // eslint-disable-line
   // Erase the left over bits to the right of the sentinel bit.
-  // eslint-disable-next-line no-undef
-  return new S2Cell((this._cellId & (~newLsb + BigInt(1))) | newLsb);
+  return new S2Cell((this._cellId & (~newLsb + BigInt(1))) | newLsb); // eslint-disable-line
 };
 
 /**
@@ -456,8 +451,8 @@ S2Cell.fromFacePositionLevel = function (face, position, level) {
   ).join("0");
   const positionSuffixPadding = Array(S2_POSITION_BITS - 2 * level).join("0");
 
-  // eslint-disable-next-line no-undef
-  const cellId = BigInt(
+  // eslint-disable-next-line
+  var cellId = BigInt(
     `0b${faceBitString}${positionPrefixPadding}${positionBitString}1${
       // Adding the sentinel bit that always follows the position bits.
       positionSuffixPadding
@@ -516,8 +511,7 @@ function convertCellIdToFaceIJ(cellId) {
     generateLookupTable();
   }
 
-  // eslint-disable-next-line no-undef
-  const face = Number(cellId >> BigInt(S2_POSITION_BITS));
+  var face = Number(cellId >> BigInt(S2_POSITION_BITS)); // eslint-disable-line
   let bits = face & S2_SWAP_MASK;
   const lookupMask = (1 << S2_LOOKUP_BITS) - 1;
 

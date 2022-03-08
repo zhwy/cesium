@@ -230,7 +230,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        undefined
+        globeDepthFramebuffer
       );
 
       expectResources(translucentTileClassification, false);
@@ -255,7 +255,7 @@ describe(
         executeCommand,
         passState,
         [],
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       expectResources(translucentTileClassification, false);
@@ -265,7 +265,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       expectResources(translucentTileClassification, true);
@@ -299,7 +299,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       expect(translucentTileClassification.hasTranslucentDepth).toBe(true);
@@ -324,7 +324,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const drawClassificationFBO =
@@ -366,7 +366,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const accumulationFBO =
@@ -396,7 +396,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
       translucentTileClassification.executeClassificationCommands(
         scene,
@@ -439,7 +439,7 @@ describe(
         executeCommand,
         passState,
         [],
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const preClassifyPixels = readPixels(drawClassificationFBO);
@@ -493,7 +493,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const frustumCommands = {
@@ -574,7 +574,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const frustumCommands = {
@@ -600,7 +600,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       translucentTileClassification.executeClassificationCommands(
@@ -659,7 +659,7 @@ describe(
         executeCommand,
         passState,
         [],
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const frustumCommands = {
@@ -705,7 +705,7 @@ describe(
         executeCommand,
         passState,
         translucentPrimitive.commands,
-        globeDepthFramebuffer.depthStencilTexture
+        globeDepthFramebuffer
       );
 
       const drawClassificationFBO =

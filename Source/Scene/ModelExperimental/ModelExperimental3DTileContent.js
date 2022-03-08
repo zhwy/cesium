@@ -185,8 +185,6 @@ ModelExperimental3DTileContent.prototype.update = function (
   model.featureIdIndex = tileset.featureIdIndex;
   model.instanceFeatureIdIndex = tileset.instanceFeatureIdIndex;
   model.backFaceCulling = tileset.backFaceCulling;
-  model.shadows = tileset.shadows;
-  model.showCreditsOnScreen = tileset.showCreditsOnScreen;
 
   model.update(frameState);
 };
@@ -223,7 +221,6 @@ ModelExperimental3DTileContent.fromGltf = function (
     colorBlendMode: tileset.colorBlendMode,
     colorBlendAmount: tileset.colorBlendAmount,
     backFaceCulling: tileset.backFaceCulling,
-    shadows: tileset.shadows,
   };
   content._model = ModelExperimental.fromGltf(modelOptions);
   return content;

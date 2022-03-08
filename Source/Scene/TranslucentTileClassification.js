@@ -133,13 +133,14 @@ function updateResources(
   transpClass,
   context,
   passState,
-  globeDepthStencilTexture
+  globeDepthFramebuffer
 ) {
   if (!transpClass.isSupported()) {
     return;
   }
 
-  transpClass._opaqueDepthStencilTexture = globeDepthStencilTexture;
+  transpClass._opaqueDepthStencilTexture =
+    globeDepthFramebuffer.depthStencilTexture;
 
   const width = transpClass._opaqueDepthStencilTexture.width;
   const height = transpClass._opaqueDepthStencilTexture.height;
@@ -344,7 +345,7 @@ TranslucentTileClassification.prototype.executeTranslucentCommands = function (
   executeCommand,
   passState,
   commands,
-  globeDepthStencilTexture
+  globeDepthFramebuffer
 ) {
   // Check for translucent commands that should be classified
   const length = commands.length;
@@ -369,7 +370,7 @@ TranslucentTileClassification.prototype.executeTranslucentCommands = function (
     return;
   }
 
-  updateResources(this, context, passState, globeDepthStencilTexture);
+  updateResources(this, context, passState, globeDepthFramebuffer);
 
   // Get translucent depth
   passState.framebuffer = this._drawClassificationFBO.framebuffer;

@@ -670,24 +670,6 @@ function Scene() {
 }
 
 /**
- * The asset of the model.
- *
- * @alias {ModelComponents.Asset}
- * @constructor
- *
- * @private
- */
-function Asset() {
-  /**
-   * The credits of the model.
-   *
-   * @type {Credit[]}
-   * @private
-   */
-  this.credits = [];
-}
-
-/**
  * The components that make up a model.
  *
  * @alias ModelComponents.Components
@@ -696,14 +678,6 @@ function Asset() {
  * @private
  */
 function Components() {
-  /**
-   * The asset of the model.
-   *
-   * @type {ModelComponents.Asset}
-   * @private
-   */
-  this.asset = undefined;
-
   /**
    * The default scene.
    *
@@ -1048,7 +1022,6 @@ ModelComponents.Instances = Instances;
 ModelComponents.Skin = Skin;
 ModelComponents.Node = Node;
 ModelComponents.Scene = Scene;
-ModelComponents.Asset = Asset;
 ModelComponents.Components = Components;
 ModelComponents.TextureReader = TextureReader;
 ModelComponents.MetallicRoughness = MetallicRoughness;

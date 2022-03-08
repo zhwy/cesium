@@ -30,7 +30,19 @@
   <body>
     <div id="cesiumContainer"></div>
     <script>
-      const viewer = new Cesium.Viewer("cesiumContainer");
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+      var viewer = new Cesium.Viewer("cesiumContainer");
+
+      // var viewer = new Cesium.Viewer("cesiumContainer", {
+      //   shadows: true,
+      //   terrainShadows: Cesium.ShadowMode.ENABLED,
+      //   shouldAnimate: true,
+      //   terrainProvider: Cesium.createWorldTerrain(),
+      //   nearGroundSkyBox: false,
+      // });
+
+      // viewer.scene.primitives.add(Cesium.createOsmBuildings());
     </script>
   </body>
 </html>

@@ -73,13 +73,11 @@ Object.defineProperties(Credit.prototype, {
    * Whether the credit should be displayed on screen or in a lightbox
    * @memberof Credit.prototype
    * @type {Boolean}
+   * @readonly
    */
   showOnScreen: {
     get: function () {
       return this._showOnScreen;
-    },
-    set: function (value) {
-      this._showOnScreen = value;
     },
   },
 
@@ -121,10 +119,7 @@ Object.defineProperties(Credit.prototype, {
 Credit.equals = function (left, right) {
   return (
     left === right ||
-    (defined(left) &&
-      defined(right) &&
-      left._id === right._id &&
-      left._showOnScreen === right._showOnScreen)
+    (defined(left) && defined(right) && left._id === right._id)
   );
 };
 

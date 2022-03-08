@@ -17,7 +17,7 @@ describe(
     let fbm;
 
     beforeAll(function () {
-      context = createContext({ requestWebgl2: true });
+      context = createContext();
     });
 
     afterAll(function () {
@@ -295,35 +295,16 @@ describe(
         depth: true,
         supportsDepthTexture: true,
       });
-      // Disable extensions
+      // Disable extension
       const depthTexture = context._depthTexture;
       context._depthTexture = false;
-      const webgl2 = context._webgl2;
-      context._webgl2 = false;
 
       fbm.update(context, 1, 1);
       expect(fbm.getDepthTexture()).toBeUndefined();
       expect(fbm.getDepthRenderbuffer()).toBeDefined();
 
-      // Re-enable extensions
+      // Re-enable extension
       context._depthTexture = depthTexture;
-      context._webgl2 = webgl2;
-    });
-
-    it("doesn't create multisample resources if msaa is unsupported", function () {
-      fbm = new FramebufferManager({
-        depth: true,
-        supportsDepthTexture: true,
-      });
-      // Disable extensions
-      const webgl2 = context._webgl2;
-      context._webgl2 = false;
-
-      fbm.update(context, 1, 1, 4);
-      expect(fbm._multisampleFramebuffer).toBeUndefined();
-
-      // Re-enable extensions
-      context._webgl2 = webgl2;
     });
 
     it("destroys attachments and framebuffer", function () {
@@ -402,25 +383,13 @@ describe(
       expect(FramebufferManager.prototype.destroy.calls.count()).toEqual(2);
     });
 
-    it("destroys resources after numSamples changes", function () {
-      if (!context.webgl2) {
-        return;
-      }
-
-      fbm = new FramebufferManager();
-      spyOn(FramebufferManager.prototype, "destroy").and.callThrough();
-      fbm.update(context, 1, 1);
-      fbm.update(context, 1, 1, 2);
-      expect(FramebufferManager.prototype.destroy.calls.count()).toEqual(2);
-    });
-
     it("destroys resources after pixel datatype changes", function () {
       fbm = new FramebufferManager({
         pixelDatatype: PixelDatatype.UNSIGNED_INT,
       });
       spyOn(FramebufferManager.prototype, "destroy").and.callThrough();
       fbm.update(context, 1, 1);
-      fbm.update(context, 1, 1, 1, PixelDatatype.UNSIGNED_BYTE);
+      fbm.update(context, 1, 1, PixelDatatype.UNSIGNED_BYTE);
       expect(FramebufferManager.prototype.destroy.calls.count()).toEqual(2);
     });
 
@@ -430,7 +399,7 @@ describe(
       });
       spyOn(FramebufferManager.prototype, "destroy").and.callThrough();
       fbm.update(context, 1, 1);
-      fbm.update(context, 1, 1, 1, undefined, PixelFormat.RGBA);
+      fbm.update(context, 1, 1, undefined, PixelFormat.RGBA);
       expect(FramebufferManager.prototype.destroy.calls.count()).toEqual(2);
     });
 

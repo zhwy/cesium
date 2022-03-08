@@ -76,13 +76,7 @@ function updateResources(globeTranslucency, context, width, height, hdr) {
       ? PixelDatatype.HALF_FLOAT
       : PixelDatatype.FLOAT
     : PixelDatatype.UNSIGNED_BYTE;
-  globeTranslucency._framebuffer.update(
-    context,
-    width,
-    height,
-    1,
-    pixelDatatype
-  );
+  globeTranslucency._framebuffer.update(context, width, height, pixelDatatype);
   globeTranslucency._packedDepthFramebuffer.update(context, width, height);
 }
 

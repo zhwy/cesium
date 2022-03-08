@@ -20,7 +20,6 @@ import BlendFunction from "./BlendFunction.js";
  * @private
  */
 function OIT(context) {
-  this._numSamples = 1;
   // We support multipass for the Chrome D3D9 backend and ES 2.0 on mobile.
   this._translucentMultipassSupport = false;
   this._translucentMRTSupport = false;
@@ -40,12 +39,10 @@ function OIT(context) {
     colorAttachmentsLength: this._translucentMRTSupport ? 2 : 1,
     createColorAttachments: false,
     createDepthAttachments: false,
-    depth: true,
   });
   this._alphaFBO = new FramebufferManager({
     createColorAttachments: false,
     createDepthAttachments: false,
-    depth: true,
   });
 
   this._adjustTranslucentFBO = new FramebufferManager({
@@ -204,20 +201,14 @@ function updateFramebuffers(oit, context) {
   return supported;
 }
 
-OIT.prototype.update = function (
-  context,
-  passState,
-  framebuffer,
-  useHDR,
-  numSamples
-) {
+OIT.prototype.update = function (context, passState, framebuffer, useHDR) {
   if (!this.isSupported()) {
     return;
   }
 
   this._opaqueFBO = framebuffer;
   this._opaqueTexture = framebuffer.getColorTexture(0);
-  this._depthStencilTexture = framebuffer.getDepthStencilTexture();
+  this._depthStencilTexture = framebuffer.depthStencilTexture;
 
   const width = this._opaqueTexture.width;
   const height = this._opaqueTexture.height;
@@ -228,18 +219,11 @@ OIT.prototype.update = function (
     accumulationTexture.width !== width ||
     accumulationTexture.height !== height ||
     useHDR !== this._useHDR;
-  const samplesChanged = this._numSamples !== numSamples;
-
-  if (textureChanged || samplesChanged) {
-    this._numSamples = numSamples;
+  if (textureChanged) {
     updateTextures(this, context, width, height);
   }
 
-  if (
-    !defined(this._translucentFBO.framebuffer) ||
-    textureChanged ||
-    samplesChanged
-  ) {
+  if (!defined(this._translucentFBO.framebuffer) || textureChanged) {
     if (!updateFramebuffers(this, context)) {
       // framebuffer creation failed
       return;
@@ -672,7 +656,7 @@ function executeTranslucentCommandsSortedMultipass(
   passState.framebuffer = oit._adjustAlphaFBO.framebuffer;
   oit._adjustAlphaCommand.execute(context, passState);
 
-  const debugFramebuffer = oit._opaqueFBO.framebuffer;
+  const debugFramebuffer = oit._opaqueFBO;
   passState.framebuffer = oit._translucentFBO.framebuffer;
 
   for (j = 0; j < length; ++j) {
@@ -763,7 +747,7 @@ function executeTranslucentCommandsSortedMRT(
   passState.framebuffer = oit._adjustTranslucentFBO.framebuffer;
   oit._adjustTranslucentCommand.execute(context, passState);
 
-  const debugFramebuffer = oit._opaqueFBO.framebuffer;
+  const debugFramebuffer = oit._opaqueFBO;
   passState.framebuffer = oit._translucentFBO.framebuffer;
 
   let command;
@@ -840,7 +824,7 @@ OIT.prototype.execute = function (context, passState) {
 OIT.prototype.clear = function (context, passState, clearColor) {
   const framebuffer = passState.framebuffer;
 
-  passState.framebuffer = this._opaqueFBO.framebuffer;
+  passState.framebuffer = this._opaqueFBO;
   Color.clone(clearColor, this._opaqueClearCommand.color);
   this._opaqueClearCommand.execute(context, passState);
 

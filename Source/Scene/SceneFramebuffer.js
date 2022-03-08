@@ -8,7 +8,6 @@ import PixelDatatype from "../Renderer/PixelDatatype.js";
  * @private
  */
 function SceneFramebuffer() {
-  this._numSamples = 1;
   this._colorFramebuffer = new FramebufferManager({
     depthStencil: true,
     supportsDepthTexture: true,
@@ -43,19 +42,9 @@ Object.defineProperties(SceneFramebuffer.prototype, {
       return this._idFramebuffer.framebuffer;
     },
   },
-  depthStencilTexture: {
-    get: function () {
-      return this._colorFramebuffer.getDepthStencilTexture();
-    },
-  },
 });
 
-SceneFramebuffer.prototype.update = function (
-  context,
-  viewport,
-  hdr,
-  numSamples
-) {
+SceneFramebuffer.prototype.update = function (context, viewport, hdr) {
   const width = viewport.width;
   const height = viewport.height;
   const pixelDatatype = hdr
@@ -63,14 +52,7 @@ SceneFramebuffer.prototype.update = function (
       ? PixelDatatype.HALF_FLOAT
       : PixelDatatype.FLOAT
     : PixelDatatype.UNSIGNED_BYTE;
-  this._numSamples = numSamples;
-  this._colorFramebuffer.update(
-    context,
-    width,
-    height,
-    numSamples,
-    pixelDatatype
-  );
+  this._colorFramebuffer.update(context, width, height, pixelDatatype);
   this._idFramebuffer.update(context, width, height);
 };
 
@@ -87,12 +69,6 @@ SceneFramebuffer.prototype.getFramebuffer = function () {
 
 SceneFramebuffer.prototype.getIdFramebuffer = function () {
   return this._idFramebuffer.framebuffer;
-};
-
-SceneFramebuffer.prototype.prepareColorTextures = function (context) {
-  if (this._numSamples > 1) {
-    this._colorFramebuffer.prepareTextures(context);
-  }
 };
 
 SceneFramebuffer.prototype.isDestroyed = function () {

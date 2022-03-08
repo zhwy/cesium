@@ -3,14 +3,14 @@ import DeveloperError from "./DeveloperError.js";
 import getAbsoluteUri from "./getAbsoluteUri.js";
 import Resource from "./Resource.js";
 
-/*global CESIUM_BASE_URL,define,require*/
+/*global CESIUM_BASE_URL*/
 
-const cesiumScriptRegex = /((?:.*\/)|^)Cesium\.js(?:\?|\#|$)/;
+var cesiumScriptRegex = /((?:.*\/)|^)Cesium\.js(?:\?|\#|$)/;
 function getBaseUrlFromCesiumScript() {
-  const scripts = document.getElementsByTagName("script");
-  for (let i = 0, len = scripts.length; i < len; ++i) {
-    const src = scripts[i].getAttribute("src");
-    const result = cesiumScriptRegex.exec(src);
+  var scripts = document.getElementsByTagName("script");
+  for (var i = 0, len = scripts.length; i < len; ++i) {
+    var src = scripts[i].getAttribute("src");
+    var result = cesiumScriptRegex.exec(src);
     if (result !== null) {
       return result[1];
     }
@@ -18,7 +18,7 @@ function getBaseUrlFromCesiumScript() {
   return undefined;
 }
 
-let a;
+var a;
 function tryMakeAbsolute(url) {
   if (typeof document === "undefined") {
     //Node.js and Web Workers. In both cases, the URL will already be absolute.
@@ -36,13 +36,13 @@ function tryMakeAbsolute(url) {
   return a.href;
 }
 
-let baseResource;
+var baseResource;
 function getCesiumBaseUrl() {
   if (defined(baseResource)) {
     return baseResource;
   }
 
-  let baseUrlString;
+  var baseUrlString;
   if (typeof CESIUM_BASE_URL !== "undefined") {
     baseUrlString = CESIUM_BASE_URL;
   } else if (
@@ -77,17 +77,17 @@ function getCesiumBaseUrl() {
 
 function buildModuleUrlFromRequireToUrl(moduleID) {
   //moduleID will be non-relative, so require it relative to this module, in Core.
-  return tryMakeAbsolute(require.toUrl(`../${moduleID}`));
+  return tryMakeAbsolute(require.toUrl("../" + moduleID));
 }
 
 function buildModuleUrlFromBaseUrl(moduleID) {
-  const resource = getCesiumBaseUrl().getDerivedResource({
+  var resource = getCesiumBaseUrl().getDerivedResource({
     url: moduleID,
   });
   return resource.url;
 }
 
-let implementation;
+var implementation;
 
 /**
  * Given a relative URL under the Cesium base URL, returns an absolute URL.
@@ -119,7 +119,7 @@ function buildModuleUrl(relativeUrl) {
     }
   }
 
-  const url = implementation(relativeUrl);
+  var url = implementation(relativeUrl);
   return url;
 }
 

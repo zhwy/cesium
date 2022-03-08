@@ -12,20 +12,6 @@ const lightboxHeight = 100;
 const textColor = "#ffffff";
 const highlightColor = "#48b";
 
-/**
- * Used to sort the credits by frequency of appearance
- * when they are later displayed.
- *
- * @alias CreditDisplay.CreditDisplayElement
- * @constructor
- *
- * @private
- */
-function CreditDisplayElement(credit, count) {
-  this.credit = credit;
-  this.count = defaultValue(count, 1);
-}
-
 function contains(credits, credit) {
   const len = credits.length;
   for (let i = 0; i < len; i++) {
@@ -80,14 +66,8 @@ function createCreditElement(element, elementWrapperTagName) {
 function displayCredits(container, credits, delimiter, elementWrapperTagName) {
   const childNodes = container.childNodes;
   let domIndex = -1;
-
-  // Sort the credits such that more frequent credits appear first
-  credits.sort(function (credit1, credit2) {
-    return credit2.count - credit1.count;
-  });
-
   for (let creditIndex = 0; creditIndex < credits.length; ++creditIndex) {
-    const credit = credits[creditIndex].credit;
+    const credit = credits[creditIndex];
     if (defined(credit)) {
       domIndex = creditIndex;
       if (defined(delimiter)) {
@@ -361,14 +341,10 @@ function CreditDisplay(container, delimiter, viewport) {
   this._cesiumCredit = cesiumCredit;
   this._previousCesiumCredit = undefined;
   this._currentCesiumCredit = cesiumCredit;
-  this._creditDisplayElementPool = [];
-  this._creditDisplayElementIndex = 0;
-
   this._currentFrameCredits = {
     screenCredits: new AssociativeArray(),
     lightboxCredits: new AssociativeArray(),
   };
-
   this._defaultCredit = undefined;
 
   this.viewport = viewport;
@@ -380,26 +356,6 @@ function CreditDisplay(container, delimiter, viewport) {
   this.container = container;
 }
 
-function setCredit(creditDisplay, credits, credit, count) {
-  count = defaultValue(count, 1);
-  let creditDisplayElement = credits.get(credit.id);
-  if (!defined(creditDisplayElement)) {
-    const pool = creditDisplay._creditDisplayElementPool;
-    const poolIndex = creditDisplay._creditDisplayElementPoolIndex;
-    if (poolIndex < pool.length) {
-      creditDisplayElement = pool[poolIndex];
-      creditDisplayElement.credit = credit;
-      creditDisplayElement.count = count;
-    } else {
-      creditDisplayElement = new CreditDisplayElement(credit, count);
-      pool.push(creditDisplayElement);
-    }
-    ++creditDisplay._creditDisplayElementPoolIndex;
-    credits.set(credit.id, creditDisplayElement);
-  } else if (creditDisplayElement.count < Number.MAX_VALUE) {
-    creditDisplayElement.count += count;
-  }
-}
 /**
  * Adds a credit to the list of current credits to be displayed in the credit container
  *
@@ -420,14 +376,11 @@ CreditDisplay.prototype.addCredit = function (credit) {
     return;
   }
 
-  let credits;
   if (!credit.showOnScreen) {
-    credits = this._currentFrameCredits.lightboxCredits;
+    this._currentFrameCredits.lightboxCredits.set(credit.id, credit);
   } else {
-    credits = this._currentFrameCredits.screenCredits;
+    this._currentFrameCredits.screenCredits.set(credit.id, credit);
   }
-
-  setCredit(this, credits, credit);
 };
 
 /**
@@ -487,14 +440,13 @@ CreditDisplay.prototype.update = function () {
  */
 CreditDisplay.prototype.beginFrame = function () {
   const currentFrameCredits = this._currentFrameCredits;
-  this._creditDisplayElementPoolIndex = 0;
 
   const screenCredits = currentFrameCredits.screenCredits;
   screenCredits.removeAll();
   const defaultCredits = this._defaultCredits;
   for (let i = 0; i < defaultCredits.length; ++i) {
     const defaultCredit = defaultCredits[i];
-    setCredit(this, screenCredits, defaultCredit, Number.MAX_VALUE);
+    screenCredits.set(defaultCredit.id, defaultCredit);
   }
 
   currentFrameCredits.lightboxCredits.removeAll();
@@ -605,6 +557,4 @@ Object.defineProperties(CreditDisplay, {
     },
   },
 });
-
-CreditDisplay.CreditDisplayElement = CreditDisplayElement;
 export default CreditDisplay;

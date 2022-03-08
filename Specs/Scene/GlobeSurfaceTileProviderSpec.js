@@ -3,7 +3,6 @@ import { Cartesian4 } from "../../Source/Cesium.js";
 import { CesiumTerrainProvider } from "../../Source/Cesium.js";
 import { Color } from "../../Source/Cesium.js";
 import { Credit } from "../../Source/Cesium.js";
-import { CreditDisplay } from "../../Source/Cesium.js";
 import { defined } from "../../Source/Cesium.js";
 import { Ellipsoid } from "../../Source/Cesium.js";
 import { EllipsoidTerrainProvider } from "../../Source/Cesium.js";
@@ -854,7 +853,6 @@ describe(
     });
 
     it("adds terrain and imagery credits to the CreditDisplay", function () {
-      const CreditDisplayElement = CreditDisplay.CreditDisplayElement;
       const imageryCredit = new Credit("imagery credit");
       scene.imageryLayers.addImageryProvider(
         new SingleTileImageryProvider({
@@ -874,10 +872,10 @@ describe(
         creditDisplay.showLightbox();
         expect(
           creditDisplay._currentFrameCredits.lightboxCredits.values
-        ).toContain(new CreditDisplayElement(imageryCredit));
+        ).toContain(imageryCredit);
         expect(
           creditDisplay._currentFrameCredits.lightboxCredits.values
-        ).toContain(new CreditDisplayElement(terrainCredit));
+        ).toContain(terrainCredit);
         creditDisplay.hideLightbox();
       });
     });
