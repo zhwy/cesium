@@ -10,6 +10,7 @@ import createGuid from "../Core/createGuid.js";
 import CullingVolume from "../Core/CullingVolume.js";
 import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
+import deprecationWarning from "../Core/deprecationWarning.js";
 import destroyObject from "../Core/destroyObject.js";
 import DeveloperError from "../Core/DeveloperError.js";
 import EllipsoidGeometry from "../Core/EllipsoidGeometry.js";
@@ -70,9 +71,9 @@ import TweenCollection from "./TweenCollection.js";
 import View from "./View.js";
 import DebugInspector from "./DebugInspector.js";
 
-const requestRenderAfterFrame = function (scene) {
-  return function () {
-    scene.frameState.afterRender.push(function () {
+const requestRenderAfterFrame = function(scene) {
+  return function() {
+    scene.frameState.afterRender.push(function() {
       scene.requestRender();
     });
   };
@@ -794,7 +795,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   canvas: {
-    get: function () {
+    get: function() {
       return this._canvas;
     },
   },
@@ -809,7 +810,7 @@ Object.defineProperties(Scene.prototype, {
    * @see {@link https://www.khronos.org/registry/webgl/specs/1.0/#DOM-WebGLRenderingContext-drawingBufferHeight|drawingBufferHeight}
    */
   drawingBufferHeight: {
-    get: function () {
+    get: function() {
       return this._context.drawingBufferHeight;
     },
   },
@@ -824,7 +825,7 @@ Object.defineProperties(Scene.prototype, {
    * @see {@link https://www.khronos.org/registry/webgl/specs/1.0/#DOM-WebGLRenderingContext-drawingBufferHeight|drawingBufferHeight}
    */
   drawingBufferWidth: {
-    get: function () {
+    get: function() {
       return this._context.drawingBufferWidth;
     },
   },
@@ -839,7 +840,7 @@ Object.defineProperties(Scene.prototype, {
    * @see {@link https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml|glGet} with <code>ALIASED_LINE_WIDTH_RANGE</code>.
    */
   maximumAliasedLineWidth: {
-    get: function () {
+    get: function() {
       return ContextLimits.maximumAliasedLineWidth;
     },
   },
@@ -854,7 +855,7 @@ Object.defineProperties(Scene.prototype, {
    * @see {@link https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml|glGet} with <code>GL_MAX_CUBE_MAP_TEXTURE_SIZE</code>.
    */
   maximumCubeMapSize: {
-    get: function () {
+    get: function() {
       return ContextLimits.maximumCubeMapSize;
     },
   },
@@ -869,7 +870,7 @@ Object.defineProperties(Scene.prototype, {
    * @see Scene#pickPosition
    */
   pickPositionSupported: {
-    get: function () {
+    get: function() {
       return this._context.depthTexture;
     },
   },
@@ -885,7 +886,7 @@ Object.defineProperties(Scene.prototype, {
    * @see Scene#sampleHeightMostDetailed
    */
   sampleHeightSupported: {
-    get: function () {
+    get: function() {
       return this._context.depthTexture;
     },
   },
@@ -901,7 +902,7 @@ Object.defineProperties(Scene.prototype, {
    * @see Scene#clampToHeightMostDetailed
    */
   clampToHeightSupported: {
-    get: function () {
+    get: function() {
       return this._context.depthTexture;
     },
   },
@@ -916,7 +917,7 @@ Object.defineProperties(Scene.prototype, {
    * @see Scene#invertClassification
    */
   invertClassificationSupported: {
-    get: function () {
+    get: function() {
       return this._context.depthTexture;
     },
   },
@@ -931,7 +932,7 @@ Object.defineProperties(Scene.prototype, {
    * @see Scene#specularEnvironmentMaps
    */
   specularEnvironmentMapsSupported: {
-    get: function () {
+    get: function() {
       return OctahedralProjectedCubeMap.isSupported(this._context);
     },
   },
@@ -943,11 +944,11 @@ Object.defineProperties(Scene.prototype, {
    * @type {Globe}
    */
   globe: {
-    get: function () {
+    get: function() {
       return this._globe;
     },
 
-    set: function (globe) {
+    set: function(globe) {
       this._globe = this._globe && this._globe.destroy();
       this._globe = globe;
 
@@ -963,7 +964,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   primitives: {
-    get: function () {
+    get: function() {
       return this._primitives;
     },
   },
@@ -976,7 +977,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   groundPrimitives: {
-    get: function () {
+    get: function() {
       return this._groundPrimitives;
     },
   },
@@ -989,10 +990,10 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   camera: {
-    get: function () {
+    get: function() {
       return this._view.camera;
     },
-    set: function (camera) {
+    set: function(camera) {
       // For internal use only. Documentation is still @readonly.
       this._view.camera = camera;
     },
@@ -1008,10 +1009,10 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   view: {
-    get: function () {
+    get: function() {
       return this._view;
     },
-    set: function (view) {
+    set: function(view) {
       // For internal use only. Documentation is still @readonly.
       this._view = view;
     },
@@ -1027,7 +1028,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   defaultView: {
-    get: function () {
+    get: function() {
       return this._defaultView;
     },
   },
@@ -1042,7 +1043,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   picking: {
-    get: function () {
+    get: function() {
       return this._picking;
     },
   },
@@ -1055,7 +1056,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   screenSpaceCameraController: {
-    get: function () {
+    get: function() {
       return this._screenSpaceCameraController;
     },
   },
@@ -1070,7 +1071,7 @@ Object.defineProperties(Scene.prototype, {
    * @default new GeographicProjection()
    */
   mapProjection: {
-    get: function () {
+    get: function() {
       return this._mapProjection;
     },
   },
@@ -1084,7 +1085,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   jobScheduler: {
-    get: function () {
+    get: function() {
       return this._jobScheduler;
     },
   },
@@ -1100,7 +1101,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   frameState: {
-    get: function () {
+    get: function() {
       return this._frameState;
     },
   },
@@ -1115,7 +1116,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   environmentState: {
-    get: function () {
+    get: function() {
       return this._environmentState;
     },
   },
@@ -1130,7 +1131,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   tweens: {
-    get: function () {
+    get: function() {
       return this._tweens;
     },
   },
@@ -1143,7 +1144,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   imageryLayers: {
-    get: function () {
+    get: function() {
       if (!defined(this.globe)) {
         return undefined;
       }
@@ -1159,14 +1160,14 @@ Object.defineProperties(Scene.prototype, {
    * @type {TerrainProvider}
    */
   terrainProvider: {
-    get: function () {
+    get: function() {
       if (!defined(this.globe)) {
         return undefined;
       }
 
       return this.globe.terrainProvider;
     },
-    set: function (terrainProvider) {
+    set: function(terrainProvider) {
       if (defined(this.globe)) {
         this.globe.terrainProvider = terrainProvider;
       }
@@ -1181,7 +1182,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   terrainProviderChanged: {
-    get: function () {
+    get: function() {
       if (!defined(this.globe)) {
         return undefined;
       }
@@ -1204,7 +1205,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   preUpdate: {
-    get: function () {
+    get: function() {
       return this._preUpdate;
     },
   },
@@ -1224,7 +1225,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   postUpdate: {
-    get: function () {
+    get: function() {
       return this._postUpdate;
     },
   },
@@ -1240,7 +1241,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   renderError: {
-    get: function () {
+    get: function() {
       return this._renderError;
     },
   },
@@ -1260,7 +1261,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   preRender: {
-    get: function () {
+    get: function() {
       return this._preRender;
     },
   },
@@ -1279,7 +1280,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   postRender: {
-    get: function () {
+    get: function() {
       return this._postRender;
     },
   },
@@ -1293,7 +1294,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   lastRenderTime: {
-    get: function () {
+    get: function() {
       return this._lastRenderTime;
     },
   },
@@ -1304,7 +1305,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   context: {
-    get: function () {
+    get: function() {
       return this._context;
     },
   },
@@ -1328,7 +1329,7 @@ Object.defineProperties(Scene.prototype, {
    * @default undefined
    */
   debugFrustumStatistics: {
-    get: function () {
+    get: function() {
       return this._view.debugFrustumStatistics;
     },
   },
@@ -1340,7 +1341,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   scene3DOnly: {
-    get: function () {
+    get: function() {
       return this._frameState.scene3DOnly;
     },
   },
@@ -1354,7 +1355,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   orderIndependentTranslucency: {
-    get: function () {
+    get: function() {
       return this._useOIT;
     },
   },
@@ -1366,7 +1367,7 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   id: {
-    get: function () {
+    get: function() {
       return this._id;
     },
   },
@@ -1378,10 +1379,10 @@ Object.defineProperties(Scene.prototype, {
    * @default {@link SceneMode.SCENE3D}
    */
   mode: {
-    get: function () {
+    get: function() {
       return this._mode;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       if (this.scene3DOnly && value !== SceneMode.SCENE3D) {
         throw new DeveloperError(
@@ -1414,7 +1415,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   frustumCommandsList: {
-    get: function () {
+    get: function() {
       return this._view.frustumCommandsList;
     },
   },
@@ -1427,7 +1428,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   numberOfFrustums: {
-    get: function () {
+    get: function() {
       return this._view.frustumCommandsList.length;
     },
   },
@@ -1440,10 +1441,10 @@ Object.defineProperties(Scene.prototype, {
    * @default false
    */
   useWebVR: {
-    get: function () {
+    get: function() {
       return this._useWebVR;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       if (this.camera.frustum instanceof OrthographicFrustum) {
         throw new DeveloperError(
@@ -1483,8 +1484,23 @@ Object.defineProperties(Scene.prototype, {
    * @readonly
    */
   mapMode2D: {
-    get: function () {
+    get: function() {
       return this._mapMode2D;
+    },
+  },
+
+  /**
+   * Gets or sets the position of the splitter within the viewport.  Valid values are between 0.0 and 1.0.
+   * @memberof Scene.prototype
+   *
+   * @type {Number}
+   */
+  splitPosition: {
+    get: function() {
+      return this._frameState.splitPosition;
+    },
+    set: function(value) {
+      this._frameState.splitPosition = value;
     },
   },
 
@@ -1492,14 +1508,23 @@ Object.defineProperties(Scene.prototype, {
    * Gets or sets the position of the Imagery splitter within the viewport.  Valid values are between 0.0 and 1.0.
    * @memberof Scene.prototype
    *
+   * @deprecated Use splitPosition instead.
    * @type {Number}
    */
   imagerySplitPosition: {
-    get: function () {
-      return this._frameState.imagerySplitPosition;
+    get: function() {
+      deprecationWarning(
+        "Scene.imagerySplitPosition",
+        "Scene.imagerySplitPosition has been deprecated in Cesium 1.92. It will be removed in Cesium 1.94. Use splitPosition instead."
+      );
+      return this._frameState.splitPosition;
     },
-    set: function (value) {
-      this._frameState.imagerySplitPosition = value;
+    set: function(value) {
+      deprecationWarning(
+        "Scene.imagerySplitPosition",
+        "Scene.imagerySplitPosition has been deprecated in Cesium 1.92. It will be removed in Cesium 1.94. Use splitPosition instead."
+      );
+      this._frameState.splitPosition = value;
     },
   },
 
@@ -1513,10 +1538,10 @@ Object.defineProperties(Scene.prototype, {
    * @default 0.0
    */
   minimumDisableDepthTestDistance: {
-    get: function () {
+    get: function() {
       return this._minimumDisableDepthTestDistance;
     },
-    set: function (value) {
+    set: function(value) {
       //>>includeStart('debug', pragmas.debug);
       if (!defined(value) || value < 0.0) {
         throw new DeveloperError(
@@ -1535,10 +1560,10 @@ Object.defineProperties(Scene.prototype, {
    * @type {Boolean}
    */
   logarithmicDepthBuffer: {
-    get: function () {
+    get: function() {
       return this._logDepthBuffer;
     },
-    set: function (value) {
+    set: function(value) {
       value = this._context.fragmentDepth && value;
       if (this._logDepthBuffer !== value) {
         this._logDepthBuffer = value;
@@ -1554,10 +1579,10 @@ Object.defineProperties(Scene.prototype, {
    * @default 2.2
    */
   gamma: {
-    get: function () {
+    get: function() {
       return this._context.uniformState.gamma;
     },
-    set: function (value) {
+    set: function(value) {
       this._context.uniformState.gamma = value;
     },
   },
@@ -1569,10 +1594,10 @@ Object.defineProperties(Scene.prototype, {
    * @default true
    */
   highDynamicRange: {
-    get: function () {
+    get: function() {
       return this._hdr;
     },
-    set: function (value) {
+    set: function(value) {
       const context = this._context;
       const hdr =
         value &&
@@ -1591,7 +1616,7 @@ Object.defineProperties(Scene.prototype, {
    * @default true
    */
   highDynamicRangeSupported: {
-    get: function () {
+    get: function() {
       const context = this._context;
       return (
         context.depthTexture &&
@@ -1608,8 +1633,36 @@ Object.defineProperties(Scene.prototype, {
    * @default false
    */
   cameraUnderground: {
-    get: function () {
+    get: function() {
       return this._cameraUnderground;
+    },
+  },
+
+  /**
+   * The sample rate of multisample antialiasing (values greater than 1 enable MSAA).
+   * @memberof Scene.prototype
+   * @type {Number}
+   * @default 1
+   */
+  msaaSamples: {
+    get: function() {
+      return this._msaaSamples;
+    },
+    set: function(value) {
+      value = Math.min(value, ContextLimits.maximumSamples);
+      this._msaaSamples = value;
+    },
+  },
+
+  /**
+   * Returns <code>true</code> if the Scene's context supports MSAA.
+   * @memberof Scene.prototype
+   * @type {Boolean}
+   * @readonly
+   */
+  msaaSupported: {
+    get: function() {
+      return this._context.msaa;
     },
   },
 
@@ -1623,10 +1676,10 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   pixelRatio: {
-    get: function () {
+    get: function() {
       return this._frameState.pixelRatio;
     },
-    set: function (value) {
+    set: function(value) {
       this._frameState.pixelRatio = value;
     },
   },
@@ -1635,7 +1688,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   opaqueFrustumNearOffset: {
-    get: function () {
+    get: function() {
       return 0.9999;
     },
   },
@@ -1644,7 +1697,7 @@ Object.defineProperties(Scene.prototype, {
    * @private
    */
   globeHeight: {
-    get: function () {
+    get: function() {
       return this._globeHeight;
     },
   },
@@ -1655,7 +1708,7 @@ Object.defineProperties(Scene.prototype, {
  * @param {String} format The texture format. May be the name of the format or the WebGL extension name, e.g. s3tc or WEBGL_compressed_texture_s3tc.
  * @return {boolean} Whether or not the format is supported.
  */
-Scene.prototype.getCompressedTextureFormatSupported = function (format) {
+Scene.prototype.getCompressedTextureFormatSupported = function(format) {
   const context = this.context;
   return (
     ((format === "WEBGL_compressed_texture_s3tc" || format === "s3tc") &&
@@ -1745,7 +1798,7 @@ function updateDerivedCommands(scene, command, shadowsDirty) {
 /**
  * @private
  */
-Scene.prototype.updateDerivedCommands = function (command) {
+Scene.prototype.updateDerivedCommands = function(command) {
   if (!defined(command.derivedCommands)) {
     // Is not a DrawCommand
     return;
@@ -1860,7 +1913,7 @@ function getOccluder(scene) {
 /**
  * @private
  */
-Scene.prototype.clearPasses = function (passes) {
+Scene.prototype.clearPasses = function(passes) {
   passes.render = false;
   passes.pick = false;
   passes.depth = false;
@@ -1877,7 +1930,7 @@ function updateFrameNumber(scene, frameNumber, time) {
 /**
  * @private
  */
-Scene.prototype.updateFrameState = function () {
+Scene.prototype.updateFrameState = function() {
   const camera = this.camera;
 
   const frameState = this._frameState;
@@ -1950,7 +2003,7 @@ Scene.prototype.updateFrameState = function () {
 /**
  * @private
  */
-Scene.prototype.isVisible = function (command, cullingVolume, occluder) {
+Scene.prototype.isVisible = function(command, cullingVolume, occluder) {
   return (
     defined(command) &&
     (!defined(command.boundingVolume) ||
@@ -2333,7 +2386,7 @@ function executeCommands(scene, passState) {
   let executeTranslucentCommands;
   if (environmentState.useOIT) {
     if (!defined(scene._executeOITFunction)) {
-      scene._executeOITFunction = function (
+      scene._executeOITFunction = function(
         scene,
         executeFunction,
         passState,
@@ -2538,7 +2591,7 @@ function executeCommands(scene, passState) {
       us.updatePass(Pass.CESIUM_3D_TILE_CLASSIFICATION_IGNORE_SHOW);
       commands =
         frustumCommands.commands[
-          Pass.CESIUM_3D_TILE_CLASSIFICATION_IGNORE_SHOW
+        Pass.CESIUM_3D_TILE_CLASSIFICATION_IGNORE_SHOW
         ];
       length =
         frustumCommands.indices[Pass.CESIUM_3D_TILE_CLASSIFICATION_IGNORE_SHOW];
@@ -2841,7 +2894,7 @@ const scratchEyeTranslation = new Cartesian3();
 /**
  * @private
  */
-Scene.prototype.updateAndExecuteCommands = function (
+Scene.prototype.updateAndExecuteCommands = function(
   passState,
   backgroundColor
 ) {
@@ -3132,7 +3185,7 @@ const scratchCullingVolume = new CullingVolume();
 /**
  * @private
  */
-Scene.prototype.updateEnvironment = function () {
+Scene.prototype.updateEnvironment = function() {
   const frameState = this._frameState;
   const view = this._view;
 
@@ -3215,7 +3268,7 @@ Scene.prototype.updateEnvironment = function () {
 
   const occluder =
     frameState.mode === SceneMode.SCENE3D &&
-    !globeTranslucencyState.sunVisibleThroughGlobe
+      !globeTranslucencyState.sunVisibleThroughGlobe
       ? frameState.occluder
       : undefined;
   let cullingVolume = frameState.cullingVolume;
@@ -3478,7 +3531,7 @@ function updateAndClearFramebuffers(scene, passState, clearColor) {
 /**
  * @private
  */
-Scene.prototype.resolveFramebuffers = function (passState) {
+Scene.prototype.resolveFramebuffers = function(passState) {
   const context = this._context;
   const environmentState = this._environmentState;
   const view = this._view;
@@ -3586,7 +3639,7 @@ function isCameraUnderground(scene) {
 /**
  * @private
  */
-Scene.prototype.initializeFrame = function () {
+Scene.prototype.initializeFrame = function() {
   // Destroy released shaders and textures once every 120 frames to avoid thrashing the cache
   if (this._shaderFrameCount++ === 120) {
     this._shaderFrameCount = 0;
@@ -3756,7 +3809,7 @@ function updateMostDetailedRayPicks(scene) {
  * directly because {@link CesiumWidget} or {@link Viewer} do it automatically.
  * @param {JulianDate} [time] The simulation time at which to render.
  */
-Scene.prototype.render = function (time) {
+Scene.prototype.render = function(time) {
   /**
    *
    * Pre passes update. Execute any pass invariant code that should run before the passes here.
@@ -3855,7 +3908,7 @@ Scene.prototype.render = function (time) {
  *
  * @private
  */
-Scene.prototype.forceRender = function (time) {
+Scene.prototype.forceRender = function(time) {
   this._renderRequested = true;
   this.render(time);
 };
@@ -3866,14 +3919,14 @@ Scene.prototype.forceRender = function (time) {
  *
  * @see Scene#requestRenderMode
  */
-Scene.prototype.requestRender = function () {
+Scene.prototype.requestRender = function() {
   this._renderRequested = true;
 };
 
 /**
  * @private
  */
-Scene.prototype.clampLineWidth = function (width) {
+Scene.prototype.clampLineWidth = function(width) {
   return Math.max(
     ContextLimits.minimumAliasedLineWidth,
     Math.min(width, ContextLimits.maximumAliasedLineWidth)
@@ -3902,7 +3955,7 @@ Scene.prototype.clampLineWidth = function (width) {
  * @param {Number} [height=3] Height of the pick rectangle.
  * @returns {Object} Object containing the picked primitive.
  */
-Scene.prototype.pick = function (windowPosition, width, height) {
+Scene.prototype.pick = function(windowPosition, width, height) {
   return this._picking.pick(this, windowPosition, width, height);
 };
 
@@ -3923,7 +3976,7 @@ Scene.prototype.pick = function (windowPosition, width, height) {
  *
  * @exception {DeveloperError} Picking from the depth buffer is not supported. Check pickPositionSupported.
  */
-Scene.prototype.pickPositionWorldCoordinates = function (
+Scene.prototype.pickPositionWorldCoordinates = function(
   windowPosition,
   result
 ) {
@@ -3952,7 +4005,7 @@ Scene.prototype.pickPositionWorldCoordinates = function (
  *
  * @exception {DeveloperError} Picking from the depth buffer is not supported. Check pickPositionSupported.
  */
-Scene.prototype.pickPosition = function (windowPosition, result) {
+Scene.prototype.pickPosition = function(windowPosition, result) {
   return this._picking.pickPosition(this, windowPosition, result);
 };
 
@@ -3975,7 +4028,7 @@ Scene.prototype.pickPosition = function (windowPosition, result) {
  *
  * @see Scene#pick
  */
-Scene.prototype.drillPick = function (windowPosition, limit, width, height) {
+Scene.prototype.drillPick = function(windowPosition, limit, width, height) {
   return this._picking.drillPick(this, windowPosition, limit, width, height);
 };
 
@@ -4030,7 +4083,7 @@ function updateRequestRenderModeDeferCheckPass(scene) {
  *
  * @exception {DeveloperError} Ray intersections are only supported in 3D mode.
  */
-Scene.prototype.pickFromRay = function (ray, objectsToExclude, width) {
+Scene.prototype.pickFromRay = function(ray, objectsToExclude, width) {
   return this._picking.pickFromRay(this, ray, objectsToExclude, width);
 };
 
@@ -4055,7 +4108,7 @@ Scene.prototype.pickFromRay = function (ray, objectsToExclude, width) {
  *
  * @exception {DeveloperError} Ray intersections are only supported in 3D mode.
  */
-Scene.prototype.drillPickFromRay = function (
+Scene.prototype.drillPickFromRay = function(
   ray,
   limit,
   objectsToExclude,
@@ -4083,7 +4136,7 @@ Scene.prototype.drillPickFromRay = function (
  *
  * @exception {DeveloperError} Ray intersections are only supported in 3D mode.
  */
-Scene.prototype.pickFromRayMostDetailed = function (
+Scene.prototype.pickFromRayMostDetailed = function(
   ray,
   objectsToExclude,
   width
@@ -4110,7 +4163,7 @@ Scene.prototype.pickFromRayMostDetailed = function (
  *
  * @exception {DeveloperError} Ray intersections are only supported in 3D mode.
  */
-Scene.prototype.drillPickFromRayMostDetailed = function (
+Scene.prototype.drillPickFromRayMostDetailed = function(
   ray,
   limit,
   objectsToExclude,
@@ -4151,7 +4204,7 @@ Scene.prototype.drillPickFromRayMostDetailed = function (
  * @exception {DeveloperError} sampleHeight is only supported in 3D mode.
  * @exception {DeveloperError} sampleHeight requires depth texture support. Check sampleHeightSupported.
  */
-Scene.prototype.sampleHeight = function (position, objectsToExclude, width) {
+Scene.prototype.sampleHeight = function(position, objectsToExclude, width) {
   return this._picking.sampleHeight(this, position, objectsToExclude, width);
 };
 
@@ -4182,7 +4235,7 @@ Scene.prototype.sampleHeight = function (position, objectsToExclude, width) {
  * @exception {DeveloperError} clampToHeight is only supported in 3D mode.
  * @exception {DeveloperError} clampToHeight requires depth texture support. Check clampToHeightSupported.
  */
-Scene.prototype.clampToHeight = function (
+Scene.prototype.clampToHeight = function(
   cartesian,
   objectsToExclude,
   width,
@@ -4225,7 +4278,7 @@ Scene.prototype.clampToHeight = function (
  * @exception {DeveloperError} sampleHeightMostDetailed is only supported in 3D mode.
  * @exception {DeveloperError} sampleHeightMostDetailed requires depth texture support. Check sampleHeightSupported.
  */
-Scene.prototype.sampleHeightMostDetailed = function (
+Scene.prototype.sampleHeightMostDetailed = function(
   positions,
   objectsToExclude,
   width
@@ -4265,7 +4318,7 @@ Scene.prototype.sampleHeightMostDetailed = function (
  * @exception {DeveloperError} clampToHeightMostDetailed is only supported in 3D mode.
  * @exception {DeveloperError} clampToHeightMostDetailed requires depth texture support. Check clampToHeightSupported.
  */
-Scene.prototype.clampToHeightMostDetailed = function (
+Scene.prototype.clampToHeightMostDetailed = function(
   cartesians,
   objectsToExclude,
   width
@@ -4296,14 +4349,14 @@ Scene.prototype.clampToHeightMostDetailed = function (
  *     console.log(scene.cartesianToCanvasCoordinates(position));
  * }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
  */
-Scene.prototype.cartesianToCanvasCoordinates = function (position, result) {
+Scene.prototype.cartesianToCanvasCoordinates = function(position, result) {
   return SceneTransforms.wgs84ToWindowCoordinates(this, position, result);
 };
 
 /**
  * Instantly completes an active transition.
  */
-Scene.prototype.completeMorph = function () {
+Scene.prototype.completeMorph = function() {
   this._transitioner.completeMorph();
 };
 
@@ -4311,7 +4364,7 @@ Scene.prototype.completeMorph = function () {
  * Asynchronously transitions the scene to 2D.
  * @param {Number} [duration=2.0] The amount of time, in seconds, for transition animations to complete.
  */
-Scene.prototype.morphTo2D = function (duration) {
+Scene.prototype.morphTo2D = function(duration) {
   let ellipsoid;
   const globe = this.globe;
   if (defined(globe)) {
@@ -4327,7 +4380,7 @@ Scene.prototype.morphTo2D = function (duration) {
  * Asynchronously transitions the scene to Columbus View.
  * @param {Number} [duration=2.0] The amount of time, in seconds, for transition animations to complete.
  */
-Scene.prototype.morphToColumbusView = function (duration) {
+Scene.prototype.morphToColumbusView = function(duration) {
   let ellipsoid;
   const globe = this.globe;
   if (defined(globe)) {
@@ -4343,7 +4396,7 @@ Scene.prototype.morphToColumbusView = function (duration) {
  * Asynchronously transitions the scene to 3D.
  * @param {Number} [duration=2.0] The amount of time, in seconds, for transition animations to complete.
  */
-Scene.prototype.morphTo3D = function (duration) {
+Scene.prototype.morphTo3D = function(duration) {
   let ellipsoid;
   const globe = this.globe;
   if (defined(globe)) {
@@ -4365,7 +4418,7 @@ Scene.prototype.morphTo3D = function (duration) {
  *
  * @see Scene#destroy
  */
-Scene.prototype.isDestroyed = function () {
+Scene.prototype.isDestroyed = function() {
   return false;
 };
 
@@ -4385,7 +4438,7 @@ Scene.prototype.isDestroyed = function () {
  *
  * @see Scene#isDestroyed
  */
-Scene.prototype.destroy = function () {
+Scene.prototype.destroy = function() {
   this._tweens.removeAll();
   this._computeEngine = this._computeEngine && this._computeEngine.destroy();
   this._screenSpaceCameraController =

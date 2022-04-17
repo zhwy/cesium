@@ -69,7 +69,7 @@ function ModelVisualizer(scene, entityCollection) {
  * @param {JulianDate} time The time to update to.
  * @returns {Boolean} This function always returns true.
  */
-ModelVisualizer.prototype.update = function(time) {
+ModelVisualizer.prototype.update = function (time) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(time)) {
     throw new DeveloperError("time is required.");
@@ -204,18 +204,13 @@ ModelVisualizer.prototype.update = function(time) {
       time,
       defaultClampAnimations
     );
-    model.imageBasedLightingFactor = Property.getValueOrDefault(
+    model.imageBasedLighting.imageBasedLightingFactor = Property.getValueOrDefault(
       modelGraphics._imageBasedLightingFactor,
       time,
       defaultImageBasedLightingFactor
     );
     model.lightColor = Property.getValueOrUndefined(
       modelGraphics._lightColor,
-      time
-    );
-
-    model._forwardAxis = Property.getValueOrUndefined(
-      modelGraphics._forwardAxis,
       time
     );
 
@@ -313,14 +308,14 @@ ModelVisualizer.prototype.update = function(time) {
  *
  * @returns {Boolean} True if this object was destroyed; otherwise, false.
  */
-ModelVisualizer.prototype.isDestroyed = function() {
+ModelVisualizer.prototype.isDestroyed = function () {
   return false;
 };
 
 /**
  * Removes and destroys all primitives created by this instance.
  */
-ModelVisualizer.prototype.destroy = function() {
+ModelVisualizer.prototype.destroy = function () {
   this._entityCollection.collectionChanged.removeEventListener(
     ModelVisualizer.prototype._onCollectionChanged,
     this
@@ -345,7 +340,7 @@ ModelVisualizer.prototype.destroy = function() {
  *                       BoundingSphereState.FAILED if the entity has no visualization in the current scene.
  * @private
  */
-ModelVisualizer.prototype.getBoundingSphere = function(entity, result) {
+ModelVisualizer.prototype.getBoundingSphere = function (entity, result) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(entity)) {
     throw new DeveloperError("entity is required.");
@@ -387,7 +382,7 @@ ModelVisualizer.prototype.getBoundingSphere = function(entity, result) {
 /**
  * @private
  */
-ModelVisualizer.prototype._onCollectionChanged = function(
+ModelVisualizer.prototype._onCollectionChanged = function (
   entityCollection,
   added,
   removed,
@@ -441,7 +436,7 @@ function clearNodeTransformationsArticulationsScratch(entity, modelHash) {
 }
 
 function checkModelLoad(model, entity, modelHash) {
-  model.readyPromise.otherwise(function(error) {
+  model.readyPromise.catch(function (error) {
     console.error(error);
     modelHash[entity.id].loadFail = true;
   });
