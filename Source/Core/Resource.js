@@ -1367,7 +1367,7 @@ Resource.prototype._makeRequest = function(options) {
       const overrideMimeType = options.overrideMimeType;
       const method = options.method;
       const data = options.data;
-      const deferred = when.defer();
+      const deferred = defer();
       const xhr = Resource._Implementations.loadWithCache(
         resource.url,
         responseType,
@@ -1394,9 +1394,9 @@ Resource.prototype._makeRequest = function(options) {
       .then(function(data) {
         return data;
       })
-      .otherwise(function(e) {
+      .catch(function(e) {
         if (request.state !== RequestState.FAILED) {
-          return when.reject(e);
+          return Promise.reject(e);
         }
         return resource.retryOnError(e).then(function(retry) {
           if (retry) {
@@ -1405,7 +1405,7 @@ Resource.prototype._makeRequest = function(options) {
             request.deferred = undefined;
             return resource.fetch(options);
           }
-          return when.reject(e);
+          return Promise.reject(e);
         });
       });
   }
@@ -1468,68 +1468,6 @@ Resource.prototype._makeRequest = function(options) {
       });
     });
 };
-
-// /**
-//  * @private
-//  */
-// Resource.prototype._makeRequest = function(options) {
-//     var resource = this;
-//     checkAndResetRequest(resource.request);
-
-//     var request = resource.request;
-//     request.url = resource.url;
-
-//     request.requestFunction = function() {
-//         var responseType = options.responseType;
-//         var headers = combine(options.headers, resource.headers);
-//         var overrideMimeType = options.overrideMimeType;
-//         var method = options.method;
-//         var data = options.data;
-//         var deferred = when.defer();
-//         var xhr = Resource._Implementations.loadWithXhr(
-//             resource.url,
-//             responseType,
-//             method,
-//             data,
-//             headers,
-//             deferred,
-//             overrideMimeType
-//         );
-//         if (defined(xhr) && defined(xhr.abort)) {
-//             request.cancelFunction = function() {
-//                 xhr.abort();
-//             };
-//         }
-//         return deferred.promise;
-//     };
-
-//     var promise = RequestScheduler.request(request);
-//     if (!defined(promise)) {
-//         return;
-//     }
-
-//     return promise
-//         .then(function(data) {
-//             return data;
-//         })
-//         .otherwise(function(e) {
-//             if (request.state !== RequestState.FAILED) {
-//                 return when.reject(e);
-//             }
-
-//             return resource.retryOnError(e).then(function(retry) {
-//                 if (retry) {
-//                     // Reset request so it can try again
-//                     request.state = RequestState.UNISSUED;
-//                     request.deferred = undefined;
-
-//                     return resource.fetch(options);
-//                 }
-
-//                 return when.reject(e);
-//             });
-//         });
-// };
 
 const dataUriRegex = /^data:(.*?)(;base64)?,(.*)$/;
 
@@ -2064,7 +2002,7 @@ Resource._Implementations.createImage = function(
   Resource.supportsImageBitmapOptions()
     .then(function(supportsImageBitmap) {
       // We can only use ImageBitmap if we can flip on decode.
-      // See: https://github.com/AnalyticalGraphicsInc/cesium/pull/7579#issuecomment-466146898
+      // See: https://github.com/CesiumGS/cesium/pull/7579#issuecomment-466146898
       if (!(supportsImageBitmap && preferImageBitmap)) {
         Resource._Implementations.loadImageElement(url, crossOrigin, deferred);
         return;
@@ -2084,9 +2022,12 @@ Resource._Implementations.createImage = function(
         undefined
       );
 
-      return Resource.fetchBlob({
-        url: url,
-      })
+      if (defined(xhr) && defined(xhr.abort)) {
+        request.cancelFunction = function() {
+          xhr.abort();
+        };
+      }
+      return xhrDeferred.promise
         .then(function(blob) {
           if (!defined(blob)) {
             deferred.reject(
