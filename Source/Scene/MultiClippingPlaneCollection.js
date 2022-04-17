@@ -1,23 +1,13 @@
-import AttributeCompression from "../Core/AttributeCompression.js";
-import Cartesian2 from "../Core/Cartesian2.js";
-import Cartesian3 from "../Core/Cartesian3.js";
-import Cartesian4 from "../Core/Cartesian4.js";
 import Check from "../Core/Check.js";
 import Color from "../Core/Color.js";
 import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
 import destroyObject from "../Core/destroyObject.js";
-import DeveloperError from "../Core/DeveloperError.js";
-import Event from "../Core/Event.js";
-import Intersect from "../Core/Intersect.js";
 import Matrix4 from "../Core/Matrix4.js";
 import PixelFormat from "../Core/PixelFormat.js";
-import Plane from "../Core/Plane.js";
-import ContextLimits from "../Renderer/ContextLimits.js";
 import PixelDatatype from "../Renderer/PixelDatatype.js";
 import Sampler from "../Renderer/Sampler.js";
 import Texture from "../Renderer/Texture.js";
-import ClippingPlane from "./ClippingPlane.js";
 import ClippingPlaneCollection from "./ClippingPlaneCollection.js";
 
 /**
@@ -86,10 +76,10 @@ function MultiClippingPlaneCollection(options) {
   this.edgeWidth = defaultValue(options.edgeWidth, 0.0);
 
   // Add each ClippingPlaneCollection object
-  var collections = options.collections;
-  var me = this;
+  const collections = options.collections;
+  const me = this;
   if (defined(collections)) {
-    collections.forEach(function (p) {
+    collections.forEach(function(p) {
       me.add(p);
     });
   }
@@ -104,7 +94,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @readonly
    */
   length: {
-    get: function () {
+    get: function() {
       return this._multiCollections.length;
     },
   },
@@ -117,7 +107,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @readonly
    */
   dataTexture: {
-    get: function () {
+    get: function() {
       return this._dataTexture;
     },
   },
@@ -130,7 +120,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @readonly
    */
   lengthTexture: {
-    get: function () {
+    get: function() {
       return this._lengthTexture;
     },
   },
@@ -143,9 +133,9 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @readonly
    */
   collectionsState: {
-    get: function () {
-      var state = 0;
-      this._multiCollections.forEach(function (p, i) {
+    get: function() {
+      let state = 0;
+      this._multiCollections.forEach(function(p, i) {
         // state += (p.enabled ? "+" : "-") + i + p.clippingPlanesState;
         state += p.clippingPlanesState;
       });
@@ -162,7 +152,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @readonly
    */
   maxCollectionLength: {
-    get: function () {
+    get: function() {
       return this._maxCollectionLength;
     },
   },
@@ -175,7 +165,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @readonly
    */
   totalPlanesCount: {
-    get: function () {
+    get: function() {
       return this._totalPlanesCount;
     },
   },
@@ -186,7 +176,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
  * on the outside of each plane collection.
  * @param {ClippingPlaneCollection} collection The ClippingPlaneCollection to add to the collection.
  */
-MultiClippingPlaneCollection.prototype.add = function (collection) {
+MultiClippingPlaneCollection.prototype.add = function(collection) {
   this._multiCollections.push(collection);
   this._dirty = true;
 };
@@ -199,7 +189,7 @@ MultiClippingPlaneCollection.prototype.add = function (collection) {
  * @param {Number} index The zero-based index of the ClippingPlaneCollection.
  * @returns {ClippingPlaneCollection} The ClippingPlaneCollection at the specified index.
  */
-MultiClippingPlaneCollection.prototype.get = function (index) {
+MultiClippingPlaneCollection.prototype.get = function(index) {
   //>>includeStart('debug', pragmas.debug);
   Check.typeOf.number("index", index);
   //>>includeEnd('debug');
@@ -213,9 +203,9 @@ MultiClippingPlaneCollection.prototype.get = function (index) {
  * @param {ClippingPlaneCollection} collection
  * @returns {Bollean} <code>true</code> if this collection contains the ClippingPlaneCollection, <code>false</code> otherwise.
  */
-MultiClippingPlaneCollection.prototype.contains = function (collection) {
+MultiClippingPlaneCollection.prototype.contains = function(collection) {
   return (
-    this._multiCollections.findIndex(function (p) {
+    this._multiCollections.findIndex(function(p) {
       return p === collection;
     }) !== -1
   );
@@ -227,9 +217,9 @@ MultiClippingPlaneCollection.prototype.contains = function (collection) {
  * @param {ClippingPlaneCollection} collection
  * @returns {Boolean} <code>true</code> if the plane was removed; <code>false</code> if the plane was not found in the collection.
  */
-MultiClippingPlaneCollection.prototype.remove = function (collection) {
-  var collections = this._multiCollections;
-  var index = collections.findIndex(function (p) {
+MultiClippingPlaneCollection.prototype.remove = function(collection) {
+  const collections = this._multiCollections;
+  const index = collections.findIndex(function(p) {
     return p === collection;
   });
 
@@ -251,8 +241,8 @@ MultiClippingPlaneCollection.prototype.remove = function (collection) {
 /**
  * Removes all ClippingPlaneCollection from the collection.
  */
-MultiClippingPlaneCollection.prototype.removeAll = function () {
-  this._multiCollections.forEach(function (collection) {
+MultiClippingPlaneCollection.prototype.removeAll = function() {
+  this._multiCollections.forEach(function(collection) {
     if (collection instanceof ClippingPlaneCollection) {
       collection.destroy();
     }
@@ -268,23 +258,23 @@ MultiClippingPlaneCollection.prototype.removeAll = function () {
  * Do not call this function directly.
  * </p>
  */
-MultiClippingPlaneCollection.prototype.update = function (frameState) {
-  var collections = this._multiCollections;
-  collections.forEach(function (p) {
+MultiClippingPlaneCollection.prototype.update = function(frameState) {
+  const collections = this._multiCollections;
+  collections.forEach(function(p) {
     if (p.enabled) p.update(frameState);
   });
 
   if (this._dirty) {
-    var context = frameState.context;
+    const context = frameState.context;
     // concat each collection's arraybuffer
-    var useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
-    var widthTotal = 0,
+    const useFloatTexture = ClippingPlaneCollection.useFloatTexture(context);
+    let widthTotal = 0,
       height;
-    var updateTexture = true;
-    var totalPlanes = 0;
-    var maxLength = 0;
-    for (var i = 0; i < collections.length; i++) {
-      var collection = collections[i];
+    let updateTexture = true;
+    let totalPlanes = 0;
+    let maxLength = 0;
+    for (let i = 0; i < collections.length; i++) {
+      const collection = collections[i];
       totalPlanes += collections.length;
       maxLength = Math.max(maxLength, collection.length);
       // if (collection.enabled) {
@@ -304,17 +294,17 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
         ? new Float32Array(widthTotal * height * 4)
         : new Uint8Array(widthTotal * height * 4);
       this._lengthArrayBuffer = new Float32Array(collections.length * 4);
-      var arrayBuffer = this._dataArrayBuffer;
-      var lengthArrayBuffer = this._lengthArrayBuffer;
+      const arrayBuffer = this._dataArrayBuffer;
+      const lengthArrayBuffer = this._lengthArrayBuffer;
 
-      var startIndex = 0;
-      collections.forEach(function (p, i) {
+      let startIndex = 0;
+      collections.forEach(function(p, i) {
         // if (p.enabled) {
 
-        var nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
-        var nowDataIndex = 0;
+        const nowDataBuffer = useFloatTexture ? p._float32View : p._uint8View;
+        let nowDataIndex = 0;
         // exclude zeros (data with height = 1)
-        for (var j = 0; j < p.length; ++j) {
+        for (let j = 0; j < p.length; ++j) {
           arrayBuffer[startIndex] = nowDataBuffer[nowDataIndex];
           arrayBuffer[startIndex + 1] = nowDataBuffer[nowDataIndex + 1];
           arrayBuffer[startIndex + 2] = nowDataBuffer[nowDataIndex + 2];
@@ -401,8 +391,8 @@ MultiClippingPlaneCollection.prototype.update = function (frameState) {
  *
  * @see ClippingPlaneCollection#isDestroyed
  */
-MultiClippingPlaneCollection.prototype.destroy = function () {
-  this._multiCollections.forEach(function (collection) {
+MultiClippingPlaneCollection.prototype.destroy = function() {
+  this._multiCollections.forEach(function(collection) {
     if (collection instanceof ClippingPlaneCollection) {
       collection.destroy();
     }
