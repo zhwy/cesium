@@ -196,10 +196,10 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {Color}
    */
   baseColor: {
-    get: function() {
+    get: function () {
       return this._baseColor;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       if (!defined(value)) {
         throw new DeveloperError("value is required.");
@@ -221,10 +221,10 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {QuadtreePrimitive}
    */
   quadtree: {
-    get: function() {
+    get: function () {
       return this._quadtree;
     },
-    set: function(value) {
+    set: function (value) {
       //>>includeStart('debug', pragmas.debug);
       if (!defined(value)) {
         throw new DeveloperError("value is required.");
@@ -241,7 +241,7 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {Boolean}
    */
   ready: {
-    get: function() {
+    get: function () {
       return (
         this._terrainProvider.ready &&
         (this._imageryLayers.length === 0 ||
@@ -257,7 +257,7 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {TilingScheme}
    */
   tilingScheme: {
-    get: function() {
+    get: function () {
       return this._terrainProvider.tilingScheme;
     },
   },
@@ -270,7 +270,7 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {Event}
    */
   errorEvent: {
-    get: function() {
+    get: function () {
       return this._errorEvent;
     },
   },
@@ -281,7 +281,7 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {Event}
    */
   imageryLayersUpdatedEvent: {
-    get: function() {
+    get: function () {
       return this._imageryLayersUpdatedEvent;
     },
   },
@@ -292,10 +292,10 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @type {TerrainProvider}
    */
   terrainProvider: {
-    get: function() {
+    get: function () {
       return this._terrainProvider;
     },
-    set: function(terrainProvider) {
+    set: function (terrainProvider) {
       if (this._terrainProvider === terrainProvider) {
         return;
       }
@@ -321,10 +321,10 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @private
    */
   clippingPlanes: {
-    get: function() {
+    get: function () {
       return this._clippingPlanes;
     },
-    set: function(value) {
+    set: function (value) {
       ClippingPlaneCollection.setOwner(value, this, "_clippingPlanes");
     },
   },
@@ -336,10 +336,10 @@ Object.defineProperties(GlobeSurfaceTileProvider.prototype, {
    * @private
    */
   multiClippingPlanes: {
-    get: function() {
+    get: function () {
       return this._multiClippingPlanes;
     },
-    set: function(value) {
+    set: function (value) {
       if (defined(value)) {
         this._multiClippingPlanes = value;
       } else {
@@ -366,7 +366,7 @@ function sortTileImageryByLayerIndex(a, b) {
 /**
  * Make updates to the tile provider that are not involved in rendering. Called before the render update cycle.
  */
-GlobeSurfaceTileProvider.prototype.update = function(frameState) {
+GlobeSurfaceTileProvider.prototype.update = function (frameState) {
   // update collection: imagery indices, base layers, raise layer show/hide event
   this._imageryLayers._update();
 };
@@ -393,7 +393,7 @@ function updateCredits(surface, frameState) {
  * Called at the beginning of each render frame, before {@link QuadtreeTileProvider#showTileThisFrame}
  * @param {FrameState} frameState The frame state.
  */
-GlobeSurfaceTileProvider.prototype.initialize = function(frameState) {
+GlobeSurfaceTileProvider.prototype.initialize = function (frameState) {
   // update each layer for texture reprojection.
   this._imageryLayers.queueReprojectionCommands(frameState);
 
@@ -401,7 +401,7 @@ GlobeSurfaceTileProvider.prototype.initialize = function(frameState) {
     this._layerOrderChanged = false;
 
     // Sort the TileImagery instances in each tile by the layer index.
-    this._quadtree.forEachLoadedTile(function(tile) {
+    this._quadtree.forEachLoadedTile(function (tile) {
       tile.data.imagery.sort(sortTileImageryByLayerIndex);
     });
   }
@@ -423,7 +423,7 @@ GlobeSurfaceTileProvider.prototype.initialize = function(frameState) {
  *
  * @param {FrameState} frameState The frame state.
  */
-GlobeSurfaceTileProvider.prototype.beginUpdate = function(frameState) {
+GlobeSurfaceTileProvider.prototype.beginUpdate = function (frameState) {
   const tilesToRenderByTextureCount = this._tilesToRenderByTextureCount;
   for (let i = 0, len = tilesToRenderByTextureCount.length; i < len; ++i) {
     const tiles = tilesToRenderByTextureCount[i];
@@ -452,7 +452,7 @@ GlobeSurfaceTileProvider.prototype.beginUpdate = function(frameState) {
  *
  * @param {FrameState} frameState The frame state.
  */
-GlobeSurfaceTileProvider.prototype.endUpdate = function(frameState) {
+GlobeSurfaceTileProvider.prototype.endUpdate = function (frameState) {
   if (!defined(this._renderState)) {
     this._renderState = RenderState.fromCache({
       // Write color and depth
@@ -521,7 +521,7 @@ GlobeSurfaceTileProvider.prototype.endUpdate = function(frameState) {
   this._oldTerrainExaggerationRelativeHeight = exaggerationRelativeHeight;
 
   if (exaggerationChanged) {
-    quadtree.forEachLoadedTile(function(tile) {
+    quadtree.forEachLoadedTile(function (tile) {
       const surfaceTile = tile.data;
       surfaceTile.updateExaggeration(tile, frameState, quadtree);
     });
@@ -531,7 +531,7 @@ GlobeSurfaceTileProvider.prototype.endUpdate = function(frameState) {
   const tilesToRenderByTextureCount = this._tilesToRenderByTextureCount;
   for (
     let textureCountIndex = 0,
-    textureCountLength = tilesToRenderByTextureCount.length;
+      textureCountLength = tilesToRenderByTextureCount.length;
     textureCountIndex < textureCountLength;
     ++textureCountIndex
   ) {
@@ -575,7 +575,7 @@ function pushCommand(command, frameState) {
  *
  * @param {FrameState} frameState The frame state.
  */
-GlobeSurfaceTileProvider.prototype.updateForPick = function(frameState) {
+GlobeSurfaceTileProvider.prototype.updateForPick = function (frameState) {
   // Add the tile pick commands from the tiles drawn last frame.
   const drawCommands = this._drawCommands;
   for (let i = 0, length = this._usedDrawCommands; i < length; ++i) {
@@ -586,7 +586,7 @@ GlobeSurfaceTileProvider.prototype.updateForPick = function(frameState) {
 /**
  * Cancels any imagery re-projections in the queue.
  */
-GlobeSurfaceTileProvider.prototype.cancelReprojections = function() {
+GlobeSurfaceTileProvider.prototype.cancelReprojections = function () {
   this._imageryLayers.cancelReprojections();
 };
 
@@ -597,7 +597,7 @@ GlobeSurfaceTileProvider.prototype.cancelReprojections = function() {
  * @param {Number} level The tile level for which to get the maximum geometric error.
  * @returns {Number} The maximum geometric error in meters.
  */
-GlobeSurfaceTileProvider.prototype.getLevelMaximumGeometricError = function(
+GlobeSurfaceTileProvider.prototype.getLevelMaximumGeometricError = function (
   level
 ) {
   return this._terrainProvider.getLevelMaximumGeometricError(level);
@@ -613,7 +613,7 @@ GlobeSurfaceTileProvider.prototype.getLevelMaximumGeometricError = function(
  *
  * @exception {DeveloperError} <code>loadTile</code> must not be called before the tile provider is ready.
  */
-GlobeSurfaceTileProvider.prototype.loadTile = function(frameState, tile) {
+GlobeSurfaceTileProvider.prototype.loadTile = function (frameState, tile) {
   // We don't want to load imagery until we're certain that the terrain tiles are actually visible.
   // So if our bounding volume isn't accurate because it came from another tile, load terrain only
   // initially. If we load some terrain and suddenly have a more accurate bounding volume and the
@@ -648,7 +648,7 @@ GlobeSurfaceTileProvider.prototype.loadTile = function(frameState, tile) {
     // Then we'll load imagery, too.
     if (
       this.computeTileVisibility(tile, frameState, this.quadtree.occluders) !==
-      Visibility.NONE &&
+        Visibility.NONE &&
       surfaceTile.boundingVolumeSourceTile === tile
     ) {
       terrainOnly = false;
@@ -734,7 +734,7 @@ function isUndergroundVisible(tileProvider, frameState) {
  *                       Visibility.PARTIAL if the tile is partially visible, or
  *                       Visibility.FULL if the tile is fully visible.
  */
-GlobeSurfaceTileProvider.prototype.computeTileVisibility = function(
+GlobeSurfaceTileProvider.prototype.computeTileVisibility = function (
   tile,
   frameState,
   occluders
@@ -890,7 +890,7 @@ GlobeSurfaceTileProvider.prototype.computeTileVisibility = function(
  * @param {QuadtreeTile} tile The tile to check.
  * @returns {boolean} True if the tile can be refined, false if it cannot.
  */
-GlobeSurfaceTileProvider.prototype.canRefine = function(tile) {
+GlobeSurfaceTileProvider.prototype.canRefine = function (tile) {
   // Only allow refinement it we know whether or not the children of this tile exist.
   // For a tileset with `availability`, we'll always be able to refine.
   // We can ask for availability of _any_ child tile because we only need to confirm
@@ -917,7 +917,7 @@ const canRenderTraversalStack = [];
  * @param {QuadtreeTile} tile The tile to check.
  * @returns {boolean} True if the tile can be rendered without losing detail.
  */
-GlobeSurfaceTileProvider.prototype.canRenderWithoutLosingDetail = function(
+GlobeSurfaceTileProvider.prototype.canRenderWithoutLosingDetail = function (
   tile,
   frameState
 ) {
@@ -1041,7 +1041,7 @@ const tileDirectionScratch = new Cartesian3();
  * @param {FrameState} frameState The frame state.
  * @returns {Number} The load priority value.
  */
-GlobeSurfaceTileProvider.prototype.computeTileLoadPriority = function(
+GlobeSurfaceTileProvider.prototype.computeTileLoadPriority = function (
   tile,
   frameState
 ) {
@@ -1090,7 +1090,7 @@ const northeastScratch = new Cartesian3();
  * @param {QuadtreeTile} tile The tile instance.
  * @param {FrameState} frameState The state information of the current rendering frame.
  */
-GlobeSurfaceTileProvider.prototype.showTileThisFrame = function(
+GlobeSurfaceTileProvider.prototype.showTileThisFrame = function (
   tile,
   frameState
 ) {
@@ -1190,7 +1190,7 @@ function computeOccludeePoint(
  *
  * @returns {Number} The distance from the camera to the closest point on the tile, in meters.
  */
-GlobeSurfaceTileProvider.prototype.computeDistanceToTile = function(
+GlobeSurfaceTileProvider.prototype.computeDistanceToTile = function (
   tile,
   frameState
 ) {
@@ -1407,7 +1407,7 @@ function updateTileBoundingRegion(tile, tileProvider, frameState) {
  *
  * @see GlobeSurfaceTileProvider#destroy
  */
-GlobeSurfaceTileProvider.prototype.isDestroyed = function() {
+GlobeSurfaceTileProvider.prototype.isDestroyed = function () {
   return false;
 };
 
@@ -1427,7 +1427,7 @@ GlobeSurfaceTileProvider.prototype.isDestroyed = function() {
  *
  * @see GlobeSurfaceTileProvider#isDestroyed
  */
-GlobeSurfaceTileProvider.prototype.destroy = function() {
+GlobeSurfaceTileProvider.prototype.destroy = function () {
   this._tileProvider = this._tileProvider && this._tileProvider.destroy();
   this._clippingPlanes = this._clippingPlanes && this._clippingPlanes.destroy();
   if (defined(this._multiClippingPlanes)) {
@@ -1439,7 +1439,7 @@ GlobeSurfaceTileProvider.prototype.destroy = function() {
 };
 
 function getTileReadyCallback(tileImageriesToFree, layer, terrainProvider) {
-  return function(tile) {
+  return function (tile) {
     let tileImagery;
     let imagery;
     let startIndex = -1;
@@ -1485,18 +1485,18 @@ function getTileReadyCallback(tileImageriesToFree, layer, terrainProvider) {
   };
 }
 
-GlobeSurfaceTileProvider.prototype._onLayerAdded = function(layer, index) {
+GlobeSurfaceTileProvider.prototype._onLayerAdded = function (layer, index) {
   if (layer.show) {
     const terrainProvider = this._terrainProvider;
 
     const that = this;
     const imageryProvider = layer.imageryProvider;
     const tileImageryUpdatedEvent = this._imageryLayersUpdatedEvent;
-    imageryProvider._reload = function() {
+    imageryProvider._reload = function () {
       // Clear the layer's cache
       layer._imageryCache = {};
 
-      that._quadtree.forEachLoadedTile(function(tile) {
+      that._quadtree.forEachLoadedTile(function (tile) {
         // If this layer is still waiting to for the loaded callback, just return
         if (defined(tile._loadedCallbacks[layer._layerIndex])) {
           return;
@@ -1555,7 +1555,7 @@ GlobeSurfaceTileProvider.prototype._onLayerAdded = function(layer, index) {
     };
 
     // create TileImageries for this layer for all previously loaded tiles
-    this._quadtree.forEachLoadedTile(function(tile) {
+    this._quadtree.forEachLoadedTile(function (tile) {
       if (layer._createTileImagerySkeletons(tile, terrainProvider)) {
         tile.state = QuadtreeTileLoadState.LOADING;
 
@@ -1577,9 +1577,9 @@ GlobeSurfaceTileProvider.prototype._onLayerAdded = function(layer, index) {
   }
 };
 
-GlobeSurfaceTileProvider.prototype._onLayerRemoved = function(layer, index) {
+GlobeSurfaceTileProvider.prototype._onLayerRemoved = function (layer, index) {
   // destroy TileImagerys for this layer for all previously loaded tiles
-  this._quadtree.forEachLoadedTile(function(tile) {
+  this._quadtree.forEachLoadedTile(function (tile) {
     const tileImageryCollection = tile.data.imagery;
 
     let startIndex = -1;
@@ -1615,7 +1615,7 @@ GlobeSurfaceTileProvider.prototype._onLayerRemoved = function(layer, index) {
   this._imageryLayersUpdatedEvent.raiseEvent();
 };
 
-GlobeSurfaceTileProvider.prototype._onLayerMoved = function(
+GlobeSurfaceTileProvider.prototype._onLayerMoved = function (
   layer,
   newIndex,
   oldIndex
@@ -1624,7 +1624,7 @@ GlobeSurfaceTileProvider.prototype._onLayerMoved = function(
   this._imageryLayersUpdatedEvent.raiseEvent();
 };
 
-GlobeSurfaceTileProvider.prototype._onLayerShownOrHidden = function(
+GlobeSurfaceTileProvider.prototype._onLayerShownOrHidden = function (
   layer,
   index,
   show
@@ -1640,34 +1640,52 @@ const scratchClippingPlanesMatrix = new Matrix4();
 const scratchInverseTransposeClippingPlanesMatrix = new Matrix4();
 function createTileUniformMap(frameState, globeSurfaceTileProvider) {
   const uniformMap = {
-    u_initialColor: function() {
+    u_initialColor: function () {
       return this.properties.initialColor;
     },
-    u_fillHighlightColor: function() {
+    u_fillHighlightColor: function () {
       return this.properties.fillHighlightColor;
     },
-    u_zoomedOutOceanSpecularIntensity: function() {
+    u_zoomedOutOceanSpecularIntensity: function () {
       return this.properties.zoomedOutOceanSpecularIntensity;
     },
-    u_oceanNormalMap: function() {
+    u_oceanNormalMap: function () {
       return this.properties.oceanNormalMap;
     },
-    u_lightingFadeDistance: function() {
+    u_atmosphereLightIntensity: function () {
+      return this.properties.atmosphereLightIntensity;
+    },
+    u_atmosphereRayleighCoefficient: function () {
+      return this.properties.atmosphereRayleighCoefficient;
+    },
+    u_atmosphereMieCoefficient: function () {
+      return this.properties.atmosphereMieCoefficient;
+    },
+    u_atmosphereRayleighScaleHeight: function () {
+      return this.properties.atmosphereRayleighScaleHeight;
+    },
+    u_atmosphereMieScaleHeight: function () {
+      return this.properties.atmosphereMieScaleHeight;
+    },
+    u_atmosphereMieAnisotropy: function () {
+      return this.properties.atmosphereMieAnisotropy;
+    },
+    u_lightingFadeDistance: function () {
       return this.properties.lightingFadeDistance;
     },
-    u_nightFadeDistance: function() {
+    u_nightFadeDistance: function () {
       return this.properties.nightFadeDistance;
     },
-    u_center3D: function() {
+    u_center3D: function () {
       return this.properties.center3D;
     },
-    u_terrainExaggerationAndRelativeHeight: function() {
+    u_terrainExaggerationAndRelativeHeight: function () {
       return this.properties.terrainExaggerationAndRelativeHeight;
     },
-    u_tileRectangle: function() {
+    u_tileRectangle: function () {
       return this.properties.tileRectangle;
     },
-    u_modifiedModelView: function() {
+    u_modifiedModelView: function () {
       const viewMatrix = frameState.context.uniformState.view;
       const centerEye = Matrix4.multiplyByPoint(
         viewMatrix,
@@ -1677,7 +1695,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       Matrix4.setTranslation(viewMatrix, centerEye, modifiedModelViewScratch);
       return modifiedModelViewScratch;
     },
-    u_modifiedModelViewProjection: function() {
+    u_modifiedModelViewProjection: function () {
       const viewMatrix = frameState.context.uniformState.view;
       const projectionMatrix = frameState.context.uniformState.projection;
       const centerEye = Matrix4.multiplyByPoint(
@@ -1697,70 +1715,70 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       );
       return modifiedModelViewProjectionScratch;
     },
-    u_dayTextures: function() {
+    u_dayTextures: function () {
       return this.properties.dayTextures;
     },
-    u_dayTextureTranslationAndScale: function() {
+    u_dayTextureTranslationAndScale: function () {
       return this.properties.dayTextureTranslationAndScale;
     },
-    u_dayTextureTexCoordsRectangle: function() {
+    u_dayTextureTexCoordsRectangle: function () {
       return this.properties.dayTextureTexCoordsRectangle;
     },
-    u_dayTextureUseWebMercatorT: function() {
+    u_dayTextureUseWebMercatorT: function () {
       return this.properties.dayTextureUseWebMercatorT;
     },
-    u_dayTextureAlpha: function() {
+    u_dayTextureAlpha: function () {
       return this.properties.dayTextureAlpha;
     },
-    u_dayTextureNightAlpha: function() {
+    u_dayTextureNightAlpha: function () {
       return this.properties.dayTextureNightAlpha;
     },
-    u_dayTextureDayAlpha: function() {
+    u_dayTextureDayAlpha: function () {
       return this.properties.dayTextureDayAlpha;
     },
-    u_dayTextureBrightness: function() {
+    u_dayTextureBrightness: function () {
       return this.properties.dayTextureBrightness;
     },
-    u_dayTextureContrast: function() {
+    u_dayTextureContrast: function () {
       return this.properties.dayTextureContrast;
     },
-    u_dayTextureHue: function() {
+    u_dayTextureHue: function () {
       return this.properties.dayTextureHue;
     },
-    u_dayTextureSaturation: function() {
+    u_dayTextureSaturation: function () {
       return this.properties.dayTextureSaturation;
     },
-    u_dayTextureOneOverGamma: function() {
+    u_dayTextureOneOverGamma: function () {
       return this.properties.dayTextureOneOverGamma;
     },
-    u_dayIntensity: function() {
+    u_dayIntensity: function () {
       return this.properties.dayIntensity;
     },
-    u_southAndNorthLatitude: function() {
+    u_southAndNorthLatitude: function () {
       return this.properties.southAndNorthLatitude;
     },
-    u_southMercatorYAndOneOverHeight: function() {
+    u_southMercatorYAndOneOverHeight: function () {
       return this.properties.southMercatorYAndOneOverHeight;
     },
-    u_waterMask: function() {
+    u_waterMask: function () {
       return this.properties.waterMask;
     },
-    u_waterMaskTranslationAndScale: function() {
+    u_waterMaskTranslationAndScale: function () {
       return this.properties.waterMaskTranslationAndScale;
     },
-    u_minMaxHeight: function() {
+    u_minMaxHeight: function () {
       return this.properties.minMaxHeight;
     },
-    u_scaleAndBias: function() {
+    u_scaleAndBias: function () {
       return this.properties.scaleAndBias;
     },
-    u_dayTextureSplit: function() {
+    u_dayTextureSplit: function () {
       return this.properties.dayTextureSplit;
     },
-    u_dayTextureCutoutRectangles: function() {
+    u_dayTextureCutoutRectangles: function () {
       return this.properties.dayTextureCutoutRectangles;
     },
-    u_clippingPlanes: function() {
+    u_clippingPlanes: function () {
       const multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
       if (defined(multiClippingPlanes)) {
         const texture = multiClippingPlanes.dataTexture;
@@ -1775,10 +1793,10 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       }
       return frameState.context.defaultTexture;
     },
-    u_cartographicLimitRectangle: function() {
+    u_cartographicLimitRectangle: function () {
       return this.properties.localizedCartographicLimitRectangle;
     },
-    u_clippingPlanesMatrix: function() {
+    u_clippingPlanesMatrix: function () {
       const multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
       if (defined(multiClippingPlanes)) {
         const transform = Matrix4.multiply(
@@ -1795,10 +1813,10 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       const clippingPlanes = globeSurfaceTileProvider._clippingPlanes;
       const transform = defined(clippingPlanes)
         ? Matrix4.multiply(
-          frameState.context.uniformState.view,
-          clippingPlanes.modelMatrix,
-          scratchClippingPlanesMatrix
-        )
+            frameState.context.uniformState.view,
+            clippingPlanes.modelMatrix,
+            scratchClippingPlanesMatrix
+          )
         : Matrix4.IDENTITY;
 
       return Matrix4.inverseTranspose(
@@ -1806,7 +1824,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
         scratchInverseTransposeClippingPlanesMatrix
       );
     },
-    u_clippingPlanesEdgeStyle: function() {
+    u_clippingPlanesEdgeStyle: function () {
       const multiClippingPlanes = globeSurfaceTileProvider._multiClippingPlanes;
       if (defined(multiClippingPlanes)) {
         const style = multiClippingPlanes.edgeColor.clone();
@@ -1817,8 +1835,9 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       style.alpha = this.properties.clippingPlanesEdgeWidth;
       return style;
     },
-    u_multiClippingPlanesLength: function() {
-      const clippingPlanesLength = globeSurfaceTileProvider._multiClippingPlanes;
+    u_multiClippingPlanesLength: function () {
+      const clippingPlanesLength =
+        globeSurfaceTileProvider._multiClippingPlanes;
       if (defined(clippingPlanesLength)) {
         const texture = clippingPlanesLength.lengthTexture;
         if (defined(texture)) return texture;
@@ -1828,31 +1847,31 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       }
       return frameState.context.defaultTexture;
     },
-    u_minimumBrightness: function() {
+    u_minimumBrightness: function () {
       return frameState.fog.minimumBrightness;
     },
-    u_hsbShift: function() {
+    u_hsbShift: function () {
       return this.properties.hsbShift;
     },
-    u_colorsToAlpha: function() {
+    u_colorsToAlpha: function () {
       return this.properties.colorsToAlpha;
     },
-    u_frontFaceAlphaByDistance: function() {
+    u_frontFaceAlphaByDistance: function () {
       return this.properties.frontFaceAlphaByDistance;
     },
-    u_backFaceAlphaByDistance: function() {
+    u_backFaceAlphaByDistance: function () {
       return this.properties.backFaceAlphaByDistance;
     },
-    u_translucencyRectangle: function() {
+    u_translucencyRectangle: function () {
       return this.properties.localizedTranslucencyRectangle;
     },
-    u_undergroundColor: function() {
+    u_undergroundColor: function () {
       return this.properties.undergroundColor;
     },
-    u_undergroundColorAlphaByDistance: function() {
+    u_undergroundColorAlphaByDistance: function () {
       return this.properties.undergroundColorAlphaByDistance;
     },
-    u_lambertDiffuseMultiplier: function() {
+    u_lambertDiffuseMultiplier: function () {
       return this.properties.lambertDiffuseMultiplier;
     },
 
@@ -1865,6 +1884,12 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       oceanNormalMap: undefined,
       lightingFadeDistance: new Cartesian2(6500000.0, 9000000.0),
       nightFadeDistance: new Cartesian2(10000000.0, 40000000.0),
+      atmosphereLightIntensity: 10.0,
+      atmosphereRayleighCoefficient: new Cartesian3(5.5e-6, 13.0e-6, 28.4e-6),
+      atmosphereMieCoefficient: new Cartesian3(21e-6, 21e-6, 21e-6),
+      atmosphereRayleighScaleHeight: 10000.0,
+      atmosphereMieScaleHeight: 3200.0,
+      atmosphereMieAnisotropy: 0.9,
       hsbShift: new Cartesian3(),
 
       center3D: undefined,
@@ -2004,7 +2029,7 @@ let getDebugOrientedBoundingBox;
 let getDebugBoundingSphere;
 let debugDestroyPrimitive;
 
-(function() {
+(function () {
   const instanceOBB = new GeometryInstance({
     geometry: BoxOutlineGeometry.fromDimensions({
       dimensions: new Cartesian3(2.0, 2.0, 2.0),
@@ -2028,7 +2053,7 @@ let debugDestroyPrimitive;
     });
   }
 
-  getDebugOrientedBoundingBox = function(obb, color) {
+  getDebugOrientedBoundingBox = function (obb, color) {
     if (obb === previousVolume) {
       return primitive;
     }
@@ -2050,7 +2075,7 @@ let debugDestroyPrimitive;
     return primitive;
   };
 
-  getDebugBoundingSphere = function(sphere, color) {
+  getDebugBoundingSphere = function (sphere, color) {
     if (sphere === previousVolume) {
       return primitive;
     }
@@ -2073,7 +2098,7 @@ let debugDestroyPrimitive;
     return primitive;
   };
 
-  debugDestroyPrimitive = function() {
+  debugDestroyPrimitive = function () {
     if (defined(primitive)) {
       primitive.destroy();
       primitive = undefined;
@@ -2331,6 +2356,18 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
   surfaceShaderSetOptions.dynamicAtmosphereLightingFromSun =
     tileProvider.dynamicAtmosphereLightingFromSun;
   surfaceShaderSetOptions.showGroundAtmosphere = showGroundAtmosphere;
+  surfaceShaderSetOptions.atmosphereLightIntensity =
+    tileProvider.atmosphereLightIntensity;
+  surfaceShaderSetOptions.atmosphereRayleighCoefficient =
+    tileProvider.atmosphereRayleighCoefficient;
+  surfaceShaderSetOptions.atmosphereMieCoefficient =
+    tileProvider.atmosphereMieCoefficient;
+  surfaceShaderSetOptions.atmosphereRayleighScaleHeight =
+    tileProvider.atmosphereRayleighScaleHeight;
+  surfaceShaderSetOptions.atmosphereMieScaleHeight =
+    tileProvider.atmosphereMieScaleHeight;
+  surfaceShaderSetOptions.atmosphereMieAnisotropy =
+    tileProvider.atmosphereMieAnisotropy;
   surfaceShaderSetOptions.perFragmentGroundAtmosphere = perFragmentGroundAtmosphere;
   surfaceShaderSetOptions.hasVertexNormals = hasVertexNormals;
   surfaceShaderSetOptions.useWebMercatorProjection = useWebMercatorProjection;
@@ -2424,6 +2461,18 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
     uniformMapProperties.nightFadeDistance.x =
       tileProvider.nightFadeOutDistance;
     uniformMapProperties.nightFadeDistance.y = tileProvider.nightFadeInDistance;
+    uniformMapProperties.atmosphereLightIntensity =
+      tileProvider.atmosphereLightIntensity;
+    uniformMapProperties.atmosphereRayleighCoefficient =
+      tileProvider.atmosphereRayleighCoefficient;
+    uniformMapProperties.atmosphereMieCoefficient =
+      tileProvider.atmosphereMieCoefficient;
+    uniformMapProperties.atmosphereRayleighScaleHeight =
+      tileProvider.atmosphereRayleighScaleHeight;
+    uniformMapProperties.atmosphereMieScaleHeight =
+      tileProvider.atmosphereMieScaleHeight;
+    uniformMapProperties.atmosphereMieAnisotropy =
+      tileProvider.atmosphereMieAnisotropy;
     uniformMapProperties.zoomedOutOceanSpecularIntensity =
       tileProvider.zoomedOutOceanSpecularIntensity;
 
@@ -2548,7 +2597,7 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
     const applyFog =
       enableFog &&
       CesiumMath.fog(tile._distance, frameState.fog.density) >
-      CesiumMath.EPSILON3;
+        CesiumMath.EPSILON3;
     colorCorrect = colorCorrect && (applyFog || showGroundAtmosphere);
 
     let applyBrightness = false;
@@ -2631,35 +2680,35 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
       applyBrightness =
         applyBrightness ||
         uniformMapProperties.dayTextureBrightness[numberOfDayTextures] !==
-        ImageryLayer.DEFAULT_BRIGHTNESS;
+          ImageryLayer.DEFAULT_BRIGHTNESS;
 
       uniformMapProperties.dayTextureContrast[numberOfDayTextures] =
         imageryLayer.contrast;
       applyContrast =
         applyContrast ||
         uniformMapProperties.dayTextureContrast[numberOfDayTextures] !==
-        ImageryLayer.DEFAULT_CONTRAST;
+          ImageryLayer.DEFAULT_CONTRAST;
 
       uniformMapProperties.dayTextureHue[numberOfDayTextures] =
         imageryLayer.hue;
       applyHue =
         applyHue ||
         uniformMapProperties.dayTextureHue[numberOfDayTextures] !==
-        ImageryLayer.DEFAULT_HUE;
+          ImageryLayer.DEFAULT_HUE;
 
       uniformMapProperties.dayTextureSaturation[numberOfDayTextures] =
         imageryLayer.saturation;
       applySaturation =
         applySaturation ||
         uniformMapProperties.dayTextureSaturation[numberOfDayTextures] !==
-        ImageryLayer.DEFAULT_SATURATION;
+          ImageryLayer.DEFAULT_SATURATION;
 
       uniformMapProperties.dayTextureOneOverGamma[numberOfDayTextures] =
         1.0 / imageryLayer.gamma;
       applyGamma =
         applyGamma ||
         uniformMapProperties.dayTextureOneOverGamma[numberOfDayTextures] !==
-        1.0 / ImageryLayer.DEFAULT_GAMMA;
+          1.0 / ImageryLayer.DEFAULT_GAMMA;
 
       uniformMapProperties.dayTextureSplit[numberOfDayTextures] =
         imageryLayer.splitDirection;
