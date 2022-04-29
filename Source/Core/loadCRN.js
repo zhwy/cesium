@@ -1,4 +1,3 @@
-import when from "../ThirdParty/when.js";
 import CompressedTextureBuffer from "./CompressedTextureBuffer.js";
 import defined from "./defined.js";
 import DeveloperError from "./DeveloperError.js";
@@ -6,7 +5,7 @@ import Resource from "./Resource.js";
 import TaskProcessor from "./TaskProcessor.js";
 import deprecationWarning from "./deprecationWarning.js";
 
-var transcodeTaskProcessor = new TaskProcessor("transcodeCRNToDXT");
+const transcodeTaskProcessor = new TaskProcessor("transcodeCRNToDXT");
 
 /**
  * Asynchronously loads and parses the given URL to a CRN file or parses the raw binary data of a CRN file.
@@ -50,14 +49,14 @@ function loadCRN(resourceOrUrlOrBuffer) {
   }
   //>>includeEnd('debug');
 
-  var loadPromise;
+  let loadPromise;
   if (
     resourceOrUrlOrBuffer instanceof ArrayBuffer ||
     ArrayBuffer.isView(resourceOrUrlOrBuffer)
   ) {
-    loadPromise = when.resolve(resourceOrUrlOrBuffer);
+    loadPromise = Promise.resolve(resourceOrUrlOrBuffer);
   } else {
-    var resource = Resource.createIfNeeded(resourceOrUrlOrBuffer);
+    const resource = Resource.createIfNeeded(resourceOrUrlOrBuffer);
     loadPromise = resource.fetchArrayBuffer();
   }
 
@@ -70,7 +69,7 @@ function loadCRN(resourceOrUrlOrBuffer) {
       if (!defined(data)) {
         return;
       }
-      var transferrableObjects = [];
+      const transferrableObjects = [];
       if (data instanceof ArrayBuffer) {
         transferrableObjects.push(data);
       } else if (

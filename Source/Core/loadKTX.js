@@ -1,4 +1,3 @@
-import when from "../ThirdParty/when.js";
 import Check from "./Check.js";
 import CompressedTextureBuffer from "./CompressedTextureBuffer.js";
 import defined from "./defined.js";
@@ -69,14 +68,14 @@ function loadKTX(resourceOrUrlOrBuffer) {
   Check.defined("resourceOrUrlOrBuffer", resourceOrUrlOrBuffer);
   //>>includeEnd('debug');
 
-  var loadPromise;
+  let loadPromise;
   if (
     resourceOrUrlOrBuffer instanceof ArrayBuffer ||
     ArrayBuffer.isView(resourceOrUrlOrBuffer)
   ) {
-    loadPromise = when.resolve(resourceOrUrlOrBuffer);
+    loadPromise = Promise.resolve(resourceOrUrlOrBuffer);
   } else {
-    var resource = Resource.createIfNeeded(resourceOrUrlOrBuffer);
+    const resource = Resource.createIfNeeded(resourceOrUrlOrBuffer);
     loadPromise = resource.fetchArrayBuffer();
   }
 
