@@ -303,6 +303,11 @@ function Model(options) {
   // Create a list of Credit's so they can be added from the Resource later
   this._resourceCredits = [];
 
+  // List of credits to be added from the glTF
+  this._gltfCredits = [];
+
+  this._showCreditsOnScreen = defaultValue(options.showCreditsOnScreen, false);
+
   /**
    * Determines if the model primitive will be shown.
    *
@@ -1316,6 +1321,36 @@ Object.defineProperties(Model.prototype, {
       return this._credit;
     },
   },
+
+  /**
+   * Gets or sets whether the credits of the model will be displayed on the screen
+   * @memberof Model.prototype
+   * @type {Boolean}
+   */
+  showCreditsOnScreen: {
+    get: function () {
+      return this._showCreditsOnScreen;
+    },
+    set: function (value) {
+      if (this._showCreditsOnScreen !== value) {
+        if (defined(this._credit)) {
+          this._credit.showOnScreen = value;
+        }
+
+        const resourceCreditsLength = this._resourceCredits.length;
+        for (let i = 0; i < resourceCreditsLength; i++) {
+          this._resourceCredits[i].showOnScreen = value;
+        }
+
+        const gltfCreditsLength = this._gltfCredits.length;
+        for (let i = 0; i < gltfCreditsLength; i++) {
+          this._gltfCredits[i].showOnScreen = value;
+        }
+      }
+
+      this._showCreditsOnScreen = value;
+    },
+  },
 });
 
 function silhouetteSupported(context) {
@@ -2220,6 +2255,21 @@ function parseMeshes(model) {
   });
 
   model._runtime.meshesByName = runtimeMeshesByName;
+}
+
+function parseCredits(model) {
+  const asset = model.gltf.asset;
+  const copyright = asset.copyright;
+  if (!defined(copyright)) {
+    return;
+  }
+
+  const showOnScreen = model._showCreditsOnScreen;
+  const credits = copyright.split(";").map(function (string) {
+    return new Credit(string.trim(), showOnScreen);
+  });
+
+  model._gltfCredits = credits;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -5347,6 +5397,7 @@ Model.prototype.update = function (frameState) {
         parseMaterials(this);
         parseMeshes(this);
         parseNodes(this);
+        parseCredits(this);
 
         // Start draco decoding
         DracoLoader.parse(this, context);
@@ -5703,9 +5754,15 @@ Model.prototype.update = function (frameState) {
   }
 
   const resourceCredits = this._resourceCredits;
-  const creditCount = resourceCredits.length;
-  for (let c = 0; c < creditCount; c++) {
+  const resourceCreditsLength = resourceCredits.length;
+  for (let c = 0; c < resourceCreditsLength; c++) {
     frameState.creditDisplay.addCredit(resourceCredits[c]);
+  }
+
+  const gltfCredits = this._gltfCredits;
+  const gltfCreditsLength = gltfCredits.length;
+  for (let c = 0; c < gltfCreditsLength; c++) {
+    frameState.creditDisplay.addCredit(gltfCredits[c]);
   }
 };
 

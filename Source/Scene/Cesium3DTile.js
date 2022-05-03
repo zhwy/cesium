@@ -6,7 +6,6 @@ import CullingVolume from "../Core/CullingVolume.js";
 import defaultValue from "../Core/defaultValue.js";
 import defer from "../Core/defer.js";
 import defined from "../Core/defined.js";
-import defineProperties from "../Core/defineProperties.js";
 import deprecationWarning from "../Core/deprecationWarning.js";
 import destroyObject from "../Core/destroyObject.js";
 import Ellipsoid from "../Core/Ellipsoid.js";
@@ -144,8 +143,8 @@ function Cesium3DTile(tileset, baseResource, header, parent) {
   this.geometricError = header.geometricError;
   this._geometricError = header.geometricError;
 
-  if (!defined(this.geometricError)) {
-    this.geometricError = defined(parent)
+  if (!defined(this._geometricError)) {
+    this._geometricError = defined(parent)
       ? parent.geometricError
       : tileset._geometricError;
     Cesium3DTile._deprecationWarning(
@@ -161,7 +160,8 @@ function Cesium3DTile(tileset, baseResource, header, parent) {
     if (header.refine === "replace" || header.refine === "add") {
       Cesium3DTile._deprecationWarning(
         "lowercase-refine",
-        `This tile uses a lowercase refine "${header.refine
+        `This tile uses a lowercase refine "${
+          header.refine
         }". Instead use "${header.refine.toUpperCase()}".`
       );
     }
@@ -487,7 +487,7 @@ function Cesium3DTile(tileset, baseResource, header, parent) {
 // This can be overridden for testing purposes
 Cesium3DTile._deprecationWarning = deprecationWarning;
 
-defineProperties(Cesium3DTile.prototype, {
+Object.defineProperties(Cesium3DTile.prototype, {
   /**
    * The tileset containing this tile.
    *
@@ -497,7 +497,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @readonly
    */
   tileset: {
-    get: function() {
+    get: function () {
       return this._tileset;
     },
   },
@@ -512,7 +512,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @readonly
    */
   content: {
-    get: function() {
+    get: function () {
       return this._content;
     },
   },
@@ -527,7 +527,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   boundingVolume: {
-    get: function() {
+    get: function () {
       return this._boundingVolume;
     },
   },
@@ -544,7 +544,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentBoundingVolume: {
-    get: function() {
+    get: function () {
       return defaultValue(this._contentBoundingVolume, this._boundingVolume);
     },
   },
@@ -558,7 +558,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @readonly
    */
   boundingSphere: {
-    get: function() {
+    get: function () {
       return this._boundingVolume.boundingSphere;
     },
   },
@@ -574,7 +574,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @see {@link https://github.com/CesiumGS/3d-tiles/tree/main/specification#specifying-extensions-and-application-specific-extras|Extras in the 3D Tiles specification.}
    */
   extras: {
-    get: function() {
+    get: function () {
       return this._header.extras;
     },
   },
@@ -591,13 +591,13 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   color: {
-    get: function() {
+    get: function () {
       if (!defined(this._color)) {
         this._color = new Color();
       }
       return Color.clone(this._color);
     },
-    set: function(value) {
+    set: function (value) {
       this._color = Color.clone(value, this._color);
       this._colorDirty = true;
     },
@@ -616,7 +616,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentAvailable: {
-    get: function() {
+    get: function () {
       return (
         (this.contentReady &&
           !this.hasEmptyContent &&
@@ -639,7 +639,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentReady: {
-    get: function() {
+    get: function () {
       return this._contentState === Cesium3DTileContentState.READY;
     },
   },
@@ -656,7 +656,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentUnloaded: {
-    get: function() {
+    get: function () {
       return this._contentState === Cesium3DTileContentState.UNLOADED;
     },
   },
@@ -673,7 +673,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentExpired: {
-    get: function() {
+    get: function () {
       return this._contentState === Cesium3DTileContentState.EXPIRED;
     },
   },
@@ -690,7 +690,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentFailed: {
-    get: function() {
+    get: function () {
       return this._contentState === Cesium3DTileContentState.FAILED;
     },
   },
@@ -709,10 +709,11 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentReadyToProcessPromise: {
-    get: function() {
+    get: function () {
       if (defined(this._contentReadyToProcessPromise)) {
         return this._contentReadyToProcessPromise.promise;
       }
+      return undefined;
     },
   },
 
@@ -728,10 +729,11 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   contentReadyPromise: {
-    get: function() {
+    get: function () {
       if (defined(this._contentReadyPromise)) {
         return this._contentReadyPromise.promise;
       }
+      return undefined;
     },
   },
 
@@ -743,7 +745,7 @@ defineProperties(Cesium3DTile.prototype, {
    * @private
    */
   commandsLength: {
-    get: function() {
+    get: function () {
       return this._commandsLength;
     },
   },
@@ -858,7 +860,7 @@ const scratchJulianDate = new JulianDate();
  *
  * @private
  */
-Cesium3DTile.prototype.getScreenSpaceError = function(
+Cesium3DTile.prototype.getScreenSpaceError = function (
   frameState,
   useParentGeometricError,
   progressiveResolutionHeightFraction
@@ -956,7 +958,7 @@ function getPriorityReverseScreenSpaceError(tileset, tile) {
  *
  * @private
  */
-Cesium3DTile.prototype.updateVisibility = function(frameState) {
+Cesium3DTile.prototype.updateVisibility = function (frameState) {
   const parent = this.parent;
   const tileset = this._tileset;
   const parentTransform = defined(parent)
@@ -996,7 +998,7 @@ Cesium3DTile.prototype.updateVisibility = function(frameState) {
  *
  * @private
  */
-Cesium3DTile.prototype.updateExpiration = function() {
+Cesium3DTile.prototype.updateExpiration = function () {
   if (
     defined(this.expireDate) &&
     this.contentReady &&
@@ -1031,7 +1033,7 @@ function updateExpireDate(tile) {
 }
 
 function createPriorityFunction(tile) {
-  return function() {
+  return function () {
     return tile._priority;
   };
 }
@@ -1045,7 +1047,7 @@ function createPriorityFunction(tile) {
  * @return {Number} The number of requests that were attempted but not scheduled.
  * @private
  */
-Cesium3DTile.prototype.requestContent = function() {
+Cesium3DTile.prototype.requestContent = function () {
   // empty contents don't require any HTTP requests
   if (this.hasEmptyContent) {
     return 0;
@@ -1061,7 +1063,7 @@ Cesium3DTile.prototype.requestContent = function() {
 /**
  * add for IndexDb
  */
-Cesium3DTile.prototype.requestContentCache = function() {
+Cesium3DTile.prototype.requestContentCache = function () {
   if (this.hasEmptyContent) {
     return 0;
   }
@@ -1111,7 +1113,7 @@ function requestMultipleContents(tile) {
   tile._contentReadyPromise = defer();
 
   multipleContents.contentsFetchedPromise
-    .then(function() {
+    .then(function () {
       if (tile._contentState !== Cesium3DTileContentState.LOADING) {
         // tile was canceled, short circuit.
         return;
@@ -1129,7 +1131,7 @@ function requestMultipleContents(tile) {
       tile._contentState = Cesium3DTileContentState.PROCESSING;
       tile._contentReadyToProcessPromise.resolve(multipleContents);
 
-      return multipleContents.readyPromise.then(function(content) {
+      return multipleContents.readyPromise.then(function (content) {
         if (tile.isDestroyed()) {
           multipleContentFailed(
             tile,
@@ -1148,7 +1150,7 @@ function requestMultipleContents(tile) {
         tile._contentReadyPromise.resolve(content);
       });
     })
-    .catch(function(error) {
+    .catch(function (error) {
       multipleContentFailed(tile, tileset, error);
     });
 
@@ -1194,7 +1196,7 @@ function requestSingleContent(tile, fromIndexDb) {
   if (!fromIndexDb) {
     promise = resource.fetchArrayBuffer();
   } else {
-    promise = resource.fetchArrayBufferCache(function() { });
+    promise = resource.fetchArrayBufferCache(function () {});
   }
   if (!defined(promise)) {
     return 1;
@@ -1208,7 +1210,7 @@ function requestSingleContent(tile, fromIndexDb) {
   ++tileset.statistics.numberOfPendingRequests;
 
   promise
-    .then(function(arrayBuffer) {
+    .then(function (arrayBuffer) {
       if (tile.isDestroyed()) {
         // Tile is unloaded before the content finishes loading
         singleContentFailed(tile, tileset);
@@ -1226,7 +1228,7 @@ function requestSingleContent(tile, fromIndexDb) {
       tile._contentReadyToProcessPromise.resolve(content);
       --tileset.statistics.numberOfPendingRequests;
 
-      return content.readyPromise.then(function(content) {
+      return content.readyPromise.then(function (content) {
         if (tile.isDestroyed()) {
           // Tile is unloaded before the content finishes processing
           singleContentFailed(tile, tileset);
@@ -1243,7 +1245,7 @@ function requestSingleContent(tile, fromIndexDb) {
         tile._contentReadyPromise.resolve(content);
       });
     })
-    .catch(function(error) {
+    .catch(function (error) {
       if (request.state === RequestState.CANCELLED) {
         // Cancelled due to low priority - try again later.
         tile._contentState = previousState;
@@ -1348,7 +1350,7 @@ function makeContent(tile, arrayBuffer) {
  *
  * @private
  */
-Cesium3DTile.prototype.cancelRequests = function() {
+Cesium3DTile.prototype.cancelRequests = function () {
   if (this.hasMultipleContents) {
     this._content.cancelRequests();
   } else {
@@ -1361,7 +1363,7 @@ Cesium3DTile.prototype.cancelRequests = function() {
  *
  * @private
  */
-Cesium3DTile.prototype.unloadContent = function() {
+Cesium3DTile.prototype.unloadContent = function () {
   if (
     this.hasEmptyContent ||
     this.hasTilesetContent ||
@@ -1444,7 +1446,7 @@ function getContentBoundingVolume(tile, frameState) {
  *
  * @private
  */
-Cesium3DTile.prototype.visibility = function(
+Cesium3DTile.prototype.visibility = function (
   frameState,
   parentVisibilityPlaneMask
 ) {
@@ -1479,7 +1481,7 @@ Cesium3DTile.prototype.visibility = function(
  *
  * @private
  */
-Cesium3DTile.prototype.contentVisibility = function(frameState) {
+Cesium3DTile.prototype.contentVisibility = function (frameState) {
   // Assumes the tile's bounding volume intersects the culling volume already, so
   // just return Intersect.INSIDE if there is no content bounding volume.
   if (!defined(this._contentBoundingVolume)) {
@@ -1521,7 +1523,7 @@ Cesium3DTile.prototype.contentVisibility = function(frameState) {
  *
  * @private
  */
-Cesium3DTile.prototype.distanceToTile = function(frameState) {
+Cesium3DTile.prototype.distanceToTile = function (frameState) {
   const boundingVolume = getBoundingVolume(this, frameState);
   return boundingVolume.distanceToCamera(frameState);
 };
@@ -1536,7 +1538,7 @@ const scratchToTileCenter = new Cartesian3();
  *
  * @private
  */
-Cesium3DTile.prototype.distanceToTileCenter = function(frameState) {
+Cesium3DTile.prototype.distanceToTileCenter = function (frameState) {
   const tileBoundingVolume = getBoundingVolume(this, frameState);
   const boundingVolume = tileBoundingVolume.boundingVolume; // Gets the underlying OrientedBoundingBox or BoundingSphere
   const toCenter = Cartesian3.subtract(
@@ -1555,7 +1557,7 @@ Cesium3DTile.prototype.distanceToTileCenter = function(frameState) {
  *
  * @private
  */
-Cesium3DTile.prototype.insideViewerRequestVolume = function(frameState) {
+Cesium3DTile.prototype.insideViewerRequestVolume = function (frameState) {
   const viewerRequestVolume = this._viewerRequestVolume;
   return (
     !defined(viewerRequestVolume) ||
@@ -1685,7 +1687,7 @@ function createSphere(sphere, transform, result) {
  *
  * @private
  */
-Cesium3DTile.prototype.createBoundingVolume = function(
+Cesium3DTile.prototype.createBoundingVolume = function (
   boundingVolumeHeader,
   transform,
   result
@@ -1724,7 +1726,7 @@ Cesium3DTile.prototype.createBoundingVolume = function(
  *
  * @private
  */
-Cesium3DTile.prototype.updateTransform = function(parentTransform) {
+Cesium3DTile.prototype.updateTransform = function (parentTransform) {
   parentTransform = defaultValue(parentTransform, Matrix4.IDENTITY);
   const computedTransform = Matrix4.multiply(
     parentTransform,
@@ -1777,14 +1779,14 @@ Cesium3DTile.prototype.updateTransform = function(parentTransform) {
     this._debugViewerRequestVolume && this._debugViewerRequestVolume.destroy();
 };
 
-Cesium3DTile.prototype.updateGeometricErrorScale = function() {
+Cesium3DTile.prototype.updateGeometricErrorScale = function () {
   const scale = Matrix4.getScale(this.computedTransform, scratchScale);
   const uniformScale = Cartesian3.maximumComponent(scale);
   this.geometricError = this._geometricError * uniformScale;
 };
 
-function applyDebugSettings(tile, tileset, frameState) {
-  if (!frameState.passes.render) {
+function applyDebugSettings(tile, tileset, frameState, passOptions) {
+  if (!passOptions.isRender) {
     return;
   }
 
@@ -1919,11 +1921,11 @@ function updateClippingPlanes(tile, tileset) {
  *
  * @private
  */
-Cesium3DTile.prototype.update = function(tileset, frameState, passOptions) {
+Cesium3DTile.prototype.update = function (tileset, frameState, passOptions) {
   const commandStart = frameState.commandList.length;
 
   updateClippingPlanes(this, tileset);
-  applyDebugSettings(this, tileset, frameState);
+  applyDebugSettings(this, tileset, frameState, passOptions);
   updateContent(this, tileset, frameState);
 
   const commandEnd = frameState.commandList.length;
@@ -1949,7 +1951,7 @@ const scratchCommandList = [];
  *
  * @private
  */
-Cesium3DTile.prototype.process = function(tileset, frameState) {
+Cesium3DTile.prototype.process = function (tileset, frameState) {
   const savedCommandList = frameState.commandList;
   frameState.commandList = scratchCommandList;
 
@@ -1976,7 +1978,7 @@ function priorityNormalizeAndClamp(value, minimum, maximum) {
  * Sets the priority of the tile based on distance and depth
  * @private
  */
-Cesium3DTile.prototype.updatePriority = function() {
+Cesium3DTile.prototype.updatePriority = function () {
   const tileset = this.tileset;
   const preferLeaves = tileset.preferLeaves;
   const minimumPriority = tileset._minimumPriority;
@@ -2032,15 +2034,15 @@ Cesium3DTile.prototype.updatePriority = function() {
     !tileset._skipLevelOfDetail && this.refine === Cesium3DTileRefine.REPLACE;
   const normalizedPreferredSorting = useDistance
     ? priorityNormalizeAndClamp(
-      this._priorityHolder._distanceToCamera,
-      minimumPriority.distance,
-      maximumPriority.distance
-    )
+        this._priorityHolder._distanceToCamera,
+        minimumPriority.distance,
+        maximumPriority.distance
+      )
     : priorityNormalizeAndClamp(
-      this._priorityReverseScreenSpaceError,
-      minimumPriority.reverseScreenSpaceError,
-      maximumPriority.reverseScreenSpaceError
-    );
+        this._priorityReverseScreenSpaceError,
+        minimumPriority.reverseScreenSpaceError,
+        maximumPriority.reverseScreenSpaceError
+      );
   const preferredSortingDigits = isolateDigits(
     normalizedPreferredSorting,
     preferredSortingDigitsCount,
@@ -2080,14 +2082,14 @@ Cesium3DTile.prototype.updatePriority = function() {
 /**
  * @private
  */
-Cesium3DTile.prototype.isDestroyed = function() {
+Cesium3DTile.prototype.isDestroyed = function () {
   return false;
 };
 
 /**
  * @private
  */
-Cesium3DTile.prototype.destroy = function() {
+Cesium3DTile.prototype.destroy = function () {
   // For the interval between new content being requested and downloaded, expiredContent === content, so don't destroy twice
   this._content = this._content && this._content.destroy();
   this._expiredContent =

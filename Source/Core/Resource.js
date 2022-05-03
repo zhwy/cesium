@@ -10,6 +10,7 @@ import DeveloperError from "./DeveloperError.js";
 import getAbsoluteUri from "./getAbsoluteUri.js";
 import getBaseUri from "./getBaseUri.js";
 import getExtensionFromUri from "./getExtensionFromUri.js";
+import getImagePixels from "./getImagePixels.js";
 import isBlobUri from "./isBlobUri.js";
 import isCrossOriginUrl from "./isCrossOriginUrl.js";
 import isDataUri from "./isDataUri.js";
@@ -255,7 +256,7 @@ function combineQueryParameters(q1, q2, preserveQueryParameters) {
  *
  * const resource = new Resource({
  *    url: 'http://server.com/path/to/resource.json',
- *    proxy: new DefaultProxy('/proxy/'),
+ *    proxy: new Proxy('/proxy/'),
  *    headers: {
  *      'X-My-Header': 'valueOfHeader'
  *    },
@@ -299,7 +300,7 @@ function Resource(options) {
   /**
    * A proxy to be used when loading the resource.
    *
-   * @type {DefaultProxy}
+   * @type {Proxy}
    */
   this.proxy = options.proxy;
 
@@ -394,8 +395,10 @@ Resource.supportsImageBitmapOptions = function () {
         createImageBitmap(blob),
       ]);
     })
-    .then(function (imageBitmap) {
-      return true;
+    .then(function (imageBitmaps) {
+      const colorWithOptions = getImagePixels(imageBitmaps[0]);
+      const colorWithDefaults = getImagePixels(imageBitmaps[1]);
+      return colorWithOptions[1] !== colorWithDefaults[1];
     })
     .catch(function () {
       return false;
@@ -535,6 +538,16 @@ Object.defineProperties(Resource.prototype, {
 });
 
 /**
+ * Override Object#toString so that implicit string conversion gives the
+ * complete URL represented by this Resource.
+ *
+ * @returns {String} The URL represented by this Resource
+ */
+Resource.prototype.toString = function () {
+  return this.getUrlComponent(true, true);
+};
+
+/**
  * Returns the url, optional with the query string and processed by a proxy.
  *
  * @param {Boolean} [query=false] If true, the query string is included.
@@ -633,7 +646,7 @@ Resource.prototype.setTemplateValues = function (template, useAsDefault) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be combined with those of the current instance.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}). These will be combined with those of the current instance.
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The function to call when loading the resource fails.
  * @param {Number} [options.retryAttempts] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
@@ -808,7 +821,7 @@ Resource.prototype.fetchArrayBufferCache = function (success) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
@@ -852,7 +865,7 @@ Resource.prototype.fetchBlob = function () {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
@@ -1067,7 +1080,7 @@ function fetchImage(options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Boolean} [options.flipY=false] Whether to vertically flip the image during fetch and decode. Only applies when requesting an image and the browser supports <code>createImageBitmap</code>.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
@@ -1127,7 +1140,7 @@ Resource.prototype.fetchText = function () {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
@@ -1147,7 +1160,7 @@ Resource.fetchText = function (options) {
  * adds 'Accept: application/json,&#42;&#47;&#42;;q=0.01' to the request headers, if not
  * already specified.
  *
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1188,11 +1201,11 @@ Resource.prototype.fetchJson = function () {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.fetchJson = function (options) {
   const resource = new Resource(options);
@@ -1237,7 +1250,7 @@ Resource.prototype.fetchXML = function () {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
@@ -1252,7 +1265,7 @@ Resource.fetchXML = function (options) {
  * Requests a resource using JSONP.
  *
  * @param {String} [callbackParameterName='callback'] The callback parameter name that the server expects.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1342,12 +1355,12 @@ function fetchJsonp(resource, callbackParameterName, functionName) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.callbackParameterName='callback'] The callback parameter name that the server expects.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.fetchJsonp = function (options) {
   const resource = new Resource(options);
@@ -1399,6 +1412,8 @@ Resource.prototype._makeRequest = function (options) {
 
     return promise
       .then(function (data) {
+        // explicitly set to undefined to ensure GC of request response data. See #8843
+        request.cancelFunction = undefined;
         return data;
       })
       .catch(function (e) {
@@ -1541,7 +1556,7 @@ function decodeDataUri(dataUriRegexResult, responseType) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1570,13 +1585,13 @@ Resource.prototype.fetch = function (options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.fetch = function (options) {
   const resource = new Resource(options);
@@ -1597,7 +1612,7 @@ Resource.fetch = function (options) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1627,13 +1642,13 @@ Resource.prototype.delete = function (options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.delete = function (options) {
   const resource = new Resource(options);
@@ -1655,7 +1670,7 @@ Resource.delete = function (options) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1684,13 +1699,13 @@ Resource.prototype.head = function (options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.head = function (options) {
   const resource = new Resource(options);
@@ -1711,7 +1726,7 @@ Resource.head = function (options) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1740,13 +1755,13 @@ Resource.prototype.options = function (options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.options = function (options) {
   const resource = new Resource(options);
@@ -1769,7 +1784,7 @@ Resource.options = function (options) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1802,13 +1817,13 @@ Resource.prototype.post = function (data, options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.post = function (options) {
   const resource = new Resource(options);
@@ -1830,7 +1845,7 @@ Resource.post = function (options) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1863,13 +1878,13 @@ Resource.prototype.put = function (data, options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.put = function (options) {
   const resource = new Resource(options);
@@ -1891,7 +1906,7 @@ Resource.put = function (options) {
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {Object} [options.headers] Additional HTTP headers to send with the request, if any.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  *
  * @example
@@ -1924,13 +1939,13 @@ Resource.prototype.patch = function (data, options) {
  * @param {Object} [options.queryParameters] An object containing query parameters that will be sent when retrieving the resource.
  * @param {Object} [options.templateValues] Key/Value pairs that are used to replace template values (eg. {x}).
  * @param {Object} [options.headers={}] Additional HTTP headers that will be sent.
- * @param {DefaultProxy} [options.proxy] A proxy to be used when loading the resource.
+ * @param {Proxy} [options.proxy] A proxy to be used when loading the resource.
  * @param {Resource.RetryCallback} [options.retryCallback] The Function to call when a request for this resource fails. If it returns true, the request will be retried.
  * @param {Number} [options.retryAttempts=0] The number of times the retryCallback should be called before giving up.
  * @param {Request} [options.request] A Request object that will be used. Intended for internal use only.
  * @param {String} [options.responseType] The type of response.  This controls the type of item returned.
  * @param {String} [options.overrideMimeType] Overrides the MIME type returned by the server.
- * @returns {Promise.<Object>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
+ * @returns {Promise.<*>|undefined} a promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  */
 Resource.patch = function (options) {
   const resource = new Resource(options);
@@ -2308,6 +2323,7 @@ Resource._Implementations.loadWithXhr = function (
 
   return xhr;
 };
+// add for indexDb
 Resource._Implementations.loadCache = function (
   url,
   responseType,

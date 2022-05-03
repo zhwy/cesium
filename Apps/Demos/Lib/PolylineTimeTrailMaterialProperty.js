@@ -19,7 +19,7 @@ function PolylineTimeTrailMaterialProperty(options) {
   this.length = options.length || 1;
 }
 
-Cesium.defineProperties(PolylineTimeTrailMaterialProperty.prototype, {
+Object.defineProperties(PolylineTimeTrailMaterialProperty.prototype, {
   isConstant: {
     get: function () {
       return false;

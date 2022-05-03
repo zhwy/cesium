@@ -603,6 +603,18 @@ Object.defineProperties(Context.prototype, {
   },
 
   /**
+   * <code>true</code> if the WebGL context supports multisample antialiasing. Requires
+   * WebGL2.
+   * @memberof Context.prototype
+   * @type {Boolean}
+   */
+  msaa: {
+    get: function () {
+      return this._webgl2;
+    },
+  },
+
+  /**
    * <code>true</code> if the OES_standard_derivatives extension is supported.  This
    * extension provides access to <code>dFdx</code>, <code>dFdy</code>, and <code>fwidth</code>
    * functions from GLSL.  A shader using these functions still needs to explicitly enable the

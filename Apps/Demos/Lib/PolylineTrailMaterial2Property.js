@@ -24,7 +24,7 @@ function PolylineTrailMaterial2Property(options) {
   this.length = options.length || 1;
 }
 
-Cesium.defineProperties(PolylineTrailMaterial2Property.prototype, {
+Object.defineProperties(PolylineTrailMaterial2Property.prototype, {
   isConstant: {
     get: function () {
       return false;

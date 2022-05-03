@@ -69,7 +69,6 @@ const LoadState = {
  * @param {SplitDirection} [options.splitDirection=SplitDirection.NONE] The {@link SplitDirection} split to apply to this collection.
  * @param {Boolean} [options.debugShowBoundingVolume=false] For debugging only. Draws the bounding sphere for the collection.
  * @param {Boolean} [options.debugWireframe=false] For debugging only. Draws the instances in wireframe.
- *
  * @exception {DeveloperError} Must specify either <options.gltf> or <options.url>, but not both.
  * @exception {DeveloperError} Shader program cannot be optimized for instancing. Parameters cannot have any of the following semantics: MODEL, MODELINVERSE, MODELVIEWINVERSE, MODELVIEWPROJECTIONINVERSE, MODELINVERSETRANSPOSE.
  *
@@ -183,39 +182,40 @@ function ModelInstanceCollection(options) {
 
   this.backFaceCulling = defaultValue(options.backFaceCulling, true);
   this._backFaceCulling = this.backFaceCulling;
+  this.showCreditsOnScreen = defaultValue(options.showCreditsOnScreen, false);
 }
 
 Object.defineProperties(ModelInstanceCollection.prototype, {
   allowPicking: {
-    get: function() {
+    get: function () {
       return this._allowPicking;
     },
   },
   length: {
-    get: function() {
+    get: function () {
       return this._instances.length;
     },
   },
   activeAnimations: {
-    get: function() {
+    get: function () {
       return this._model.activeAnimations;
     },
   },
   ready: {
-    get: function() {
+    get: function () {
       return this._ready;
     },
   },
   readyPromise: {
-    get: function() {
+    get: function () {
       return this._readyPromise.promise;
     },
   },
   imageBasedLighting: {
-    get: function() {
+    get: function () {
       return this._imageBasedLighting;
     },
-    set: function(value) {
+    set: function (value) {
       if (value !== this._imageBasedLighting) {
         if (
           this._shouldDestroyImageBasedLighting &&
@@ -229,34 +229,34 @@ Object.defineProperties(ModelInstanceCollection.prototype, {
     },
   },
   imageBasedLightingFactor: {
-    get: function() {
+    get: function () {
       return this._imageBasedLighting.imageBasedLightingFactor;
     },
-    set: function(value) {
+    set: function (value) {
       this._imageBasedLighting.imageBasedLightingFactor = value;
     },
   },
   luminanceAtZenith: {
-    get: function() {
+    get: function () {
       return this._imageBasedLighting.luminanceAtZenith;
     },
-    set: function(value) {
+    set: function (value) {
       this._imageBasedLighting.luminanceAtZenith = value;
     },
   },
   sphericalHarmonicCoefficients: {
-    get: function() {
+    get: function () {
       return this._imageBasedLighting.sphericalHarmonicCoefficients;
     },
-    set: function(value) {
+    set: function (value) {
       this._imageBasedLighting.sphericalHarmonicCoefficients = value;
     },
   },
   specularEnvironmentMaps: {
-    get: function() {
+    get: function () {
       return this._imageBasedLighting.specularEnvironmentMaps;
     },
-    set: function(value) {
+    set: function (value) {
       this._imageBasedLighting.specularEnvironmentMaps = value;
     },
   },
@@ -291,7 +291,7 @@ function createBoundingSphere(collection) {
 const scratchCartesian = new Cartesian3();
 const scratchMatrix = new Matrix4();
 
-ModelInstanceCollection.prototype.expandBoundingSphere = function(
+ModelInstanceCollection.prototype.expandBoundingSphere = function (
   instanceModelMatrix
 ) {
   const translation = Matrix4.getTranslation(
@@ -311,14 +311,15 @@ function getCheckUniformSemanticFunction(
   programId,
   uniformMap
 ) {
-  return function(uniform, uniformName) {
+  return function (uniform, uniformName) {
     const semantic = uniform.semantic;
     if (defined(semantic) && modelSemantics.indexOf(semantic) > -1) {
       if (supportedSemantics.indexOf(semantic) > -1) {
         uniformMap[uniformName] = semantic;
       } else {
         throw new RuntimeError(
-          `${"Shader program cannot be optimized for instancing. " + 'Uniform "'
+          `${
+            "Shader program cannot be optimized for instancing. " + 'Uniform "'
           }${uniformName}" in program "${programId}" uses unsupported semantic "${semantic}"`
         );
       }
@@ -381,7 +382,7 @@ function getInstancedUniforms(collection, programId) {
 }
 
 function getVertexShaderCallback(collection) {
-  return function(vs, programId) {
+  return function (vs, programId) {
     const instancedUniforms = getInstancedUniforms(collection, programId);
     const usesBatchTable = defined(collection._batchTable);
 
@@ -466,7 +467,7 @@ function getVertexShaderCallback(collection) {
 }
 
 function getFragmentShaderCallback(collection) {
-  return function(fs, programId) {
+  return function (fs, programId) {
     const batchTable = collection._batchTable;
     if (defined(batchTable)) {
       const gltf = collection._model.gltf;
@@ -487,7 +488,7 @@ function getFragmentShaderCallback(collection) {
 }
 
 function createModifiedModelView(collection, context) {
-  return function() {
+  return function () {
     return Matrix4.multiply(
       context.uniformState.view,
       collection._rtcTransform,
@@ -497,13 +498,13 @@ function createModifiedModelView(collection, context) {
 }
 
 function createNodeTransformFunction(node) {
-  return function() {
+  return function () {
     return node.computedMatrix;
   };
 }
 
 function getUniformMapCallback(collection, context) {
-  return function(uniformMap, programId, node) {
+  return function (uniformMap, programId, node) {
     uniformMap = clone(uniformMap);
     uniformMap.czm_instanced_modifiedModelView = createModifiedModelView(
       collection,
@@ -528,7 +529,7 @@ function getUniformMapCallback(collection, context) {
 }
 
 function getVertexShaderNonInstancedCallback(collection) {
-  return function(vs, programId) {
+  return function (vs, programId) {
     if (defined(collection._batchTable)) {
       const gltf = collection._model.gltf;
       const diffuseAttributeOrUniformName = ModelUtility.getDiffuseAttributeOrUniform(
@@ -548,7 +549,7 @@ function getVertexShaderNonInstancedCallback(collection) {
 }
 
 function getFragmentShaderNonInstancedCallback(collection) {
-  return function(fs, programId) {
+  return function (fs, programId) {
     const batchTable = collection._batchTable;
     if (defined(batchTable)) {
       const gltf = collection._model.gltf;
@@ -569,7 +570,7 @@ function getFragmentShaderNonInstancedCallback(collection) {
 }
 
 function getUniformMapNonInstancedCallback(collection) {
-  return function(uniformMap) {
+  return function (uniformMap) {
     if (defined(collection._batchTable)) {
       uniformMap = collection._batchTable.getUniformMapCallback()(uniformMap);
     }
@@ -712,6 +713,7 @@ function createModel(collection, context) {
     opaquePass: collection._opaquePass,
     imageBasedLighting: collection._imageBasedLighting,
     showOutline: collection.showOutline,
+    showCreditsOnScreen: collection.showCreditsOnScreen,
   };
 
   if (!usesBatchTable) {
@@ -867,7 +869,7 @@ function updateBackFaceCulling(collection, force) {
 function updateShowBoundingVolume(collection, force) {
   if (
     collection.debugShowBoundingVolume !==
-    collection._debugShowBoundingVolume ||
+      collection._debugShowBoundingVolume ||
     force
   ) {
     collection._debugShowBoundingVolume = collection.debugShowBoundingVolume;
@@ -901,13 +903,13 @@ function createCommands(collection, drawCommands) {
 }
 
 function createBatchIdFunction(batchId) {
-  return function() {
+  return function () {
     return batchId;
   };
 }
 
 function createPickColorFunction(color) {
-  return function() {
+  return function () {
     return color;
   };
 }
@@ -1043,7 +1045,7 @@ function updateShadows(collection, force) {
   }
 }
 
-ModelInstanceCollection.prototype.update = function(frameState) {
+ModelInstanceCollection.prototype.update = function (frameState) {
   if (frameState.mode === SceneMode.MORPHING) {
     return;
   }
@@ -1063,7 +1065,7 @@ ModelInstanceCollection.prototype.update = function(frameState) {
     this._instancingSupported = context.instancedArrays;
     createModel(this, context);
     const that = this;
-    this._model.readyPromise.catch(function(error) {
+    this._model.readyPromise.catch(function (error) {
       that._state = LoadState.FAILED;
       that._readyPromise.reject(error);
     });
@@ -1165,11 +1167,11 @@ ModelInstanceCollection.prototype.update = function(frameState) {
   }
 };
 
-ModelInstanceCollection.prototype.isDestroyed = function() {
+ModelInstanceCollection.prototype.isDestroyed = function () {
   return false;
 };
 
-ModelInstanceCollection.prototype.destroy = function() {
+ModelInstanceCollection.prototype.destroy = function () {
   this._model = this._model && this._model.destroy();
 
   const pickIds = this._pickIds;

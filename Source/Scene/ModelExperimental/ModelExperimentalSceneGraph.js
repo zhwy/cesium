@@ -496,8 +496,8 @@ ModelExperimentalSceneGraph.prototype.buildDrawCommands = function (
 
   model._boundingSphere = BoundingSphere.transform(
     this._boundingSphere,
-    this._model.modelMatrix,
-    this._model._boundingSphere
+    model.modelMatrix,
+    model._boundingSphere
   );
   model._initialRadius = model._boundingSphere.radius;
   model._boundingSphere.radius *= model._clampedScale;
