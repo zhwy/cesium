@@ -645,6 +645,8 @@ function loadAttribute(
       attribute.buffer = vertexBufferLoader.buffer;
     }
 
+    attribute.count = accessor.count;
+
     if (
       defined(draco) &&
       defined(draco.attributes) &&
@@ -724,10 +726,10 @@ function loadIndices(loader, gltf, accessorId, draco) {
 
     indices.indexDatatype = indexBufferLoader.indexDatatype;
 
-    if (loadAsTypedArray) {
-      indices.typedArray = indexBufferLoader.typedArray;
-    } else {
+    if (defined(indexBufferLoader.buffer)) {
       indices.buffer = indexBufferLoader.buffer;
+    } else {
+      indices.typedArray = indexBufferLoader.typedArray;
     }
   });
 

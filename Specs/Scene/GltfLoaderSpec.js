@@ -358,8 +358,8 @@ describe(
 
         expect(indices.indexDatatype).toBe(IndexDatatype.UNSIGNED_SHORT);
         expect(indices.count).toBe(36);
-        expect(indices.buffer).toBeDefined();
-        expect(indices.buffer.sizeInBytes).toBe(72);
+        expect(indices.typedArray).toBeDefined();
+        expect(indices.typedArray.byteLength).toBe(72);
 
         expect(positionAttribute.buffer).toBe(normalAttribute.buffer);
         expect(positionAttribute.buffer).not.toBe(texcoordAttribute.buffer);
@@ -924,7 +924,7 @@ describe(
           IndexDatatype.UNSIGNED_SHORT
         );
         expect(primitive.indices.count).toBe(3);
-        expect(primitive.indices.buffer).toBeDefined();
+        expect(primitive.indices.typedArray).toBeDefined();
       });
     });
 
@@ -1980,8 +1980,8 @@ describe(
 
         expect(indices.indexDatatype).toBe(IndexDatatype.UNSIGNED_SHORT);
         expect(indices.count).toBe(36);
-        expect(indices.buffer).toBeDefined();
-        expect(indices.buffer.sizeInBytes).toBe(72);
+        expect(indices.typedArray).toBeDefined();
+        expect(indices.typedArray.byteLength).toBe(72);
 
         expect(positionAttribute.buffer).toBe(normalAttribute.buffer);
         expect(positionAttribute.buffer).not.toBe(texcoordAttribute.buffer);
@@ -2978,8 +2978,8 @@ describe(
 
         expect(indices.indexDatatype).toBe(IndexDatatype.UNSIGNED_SHORT);
         expect(indices.count).toBe(12636);
-        expect(indices.buffer).toBeDefined();
-        expect(indices.buffer.sizeInBytes).toBe(25272);
+        expect(indices.typedArray).toBeDefined();
+        expect(indices.typedArray.byteLength).toBe(25272);
 
         expect(positionAttribute.buffer).not.toBe(normalAttribute.buffer);
         expect(positionAttribute.buffer).not.toBe(texcoordAttribute.buffer);
@@ -3042,7 +3042,7 @@ describe(
           IndexDatatype.UNSIGNED_SHORT
         );
         expect(primitive.indices.count).toBe(3);
-        expect(primitive.indices.buffer).toBeDefined();
+        expect(primitive.indices.typedArray).toBeDefined();
       });
     });
 
