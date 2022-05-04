@@ -42,18 +42,6 @@
           shouldAnimate: true,
         });
 
-        viewer.scene.globe.enableLighting = true;
-
-        var supportsImageRenderingPixelated =
-          viewer.cesiumWidget._supportsImageRenderingPixelated;
-        if (supportsImageRenderingPixelated) {
-          var vtxf_dpr = window.devicePixelRatio;
-          while (vtxf_dpr >= 2.0) {
-            vtxf_dpr /= 2.0;
-          }
-          viewer.resolutionScale = vtxf_dpr;
-        }
-
         function createModel(url, height) {
           viewer.entities.removeAll();
 
@@ -84,37 +72,7 @@
           viewer.trackedEntity = entity;
         }
 
-        var modelUrl = "https://localhost:8001/models/";
-
         const options = [
-          {
-            text: "风车",
-            onselect: function () {
-              createModel(
-                modelUrl +
-                  "mechanical_city_wip-4_environmentvertexcolor/scene.gltf",
-                0.0
-              );
-            },
-          },
-          {
-            text: "街区",
-            onselect: function () {
-              createModel(modelUrl + "ccity_building_set_1/scene.gltf", 0.0);
-            },
-          },
-          {
-            text: "夜景",
-            onselect: function () {
-              createModel(modelUrl + "san_francisco_city/scene.gltf", 0.0);
-            },
-          },
-          {
-            text: "悬索",
-            onselect: function () {
-              createModel("../../SampleData/models/Test/xuansuo.glb", 5000.0);
-            },
-          },
           {
             text: "Aircraft",
             onselect: function () {
