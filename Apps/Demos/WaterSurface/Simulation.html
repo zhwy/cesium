@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>水面效果</title>
+    <style>
+      @import url(../../../Build/Cesium/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      #button {
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin: 10px;
+        border-radius: 5px;
+        background-color: white;
+        color: black;
+        padding: 5px 10px;
+        z-index: 99;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer">
+      <div id="button">扰动</div>
+    </div>
+    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
+    <script type="module">
+      /* eslint-disable*/
+      import * as Cesium from "../../../Source/Cesium.js";
+      import { SimplexNoise } from "./SimplexNoise.js";
+      window.CESIUM_BASE_URL = "../../../Source";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window._viewer = viewer;
+
+      viewer.scene.globe.depthTestAgainstTerrain = false;
+      // viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
+
+      const WIDTH = 128;
+
+      const rectangle = Cesium.Rectangle.fromDegrees(120, 30, 121, 31);
+
+      const primitive = viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: new Cesium.GeometryInstance({
+            geometry: new Cesium.RectangleGeometry({
+              rectangle: rectangle,
+              height: 10000,
+              vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
+            }),
+          }),
+          appearance: new Cesium.EllipsoidSurfaceAppearance({
+            flat: true,
+            material: new Cesium.Material({
+              fabric: {
+                type: "Image",
+                uniforms: {
+                  image: "./waterNormals.jpg",
+                },
+              },
+            }),
+            fragmentShaderSource: `
+            varying vec3 v_positionMC;
+            varying vec3 v_positionEC;
+            varying vec2 v_st;
+
+            void main()
+            {
+                czm_materialInput materialInput;
+                czm_material material = czm_getMaterial(materialInput);
+                vec2 cellSize = 1. / vec2(128.);
+
+                // vec3 normalEC = normalize(czm_normal3D * czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));
+                vec3 normalEC = vec3(
+                  ( texture2D( image_0, v_st + vec2( - cellSize.x, 0 ) ).x - texture2D( image_0, v_st + vec2( cellSize.x, 0 ) ).x ) ,
+                  ( texture2D( image_0, v_st + vec2( 0, - cellSize.y ) ).x - texture2D( image_0, v_st + vec2( 0, cellSize.y ) ).x ) ,
+                  1.0 );
+            #ifdef FACE_FORWARD
+                normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
+            #endif
+
+                materialInput.s = v_st.s;
+                materialInput.st = v_st;
+                materialInput.str = vec3(v_st, 0.0);
+
+                // Convert tangent space material normal to eye space
+                materialInput.normalEC = normalEC;
+                materialInput.tangentToEyeMatrix = czm_eastNorthUpToEyeCoordinates(v_positionMC, materialInput.normalEC);
+
+                // Convert view vector to world space
+                vec3 positionToEyeEC = -v_positionEC;
+                materialInput.positionToEyeEC = positionToEyeEC;
+
+
+                float heightValue = texture2D( image_0, v_st ).x;
+                material.diffuse = vec3(heightValue + 0.5, 0., 0.);
+
+            #ifdef FLAT
+                gl_FragColor = vec4(material.diffuse + material.emission, material.alpha);
+            #else
+                gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
+            #endif
+            }
+
+        `,
+          }),
+        })
+      );
+
+      viewer.camera.setView({
+        destination: rectangle,
+      });
+
+      // 填充heightmap
+
+      const waterMaxHeight = 10;
+      const simplex = new SimplexNoise();
+
+      let tempTexture = new Cesium.Texture({
+        width: WIDTH,
+        height: WIDTH,
+        context: viewer.scene.context,
+        pixelFormat: Cesium.PixelFormat.RGBA,
+        pixelDatatype: Cesium.PixelDatatype.FLOAT,
+        flipX: false,
+        flipY: false,
+      });
+
+      const fillTexture = (texture) => {
+        function noise(x, y) {
+          let multR = waterMaxHeight;
+          let mult = 0.025;
+          let r = 0;
+          for (let i = 0; i < 15; i++) {
+            r += multR * simplex.noise(x * mult, y * mult);
+            multR *= 0.53 + 0.025 * i;
+            mult *= 1.25;
+          }
+
+          return r;
+          // return Math.random();
+        }
+
+        const pixels = new Float32Array(WIDTH * WIDTH * 4);
+
+        let p = 0;
+        for (let j = 0; j < WIDTH; j++) {
+          for (let i = 0; i < WIDTH; i++) {
+            const x = (i * 128) / WIDTH;
+            const y = (j * 128) / WIDTH;
+
+            // pixels[p + 0] = noise(x, y);
+            // pixels[p + 1] = pixels[p + 0];
+            // pixels[p + 2] = 0;
+            // pixels[p + 3] = 1;
+            if (x === WIDTH / 2 && y === WIDTH / 2) {
+              pixels[p + 0] = 10;
+              pixels[p + 1] = pixels[p + 0];
+              pixels[p + 2] = 0;
+              pixels[p + 3] = 1;
+            } else {
+              pixels[p + 3] = 1;
+            }
+
+            p += 4;
+          }
+        }
+
+        texture.copyFrom({
+          source: {
+            width: WIDTH,
+            height: WIDTH,
+            arrayBufferView: pixels,
+          },
+        });
+      };
+
+      document.getElementById("button").addEventListener("click", () => {
+        fillTexture(tempTexture);
+      });
+      fillTexture(tempTexture);
+
+      primitive.readyPromise.then(() => {
+        setTimeout(() => {
+          primitive.appearance.material._textures.image = tempTexture;
+
+          const command = new Cesium.ComputeCommand({
+            persists: true,
+            outputTexture: tempTexture,
+            uniformMap: {
+              u_color: () => {
+                return new Cesium.Cartesian3(
+                  Math.random(),
+                  Math.random(),
+                  Math.random()
+                );
+              },
+              viscosityConstant: () => {
+                return 0.98;
+              },
+              heightCompensation: () => {
+                return 0;
+              },
+              resolution: () => {
+                return new Cesium.Cartesian2(WIDTH, WIDTH);
+              },
+              heightmap: () => {
+                return tempTexture;
+              },
+            },
+            fragmentShaderSource: `
+        // uniform vec3 u_color;
+        varying vec2 v_textureCoordinates;
+        // void main() {
+        //   gl_FragColor = vec4(u_color, 1.);
+        // }
+
+        // uniform vec2 mousePos;
+        // uniform float mouseSize;
+        uniform float viscosityConstant;
+        uniform float heightCompensation;
+        uniform vec2 resolution;
+        uniform sampler2D heightmap;
+
+        void main()	{
+
+          vec2 cellSize = 1.0 / resolution.xy;
+
+          // vec2 uv = gl_FragCoord.xy * cellSize;
+          vec2 uv = v_textureCoordinates;
+
+          // heightmapValue.x == height from previous frame
+          // heightmapValue.y == height from penultimate frame
+          // heightmapValue.z, heightmapValue.w not used
+          vec4 heightmapValue = texture2D( heightmap, uv );
+
+          // Get neighbours
+          vec4 north = texture2D( heightmap, uv + vec2( 0.0, cellSize.y ) );
+          vec4 south = texture2D( heightmap, uv + vec2( 0.0, - cellSize.y ) );
+          vec4 east = texture2D( heightmap, uv + vec2( cellSize.x, 0.0 ) );
+          vec4 west = texture2D( heightmap, uv + vec2( - cellSize.x, 0.0 ) );
+
+          // https://web.archive.org/web/20080618181901/http://freespace.virgin.net/hugo.elias/graphics/x_water.htm
+
+          float newHeight = ( ( north.x + south.x + east.x + west.x ) * 0.5 - heightmapValue.y ) * viscosityConstant;
+
+          // Mouse influence
+          // float mousePhase = clamp( length( ( uv - vec2( 0.5 ) ) * BOUNDS - vec2( mousePos.x, - mousePos.y ) ) * PI / mouseSize, 0.0, PI );
+          // newHeight += ( cos( mousePhase ) + 1.0 ) * 0.28;
+
+          heightmapValue.y = heightmapValue.x;
+          heightmapValue.x = newHeight;
+
+          gl_FragColor = heightmapValue;
+
+        }
+      `,
+            preExecute: () => {
+              const nextTexture = new Cesium.Texture({
+                width: WIDTH,
+                height: WIDTH,
+                context: viewer.scene.context,
+                pixelFormat: Cesium.PixelFormat.RGBA,
+                pixelDatatype: Cesium.PixelDatatype.FLOAT,
+                flipX: false,
+                flipY: false,
+              });
+              command.outputTexture = nextTexture;
+            },
+            postExecute: (outputTexture) => {
+              tempTexture = outputTexture;
+              primitive.appearance.material._textures.image = outputTexture;
+            },
+          });
+          const computer = new Cesium.ComputeEngine(viewer.scene.context);
+
+          viewer.scene.preRender.addEventListener((scene) => {
+            computer.execute(command);
+          });
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>

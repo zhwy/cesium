@@ -28,17 +28,11 @@
 
   <body>
     <div id="cesiumContainer"></div>
-    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
     <script type="module">
       /* eslint-disable*/
       import * as Cesium from "../../../Source/Cesium.js";
       window.CESIUM_BASE_URL = "../../../Source";
-      var viewer = new Cesium.Viewer("cesiumContainer", {
-        terrainProvider: new Cesium.CesiumTerrainProvider({
-          url: "https://localhost:8003/三维河道/terrain2",
-          requestVertexNormals: true,
-        }),
-      });
+      var viewer = new Cesium.Viewer("cesiumContainer");
       window._viewer = viewer;
       viewer.scene.globe.depthTestAgainstTerrain = false;
       let promise = Cesium.GeoJsonDataSource.load("border.json", {
