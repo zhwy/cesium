@@ -10,7 +10,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>利用坐标轴移动</title>
+    <title>利用坐标轴变换</title>
     <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
     <style>
       @import url(../../../Build/Cesium/Widgets/widgets.css);
@@ -67,26 +67,23 @@
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-      enableDropModel();
-
-      let viewer = new Cesium.Viewer("cesiumContainer", {
+      const viewer = new Cesium.Viewer("cesiumContainer", {
         timeline: false,
         animation: false,
       });
       window._viewer = viewer;
       // viewer.scene.globe.show = false;
       viewer.scene.globe.depthTestAgainstTerrain = true;
-      // initEvent();
 
       //放置到对应位置
-      let orgPos = Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 50);
+      const orgPos = Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 50);
 
-      let modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+      const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
         orgPos,
         new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(0), 0, 0)
       );
 
-      let model = viewer.scene.primitives.add(
+      const model = viewer.scene.primitives.add(
         Cesium.Model.fromGltf({
           url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
           modelMatrix: modelMatrix,
@@ -105,17 +102,6 @@
         });
       });
 
-      // const editor = viewer.scene.primitives.add(
-      //   new PositionEditor({
-      //     modelMatrix: modelMatrix.clone(),
-      //     item: model,
-      //     show: true,
-      //     viewer,
-      //     outputFunction: (res) => {
-      //       console.log(res);
-      //     },
-      //   })
-      // );
       const editor = new PositionEditor({
         modelMatrix: modelMatrix.clone(),
         item: model,
@@ -138,47 +124,73 @@
         editor.type = PositionEditor.EditType.SCALE;
       };
 
-      function enableDropModel() {
-        let dragModel;
-        function allowDrop(e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        function drop(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          let df = e.dataTransfer;
-          let dropFiles = []; // 存放拖拽的文件对象
-          let reader = new FileReader();
-          debugger;
-          reader.readAsArrayBuffer(df.files[0]);
-          reader.onload = (res) => {
-            let width = getComputedStyle(viewer.container).width;
-            let height = getComputedStyle(_viewer.container).height;
-            width = Number(width.slice(0, -2));
-            height = Number(height.slice(0, -2));
-            let pos = viewer.scene.pickPosition({
-              x: width / 2,
-              y: height / 2,
-            });
-            let m = Cesium.Transforms.headingPitchRollToFixedFrame(
-              pos,
-              new Cesium.HeadingPitchRoll(0, 0, 0)
-            );
-            dragModel = new Cesium.Model({
-              gltf: reader.result,
-              modelMatrix: m,
-            });
-            viewer.scene.primitives.add(dragModel);
-          };
-        }
+      // entity 线、面测试
+      const pos = Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 50);
+      const basePointTransform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+      const inverseTransform = Cesium.Matrix4.inverseTransformation(
+        basePointTransform,
+        new Cesium.Matrix4()
+      );
 
-        let container = document.getElementById("cesiumContainer");
-        container.ondragenter = allowDrop;
-        container.ondragover = allowDrop;
-        container.ondragleave = allowDrop;
-        container.ondrop = drop;
-      }
+      // 旋转
+      const rotationM = Cesium.Matrix3.fromRotationZ(
+        Cesium.Math.toRadians(45),
+        new Cesium.Matrix3()
+      );
+      const rotationTransform = Cesium.Matrix4.fromRotationTranslation(
+        rotationM,
+        new Cesium.Cartesian3(0, 0, -40),
+        new Cesium.Matrix4()
+      );
+
+      const points = Cesium.Cartesian3.fromDegreesArrayHeights([
+        116.790876,
+        36.498398,
+        50,
+        116.790986,
+        36.498398,
+        50,
+        116.790986,
+        36.498508,
+        50,
+        116.790876,
+        36.498508,
+        50,
+        116.790876,
+        36.498398,
+        50,
+      ]);
+
+      const afterTransformPos = points.map((p) => {
+        const tempTransform = new Cesium.Matrix4();
+        // M * R * M-1
+        Cesium.Matrix4.multiply(
+          basePointTransform,
+          rotationTransform,
+          tempTransform
+        );
+        Cesium.Matrix4.multiply(tempTransform, inverseTransform, tempTransform);
+        const result = Cesium.Matrix4.multiplyByPoint(
+          tempTransform,
+          p,
+          new Cesium.Cartesian3()
+        );
+        const carto = Cesium.Cartographic.fromCartesian(result);
+        console.log({
+          lon: Cesium.Math.toDegrees(carto.longitude),
+          lat: Cesium.Math.toDegrees(carto.latitude),
+          alt: carto.height,
+        });
+        return result;
+      });
+
+      viewer.entities.add({
+        polyline: {
+          width: 5,
+          material: Cesium.Color.YELLOW,
+          positions: afterTransformPos,
+        },
+      });
     </script>
   </body>
 </html>
