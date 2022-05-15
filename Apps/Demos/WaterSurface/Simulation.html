@@ -44,9 +44,8 @@
     <div id="cesiumContainer">
       <div id="button">扰动</div>
     </div>
-    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
     <script type="module">
-      /* eslint-disable*/
+      /* eslint-disable */
       import * as Cesium from "../../../Source/Cesium.js";
       import { SimplexNoise } from "./SimplexNoise.js";
       window.CESIUM_BASE_URL = "../../../Source";
@@ -61,19 +60,40 @@
 
       const WIDTH = 128;
 
-      const rectangle = Cesium.Rectangle.fromDegrees(120, 30, 121, 31);
+      const polygon = new Cesium.PolygonHierarchy(
+        Cesium.Cartesian3.fromDegreesArrayHeights([
+          120,
+          30,
+          50,
+          121,
+          30,
+          10000,
+          121,
+          31,
+          50,
+          120,
+          31,
+          1000,
+          120,
+          30,
+          50,
+        ])
+      );
+      const geometry = new Cesium.PolygonGeometry({
+        polygonHierarchy: polygon,
+        vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
+        perPositionHeight: true,
+      });
+
+      const test = Cesium.PolygonGeometry.createGeometry(geometry);
 
       const primitive = viewer.scene.primitives.add(
         new Cesium.Primitive({
           geometryInstances: new Cesium.GeometryInstance({
-            geometry: new Cesium.RectangleGeometry({
-              rectangle: rectangle,
-              height: 10000,
-              vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
-            }),
+            geometry: geometry,
           }),
           appearance: new Cesium.EllipsoidSurfaceAppearance({
-            flat: true,
+            // flat: true,
             material: new Cesium.Material({
               fabric: {
                 type: "Image",
@@ -82,6 +102,31 @@
                 },
               },
             }),
+            vertexShaderSource: `
+            attribute vec3 position3DHigh;
+            attribute vec3 position3DLow;
+            attribute vec2 st;
+            attribute float batchId;
+
+            varying vec3 v_positionMC;
+            varying vec3 v_positionEC;
+            varying vec2 v_st;
+
+            void main()
+            {
+                vec4 p = czm_computePosition();
+
+                vec4 dir = normalize(p);
+
+                p = p + dir * 10000.;
+
+                v_positionMC = position3DHigh + position3DLow;           // position in model coordinates
+                v_positionEC = (czm_modelViewRelativeToEye * p).xyz;     // position in eye coordinates
+                v_st = st;
+
+                gl_Position = czm_modelViewProjectionRelativeToEye * p;
+            }
+          `,
             fragmentShaderSource: `
             varying vec3 v_positionMC;
             varying vec3 v_positionEC;
@@ -90,14 +135,13 @@
             void main()
             {
                 czm_materialInput materialInput;
-                czm_material material = czm_getMaterial(materialInput);
+               
                 vec2 cellSize = 1. / vec2(128.);
-
                 // vec3 normalEC = normalize(czm_normal3D * czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));
-                vec3 normalEC = vec3(
+                vec3 normalEC = normalize(vec3(
                   ( texture2D( image_0, v_st + vec2( - cellSize.x, 0 ) ).x - texture2D( image_0, v_st + vec2( cellSize.x, 0 ) ).x ) ,
                   ( texture2D( image_0, v_st + vec2( 0, - cellSize.y ) ).x - texture2D( image_0, v_st + vec2( 0, cellSize.y ) ).x ) ,
-                  1.0 );
+                  1.0 ));
             #ifdef FACE_FORWARD
                 normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
             #endif
@@ -114,6 +158,7 @@
                 vec3 positionToEyeEC = -v_positionEC;
                 materialInput.positionToEyeEC = positionToEyeEC;
 
+                czm_material material = czm_getMaterial(materialInput);
 
                 float heightValue = texture2D( image_0, v_st ).x;
                 material.diffuse = vec3(heightValue + 0.5, 0., 0.);
@@ -131,7 +176,7 @@
       );
 
       viewer.camera.setView({
-        destination: rectangle,
+        destination: geometry.rectangle,
       });
 
       // 填充heightmap
@@ -208,7 +253,6 @@
           primitive.appearance.material._textures.image = tempTexture;
 
           const command = new Cesium.ComputeCommand({
-            persists: true,
             outputTexture: tempTexture,
             uniformMap: {
               u_color: () => {
