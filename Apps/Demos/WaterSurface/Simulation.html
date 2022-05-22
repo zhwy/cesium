@@ -48,6 +48,7 @@
       /* eslint-disable */
       import * as Cesium from "../../../Source/Cesium.js";
       import { SimplexNoise } from "./SimplexNoise.js";
+      import CustomPrimitive from "./customPrimitive.js";
       window.CESIUM_BASE_URL = "../../../Source";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
@@ -59,124 +60,117 @@
       // viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
 
       const WIDTH = 128;
+      const rectangle = Cesium.Rectangle.fromDegrees(120, 30, 120.001, 30.001);
 
       const polygon = new Cesium.PolygonHierarchy(
         Cesium.Cartesian3.fromDegreesArrayHeights([
           120,
           30,
-          50,
-          121,
+          5,
+          120.001,
           30,
-          10000,
-          121,
-          31,
-          50,
+          5,
+          120.001,
+          30.001,
+          5,
           120,
-          31,
-          1000,
+          30.001,
+          5,
           120,
           30,
-          50,
+          5,
         ])
       );
-      const geometry = new Cesium.PolygonGeometry({
+      const polygonGeom = new Cesium.PolygonGeometry({
         polygonHierarchy: polygon,
         vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
+        // height: 10000
         perPositionHeight: true,
       });
 
-      const test = Cesium.PolygonGeometry.createGeometry(geometry);
+      const test = Cesium.PolygonGeometry.createGeometry(polygonGeom);
+      console.log(test);
 
-      const primitive = viewer.scene.primitives.add(
-        new Cesium.Primitive({
-          geometryInstances: new Cesium.GeometryInstance({
-            geometry: geometry,
-          }),
-          appearance: new Cesium.EllipsoidSurfaceAppearance({
-            // flat: true,
-            material: new Cesium.Material({
-              fabric: {
-                type: "Image",
-                uniforms: {
-                  image: "./waterNormals.jpg",
-                },
+      const width = rectangle.east - rectangle.west;
+      const height = rectangle.north - rectangle.south;
+
+      const gridX = Math.floor(WIDTH);
+      const gridY = Math.floor(WIDTH);
+
+      const gridX1 = gridX + 1;
+      const gridY1 = gridY + 1;
+
+      const segment_width = width / gridX;
+      const segment_height = height / gridY;
+
+      const indices = [];
+      const vertices = [];
+      const uvs = [];
+
+      for (let iy = 0; iy < gridY1; iy++) {
+        const lat = iy * segment_height + rectangle.south;
+
+        for (let ix = 0; ix < gridX1; ix++) {
+          const lon = ix * segment_width + rectangle.west;
+
+          const pos = Cesium.Cartesian3.fromRadians(lon, lat);
+
+          vertices.push(pos.x, pos.y, pos.z);
+
+          uvs.push(ix / gridX);
+          uvs.push(iy / gridY);
+        }
+      }
+
+      for (let iy = 0; iy < gridY; iy++) {
+        for (let ix = 0; ix < gridX; ix++) {
+          const a = ix + gridX1 * iy;
+          const b = ix + gridX1 * (iy + 1);
+          const c = ix + 1 + gridX1 * (iy + 1);
+          const d = ix + 1 + gridX1 * iy;
+
+          indices.push(a, d, b);
+          indices.push(c, b, d);
+        }
+      }
+
+      const attributes = new Cesium.GeometryAttributes({
+        position: new Cesium.GeometryAttribute({
+          componentDatatype: Cesium.ComponentDatatype.FLOAT,
+          componentsPerAttribute: 3,
+          values: new Float64Array(vertices),
+        }),
+        st: new Cesium.GeometryAttribute({
+          componentDatatype: Cesium.ComponentDatatype.FLOAT,
+          componentsPerAttribute: 2,
+          values: new Float32Array(uvs),
+        }),
+      });
+      const geometry = new Cesium.Geometry({
+        indices: new Uint16Array(indices),
+        attributes: attributes,
+      });
+
+      const sample = new Cesium.Primitive({
+        geometryInstances: new Cesium.GeometryInstance({
+          geometry: geometry,
+        }),
+        appearance: new Cesium.EllipsoidSurfaceAppearance({
+          // flat: true,
+          material: new Cesium.Material({
+            fabric: {
+              type: "Image",
+              uniforms: {
+                image: "./waterNormals.jpg",
               },
-            }),
-            vertexShaderSource: `
-            attribute vec3 position3DHigh;
-            attribute vec3 position3DLow;
-            attribute vec2 st;
-            attribute float batchId;
-
-            varying vec3 v_positionMC;
-            varying vec3 v_positionEC;
-            varying vec2 v_st;
-
-            void main()
-            {
-                vec4 p = czm_computePosition();
-
-                vec4 dir = normalize(p);
-
-                p = p + dir * 10000.;
-
-                v_positionMC = position3DHigh + position3DLow;           // position in model coordinates
-                v_positionEC = (czm_modelViewRelativeToEye * p).xyz;     // position in eye coordinates
-                v_st = st;
-
-                gl_Position = czm_modelViewProjectionRelativeToEye * p;
-            }
-          `,
-            fragmentShaderSource: `
-            varying vec3 v_positionMC;
-            varying vec3 v_positionEC;
-            varying vec2 v_st;
-
-            void main()
-            {
-                czm_materialInput materialInput;
-               
-                vec2 cellSize = 1. / vec2(128.);
-                // vec3 normalEC = normalize(czm_normal3D * czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));
-                vec3 normalEC = normalize(vec3(
-                  ( texture2D( image_0, v_st + vec2( - cellSize.x, 0 ) ).x - texture2D( image_0, v_st + vec2( cellSize.x, 0 ) ).x ) ,
-                  ( texture2D( image_0, v_st + vec2( 0, - cellSize.y ) ).x - texture2D( image_0, v_st + vec2( 0, cellSize.y ) ).x ) ,
-                  1.0 ));
-            #ifdef FACE_FORWARD
-                normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
-            #endif
-
-                materialInput.s = v_st.s;
-                materialInput.st = v_st;
-                materialInput.str = vec3(v_st, 0.0);
-
-                // Convert tangent space material normal to eye space
-                materialInput.normalEC = normalEC;
-                materialInput.tangentToEyeMatrix = czm_eastNorthUpToEyeCoordinates(v_positionMC, materialInput.normalEC);
-
-                // Convert view vector to world space
-                vec3 positionToEyeEC = -v_positionEC;
-                materialInput.positionToEyeEC = positionToEyeEC;
-
-                czm_material material = czm_getMaterial(materialInput);
-
-                float heightValue = texture2D( image_0, v_st ).x;
-                material.diffuse = vec3(heightValue + 0.5, 0., 0.);
-
-            #ifdef FLAT
-                gl_FragColor = vec4(material.diffuse + material.emission, material.alpha);
-            #else
-                gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
-            #endif
-            }
-
-        `,
+            },
           }),
-        })
-      );
+        }),
+      });
+      // viewer.scene.primitives.add(sample)
 
       viewer.camera.setView({
-        destination: geometry.rectangle,
+        destination: rectangle,
       });
 
       // 填充heightmap
@@ -214,8 +208,8 @@
         let p = 0;
         for (let j = 0; j < WIDTH; j++) {
           for (let i = 0; i < WIDTH; i++) {
-            const x = (i * 128) / WIDTH;
-            const y = (j * 128) / WIDTH;
+            const x = i;
+            const y = j;
 
             // pixels[p + 0] = noise(x, y);
             // pixels[p + 1] = pixels[p + 0];
@@ -248,34 +242,30 @@
       });
       fillTexture(tempTexture);
 
-      primitive.readyPromise.then(() => {
-        setTimeout(() => {
-          primitive.appearance.material._textures.image = tempTexture;
-
-          const command = new Cesium.ComputeCommand({
-            outputTexture: tempTexture,
-            uniformMap: {
-              u_color: () => {
-                return new Cesium.Cartesian3(
-                  Math.random(),
-                  Math.random(),
-                  Math.random()
-                );
-              },
-              viscosityConstant: () => {
-                return 0.98;
-              },
-              heightCompensation: () => {
-                return 0;
-              },
-              resolution: () => {
-                return new Cesium.Cartesian2(WIDTH, WIDTH);
-              },
-              heightmap: () => {
-                return tempTexture;
-              },
-            },
-            fragmentShaderSource: `
+      const command = new Cesium.ComputeCommand({
+        outputTexture: tempTexture,
+        uniformMap: {
+          u_color: () => {
+            return new Cesium.Cartesian3(
+              Math.random(),
+              Math.random(),
+              Math.random()
+            );
+          },
+          viscosityConstant: () => {
+            return 0.98;
+          },
+          heightCompensation: () => {
+            return 0;
+          },
+          resolution: () => {
+            return new Cesium.Cartesian2(WIDTH, WIDTH);
+          },
+          heightmap: () => {
+            return tempTexture;
+          },
+        },
+        fragmentShaderSource: `
         // uniform vec3 u_color;
         varying vec2 v_textureCoordinates;
         // void main() {
@@ -322,30 +312,148 @@
 
         }
       `,
-            preExecute: () => {
-              const nextTexture = new Cesium.Texture({
-                width: WIDTH,
-                height: WIDTH,
-                context: viewer.scene.context,
-                pixelFormat: Cesium.PixelFormat.RGBA,
-                pixelDatatype: Cesium.PixelDatatype.FLOAT,
-                flipX: false,
-                flipY: false,
-              });
-              command.outputTexture = nextTexture;
-            },
-            postExecute: (outputTexture) => {
-              tempTexture = outputTexture;
-              primitive.appearance.material._textures.image = outputTexture;
-            },
+        preExecute: () => {
+          const nextTexture = new Cesium.Texture({
+            width: WIDTH,
+            height: WIDTH,
+            context: viewer.scene.context,
+            pixelFormat: Cesium.PixelFormat.RGBA,
+            pixelDatatype: Cesium.PixelDatatype.FLOAT,
+            flipX: false,
+            flipY: false,
           });
-          const computer = new Cesium.ComputeEngine(viewer.scene.context);
-
-          viewer.scene.preRender.addEventListener((scene) => {
-            computer.execute(command);
-          });
-        }, 1000);
+          command.outputTexture = nextTexture;
+        },
+        postExecute: (outputTexture) => {
+          tempTexture = outputTexture;
+          // primitive.appearance.material._textures.image = outputTexture;
+        },
       });
+      const computer = new Cesium.ComputeEngine(viewer.scene.context);
+
+      viewer.scene.preRender.addEventListener((scene) => {
+        computer.execute(command);
+      });
+
+      const custom = new CustomPrimitive({
+        commandType: "Draw",
+        geometry: geometry,
+        attributeLocations: {
+          st: 0,
+          position: 1,
+        },
+        uniformMap: {
+          image_0: () => {
+            return command.outputTexture;
+          },
+        },
+        primitiveType: Cesium.PrimitiveType.TRIANGLES,
+        vertexShaderSource: `
+            uniform sampler2D image_0;
+
+            attribute vec3 position3DHigh;
+            attribute vec3 position3DLow;
+            attribute vec3 position2DHigh;
+            attribute vec3 position2DLow;
+            attribute vec2 st;
+            attribute float batchId;
+
+            varying vec3 v_positionMC;
+            varying vec3 v_positionEC;
+            varying vec2 v_st;            
+
+            vec3 shiftPos(vec3 pos)
+            {
+              vec3 dir = normalize(pos);
+              float heightValue = texture2D( image_0, st ).x;
+              return dir * (length(pos) + heightValue * ${waterMaxHeight}.);
+            }
+
+            vec4 czm_translateRelativeToEye2(vec3 high, vec3 low)
+            {
+                vec3 cameraPos = czm_encodedCameraPositionMCHigh + czm_encodedCameraPositionMCLow;
+                vec3 shifted = shiftPos(high + low);
+
+                return vec4(shifted - cameraPos, 1.0);
+            }
+
+            vec4 czm_computePosition()
+            {
+                vec4 p;
+                if (czm_morphTime == 1.0)
+                {
+                    p = czm_translateRelativeToEye2(position3DHigh, position3DLow);
+                }
+                else if (czm_morphTime == 0.0)
+                {
+                    p = czm_translateRelativeToEye2(position2DHigh.zxy, position2DLow.zxy);
+                }
+                else
+                {
+                    p = czm_columbusViewMorph(
+                            czm_translateRelativeToEye2(position2DHigh.zxy, position2DLow.zxy),
+                            czm_translateRelativeToEye2(position3DHigh, position3DLow),
+                            czm_morphTime);
+                }
+                return p;
+            }
+
+            void main()
+            {                 
+
+                vec4 p = czm_computePosition();
+
+                v_positionMC = shiftPos(position3DHigh + position3DLow);           // position in model coordinates
+                v_positionEC = (czm_modelViewRelativeToEye * p).xyz;     // position in eye coordinates
+                v_st = st;
+
+                gl_Position = czm_modelViewProjectionRelativeToEye * p;
+            }
+          `,
+        fragmentShaderSource: `
+            uniform sampler2D image_0;
+            varying vec3 v_positionMC;
+            varying vec3 v_positionEC;
+            varying vec2 v_st;
+
+            void main()
+            {
+                czm_materialInput materialInput;
+               
+                vec2 cellSize = 1. / vec2(${WIDTH}.);
+
+                vec3 normalEC = normalize(vec3(
+                  ( texture2D( image_0, v_st + vec2( - cellSize.x, 0 ) ).x - texture2D( image_0, v_st + vec2( cellSize.x, 0 ) ).x ) ,
+                  ( texture2D( image_0, v_st + vec2( 0, - cellSize.y ) ).x - texture2D( image_0, v_st + vec2( 0, cellSize.y ) ).x ) ,
+                  1.0 ));
+                // vec3 normalEC = normalize(czm_normal3D * czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));
+      
+
+                materialInput.s = v_st.s;
+                materialInput.st = v_st;
+                materialInput.str = vec3(v_st, 0.0);
+
+                // Convert tangent space material normal to eye space
+                materialInput.normalEC = normalEC;
+                materialInput.tangentToEyeMatrix = czm_eastNorthUpToEyeCoordinates(v_positionMC, materialInput.normalEC);
+
+                // Convert view vector to world space
+                vec3 positionToEyeEC = -v_positionEC;
+                materialInput.positionToEyeEC = positionToEyeEC;
+
+                czm_material material = czm_getDefaultMaterial(materialInput);
+
+                float heightValue = texture2D( image_0, v_st ).x;
+                material.diffuse = vec3(0.,0.5,1.) + vec3(heightValue);
+
+                gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
+            }
+
+        `,
+        rawRenderState: Cesium.Appearance.getDefaultRenderState(),
+      });
+
+      viewer.scene.primitives.add(custom);
     </script>
   </body>
 </html>
