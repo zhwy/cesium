@@ -1,96 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <!-- Use correct character set. -->
     <meta charset="utf-8" />
     <!-- Tell IE to use the latest, best version. -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-    <title>地形裁剪</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <!-- <script src="https://unpkg.com/@turf/turf@6.3.0/turf.min.js"></script> -->
+    <title>地形编辑</title>
     <style>
-        @import url(../../../../Build/Cesium/Widgets/widgets.css);
+      @import url(../../../../Build/Cesium/Widgets/widgets.css);
 
-        html,
-        body,
-        #cesiumContainer {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        button {
-            position: absolute;
-            z-index: 99;
-        }
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-        // import IndexedDbCache from "../Lib/indexDbCache.js";
-        import * as Cesium from "../../../../Source/Cesium.js";
-        window.CESIUM_BASE_URL = "../../../../Source";
-        window.Cesium = Cesium;
-        Cesium.Ion.defaultAccessToken =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+      import * as Cesium from "../../../../Source/Cesium.js";
+      window.CESIUM_BASE_URL = "../../../../Source";
+      window.Cesium = Cesium;
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-        /* eslint-disable */
-        var viewer;
-        var modelHeight;
-        viewer = new Cesium.Viewer("cesiumContainer", {
-            terrainProvider: Cesium.createWorldTerrain(),
-            imageryProvider: new Cesium.UrlTemplateImageryProvider({
-                url:
-                    "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-                maximumLevel: 20,
-                tileWidth: 512,
-                tileHeight: 512,
-            }),
+      /* eslint-disable */
+      var viewer;
+      var modelHeight;
+      viewer = new Cesium.Viewer("cesiumContainer", {
+        terrainProvider: Cesium.createWorldTerrain(),
+        imageryProvider: new Cesium.UrlTemplateImageryProvider({
+          url:
+            "https://t6.tianditu.gov.cn/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
+          maximumLevel: 18,
+        }),
+      });
+      window._viewer = viewer;
+
+      var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+      var orientation = Cesium.Transforms.headingPitchRollQuaternion(
+        pos,
+        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
+      );
+
+      var entity = viewer.entities.add({
+        position: pos,
+        orientation: orientation,
+        model: {
+          uri: "/Apps/Demos/Underground/隧道test.glb",
+        },
+      });
+      viewer.zoomTo(entity);
+
+      viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
+
+      viewer.imageryLayers.addImageryProvider(new Cesium.GridImageryProvider());
+      viewer.imageryLayers.addImageryProvider(
+        new Cesium.TileCoordinatesImageryProvider()
+      );
+
+      var ds = new Cesium.GeoJsonDataSource();
+
+      viewer.dataSources.add(ds);
+
+      var terrainProvider = viewer.terrainProvider;
+      var quadtree = viewer.scene.globe._surface._tileProvider.quadtree;
+
+      var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      var positions = [];
+      var test = [
+        [120.02432069472383, 29.859768355740627, 200],
+        [120.02431769365397, 29.853160209873, 200],
+        [120.02809843102996, 29.85265497030581, 200],
+        [120.03310481469315, 29.854566525518585, 200],
+      ];
+      terrainProvider._terrainEdits.push(generateTin(test));
+
+      var height = null;
+
+      handler.setInputAction(function (movement) {
+        var worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+          if (height == null) height = carto.height;
+          positions.push([
+            Cesium.Math.toDegrees(carto.longitude),
+            Cesium.Math.toDegrees(carto.latitude),
+            height,
+          ]);
+          console.log(carto);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      handler.setInputAction(function (movement) {
+        var worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+          positions.push([
+            Cesium.Math.toDegrees(carto.longitude),
+            Cesium.Math.toDegrees(carto.latitude),
+            height,
+          ]);
+          if (positions.length > 2) {
+            var terrainEdits = terrainProvider._terrainEdits;
+
+            terrainEdits.push(generateTin(positions));
+
+            quadtree._terrainNeedsUpdate = true;
+
+            positions = [];
+            height = null;
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+      function generateTin(positions) {
+        var points = positions.map((p) => {
+          return turf.point([p[0], p[1]], {
+            z: p[2],
+          });
         });
-        window._viewer = viewer;
-
-        var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-        var orientation = Cesium.Transforms.headingPitchRollQuaternion(
-            pos,
-            new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
-        );
-
-        var entity = viewer.entities.add({
-            position: pos,
-            orientation: orientation,
-            model: {
-                uri: "/Apps/Demos/Underground/隧道test.glb",
-            },
+        var collection = turf.featureCollection(points);
+        var tin = turf.tin(collection, "z");
+        tin.features.forEach((fea) => {
+          var coords = fea.geometry.coordinates[0];
+          coords[0].push(fea.properties.a);
+          coords[1].push(fea.properties.b);
+          coords[2].push(fea.properties.c);
+          coords[3].push(fea.properties.a);
         });
-        viewer.zoomTo(entity);
 
-        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        var positions = [];
+        // 整体边界
+        var polygon = turf.convex(collection);
 
-        handler.setInputAction(function(movement) {
-            var worldPosition = viewer.scene.pickPosition(movement.position);
-            if (Cesium.defined(worldPosition)) {
-                positions.push(worldPosition);
-                console.log(Cesium.Cartographic.fromCartesian(worldPosition))
-            }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        var promise = ds.load(tin);
+        promise.then(() => {
+          ds.entities._entities._array.forEach((entity) => {
+            var color = Cesium.Color.fromRandom({
+              alpha: 0.5,
+            });
+            var color2 = Cesium.Color.clone(color);
+            color2.alpha = 1;
+            var pos = entity.polygon.hierarchy.getValue().positions;
+            Object.assign(entity.polygon, {
+              material: color,
+              heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+              outline: false,
+              height: 5,
+            });
+            entity.polyline = {
+              positions: pos,
+              material: new Cesium.ColorMaterialProperty(color2),
+              with: 2,
+              depthFailMaterial: new Cesium.ColorMaterialProperty(color2),
+            };
+          });
+          // 整体边界
+          //   ds.entities.add({
+          //     polyline: {
+          //       positions: polygon.geometry.coordinates[0].map((p) =>
+          //         Cesium.Cartesian3.fromDegrees(p[0], p[1], positions[0][2] + 5)
+          //       ),
+          //       material: Cesium.Color.RED,
+          //       depthFailMaterial: new Cesium.Color(1, 0, 0, 0.5),
+          //     },
+          //   });
+        });
+        // console.log({ polygon, tin, positions });
 
-        handler.setInputAction(function(movement) {
-            var worldPosition = viewer.scene.pickPosition(movement.position);
-            if (Cesium.defined(worldPosition)) {
-                positions.push(worldPosition);
-                if (positions.length > 2) {
-                    positions = [];
-                }
-            }
-        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+        return {
+          polygon: polygon,
+          polygonTriangles: tin.features,
+        };
+      }
     </script>
-</body>
-
+  </body>
 </html>

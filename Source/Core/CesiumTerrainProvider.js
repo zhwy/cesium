@@ -76,6 +76,7 @@ function CesiumTerrainProvider(options) {
   this._hasWaterMask = false;
   this._hasVertexNormals = false;
   this._ellipsoid = options.ellipsoid;
+  this._terrainEdits = defaultValue(options.terrainEdits, []);
 
   /**
    * Boolean flag that indicates if the client should request vertex normals from the server.

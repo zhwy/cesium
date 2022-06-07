@@ -25,6 +25,10 @@ import ImageryState from "./ImageryState.js";
 import QuadtreeTileLoadState from "./QuadtreeTileLoadState.js";
 import SceneMode from "./SceneMode.js";
 import TerrainState from "./TerrainState.js";
+import CesiumMath from "../Core/Math.js";
+import QuantizedMeshTerrainData from "../Core/QuantizedMeshTerrainData.js";
+import turf from "../ThirdParty/turf.js";
+const MAX_SHORT = 32767;
 
 /**
  * Contains additional information about a {@link QuadtreeTile} of the globe's surface, and
@@ -687,8 +691,137 @@ function upsample(surfaceTile, tile, frameState, terrainProvider, x, y, level) {
     });
 }
 
+function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
+  if (!defined(turf)) {
+    console.warn(
+      "Modifying terrain should enable turf. Please set the turf resource."
+    );
+    return;
+  }
+  const data = terrainData;
+  const minimumHeight = data._minimumHeight;
+  const maximumHeight = data._maximumHeight;
+
+  const quantizedVertices = data._quantizedVertices;
+  const vertexCount = quantizedVertices.length / 3;
+
+  const positions = [];
+  for (let i = 0; i < vertexCount; i++) {
+    const rawU = quantizedVertices[i];
+    const rawV = quantizedVertices[i + vertexCount];
+    const rawH = quantizedVertices[i + vertexCount * 2];
+
+    const u = rawU / MAX_SHORT;
+    const v = rawV / MAX_SHORT;
+    const longitude = CesiumMath.toDegrees(
+      CesiumMath.lerp(tileRectangle.west, tileRectangle.east, u)
+    );
+    const latitude = CesiumMath.toDegrees(
+      CesiumMath.lerp(tileRectangle.south, tileRectangle.north, v)
+    );
+
+    let height = CesiumMath.lerp(
+      minimumHeight,
+      maximumHeight,
+      rawH / MAX_SHORT
+    );
+    const currentPoint = turf.point([longitude, latitude]);
+    const relevantEdit = terrainEdits.find((edit) =>
+      turf.booleanPointInPolygon(currentPoint, edit.polygon)
+    );
+    if (relevantEdit) {
+      const relevantTriangle = relevantEdit.polygonTriangles.find((triangle) =>
+        turf.booleanPointInPolygon(currentPoint, triangle)
+      );
+      if (relevantTriangle) {
+        height = turf.planepoint(currentPoint, relevantTriangle);
+      }
+    }
+    positions.push([longitude, latitude, height]);
+  }
+
+  // TODO: split mesh triangles that are crossing the user polygon's perimiter and recreate mesh
+
+  const heights = positions.map((p) => p[2]);
+  const newMinHeight = Math.min(...heights);
+  const newMaxHeight = Math.max(...heights);
+
+  const newQuantizedVertices = new Uint16Array(positions.length * 3);
+  positions.forEach((p, i) => {
+    const lonRad = CesiumMath.toRadians(p[0]);
+    newQuantizedVertices[i] = Math.round(
+      CesiumMath.lerp(
+        MAX_SHORT,
+        0,
+        (lonRad - tileRectangle.east) /
+          (tileRectangle.west - tileRectangle.east)
+      )
+    );
+
+    const latRad = CesiumMath.toRadians(p[1]);
+    newQuantizedVertices[i + positions.length] = Math.round(
+      CesiumMath.lerp(
+        MAX_SHORT,
+        0,
+        (latRad - tileRectangle.north) /
+          (tileRectangle.south - tileRectangle.north)
+      )
+    );
+
+    const relativeHeight = Math.round(
+      CesiumMath.lerp(
+        0,
+        MAX_SHORT,
+        (p[2] - newMinHeight) / (newMaxHeight - newMinHeight)
+      )
+    );
+    newQuantizedVertices[i + positions.length * 2] = relativeHeight;
+  });
+  data._minimumHeight = newMinHeight;
+  data._maximumHeight = newMaxHeight;
+  data._quantizedVertices = newQuantizedVertices;
+
+  return data;
+}
+
+function rectangleToPolygon(rectangle) {
+  const west = CesiumMath.toDegrees(rectangle.west);
+  const east = CesiumMath.toDegrees(rectangle.east);
+  const south = CesiumMath.toDegrees(rectangle.south);
+  const north = CesiumMath.toDegrees(rectangle.north);
+  return turf.polygon([
+    [
+      [west, south],
+      [west, north],
+      [east, north],
+      [east, south],
+      [west, south],
+    ],
+  ]);
+}
+
 function requestTileGeometry(surfaceTile, terrainProvider, x, y, level) {
   function success(terrainData) {
+    if (
+      terrainData instanceof QuantizedMeshTerrainData &&
+      terrainProvider._terrainEdits &&
+      terrainProvider._terrainEdits.length > 0
+    ) {
+      // modify terrainData
+      const tilingScheme = terrainProvider.tilingScheme;
+      const tileRectangle = tilingScheme.tileXYToRectangle(x, y, level);
+      const tilePolygon = rectangleToPolygon(tileRectangle);
+      const relevantEdits = terrainProvider._terrainEdits.filter((edit) =>
+        // turf.booleanOverlap(edit.polygon, tilePolygon) || turf.booleanContains(edit.polygon, tilePolygon) || turf.booleanContains(tilePolygon, edit.polygon)
+        turf.booleanIntersects(edit.polygon, tilePolygon)
+      );
+      terrainData = modifyTerrainTile(
+        terrainData,
+        tileRectangle,
+        relevantEdits
+      );
+    }
+
     surfaceTile.terrainData = terrainData;
     surfaceTile.terrainState = TerrainState.RECEIVED;
     surfaceTile.request = undefined;

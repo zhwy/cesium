@@ -16,8 +16,10 @@ import QuadtreeOccluders from "./QuadtreeOccluders.js";
 import QuadtreeTile from "./QuadtreeTile.js";
 import QuadtreeTileLoadState from "./QuadtreeTileLoadState.js";
 import SceneMode from "./SceneMode.js";
+import TerrainState from "./TerrainState.js";
 import TileReplacementQueue from "./TileReplacementQueue.js";
 import TileSelectionResult from "./TileSelectionResult.js";
+import turf from "../ThirdParty/turf.js";
 
 /**
  * Renders massive sets of data by utilizing level-of-detail and culling.  The globe surface is divided into
@@ -163,6 +165,8 @@ function QuadtreePrimitive(options) {
   this._lastTileLoadQueueLength = 0;
 
   this._lastSelectionFrameNumber = undefined;
+
+  this._terrainNeedsUpdate = false;
 }
 
 Object.defineProperties(QuadtreePrimitive.prototype, {
@@ -368,6 +372,14 @@ QuadtreePrimitive.prototype.render = function (frameState) {
     tileProvider.beginUpdate(frameState);
 
     selectTilesForRendering(this, frameState);
+
+    if (this._terrainNeedsUpdate) {
+      this._tilesToRender.forEach((tile) => {
+        reload(tile, this._tileProvider._terrainProvider);
+      });
+      this._terrainNeedsUpdate = false;
+    }
+
     createRenderCommandsForSelectedTiles(this, frameState);
 
     tileProvider.endUpdate(frameState);
@@ -688,6 +700,57 @@ TraversalQuadDetails.prototype.combine = function (result) {
 const traversalQuadsByLevel = new Array(31); // level 30 tiles are ~2cm wide at the equator, should be good enough.
 for (let i = 0; i < traversalQuadsByLevel.length; ++i) {
   traversalQuadsByLevel[i] = new TraversalQuadDetails();
+}
+
+function reload(tile, terrainProvider, noLoop = false) {
+  // for modified terrain data
+  if (noLoop) {
+    if (terrainProvider.getTileDataAvailable(tile.x, tile.y, tile.level)) {
+      tile.state = QuadtreeTileLoadState.LOADING;
+      tile.data.terrainState = TerrainState.UNLOADED;
+    } else {
+      tile.state = QuadtreeTileLoadState.LOADING;
+      tile.data.terrainState = TerrainState.FAILED;
+      tile.parent.data.terrainData = undefined;
+      reload(tile.parent, terrainProvider, false);
+    }
+    return;
+  }
+
+  const terrainEdits = terrainProvider._terrainEdits;
+  if (terrainEdits && terrainEdits.length > 0) {
+    const { rectangle } = tile;
+    const west = CesiumMath.toDegrees(rectangle.west);
+    const east = CesiumMath.toDegrees(rectangle.east);
+    const south = CesiumMath.toDegrees(rectangle.south);
+    const north = CesiumMath.toDegrees(rectangle.north);
+    const range = turf.polygon([
+      [
+        [west, south],
+        [west, north],
+        [east, north],
+        [east, south],
+        [west, south],
+      ],
+    ]);
+
+    for (let i = 0; i < terrainEdits.length; i += 1) {
+      // if (terrainEdits[i].updated) continue;
+      if (turf.booleanIntersects(range, terrainEdits[i].polygon)) {
+        if (terrainProvider.getTileDataAvailable(tile.x, tile.y, tile.level)) {
+          tile.state = QuadtreeTileLoadState.LOADING;
+          tile.data.terrainState = TerrainState.UNLOADED;
+          // terrainEdits[i].updated = true;
+          break;
+        } else {
+          tile.state = QuadtreeTileLoadState.LOADING;
+          tile.data.terrainState = TerrainState.FAILED;
+          tile.parent.data.terrainData = undefined;
+          reload(tile.parent, terrainProvider, false);
+        }
+      }
+    }
+  }
 }
 
 /**
