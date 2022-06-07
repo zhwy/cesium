@@ -888,7 +888,7 @@ even though it relies on implicitly hoisting the `loadTileset` function to the t
 
 It is usually obvious what directory a file belongs in. When it isn't, the decision is usually between `Core` and another directory. Put the file in `Core` if it is pure number crunching or a utility that is expected to be generally useful to Cesium, e.g., [`Matrix4`](https://github.com/CesiumGS/cesium/blob/main/Source/Core/Matrix4.js) belongs in `Core` since many parts of the Cesium stack use 4x4 matrices; on the other hand, [`BoundingSphereState`](https://github.com/CesiumGS/cesium/blob/main/Source/DataSources/BoundingSphereState.js) is in `DataSources` because it is specific to data sources.
 
-![](1.jpg)
+![CesiumJS Design](1.jpg)
 
 Modules (files) should only reference modules in the same level or a lower level of the stack. For example, a module in `Scene` can use modules in `Scene`, `Renderer`, and `Core`, but not in `DataSources` or `Widgets`.
 
@@ -929,7 +929,7 @@ A public identifier (class, function, property) should be deprecated before bein
 function Foo() {
   deprecationWarning(
     "Foo",
-    "Foo was deprecated in Cesium 1.01.  It will be removed in 1.03.  Use newFoo instead."
+    "Foo was deprecated in CesiumJS 1.01.  It will be removed in 1.03.  Use newFoo instead."
   );
   // ...
 }
@@ -949,6 +949,15 @@ function Foo() {
 - Be lightweight, tested, maintained, and reasonably widely used.
 - Not pollute the global namespace.
 - Provide enough value to justify adding a third-party library whose integration needs to be maintained and has the potential to slightly count against Cesium when some users evaluate it (generally, fewer third-parties is better).
+
+When adding or updating a third-party library:
+
+- Ensure [LICENSE.md](../../../LICENSE.md) is updated with the library's name and full copyright notice.
+- If a library is shipped as part of the CesiumJS release, it should be included in the generated [`ThirdParty.json`](../../../ThirdParty.json).
+  1. Update [`ThirdParty.extra.json`](../../../ThirdParty.extra.json) with the package `name`. If it is an npm module included in [`package.json`](../../../package.json), use the exact package name.
+  2. If the library is _not_ an npm module included in `package.json`, provide the `license`, `version`, and `url` fields. Otherwise, this information can be detected using `package.json`.
+  3. If there is a special case regarding the license, such as choosing to use a single license from a list of multiple available ones, providing the `license` field will override information detected using `package.json`. The `notes` field should also be provided in the case explaining the exception.
+  4. Run `npm run build-third-party` and commit the resulting `ThirdParty.json`
 
 ## Widgets
 
@@ -970,7 +979,7 @@ Cesium includes a [`subscribeAndEvaluate`](https://github.com/CesiumGS/cesium/bl
 
 When using a subscription, always be sure to [dispose the subscription](https://github.com/CesiumGS/cesium/blob/main/Source/Widgets/Viewer/Viewer.js#L1413) when the viewmodel is no longer using it. Otherwise the listener will continue to be notified for the lifetime of the observable.
 
-```
+```javascript
 fullscreenSubscription = subscribeAndEvaluate(fullscreenButton.viewModel, 'isFullscreenEnabled', function(isFullscreenEnabled) { ... });
 // ...then later...
 fullscreenSubscription.dispose();

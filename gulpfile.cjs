@@ -295,6 +295,10 @@ gulp.task("build-specs", function buildSpecs() {
   return promise;
 });
 
+gulp.task("build-third-party", function () {
+  return generateThirdParty();
+});
+
 gulp.task("clean", function (done) {
   rimraf.sync("Build");
   globby.sync(filesToClean).forEach(function (file) {
@@ -457,6 +461,7 @@ gulp.task(
     delete packageJson.scripts.build;
     delete packageJson.scripts["build-watch"];
     delete packageJson.scripts["build-ts"];
+    delete packageJson.scripts["build-third-party"];
     delete packageJson.scripts.buildApps;
     delete packageJson.scripts.clean;
     delete packageJson.scripts.cloc;
@@ -959,68 +964,68 @@ gulp.task("coverage", function (done) {
     browsers = argv.browsers.split(",");
   }
 
-  const karma = new Karma.Server(
-    {
-      configFile: karmaConfigFile,
-      browsers: browsers,
-      specReporter: {
-        suppressErrorSummary: false,
-        suppressFailed: false,
-        suppressPassed: suppressPassed,
-        suppressSkipped: true,
-      },
-      preprocessors: {
-        "Source/Core/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-        "Source/DataSources/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-        "Source/Renderer/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-        "Source/Scene/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-        "Source/Shaders/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-        "Source/Widgets/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-        "Source/Workers/**/*.js": ["karma-coverage-istanbul-instrumenter"],
-      },
-      coverageIstanbulInstrumenter: {
-        esModules: true,
-      },
-      reporters: ["spec", "coverage"],
-      coverageReporter: {
-        dir: "Build/Coverage",
-        subdir: function (browserName) {
-          folders.push(browserName);
-          return browserName;
-        },
-        includeAllSources: true,
-      },
-      client: {
-        captureConsole: verbose,
-        args: [
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          webglStub,
-          undefined,
-        ],
-      },
+  const karmaConfig = Karma.config.parseConfig(karmaConfigFile, {
+    port: 9876,
+    browsers: browsers,
+    specReporter: {
+      suppressErrorSummary: false,
+      suppressFailed: false,
+      suppressPassed: suppressPassed,
+      suppressSkipped: true,
     },
-    function (e) {
-      let html = "<!doctype html><html><body><ul>";
-      folders.forEach(function (folder) {
-        html += `<li><a href="${encodeURIComponent(
-          folder
-        )}/index.html">${folder}</a></li>`;
-      });
-      html += "</ul></body></html>";
-      fs.writeFileSync("Build/Coverage/index.html", html);
+    preprocessors: {
+      "Source/Core/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+      "Source/DataSources/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+      "Source/Renderer/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+      "Source/Scene/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+      "Source/Shaders/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+      "Source/Widgets/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+      "Source/Workers/**/*.js": ["karma-coverage-istanbul-instrumenter"],
+    },
+    coverageIstanbulInstrumenter: {
+      esModules: true,
+    },
+    reporters: ["spec", "coverage"],
+    coverageReporter: {
+      dir: "Build/Coverage",
+      subdir: function (browserName) {
+        folders.push(browserName);
+        return browserName;
+      },
+      includeAllSources: true,
+    },
+    client: {
+      captureConsole: verbose,
+      args: [
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        webglStub,
+        undefined,
+      ],
+    },
+  });
 
-      if (!process.env.TRAVIS) {
-        folders.forEach(function (dir) {
-          open(`Build/Coverage/${dir}/index.html`);
-        });
-      }
-      return done(failTaskOnError ? e : undefined);
+  const karma = new Karma.Server(karmaConfig, function doneCallback(exitCode) {
+    let html = "<!doctype html><html><body><ul>";
+    folders.forEach(function (folder) {
+      html += `<li><a href="${encodeURIComponent(
+        folder
+      )}/index.html">${folder}</a></li>`;
+    });
+    html += "</ul></body></html>";
+    fs.writeFileSync("Build/Coverage/index.html", html);
+
+    if (!process.env.TRAVIS) {
+      folders.forEach(function (dir) {
+        open(`Build/Coverage/${dir}/index.html`);
+      });
     }
-  );
+    return done(failTaskOnError ? exitCode : undefined);
+  });
+
   karma.start();
 });
 
@@ -1060,7 +1065,7 @@ gulp.task("test", function (done) {
   if (release) {
     files = [
       { pattern: "Specs/Data/**", included: false },
-      { pattern: "Specs/ThirdParty/**", included: true, type: "module" },
+      { pattern: "Specs/ThirdParty/**", included: false, type: "module" },
       { pattern: "Specs/TestWorkers/**", included: false },
       { pattern: "Build/Cesium/Cesium.js", included: true },
       { pattern: "Build/Cesium/**", included: false },
@@ -1069,39 +1074,37 @@ gulp.task("test", function (done) {
     ];
   }
 
-  const karma = new Karma.Server(
-    {
-      configFile: karmaConfigFile,
-      singleRun: debug,
-      browsers: browsers,
-      specReporter: {
-        suppressErrorSummary: false,
-        suppressFailed: false,
-        suppressPassed: suppressPassed,
-        suppressSkipped: true,
-      },
-      detectBrowsers: {
-        enabled: enableAllBrowsers,
-      },
-      logLevel: verbose ? Karma.constants.LOG_INFO : Karma.constants.LOG_ERROR,
-      files: files,
-      client: {
-        captureConsole: verbose,
-        args: [
-          includeCategory,
-          excludeCategory,
-          "--grep",
-          includeName,
-          webglValidation,
-          webglStub,
-          release,
-        ],
-      },
+  const karmaConfig = Karma.config.parseConfig(karmaConfigFile, {
+    port: 9876,
+    singleRun: debug,
+    browsers: browsers,
+    specReporter: {
+      suppressErrorSummary: false,
+      suppressFailed: false,
+      suppressPassed: suppressPassed,
+      suppressSkipped: true,
     },
-    function (e) {
-      return done(failTaskOnError ? e : undefined);
-    }
-  );
+    detectBrowsers: {
+      enabled: enableAllBrowsers,
+    },
+    logLevel: verbose ? Karma.constants.LOG_INFO : Karma.constants.LOG_ERROR,
+    files: files,
+    client: {
+      captureConsole: verbose,
+      args: [
+        includeCategory,
+        excludeCategory,
+        "--grep",
+        includeName,
+        webglValidation,
+        webglStub,
+        release,
+      ],
+    },
+  });
+  const karma = new Karma.Server(karmaConfig, function doneCallback(exitCode) {
+    return done(failTaskOnError ? exitCode : undefined);
+  });
   karma.start();
 });
 
@@ -1714,6 +1717,140 @@ function createSpecList() {
   });
 
   fs.writeFileSync(path.join("Specs", "SpecList.js"), contents);
+}
+
+/**
+ * Reads `ThirdParty.extra.json` file
+ * @param path {string} Path to `ThirdParty.extra.json`
+ * @param discoveredDependencies {Array<string>} List of previously discovered modules
+ * @returns {Promise<Array<Object>>} A promise to an array of objects with 'name`, `license`, and `url` strings
+ */
+function getLicenseDataFromThirdPartyExtra(path, discoveredDependencies) {
+  if (!fs.existsSync(path)) {
+    return Promise.reject(`${path} does not exist`);
+  }
+
+  const fsReadFile = Promise.promisify(fs.readFile);
+
+  return fsReadFile(path).then(function (contents) {
+    const thirdPartyExtra = JSON.parse(contents);
+    return Promise.map(thirdPartyExtra, function (module) {
+      if (!discoveredDependencies.includes(module.name)) {
+        // If this is not a npm module, return existing info
+        if (!packageJson.devDependencies[module.name]) {
+          discoveredDependencies.push(module.name);
+          return Promise.resolve(module);
+        }
+
+        return getLicenseDataFromPackage(
+          module.name,
+          discoveredDependencies,
+          module.license,
+          module.notes
+        );
+      }
+    });
+  });
+}
+
+/**
+ * Extracts name, license, and url from `package.json` file.
+ *
+ * @param packageName {string} Name of package
+ * @param discoveredDependencies {Array<string>} List of previously discovered modules
+ * @param licenseOverride {Array<string>} If specified, override info fetched from package.json. Useful in the case where there are multiple licenses and we might chose a single one.
+ * @returns {Promise<Object>} A promise to an object with 'name`, `license`, and `url` strings
+ */
+function getLicenseDataFromPackage(
+  packageName,
+  discoveredDependencies,
+  licenseOverride,
+  notes
+) {
+  if (discoveredDependencies.includes(packageName)) {
+    return Promise.resolve([]);
+  }
+  discoveredDependencies.push(packageName);
+
+  let promise;
+  const packagePath = path.join("node_modules", packageName, "package.json");
+  const fsReadFile = Promise.promisify(fs.readFile);
+
+  if (fs.existsSync(packagePath)) {
+    // Package exists at top-level, so use it.
+    promise = fsReadFile(packagePath);
+  } else {
+    return Promise.reject(
+      new Error(`Unable to find ${packageName} license information`)
+    );
+  }
+
+  return promise.then(function (contents) {
+    const packageJson = JSON.parse(contents);
+
+    // Check for license
+    let licenseField = licenseOverride;
+
+    if (!licenseField) {
+      licenseField = [packageJson.license];
+    }
+
+    if (!licenseField && packageJson.licenses) {
+      licenseField = packageJson.licenses;
+    }
+
+    if (!licenseField) {
+      console.log(`No license found for ${packageName}`);
+      licenseField = ["NONE"];
+    }
+
+    let version = packageJson.version;
+    if (!packageJson.version) {
+      console.log(`No version information found for ${packageName}`);
+      version = "NONE";
+    }
+
+    return {
+      name: packageName,
+      license: licenseField,
+      version: version,
+      url: `https://www.npmjs.com/package/${packageName}`,
+      notes: notes,
+    };
+  });
+}
+
+function generateThirdParty() {
+  let licenseJson = [];
+  const discoveredDependencies = [];
+  const fsWriteFile = Promise.promisify(fs.writeFile);
+
+  // Generate ThirdParty.json from ThirdParty.extra.json and package.json
+  return getLicenseDataFromThirdPartyExtra(
+    "ThirdParty.extra.json",
+    discoveredDependencies
+  )
+    .then(function (licenseInfo) {
+      licenseJson = licenseJson.concat(licenseInfo);
+    })
+    .then(function () {
+      licenseJson.sort(function (a, b) {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        if (nameA < nameB) {
+          return -1;
+        }
+        if (nameA > nameB) {
+          return 1;
+        }
+        return 0;
+      });
+
+      return fsWriteFile(
+        "ThirdParty.json",
+        JSON.stringify(licenseJson, null, 2)
+      );
+    });
 }
 
 function createGalleryList() {
