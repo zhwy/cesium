@@ -23,12 +23,22 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
+        position: relative;
+      }
+      #check {
+        position: absolute;
+        top: 0;
+        left: 0;
+        margin: 1rem;
+        z-index: 99;
       }
     </style>
   </head>
 
   <body>
-    <div id="cesiumContainer"></div>
+    <div id="cesiumContainer">
+      <input id="check" type="checkbox" />
+    </div>
     <script type="module">
       import * as Cesium from "../../../../Source/Cesium.js";
       window.CESIUM_BASE_URL = "../../../../Source";
@@ -125,6 +135,11 @@
           }
         }
       }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+      document.getElementById("check").onchange = (e) => {
+        viewer.scene.globe._surface.tileProvider._debug.wireframe =
+          e.target.checked;
+      };
 
       function generateTin(positions) {
         var points = positions.map((p) => {

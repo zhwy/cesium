@@ -691,12 +691,17 @@ function upsample(surfaceTile, tile, frameState, terrainProvider, x, y, level) {
     });
 }
 
-function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
+function modifyTerrainTile(
+  terrainData,
+  tileRectangle,
+  terrainEdits,
+  tilePolygon
+) {
   if (!defined(turf)) {
     console.warn(
       "Modifying terrain should enable turf. Please set the turf resource."
     );
-    return;
+    return terrainData;
   }
   const data = terrainData;
   const minimumHeight = data._minimumHeight;
@@ -704,6 +709,12 @@ function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
 
   const quantizedVertices = data._quantizedVertices;
   const vertexCount = quantizedVertices.length / 3;
+
+  // const polygonsCoordinates = terrainEdits.map(
+  //   (p) => p.polygon.geometry.coordinates
+  // );
+  // const multipolygon = turf.multiPolygon(polygonsCoordinates);
+  // const intersection = turf.intersect(multipolygon, tilePolygon);
 
   const positions = [];
   for (let i = 0; i < vertexCount; i++) {
@@ -725,10 +736,12 @@ function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
       maximumHeight,
       rawH / MAX_SHORT
     );
+
     const currentPoint = turf.point([longitude, latitude]);
     const relevantEdit = terrainEdits.find((edit) =>
       turf.booleanPointInPolygon(currentPoint, edit.polygon)
     );
+
     if (relevantEdit) {
       const relevantTriangle = relevantEdit.polygonTriangles.find((triangle) =>
         turf.booleanPointInPolygon(currentPoint, triangle)
@@ -737,10 +750,42 @@ function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
         height = turf.planepoint(currentPoint, relevantTriangle);
       }
     }
+
+    // 不相交的点保留
+    // if (!relevantEdit) {
     positions.push([longitude, latitude, height]);
+    // }
   }
 
-  // TODO: split mesh triangles that are crossing the user polygon's perimiter and recreate mesh
+  // 相交部分生成新的点
+  // const processPolygon = (coordinates) => {
+  //   const firstPoint = turf.point(coordinates[0]);
+  //   const relevantEdit = terrainEdits.find((edit) =>
+  //     turf.booleanPointInPolygon(firstPoint, edit.polygon)
+  //   );
+
+  //   if (relevantEdit) {
+  //     const relevantTriangle = relevantEdit.polygonTriangles.find((triangle) =>
+  //       turf.booleanPointInPolygon(firstPoint, triangle)
+  //     );
+  //     if (relevantTriangle) {
+  //       coordinates.forEach((coord) => {
+  //         const currentPoint = turf.point(coord);
+  //         const height = turf.planepoint(currentPoint, relevantTriangle);
+  //         positions.push(coord.concat(height));
+  //       });
+  //     }
+  //   }
+  // };
+
+  // if (intersection.geometry.type === "MultiPolygon") {
+  //   intersection.geometry.coordinates.forEach((coordinates) => {
+  //     coordinates = coordinates[0];
+  //     processPolygon(coordinates);
+  //   });
+  // } else {
+  //   processPolygon(intersection.geometry.coordinates[0]);
+  // }
 
   const heights = positions.map((p) => p[2]);
   const newMinHeight = Math.min(...heights);
@@ -803,9 +848,9 @@ function rectangleToPolygon(rectangle) {
 function requestTileGeometry(surfaceTile, terrainProvider, x, y, level) {
   function success(terrainData) {
     if (
-      terrainData instanceof QuantizedMeshTerrainData &&
       terrainProvider._terrainEdits &&
-      terrainProvider._terrainEdits.length > 0
+      terrainProvider._terrainEdits.length > 0 &&
+      terrainData instanceof QuantizedMeshTerrainData
     ) {
       // modify terrainData
       const tilingScheme = terrainProvider.tilingScheme;
@@ -815,11 +860,15 @@ function requestTileGeometry(surfaceTile, terrainProvider, x, y, level) {
         // turf.booleanOverlap(edit.polygon, tilePolygon) || turf.booleanContains(edit.polygon, tilePolygon) || turf.booleanContains(tilePolygon, edit.polygon)
         turf.booleanIntersects(edit.polygon, tilePolygon)
       );
-      terrainData = modifyTerrainTile(
-        terrainData,
-        tileRectangle,
-        relevantEdits
-      );
+
+      if (relevantEdits.length > 0) {
+        terrainData = modifyTerrainTile(
+          terrainData,
+          tileRectangle,
+          relevantEdits,
+          tilePolygon
+        );
+      }
     }
 
     surfaceTile.terrainData = terrainData;
