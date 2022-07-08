@@ -7,6 +7,7 @@ import {
   Matrix3,
   MaterialPipelineStage,
   ModelAlphaOptions,
+  ModelExperimentalStatistics,
   ModelLightingOptions,
   Pass,
   Resource,
@@ -78,6 +79,9 @@ describe(
     const boxUnlit = "./Data/Models/GltfLoader/UnlitTest/glTF/UnlitTest.gltf";
     const boxNoNormals =
       "./Data/Models/GltfLoader/BoxNoNormals/glTF/BoxNoNormals.gltf";
+    const triangle = "./Data/Models/GltfLoader/Triangle/glTF/Triangle.gltf";
+    const twoSidedPlane =
+      "./Data/Models/GltfLoader/TwoSidedPlane/glTF/TwoSidedPlane.gltf";
 
     function expectShaderLines(shaderLines, expected) {
       for (let i = 0; i < expected.length; i++) {
@@ -96,6 +100,37 @@ describe(
       }
     }
 
+    it("processes default material", function () {
+      return loadGltf(triangle).then(function (gltfLoader) {
+        const components = gltfLoader.components;
+        const primitive = components.nodes[0].primitives[0];
+        const shaderBuilder = new ShaderBuilder();
+        const uniformMap = {};
+        const renderResources = {
+          shaderBuilder: shaderBuilder,
+          uniformMap: uniformMap,
+          lightingOptions: new ModelLightingOptions(),
+          alphaOptions: new ModelAlphaOptions(),
+          renderStateOptions: {},
+          model: { statistics: new ModelExperimentalStatistics() },
+        };
+
+        MaterialPipelineStage.process(
+          renderResources,
+          primitive,
+          mockFrameState
+        );
+
+        expect(shaderBuilder._vertexShaderParts.uniformLines).toEqual([]);
+        expectShaderLines(shaderBuilder._fragmentShaderParts.uniformLines, []);
+
+        expectShaderLines(shaderBuilder._fragmentShaderParts.defineLines, []);
+
+        const expectedUniforms = {};
+        expectUniformMap(uniformMap, expectedUniforms);
+      });
+    });
+
     it("adds material uniforms", function () {
       return loadGltf(boomBox).then(function (gltfLoader) {
         const components = gltfLoader.components;
@@ -108,7 +143,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -158,7 +193,9 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: {
+            statistics: new ModelExperimentalStatistics(),
+          },
         };
 
         MaterialPipelineStage.process(
@@ -194,7 +231,6 @@ describe(
         const components = gltfLoader.components;
         const primitive = components.nodes[0].primitives[0];
 
-        // Alter PBR parameters so that defaults are not used.
         const metallicRoughness = primitive.material.metallicRoughness;
         metallicRoughness.baseColorFactor = new Cartesian4(0.5, 0.5, 0.5, 0.5);
         metallicRoughness.metallicFactor = 0.5;
@@ -208,7 +244,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -259,7 +295,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -298,7 +334,6 @@ describe(
         const components = gltfLoader.components;
         const primitive = components.nodes[0].primitives[0];
 
-        // Alter PBR parameters so that defaults are not used.
         const specularGlossiness = primitive.material.specularGlossiness;
         specularGlossiness.diffuseFactor = new Cartesian4(0.5, 0.5, 0.5, 0.5);
         specularGlossiness.specularFactor = new Cartesian3(0.5, 0.5, 0.5);
@@ -311,7 +346,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -361,7 +396,7 @@ describe(
           lightingOptions: lightingOptions,
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -384,7 +419,7 @@ describe(
           lightingOptions: lightingOptions,
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -407,7 +442,7 @@ describe(
           lightingOptions: lightingOptions,
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -430,7 +465,7 @@ describe(
           lightingOptions: lightingOptions,
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -453,7 +488,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         MaterialPipelineStage.process(
@@ -480,7 +515,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         const cutoff = 0.6;
@@ -509,7 +544,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
           pass: Pass.OPAQUE,
         };
 
@@ -538,6 +573,7 @@ describe(
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: renderStateOptions,
           model: {
+            statistics: new ModelExperimentalStatistics(),
             backFaceCulling: false,
           },
           cull: true,
@@ -568,6 +604,7 @@ describe(
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: renderStateOptions,
           model: {
+            statistics: new ModelExperimentalStatistics(),
             backFaceCulling: true,
           },
           cull: true,
@@ -598,6 +635,7 @@ describe(
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: renderStateOptions,
           model: {
+            statistics: new ModelExperimentalStatistics(),
             backFaceCulling: true,
           },
         };
@@ -629,6 +667,7 @@ describe(
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: renderStateOptions,
           model: {
+            statistics: new ModelExperimentalStatistics(),
             color: new Color(0, 0, 1, 0.5),
             backFaceCulling: true,
           },
@@ -659,7 +698,7 @@ describe(
           lightingOptions: new ModelLightingOptions(),
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
-          model: {},
+          model: { statistics: new ModelExperimentalStatistics() },
         };
 
         primitive.material.doubleSided = true;
@@ -689,6 +728,7 @@ describe(
           alphaOptions: new ModelAlphaOptions(),
           renderStateOptions: {},
           model: {
+            statistics: new ModelExperimentalStatistics(),
             debugWireframe: true,
           },
         };
@@ -700,14 +740,37 @@ describe(
         );
 
         expectShaderLines(shaderBuilder._fragmentShaderParts.defineLines, [
-          "HAS_EMISSIVE_TEXTURE",
-          "TEXCOORD_EMISSIVE v_texCoord_0",
-          "HAS_EMISSIVE_FACTOR",
-          "HAS_NORMAL_TEXTURE",
-          "TEXCOORD_NORMAL v_texCoord_0",
-          "HAS_OCCLUSION_TEXTURE",
-          "TEXCOORD_OCCLUSION v_texCoord_0",
           "USE_WIREFRAME",
+        ]);
+      });
+    });
+
+    it("adds define to shader if material is double-sided", function () {
+      return loadGltf(twoSidedPlane).then(function (gltfLoader) {
+        const components = gltfLoader.components;
+        const primitive = components.nodes[0].primitives[0];
+        const shaderBuilder = new ShaderBuilder();
+        const uniformMap = {};
+        const renderResources = {
+          shaderBuilder: shaderBuilder,
+          uniformMap: uniformMap,
+          lightingOptions: new ModelLightingOptions(),
+          alphaOptions: new ModelAlphaOptions(),
+          renderStateOptions: {},
+          model: {
+            statistics: new ModelExperimentalStatistics(),
+            debugWireframe: true,
+          },
+        };
+
+        MaterialPipelineStage.process(
+          renderResources,
+          primitive,
+          mockFrameState
+        );
+
+        expectShaderLines(shaderBuilder._fragmentShaderParts.defineLines, [
+          "HAS_DOUBLE_SIDED_MATERIAL",
         ]);
       });
     });

@@ -13,6 +13,7 @@ import RuntimeError from "../../Core/RuntimeError.js";
 import SceneMode from "../SceneMode.js";
 import ShadowMode from "../ShadowMode.js";
 import StyleCommandsNeeded from "./StyleCommandsNeeded.js";
+import WebGLConstants from "../../Core/WebGLConstants.js";
 
 /**
  * A wrapper around the draw commands used to render a {@link ModelExperimentalPrimitive}.
@@ -22,6 +23,7 @@ import StyleCommandsNeeded from "./StyleCommandsNeeded.js";
  * @param {Object} options An object containing the following options:
  * @param {DrawCommand} options.command The draw command from which to derive other commands from.
  * @param {PrimitiveRenderResources} options.primitiveRenderResources The render resources of the primitive associated with the command.
+ * @param {Boolean} [options.useSilhouetteCommands=false] Whether the model has a silhouette and needs to derive silhouette commands.
  * @alias ModelExperimentalDrawCommand
  * @constructor
  *
@@ -32,12 +34,21 @@ function ModelExperimentalDrawCommand(options) {
 
   const command = options.command;
   const renderResources = options.primitiveRenderResources;
+  const useSilhouetteCommands = defaultValue(
+    options.useSilhouetteCommands,
+    false
+  );
+
   //>>includeStart('debug', pragmas.debug);
   Check.typeOf.object("options.command", command);
   Check.typeOf.object("options.primitiveRenderResources", renderResources);
   //>>includeEnd('debug');
 
   this._command = command;
+
+  // Only derived if the original command wasn't translucent and
+  // the model's style has translucency.
+  this._translucentCommand = undefined;
 
   this._modelMatrix = Matrix4.clone(command.modelMatrix, new Matrix4());
 
@@ -51,9 +62,24 @@ function ModelExperimentalDrawCommand(options) {
   this._cullFace = command.renderState.cull.face;
   this._shadows = renderResources.model.shadows;
   this._debugShowBoundingVolume = command.debugShowBoundingVolume;
+  this._useSilhouetteCommands = useSilhouetteCommands;
 
+  // The command list contains one or more of the following commands:
+  // - the original draw command
+  // - the translucent derived command
+  //
+  // When silhouettes are enabled, these are replaced by derived commands
+  // that render the primitive to the stencil buffer.
   this._commandList = [];
+
+  // The above commands are duplicated for rendering over the IDL in 2D.
   this._commandList2D = [];
+
+  // These commands are only derived if the model uses silhouettes.
+  // They are stored separately so that the entire model can be drawn
+  // before the silhouette is rendered.
+  this._silhouetteCommandList = [];
+  this._silhouetteCommandList2D = [];
 
   this._runtimePrimitive = renderResources.runtimePrimitive;
   this._model = renderResources.model;
@@ -61,10 +87,8 @@ function ModelExperimentalDrawCommand(options) {
   initialize(this);
 }
 
-function initialize(drawCommand, frameState) {
-  const commandList = drawCommand._commandList;
+function initialize(drawCommand) {
   const command = drawCommand._command;
-
   const styleCommandsNeeded = drawCommand._styleCommandsNeeded;
 
   // If the command was originally translucent then there's no need to derive
@@ -76,22 +100,19 @@ function initialize(drawCommand, frameState) {
     const translucentCommand = deriveTranslucentCommand(command);
     switch (styleCommandsNeeded) {
       case StyleCommandsNeeded.ALL_OPAQUE:
-        commandList.push(command);
         break;
       case StyleCommandsNeeded.ALL_TRANSLUCENT:
-        commandList.push(translucentCommand);
-        break;
       case StyleCommandsNeeded.OPAQUE_AND_TRANSLUCENT:
-        commandList.push(command, translucentCommand);
+        drawCommand._translucentCommand = translucentCommand;
         break;
       //>>includeStart('debug', pragmas.debug);
       default:
         throw new RuntimeError("styleCommandsNeeded is not a valid value.");
       //>>includeEnd('debug');
     }
-  } else {
-    commandList.push(command);
   }
+
+  buildCommandList(drawCommand);
 }
 
 Object.defineProperties(ModelExperimentalDrawCommand.prototype, {
@@ -215,7 +236,8 @@ Object.defineProperties(ModelExperimentalDrawCommand.prototype, {
    * Whether to cull back-facing geometry. When true, back face culling is
    * determined by the material's doubleSided property; when false, back face
    * culling is disabled. Back faces are not culled if the model's color is
-   * translucent, or if the command is drawing translucent geometry.
+   * translucent, if the command is drawing translucent geometry, or if the
+   * model is being drawn with a silhouette.
    *
    * @memberof ModelExperimentalDrawCommand.prototype
    * @type {Boolean}
@@ -227,16 +249,11 @@ Object.defineProperties(ModelExperimentalDrawCommand.prototype, {
       return this._backFaceCulling;
     },
     set: function (value) {
-      const doubleSided = this.runtimePrimitive.primitive.material.doubleSided;
-      const translucent =
-        defined(this._model.color) && this._model.color.alpha < 1.0;
-      const backFaceCulling = value && !doubleSided && !translucent;
-
-      if (this._backFaceCulling === backFaceCulling) {
+      if (this._backFaceCulling === value) {
         return;
       }
 
-      this._backFaceCulling = backFaceCulling;
+      this._backFaceCulling = value;
       updateBackFaceCulling(this);
     },
   },
@@ -276,17 +293,72 @@ Object.defineProperties(ModelExperimentalDrawCommand.prototype, {
       return this._debugShowBoundingVolume;
     },
     set: function (value) {
+      if (this._debugShowBoundingVolume === value) {
+        return;
+      }
+
       this._debugShowBoundingVolume = value;
       updateShowBoundingVolume(this);
     },
   },
 });
 
-function getAllCommands(drawCommand) {
-  const commandList = [];
-  commandList.push.apply(commandList, drawCommand._commandList);
-  commandList.push.apply(commandList, drawCommand._commandList2D);
-  return commandList;
+function buildCommandList(drawCommand) {
+  const commandList = drawCommand._commandList;
+  const commandList2D = drawCommand._commandList2D;
+  commandList.length = 0;
+  commandList2D.length = 0;
+
+  // Add opaque and translucent commands depending on the style commands needed.
+  const styleCommandsNeeded = drawCommand._styleCommandsNeeded;
+  const originalCommand = drawCommand._command;
+  const translucentCommand = drawCommand._translucentCommand;
+  if (defined(styleCommandsNeeded) && defined(translucentCommand)) {
+    switch (styleCommandsNeeded) {
+      case StyleCommandsNeeded.ALL_OPAQUE:
+        commandList.push(originalCommand);
+        break;
+      case StyleCommandsNeeded.ALL_TRANSLUCENT:
+        commandList.push(translucentCommand);
+        break;
+      case StyleCommandsNeeded.OPAQUE_AND_TRANSLUCENT:
+        commandList.push(originalCommand, translucentCommand);
+        break;
+      //>>includeStart('debug', pragmas.debug);
+      default:
+        throw new RuntimeError("styleCommandsNeeded is not a valid value.");
+      //>>includeEnd('debug');
+    }
+  } else {
+    commandList.push(originalCommand);
+  }
+
+  // Derive silhouette commands from the active commands.
+  if (drawCommand._useSilhouetteCommands) {
+    const length = commandList.length;
+    const silhouetteCommands = [];
+    const model = drawCommand._model;
+    for (let i = 0; i < length; i++) {
+      const command = commandList[i];
+      const silhouetteModelCommand = deriveSilhouetteModelCommand(
+        command,
+        model
+      );
+      const silhouetteColorCommand = deriveSilhouetteColorCommand(
+        command,
+        model
+      );
+
+      // Replace the original command with the derived one.
+      commandList[i] = silhouetteModelCommand;
+
+      // Store the silhouette-pass commands separately.
+      silhouetteCommands.push(silhouetteColorCommand);
+    }
+
+    const silhouetteCommandList = drawCommand._silhouetteCommandList;
+    silhouetteCommandList.push.apply(silhouetteCommandList, silhouetteCommands);
+  }
 }
 
 const scratchMatrix2D = new Matrix4();
@@ -306,12 +378,31 @@ function updateModelMatrix(drawCommand) {
       command.boundingVolume
     );
   }
+
+  if (!drawCommand._useSilhouetteCommands) {
+    return;
+  }
+
+  const silhouetteCommandList = drawCommand._silhouetteCommandList;
+  for (let i = 0; i < length; i++) {
+    const silhouetteCommand = silhouetteCommandList[i];
+    silhouetteCommand.modelMatrix = Matrix4.clone(
+      modelMatrix,
+      silhouetteCommand.modelMatrix
+    );
+    silhouetteCommand.boundingVolume = BoundingSphere.transform(
+      boundingSphere,
+      silhouetteCommand.modelMatrix,
+      silhouetteCommand.boundingVolume
+    );
+  }
 }
 
 function updateModelMatrix2D(drawCommand, frameState) {
   const modelMatrix = drawCommand.modelMatrix;
   const boundingSphere = drawCommand.runtimePrimitive.boundingSphere;
   const commandList2D = drawCommand._commandList2D;
+
   const length2D = commandList2D.length;
   if (length2D === 0) {
     return;
@@ -336,6 +427,24 @@ function updateModelMatrix2D(drawCommand, frameState) {
       command.boundingVolume
     );
   }
+
+  if (!drawCommand._useSilhouetteCommands) {
+    return;
+  }
+
+  const silhouetteCommandList2D = drawCommand._silhouetteCommandList2D;
+  for (let i = 0; i < length2D; i++) {
+    const silhouetteCommand = silhouetteCommandList2D[i];
+    silhouetteCommand.modelMatrix = Matrix4.clone(
+      modelMatrix2D,
+      silhouetteCommand.modelMatrix
+    );
+    silhouetteCommand.boundingVolume = BoundingSphere.transform(
+      boundingSphere,
+      silhouetteCommand.modelMatrix,
+      silhouetteCommand.boundingVolume
+    );
+  }
 }
 
 function updateShadows(drawCommand) {
@@ -343,20 +452,33 @@ function updateShadows(drawCommand) {
   const castShadows = ShadowMode.castShadows(shadows);
   const receiveShadows = ShadowMode.receiveShadows(shadows);
 
-  const commandList = getAllCommands(drawCommand);
+  const commandList = drawCommand.getAllCommands();
   const commandLength = commandList.length;
   for (let i = 0; i < commandLength; i++) {
     const command = commandList[i];
+
+    // Shadows should stay disabled for the silhouette color command.
+    const model_silhouettePass = command.uniformMap.model_silhouettePass;
+    if (defined(model_silhouettePass) && model_silhouettePass()) {
+      continue;
+    }
+
     command.castShadows = castShadows;
     command.receiveShadows = receiveShadows;
   }
 }
 
 function updateBackFaceCulling(drawCommand) {
-  const backFaceCulling = drawCommand.backFaceCulling;
-  const commandList = getAllCommands(drawCommand);
-  const commandLength = commandList.length;
+  let backFaceCulling = drawCommand.backFaceCulling;
+  const doubleSided =
+    drawCommand.runtimePrimitive.primitive.material.doubleSided;
+  const translucent = drawCommand._model.isTranslucent();
+  const useSilhouetteCommands = drawCommand._useSilhouetteCommands;
+  backFaceCulling =
+    backFaceCulling && !doubleSided && !translucent && !useSilhouetteCommands;
 
+  const commandList = drawCommand.getAllCommands();
+  const commandLength = commandList.length;
   for (let i = 0; i < commandLength; i++) {
     const command = commandList[i];
 
@@ -374,7 +496,7 @@ function updateBackFaceCulling(drawCommand) {
 
 function updateCullFace(drawCommand) {
   const cullFace = drawCommand.cullFace;
-  const commandList = getAllCommands(drawCommand);
+  const commandList = drawCommand.getAllCommands();
   const commandLength = commandList.length;
 
   for (let i = 0; i < commandLength; i++) {
@@ -388,7 +510,7 @@ function updateCullFace(drawCommand) {
 function updateShowBoundingVolume(drawCommand) {
   const debugShowBoundingVolume = drawCommand.debugShowBoundingVolume;
 
-  const commandList = getAllCommands(drawCommand);
+  const commandList = drawCommand.getAllCommands();
   const commandLength = commandList.length;
   for (let i = 0; i < commandLength; i++) {
     const command = commandList[i];
@@ -398,6 +520,7 @@ function updateShowBoundingVolume(drawCommand) {
 
 /**
  * Returns an array of the draw commands necessary to render the primitive.
+ * This does not include the draw commands that render its silhouette.
  *
  * @param {FrameState} frameState The frame state.
  *
@@ -418,6 +541,17 @@ ModelExperimentalDrawCommand.prototype.getCommands = function (frameState) {
       commandList2D.push(command2D);
     }
 
+    // Derive 2D silhouette commands here to avoid duplicate
+    // computation in getSilhouetteCommands.
+    if (this._useSilhouetteCommands) {
+      const silhouetteCommands = this._silhouetteCommandList;
+      const silhouetteCommands2D = this._silhouetteCommandList2D;
+      for (let i = 0; i < length; i++) {
+        const silhouetteCommand2D = derive2DCommand(silhouetteCommands[i]);
+        silhouetteCommands2D.push(silhouetteCommand2D);
+      }
+    }
+
     this._modelMatrix2DDirty = true;
   }
 
@@ -432,6 +566,67 @@ ModelExperimentalDrawCommand.prototype.getCommands = function (frameState) {
   if (use2D) {
     commands.push.apply(commands, commandList2D);
   }
+
+  return commands;
+};
+
+/**
+ * Returns an array of the draw commands necessary to render the silhouette.
+ * These should be added to the command list after the draw commands of all
+ * primitives in the model have been added. This way, the silhouette won't
+ * render on top of the model.
+ *
+ * This should only be called after getCommands() has been invoked for
+ * the ModelExperimentalDrawCommand this frame. Otherwise, the silhouette
+ * commands may not have been derived for 2D. The model matrix will also
+ * not have been updated for 2D commands.
+ *
+ * @param {FrameState} frameState The frame state.
+ *
+ * @returns {DrawCommand[]} The draw commands.
+ *
+ * @private
+ */
+ModelExperimentalDrawCommand.prototype.getSilhouetteCommands = function (
+  frameState
+) {
+  if (!this._useSilhouetteCommands) {
+    return [];
+  }
+
+  const commands = [];
+  const commandList = this._silhouetteCommandList;
+  const commandList2D = this._silhouetteCommandList2D;
+
+  commands.push.apply(commands, commandList);
+
+  // Assumes that 2D commands were already generated / updated
+  // in getCommands()
+  if (shouldUse2DCommands(this, frameState)) {
+    commands.push.apply(commands, commandList2D);
+  }
+
+  return commands;
+};
+
+/**
+ * Returns an array of all the draw commands currently managed by the
+ * ModelExperimentalDrawCommand. This only includes commands that are
+ * in a command list, so it may exclude the original draw command.
+ * This is used internally for updating all derived commands, and for
+ * testing.
+ *
+ * @returns {DrawCommand[]} The draw commands.
+ *
+ * @private
+ */
+ModelExperimentalDrawCommand.prototype.getAllCommands = function () {
+  const commands = [];
+
+  commands.push.apply(commands, this._commandList);
+  commands.push.apply(commands, this._commandList2D);
+  commands.push.apply(commands, this._silhouetteCommandList);
+  commands.push.apply(commands, this._silhouetteCommandList2D);
 
   return commands;
 };
@@ -474,9 +669,108 @@ function derive2DCommand(command) {
   return derivedCommand;
 }
 
+function deriveSilhouetteModelCommand(command, model) {
+  // Wrap around after exceeding the 8-bit stencil limit.
+  // The reference is unique to each model until this point.
+  const stencilReference = model._silhouetteId % 255;
+  const silhouetteModelCommand = DrawCommand.shallowClone(command);
+  let renderState = clone(command.renderState, true);
+
+  // Write the reference value into the stencil buffer.
+  renderState.stencilTest = {
+    enabled: true,
+    frontFunction: WebGLConstants.ALWAYS,
+    backFunction: WebGLConstants.ALWAYS,
+    reference: stencilReference,
+    mask: ~0,
+    frontOperation: {
+      fail: WebGLConstants.KEEP,
+      zFail: WebGLConstants.KEEP,
+      zPass: WebGLConstants.REPLACE,
+    },
+    backOperation: {
+      fail: WebGLConstants.KEEP,
+      zFail: WebGLConstants.KEEP,
+      zPass: WebGLConstants.REPLACE,
+    },
+  };
+
+  if (model.isInvisible()) {
+    // When the model is invisible, disable color and depth writes,
+    // but still write into the stencil buffer.
+    renderState.colorMask = {
+      red: false,
+      green: false,
+      blue: false,
+      alpha: false,
+    };
+    renderState.depthMask = false;
+  }
+
+  renderState = RenderState.fromCache(renderState);
+  silhouetteModelCommand.renderState = renderState;
+
+  return silhouetteModelCommand;
+}
+
+function deriveSilhouetteColorCommand(command, model) {
+  // Wrap around after exceeding the 8-bit stencil limit.
+  // The reference is unique to each model until this point.
+  const stencilReference = model._silhouetteId % 255;
+  const silhouetteColorCommand = DrawCommand.shallowClone(command);
+  let renderState = clone(command.renderState, true);
+  renderState.depthTest.enabled = true;
+  renderState.cull.enabled = false;
+
+  // Render the silhouette in the translucent pass if the command is translucent
+  // or if the silhouette color is translucent. This accounts for translucent
+  // model color, since ModelColorPipelineStage sets the pass to translucent.
+  const silhouetteTranslucent =
+    command.pass === Pass.TRANSLUCENT || model.silhouetteColor.alpha < 1.0;
+  if (silhouetteTranslucent) {
+    silhouetteColorCommand.pass = Pass.TRANSLUCENT;
+    renderState.depthMask = false;
+    renderState.blending = BlendingState.ALPHA_BLEND;
+  }
+
+  // Only render the pixels of the silhouette that don't conflict with the stencil buffer.
+  // This way, the silhouette doesn't render over the original model.
+  renderState.stencilTest = {
+    enabled: true,
+    frontFunction: WebGLConstants.NOTEQUAL,
+    backFunction: WebGLConstants.NOTEQUAL,
+    reference: stencilReference,
+    mask: ~0,
+    frontOperation: {
+      fail: WebGLConstants.KEEP,
+      zFail: WebGLConstants.KEEP,
+      zPass: WebGLConstants.KEEP,
+    },
+    backOperation: {
+      fail: WebGLConstants.KEEP,
+      zFail: WebGLConstants.KEEP,
+      zPass: WebGLConstants.KEEP,
+    },
+  };
+
+  renderState = RenderState.fromCache(renderState);
+
+  const uniformMap = clone(command.uniformMap);
+  uniformMap.model_silhouettePass = function () {
+    return true;
+  };
+
+  silhouetteColorCommand.renderState = renderState;
+  silhouetteColorCommand.uniformMap = uniformMap;
+  silhouetteColorCommand.castShadows = false;
+  silhouetteColorCommand.receiveShadows = false;
+
+  return silhouetteColorCommand;
+}
+
 function shouldUse2DCommands(drawCommand, frameState) {
   if (frameState.mode !== SceneMode.SCENE2D || drawCommand.model._projectTo2D) {
-    return;
+    return false;
   }
 
   const idl2D =

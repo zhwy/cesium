@@ -1,10 +1,8 @@
 import BoundingSphere from "../../Core/BoundingSphere.js";
-import Buffer from "../../Renderer/Buffer.js";
-import BufferUsage from "../../Renderer/BufferUsage.js";
 import clone from "../../Core/clone.js";
 import defined from "../../Core/defined.js";
+import DeveloperError from "../../Core/DeveloperError.js";
 import DrawCommand from "../../Renderer/DrawCommand.js";
-import IndexDatatype from "../../Core/IndexDatatype.js";
 import Matrix4 from "../../Core/Matrix4.js";
 import ModelExperimentalDrawCommand from "./ModelExperimentalDrawCommand.js";
 import ModelExperimentalFS from "../../Shaders/ModelExperimental/ModelExperimentalFS.js";
@@ -36,7 +34,7 @@ export default function buildDrawCommand(primitiveRenderResources, frameState) {
   const model = primitiveRenderResources.model;
   const context = frameState.context;
 
-  const indexBuffer = getIndexBuffer(primitiveRenderResources, frameState);
+  const indexBuffer = getIndexBuffer(primitiveRenderResources);
 
   const vertexArray = new VertexArray({
     context: context,
@@ -44,10 +42,10 @@ export default function buildDrawCommand(primitiveRenderResources, frameState) {
     attributes: primitiveRenderResources.attributes,
   });
 
-  model._resources.push(vertexArray);
+  model._pipelineResources.push(vertexArray);
 
   const shaderProgram = shaderBuilder.buildShaderProgram(frameState.context);
-  model._resources.push(shaderProgram);
+  model._pipelineResources.push(shaderProgram);
 
   const pass = primitiveRenderResources.alphaOptions.pass;
   const sceneGraph = model.sceneGraph;
@@ -112,16 +110,19 @@ export default function buildDrawCommand(primitiveRenderResources, frameState) {
     receiveShadows: ShadowMode.receiveShadows(model.shadows),
   });
 
+  const useSilhouetteCommands = model.hasSilhouette(frameState);
+
   return new ModelExperimentalDrawCommand({
     primitiveRenderResources: primitiveRenderResources,
     command: command,
+    useSilhouetteCommands: useSilhouetteCommands,
   });
 }
 
 /**
  * @private
  */
-function getIndexBuffer(primitiveRenderResources, frameState) {
+function getIndexBuffer(primitiveRenderResources) {
   const wireframeIndexBuffer = primitiveRenderResources.wireframeIndexBuffer;
   if (defined(wireframeIndexBuffer)) {
     return wireframeIndexBuffer;
@@ -132,19 +133,11 @@ function getIndexBuffer(primitiveRenderResources, frameState) {
     return undefined;
   }
 
-  if (defined(indices.buffer)) {
-    return indices.buffer;
+  //>>includeStart('debug', pragmas.debug);
+  if (!defined(indices.buffer)) {
+    throw new DeveloperError("Indices must be provided as a Buffer");
   }
+  //>>includeEnd('debug');
 
-  const typedArray = indices.typedArray;
-  const indexDatatype = IndexDatatype.fromSizeInBytes(
-    typedArray.BYTES_PER_ELEMENT
-  );
-
-  return Buffer.createIndexBuffer({
-    context: frameState.context,
-    typedArray: typedArray,
-    usage: BufferUsage.STATIC_DRAW,
-    indexDatatype: indexDatatype,
-  });
+  return indices.buffer;
 }
