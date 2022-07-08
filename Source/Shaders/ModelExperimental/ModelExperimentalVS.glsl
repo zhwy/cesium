@@ -28,6 +28,10 @@ void main()
     skinningStage(attributes);
     #endif
 
+    #ifdef HAS_PRIMITIVE_OUTLINE
+    primitiveOutlineStage();
+    #endif
+
     // Compute the bitangent according to the formula in the glTF spec.
     // Normal and tangents can be affected by morphing and skinning, so
     // the bitangent should not be computed until their values are finalized.
@@ -44,11 +48,11 @@ void main()
     cpuStylingStage(attributes.positionMC, feature);
     #endif
 
-    #ifdef USE_2D_POSITIONS
-    // The scene mode 2D pipeline stage adds a different model view matrix to
-    // accurately project the model's positions in 2D. However, the output
-    // positions and normals should be transformed by the 3D matrices to keep
-    // the data the same for the fragment shader.
+    #if defined(USE_2D_POSITIONS) || defined(USE_2D_INSTANCING)
+    // The scene mode 2D pipeline stage and instancing stage add a different
+    // model view matrix to accurately project the model to 2D. However, the
+    // output positions and normals should be transformed by the 3D matrices
+    // to keep the data the same for the fragment shader.
     mat4 modelView = czm_modelView3D;
     mat3 normal = czm_normal3D;
     #else
@@ -57,7 +61,6 @@ void main()
     mat4 modelView = czm_modelView;
     mat3 normal = czm_normal;
     #endif
-    
 
     // Update the position for this instance in place
     #ifdef HAS_INSTANCING
@@ -70,12 +73,12 @@ void main()
         mat4 instanceModelView;
         mat3 instanceModelViewInverseTranspose;
         
-        legacyInstancingStage(attributes.positionMC, instanceModelView, instanceModelViewInverseTranspose);
+        legacyInstancingStage(attributes, instanceModelView, instanceModelViewInverseTranspose);
 
         modelView = instanceModelView;
         normal = instanceModelViewInverseTranspose;
         #else
-        instancingStage(attributes.positionMC);
+        instancingStage(attributes);
         #endif
 
         #ifdef USE_PICKING
@@ -95,6 +98,10 @@ void main()
     // Compute the final position in each coordinate system needed.
     // This also sets gl_Position.
     geometryStage(attributes, modelView, normal);    
+
+    #ifdef HAS_SILHOUETTE
+    silhouetteStage(attributes);
+    #endif
 
     #ifdef PRIMITIVE_TYPE_POINTS
         #ifdef HAS_CUSTOM_VERTEX_SHADER
