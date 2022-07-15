@@ -683,7 +683,14 @@ function upsample(surfaceTile, tile, frameState, terrainProvider, x, y, level) {
 
   Promise.resolve(terrainDataPromise)
     .then(function (terrainData) {
-      surfaceTile.terrainData = terrainData;
+      surfaceTile.terrainData = isTerrainTileNeedModify(
+        surfaceTile,
+        terrainProvider,
+        x,
+        y,
+        level,
+        terrainData
+      );
       surfaceTile.terrainState = TerrainState.RECEIVED;
     })
     .catch(function () {
@@ -738,6 +745,7 @@ function modifyTerrainTile(
     );
 
     const currentPoint = turf.point([longitude, latitude]);
+    // 暂时不考虑一个点同时处于多个地形编辑范围中（即编辑范围重合）
     const relevantEdit = terrainEdits.find((edit) =>
       turf.booleanPointInPolygon(currentPoint, edit.polygon)
     );
@@ -845,33 +853,51 @@ function rectangleToPolygon(rectangle) {
   ]);
 }
 
+function isTerrainTileNeedModify(
+  surfaceTile,
+  terrainProvider,
+  x,
+  y,
+  level,
+  terrainData
+) {
+  if (
+    terrainProvider._terrainEdits &&
+    terrainProvider._terrainEdits.length > 0 &&
+    terrainData instanceof QuantizedMeshTerrainData
+  ) {
+    // modify terrainData
+    const tilingScheme = terrainProvider.tilingScheme;
+    const tileRectangle = tilingScheme.tileXYToRectangle(x, y, level);
+    const tilePolygon = rectangleToPolygon(tileRectangle);
+    const relevantEdits = terrainProvider._terrainEdits.filter((edit) =>
+      // turf.booleanOverlap(edit.polygon, tilePolygon) || turf.booleanContains(edit.polygon, tilePolygon) || turf.booleanContains(tilePolygon, edit.polygon)
+      turf.booleanIntersects(edit.polygon, tilePolygon)
+    );
+
+    if (relevantEdits.length > 0) {
+      terrainData = modifyTerrainTile(
+        terrainData,
+        tileRectangle,
+        relevantEdits,
+        tilePolygon
+      );
+    }
+  }
+
+  return terrainData;
+}
+
 function requestTileGeometry(surfaceTile, terrainProvider, x, y, level) {
   function success(terrainData) {
-    if (
-      terrainProvider._terrainEdits &&
-      terrainProvider._terrainEdits.length > 0 &&
-      terrainData instanceof QuantizedMeshTerrainData
-    ) {
-      // modify terrainData
-      const tilingScheme = terrainProvider.tilingScheme;
-      const tileRectangle = tilingScheme.tileXYToRectangle(x, y, level);
-      const tilePolygon = rectangleToPolygon(tileRectangle);
-      const relevantEdits = terrainProvider._terrainEdits.filter((edit) =>
-        // turf.booleanOverlap(edit.polygon, tilePolygon) || turf.booleanContains(edit.polygon, tilePolygon) || turf.booleanContains(tilePolygon, edit.polygon)
-        turf.booleanIntersects(edit.polygon, tilePolygon)
-      );
-
-      if (relevantEdits.length > 0) {
-        terrainData = modifyTerrainTile(
-          terrainData,
-          tileRectangle,
-          relevantEdits,
-          tilePolygon
-        );
-      }
-    }
-
-    surfaceTile.terrainData = terrainData;
+    surfaceTile.terrainData = isTerrainTileNeedModify(
+      surfaceTile,
+      terrainProvider,
+      x,
+      y,
+      level,
+      terrainData
+    );
     surfaceTile.terrainState = TerrainState.RECEIVED;
     surfaceTile.request = undefined;
   }

@@ -25,19 +25,24 @@
         overflow: hidden;
         position: relative;
       }
-      #check {
+
+      .check {
         position: absolute;
         top: 0;
         left: 0;
         margin: 1rem;
         z-index: 99;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 0.5rem;
       }
     </style>
   </head>
 
   <body>
     <div id="cesiumContainer">
-      <input id="check" type="checkbox" />
+      <div class="check">
+        <input id="check" type="checkbox" /><label for="check">wireframe</label>
+      </div>
     </div>
     <script type="module">
       import * as Cesium from "../../../../Source/Cesium.js";
@@ -90,13 +95,144 @@
 
       var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       var positions = [];
-      var test = [
-        [120.02432069472383, 29.859768355740627, 200],
-        [120.02431769365397, 29.853160209873, 200],
-        [120.02809843102996, 29.85265497030581, 200],
-        [120.03310481469315, 29.854566525518585, 200],
-      ];
-      terrainProvider._terrainEdits.push(generateTin(test));
+
+      if (terrainProvider._terrainEdits)
+        terrainProvider._terrainEdits.push({
+          polygon: {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [120.03759943211811, 29.828206596956647],
+                  [120.0294227936824, 29.83015488912204],
+                  [120.03329888076668, 29.83599880632919],
+                  [120.03742263195998, 29.836609420200887],
+                  [120.03759943211811, 29.828206596956647],
+                ],
+              ],
+            },
+          },
+          polygonTriangles: [
+            {
+              type: "Feature",
+              properties: {
+                a: 698.7808252412018,
+                b: 698.7808252412018,
+                c: 698.7808252412018,
+              },
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [
+                      120.0294227936824,
+                      29.83015488912204,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                    [120.03329888076668, 29.83599880632919, 698.7808252412018],
+                    [120.03463074122898, 29.83208718536156, 698.7808252412018],
+                    [
+                      120.0294227936824,
+                      29.83015488912204,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                  ],
+                ],
+              },
+            },
+            {
+              type: "Feature",
+              properties: {
+                a: 698.7808252412018,
+                b: 698.7808252412018,
+                c: 698.7808252412018,
+              },
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [
+                      120.03463074122898,
+                      29.83208718536156,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                    [120.03329888076668, 29.83599880632919, 698.7808252412018],
+                    [120.03742263195998, 29.836609420200887, 698.7808252412018],
+                    [
+                      120.03463074122898,
+                      29.83208718536156,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                  ],
+                ],
+              },
+            },
+            {
+              type: "Feature",
+              properties: {
+                a: 698.7808252412018,
+                b: 698.7808252412018,
+                c: 698.7808252412018,
+              },
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [
+                      120.0294227936824,
+                      29.83015488912204,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                    [120.03463074122898, 29.83208718536156, 698.7808252412018],
+                    [120.03759943211811, 29.828206596956647, 698.7808252412018],
+                    [
+                      120.0294227936824,
+                      29.83015488912204,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                  ],
+                ],
+              },
+            },
+            {
+              type: "Feature",
+              properties: {
+                a: 698.7808252412018,
+                b: 698.7808252412018,
+                c: 698.7808252412018,
+              },
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [
+                      120.03463074122898,
+                      29.83208718536156,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                    [120.03742263195998, 29.836609420200887, 698.7808252412018],
+                    [120.03759943211811, 29.828206596956647, 698.7808252412018],
+                    [
+                      120.03463074122898,
+                      29.83208718536156,
+                      698.7808252412018,
+                      698.7808252412018,
+                    ],
+                  ],
+                ],
+              },
+            },
+          ],
+        });
 
       var height = null;
 
@@ -108,7 +244,7 @@
           positions.push([
             Cesium.Math.toDegrees(carto.longitude),
             Cesium.Math.toDegrees(carto.latitude),
-            height,
+            carto.height,
           ]);
           console.log(carto);
         }
@@ -118,10 +254,11 @@
         var worldPosition = viewer.scene.pickPosition(movement.position);
         if (Cesium.defined(worldPosition)) {
           var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+          console.log(carto);
           positions.push([
             Cesium.Math.toDegrees(carto.longitude),
             Cesium.Math.toDegrees(carto.latitude),
-            height,
+            carto.height,
           ]);
           if (positions.length > 2) {
             var terrainEdits = terrainProvider._terrainEdits;
@@ -149,12 +286,12 @@
         });
         var collection = turf.featureCollection(points);
         var tin = turf.tin(collection, "z");
+        debugger;
         tin.features.forEach((fea) => {
           var coords = fea.geometry.coordinates[0];
           coords[0].push(fea.properties.a);
           coords[1].push(fea.properties.b);
           coords[2].push(fea.properties.c);
-          coords[3].push(fea.properties.a);
         });
 
         // 整体边界
