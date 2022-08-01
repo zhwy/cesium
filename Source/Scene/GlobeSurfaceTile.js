@@ -28,6 +28,7 @@ import TerrainState from "./TerrainState.js";
 import CesiumMath from "../Core/Math.js";
 import QuantizedMeshTerrainData from "../Core/QuantizedMeshTerrainData.js";
 import turf from "../ThirdParty/turf.js";
+import Tin from "../ThirdParty/tin.js";
 const MAX_SHORT = 32767;
 
 /**
@@ -693,23 +694,23 @@ function upsample(surfaceTile, tile, frameState, terrainProvider, x, y, level) {
       );
       surfaceTile.terrainState = TerrainState.RECEIVED;
     })
-    .catch(function () {
+    .catch(function (e) {
+      console.error(e);
       surfaceTile.terrainState = TerrainState.FAILED;
     });
 }
 
-function modifyTerrainTile(
-  terrainData,
-  tileRectangle,
-  terrainEdits,
-  tilePolygon
-) {
-  if (!defined(turf)) {
-    console.warn(
-      "Modifying terrain should enable turf. Please set the turf resource."
-    );
-    return terrainData;
-  }
+function modifyTerrainTile(terrainData, tileRectangle, terrainEdits) {
+  const tilePolygon = turf.polygon([
+    [
+      [0, 0],
+      [MAX_SHORT, 0],
+      [MAX_SHORT, MAX_SHORT],
+      [0, MAX_SHORT],
+      [0, 0],
+    ],
+  ]);
+
   const data = terrainData;
   const minimumHeight = data._minimumHeight;
   const maximumHeight = data._maximumHeight;
@@ -717,109 +718,130 @@ function modifyTerrainTile(
   const quantizedVertices = data._quantizedVertices;
   const vertexCount = quantizedVertices.length / 3;
 
-  // const polygonsCoordinates = terrainEdits.map(
-  //   (p) => p.polygon.geometry.coordinates
-  // );
-  // const multipolygon = turf.multiPolygon(polygonsCoordinates);
-  // const intersection = turf.intersect(multipolygon, tilePolygon);
+  const tileWidth = tileRectangle.east - tileRectangle.west;
+  const tileHeight = tileRectangle.north - tileRectangle.south;
+
+  const degreesToTileCoords = (lon, lat) => {
+    const lonInTile =
+      ((CesiumMath.toRadians(lon) - tileRectangle.west) / tileWidth) *
+      MAX_SHORT;
+    const latInTile =
+      ((CesiumMath.toRadians(lat) - tileRectangle.south) / tileHeight) *
+      MAX_SHORT;
+    return [lonInTile, latInTile];
+  };
+
+  const polygonsCoordinates = terrainEdits.map((p) => {
+    return p.polygon.geometry.coordinates.map((coordinates) => {
+      return coordinates.map((coord) => {
+        return degreesToTileCoords(coord[0], coord[1]);
+      });
+    });
+  });
+
+  const triangles = [];
+  terrainEdits.forEach((area) => {
+    area.polygonTriangles.forEach((triangle) => {
+      const triangleInTileCoords = triangle.geometry.coordinates.map(
+        (coordinates) => {
+          return coordinates.map((coord) => {
+            return degreesToTileCoords(coord[0], coord[1]);
+          });
+        }
+      );
+      triangles.push(turf.polygon(triangleInTileCoords, triangle.properties));
+    });
+  });
+
+  const multipolygon = turf.multiPolygon(polygonsCoordinates);
+  const intersection = turf.intersect(multipolygon, tilePolygon);
+  // intersection.geometry.coordinates.forEach((coordinates) => {
+  //   coordinates.forEach((coord) => {
+  //     coord[0] = Math.round(coord[0]);
+  //     coord[1] = Math.round(coord[1]);
+  //   });
+  // });
+  // const intersectionBoundary = turf.polygonToLine(intersection);
+  // const preserve = turf.difference(tilePolygon, multipolygon);
 
   const positions = [];
+
   for (let i = 0; i < vertexCount; i++) {
     const rawU = quantizedVertices[i];
     const rawV = quantizedVertices[i + vertexCount];
     const rawH = quantizedVertices[i + vertexCount * 2];
 
-    const u = rawU / MAX_SHORT;
-    const v = rawV / MAX_SHORT;
-    const longitude = CesiumMath.toDegrees(
-      CesiumMath.lerp(tileRectangle.west, tileRectangle.east, u)
-    );
-    const latitude = CesiumMath.toDegrees(
-      CesiumMath.lerp(tileRectangle.south, tileRectangle.north, v)
-    );
-
-    let height = CesiumMath.lerp(
+    const height = CesiumMath.lerp(
       minimumHeight,
       maximumHeight,
       rawH / MAX_SHORT
     );
 
-    const currentPoint = turf.point([longitude, latitude]);
-    // 暂时不考虑一个点同时处于多个地形编辑范围中（即编辑范围重合）
-    const relevantEdit = terrainEdits.find((edit) =>
-      turf.booleanPointInPolygon(currentPoint, edit.polygon)
-    );
+    const currentPoint = turf.point([rawU, rawV]);
 
-    if (relevantEdit) {
-      const relevantTriangle = relevantEdit.polygonTriangles.find((triangle) =>
+    if (!turf.booleanPointInPolygon(currentPoint, intersection)) {
+      // 编辑面内的点忽略，因为后面需要添加边界顶点
+      positions.push([rawU, rawV, height]);
+    }
+  }
+
+  // 添加新的点
+  const processPolygon = (coordinates) => {
+    coordinates.forEach((coordinate) => {
+      const currentPoint = turf.point(coordinate);
+      const relevantTriangle = triangles.find((triangle) =>
         turf.booleanPointInPolygon(currentPoint, triangle)
       );
       if (relevantTriangle) {
-        height = turf.planepoint(currentPoint, relevantTriangle);
+        const height = turf.planepoint(currentPoint, relevantTriangle);
+        positions.push(coordinate.concat(height));
+      } else {
+        // debugger;
+        console.log({ triangles, intersection });
       }
-    }
+    });
+  };
 
-    // 不相交的点保留
-    // if (!relevantEdit) {
-    positions.push([longitude, latitude, height]);
-    // }
+  if (intersection.geometry.type === "MultiPolygon") {
+    intersection.geometry.coordinates.forEach((coordinates) => {
+      coordinates = coordinates[0];
+      processPolygon(coordinates.slice(0, -1));
+    });
+  } else {
+    processPolygon(intersection.geometry.coordinates[0].slice(0, -1));
   }
 
-  // 相交部分生成新的点
-  // const processPolygon = (coordinates) => {
-  //   const firstPoint = turf.point(coordinates[0]);
-  //   const relevantEdit = terrainEdits.find((edit) =>
-  //     turf.booleanPointInPolygon(firstPoint, edit.polygon)
-  //   );
-
-  //   if (relevantEdit) {
-  //     const relevantTriangle = relevantEdit.polygonTriangles.find((triangle) =>
-  //       turf.booleanPointInPolygon(firstPoint, triangle)
-  //     );
-  //     if (relevantTriangle) {
-  //       coordinates.forEach((coord) => {
-  //         const currentPoint = turf.point(coord);
-  //         const height = turf.planepoint(currentPoint, relevantTriangle);
-  //         positions.push(coord.concat(height));
-  //       });
-  //     }
-  //   }
-  // };
-
-  // if (intersection.geometry.type === "MultiPolygon") {
-  //   intersection.geometry.coordinates.forEach((coordinates) => {
-  //     coordinates = coordinates[0];
-  //     processPolygon(coordinates);
-  //   });
-  // } else {
-  //   processPolygon(intersection.geometry.coordinates[0]);
-  // }
-
+  const uValues = positions.map((p) => p[0]);
+  const vValues = positions.map((p) => p[1]);
   const heights = positions.map((p) => p[2]);
   const newMinHeight = Math.min(...heights);
   const newMaxHeight = Math.max(...heights);
 
   const newQuantizedVertices = new Uint16Array(positions.length * 3);
-  positions.forEach((p, i) => {
-    const lonRad = CesiumMath.toRadians(p[0]);
-    newQuantizedVertices[i] = Math.round(
-      CesiumMath.lerp(
-        MAX_SHORT,
-        0,
-        (lonRad - tileRectangle.east) /
-          (tileRectangle.west - tileRectangle.east)
-      )
-    );
 
-    const latRad = CesiumMath.toRadians(p[1]);
-    newQuantizedVertices[i + positions.length] = Math.round(
-      CesiumMath.lerp(
-        MAX_SHORT,
-        0,
-        (latRad - tileRectangle.north) /
-          (tileRectangle.south - tileRectangle.north)
-      )
-    );
+  const onEast = [],
+    onWest = [],
+    onNorth = [],
+    onSouth = [],
+    heightValues = [];
+
+  positions.forEach((p, i) => {
+    if (p[0] === 0) {
+      onWest.push(i);
+    }
+    if (p[0] === MAX_SHORT) {
+      onEast.push(i);
+    }
+    if (p[1] === 0) {
+      onSouth.push(i);
+    }
+    if (p[1] === MAX_SHORT) {
+      onNorth.push(i);
+    }
+
+    newQuantizedVertices[i] = p[0];
+
+    newQuantizedVertices[i + positions.length] = p[1];
 
     const relativeHeight = Math.round(
       CesiumMath.lerp(
@@ -829,10 +851,40 @@ function modifyTerrainTile(
       )
     );
     newQuantizedVertices[i + positions.length * 2] = relativeHeight;
+
+    heightValues.push(relativeHeight);
   });
+
   data._minimumHeight = newMinHeight;
   data._maximumHeight = newMaxHeight;
   data._quantizedVertices = newQuantizedVertices;
+  data._uValues = new Uint16Array(uValues);
+  data._vValues = new Uint16Array(vValues);
+  data._heightValues = new Uint16Array(heightValues);
+  data._northIndices = new Uint16Array(onNorth);
+  data._southIndices = new Uint16Array(onSouth);
+  data._eastIndices = new Uint16Array(onEast);
+  data._westIndices = new Uint16Array(onWest);
+
+  // 重新生成三角网
+  // const points = positions.map((p, i) => {
+  //   return turf.point([p[0], p[1]], {
+  //     index: i,
+  //   });
+  // });
+  // const newTins = turf.tin(turf.featureCollection(points), "index");
+  // const indices = [];
+  // newTins.features.forEach((triangle) => {
+  //   indices.push(
+  //     triangle.properties.a,
+  //     triangle.properties.c,
+  //     triangle.properties.b
+  //   );
+  // });
+  const tin = new Tin(positions, []);
+  const indices = tin.generateTin();
+
+  data._indices = new Uint16Array(indices);
 
   return data;
 }
@@ -870,18 +922,21 @@ function isTerrainTileNeedModify(
     const tilingScheme = terrainProvider.tilingScheme;
     const tileRectangle = tilingScheme.tileXYToRectangle(x, y, level);
     const tilePolygon = rectangleToPolygon(tileRectangle);
+
     const relevantEdits = terrainProvider._terrainEdits.filter((edit) =>
       // turf.booleanOverlap(edit.polygon, tilePolygon) || turf.booleanContains(edit.polygon, tilePolygon) || turf.booleanContains(tilePolygon, edit.polygon)
       turf.booleanIntersects(edit.polygon, tilePolygon)
     );
 
     if (relevantEdits.length > 0) {
+      console.log("intersect", { x, y, level });
+      console.time();
       terrainData = modifyTerrainTile(
         terrainData,
         tileRectangle,
-        relevantEdits,
-        tilePolygon
+        relevantEdits
       );
+      console.timeEnd();
     }
   }
 
