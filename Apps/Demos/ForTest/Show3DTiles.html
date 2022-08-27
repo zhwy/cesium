@@ -9,7 +9,7 @@
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>3d tiles 展示</title>
+  <title>3d tiles 压缩材质兼容测试</title>
   <script src="../Lib/tool.js"></script>
   <style>
     @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
@@ -53,19 +53,20 @@
     window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
     window.Cesium = Cesium;
     /* eslint-disable */
-    var viewer;
-    var modelHeight;
-    viewer = new Cesium.Viewer("cesiumContainer", {
+
+    let modelHeight;
+    const viewer = new Cesium.Viewer("cesiumContainer", {
       shadows: true,
     });
     window._viewer = viewer;
     viewer.scene.logarithmicDepthBuffer = false;
     viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
-    var tileset = viewer.scene.primitives.add(
+
+    const tileset = viewer.scene.primitives.add(
       new Cesium.Cesium3DTileset({
         // url: "../TilesLocate/tiles/tileset.json",
         url:
-          "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-1/tileset.json",
+          "https://maps.bim-ace.com:10202/全景/诸暨/地形17级分块/10-1/tileset.json",
         debugShowBoundingVolume: false,
         skipLevelOfDetail: true,
         shadows: Cesium.ShadowMode.DISABLED,
@@ -73,43 +74,59 @@
         maximumScreenSpaceError: 16,
       })
     );
+
+    for (let i = 2; i < 11; i += 1) {
+      viewer.scene.primitives.add(
+        new Cesium.Cesium3DTileset({
+          url:
+            `https://maps.bim-ace.com:10202/全景/诸暨/地形17级分块/10-${i}/tileset.json`,
+          debugShowBoundingVolume: false,
+          skipLevelOfDetail: true,
+          shadows: Cesium.ShadowMode.DISABLED,
+          //   preferLeaves: true,
+          maximumScreenSpaceError: 16,
+        })
+      );
+    }
+
+    // entity与3dtiles遮挡测试
     tileset.readyPromise.then(function() {
       // 绘制一个圆，查看遮挡情况
-      var radius = 100;
-      var orginPoint = Cesium.Matrix4.multiplyByPoint(
+      const radius = 100;
+      const orginPoint = Cesium.Matrix4.multiplyByPoint(
         tileset.modelMatrix,
         tileset.boundingSphere.center,
         new Cesium.Cartesian3()
       ); //这是原点坐标
-      var cartographic = Cesium.Cartographic.fromCartesian(orginPoint);
+      const cartographic = Cesium.Cartographic.fromCartesian(orginPoint);
       cartographic.longitude += 0.00001;
       cartographic.latitude += 0.00001;
-      var pos2 = Cesium.Cartographic.toCartesian(cartographic);
+      const pos2 = Cesium.Cartographic.toCartesian(cartographic);
 
-      var circle1 = new Cesium.CircleGeometry({
+      const circle1 = new Cesium.CircleGeometry({
         center: orginPoint,
         radius: radius,
         height: 3,
       });
-      var instance1 = new Cesium.GeometryInstance({
+      const instance1 = new Cesium.GeometryInstance({
         geometry: circle1,
         id: "normal primitive",
       });
-      var circle2 = new Cesium.CircleGeometry({
+      const circle2 = new Cesium.CircleGeometry({
         center: orginPoint,
         radius: radius,
         height: 20,
       });
-      var instance2 = new Cesium.GeometryInstance({
+      const instance2 = new Cesium.GeometryInstance({
         geometry: circle2,
         id: "ground primitive1",
       });
-      var circle3 = new Cesium.CircleGeometry({
+      const circle3 = new Cesium.CircleGeometry({
         center: orginPoint,
         radius: radius / 2,
         height: 20,
       });
-      var instance3 = new Cesium.GeometryInstance({
+      const instance3 = new Cesium.GeometryInstance({
         geometry: circle3,
         id: "ground primitive2",
       });
@@ -171,17 +188,7 @@
     });
     window._tileset = tileset;
 
-    var tileset2 = viewer.scene.primitives.add(
-      new Cesium.Cesium3DTileset({
-        url:
-          "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-2/tileset.json",
-        debugShowBoundingVolume: false,
-        skipLevelOfDetail: true,
-        shadows: Cesium.ShadowMode.DISABLED,
-        //   preferLeaves: true,
-        maximumScreenSpaceError: 16,
-      })
-    );
+
 
     // 移动模型
     function _enableTranslate() {
