@@ -1,4 +1,4 @@
-import * as Cesium from "../../../Source/Cesium.js";
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 class PickFromRay {
   constructor(viewer, objectsToExclude) {
     this.viewer = viewer;

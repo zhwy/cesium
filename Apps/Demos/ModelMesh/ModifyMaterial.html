@@ -12,7 +12,7 @@
   <title>模型材质修改</title>
   <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
   <style>
-    @import url(../../../Build/Cesium/Widgets/widgets.css);
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
     html,
     body,
@@ -31,9 +31,9 @@
   </div>
   <script type="module">
     /* eslint-disable */
-    import * as Cesium from "../../../Source/Cesium.js";
+    import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 
-    window.CESIUM_BASE_URL = "../../../Source";
+    window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
     Cesium.Ion.defaultAccessToken =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 

@@ -1,6 +1,6 @@
 /* eslint-disable */
-import * as Cesium from "../../../Source/Cesium.js";
-var CesiumPopup = (function() {
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+var CesiumPopup = (function () {
   var _target = undefined;
   var _options = {
     id: "",
@@ -28,13 +28,13 @@ var CesiumPopup = (function() {
         "</div>" +
         "</div>";
       $("#" + _options.viewer.container.id).append(infoDiv);
-      _options.viewer.scene.postRender.addEventListener(function() {
+      _options.viewer.scene.postRender.addEventListener(function () {
         if (Cesium.defined(_target)) {
           _update();
         }
       });
       $("#cesium-popup-" + _options.id + " .cesium-popup-close-button").click(
-        function() {
+        function () {
           $("#cesium-popup-" + _options.id).hide();
         }
       );
@@ -42,7 +42,7 @@ var CesiumPopup = (function() {
       return new _cesiumPopup(options);
     }
   }
-  var _update = function() {
+  var _update = function () {
     var windowsCoord = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
       _options.viewer.scene,
       _target
@@ -58,13 +58,13 @@ var CesiumPopup = (function() {
   };
   _cesiumPopup.prototype = {
     constructor: _cesiumPopup,
-    show: function(position, html) {
+    show: function (position, html) {
       _target = position;
       _update();
       $("#cesium-popup-" + _options.id + " .cesium-popup-content").html(html);
       $("#cesium-popup-" + _options.id).show();
     },
-    hide: function() {
+    hide: function () {
       $("#cesium-popup-" + _options.id).hide();
     },
   };

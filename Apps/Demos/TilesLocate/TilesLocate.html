@@ -1,145 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>Tiles Locate</title>
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        position: relative;
-      }
-      #list {
-        width: 200px;
-        max-height: 50%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        margin: 10px;
-        border-radius: 5px;
-        background-color: rgba(255, 255, 255, 0.8);
-        z-index: 1;
-        padding: 5px;
-      }
-      #list div {
-        cursor: pointer;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="cesiumContainer">
-      <div id="list"></div>
-    </div>
-    <script src="../../../Build/Cesium/Cesium.js"></script>
-    <script>
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-      var viewer = new Cesium.Viewer("cesiumContainer");
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>Tiles Locate</title>
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-      var tileset = viewer.scene.primitives.add(
-        new Cesium.Cesium3DTileset({
-          url: "./tiles/tileset.json",
-        })
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #list {
+      width: 200px;
+      max-height: 50%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 10px;
+      border-radius: 5px;
+      background-color: rgba(255, 255, 255, 0.8);
+      z-index: 1;
+      padding: 5px;
+    }
+
+    #list div {
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer">
+    <div id="list"></div>
+  </div>
+  <script src="../../../Build/Cesium/Cesium.js"></script>
+  <script>
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    var viewer = new Cesium.Viewer("cesiumContainer");
+
+    var tileset = viewer.scene.primitives.add(
+      new Cesium.Cesium3DTileset({
+        url: "./tiles/tileset.json",
+      })
+    );
+
+    var list = document.getElementById("list");
+
+    var inverse = new Cesium.Matrix4();
+
+    tileset.readyPromise.then(() => {
+      inverse = Cesium.Matrix4.inverse(tileset._root.transform, inverse); // 要用原始tileset的transofrom（tileset.json中的）计算逆
+
+      // 位置
+      var newPos = Cesium.Cartesian3.fromRadians(
+        Cesium.Math.toRadians(121),
+        Cesium.Math.toRadians(31),
+        5
       );
 
-      var list = document.getElementById("list");
+      // 旋转
+      var transform = Cesium.Transforms.headingPitchRollToFixedFrame(
+        newPos,
+        new Cesium.HeadingPitchRoll(
+          Cesium.Math.toRadians(90),
+          Cesium.Math.toRadians(0),
+          Cesium.Math.toRadians(0)
+        )
+      );
 
-      var inverse = new Cesium.Matrix4();
+      // 缩放
+      var scaleValue = 10;
+      var scale = Cesium.Matrix4.fromUniformScale(scaleValue);
 
-      tileset.readyPromise.then(() => {
-        inverse = Cesium.Matrix4.inverse(tileset._root.transform, inverse); // 要用原始tileset的transofrom（tileset.json中的）计算逆
+      Cesium.Matrix4.multiply(transform, scale, transform);
 
-        // 位置
-        var newPos = Cesium.Cartesian3.fromRadians(
-          Cesium.Math.toRadians(121),
-          Cesium.Math.toRadians(31),
-          5
-        );
+      tileset._root.transform = transform;
 
-        // 旋转
-        var transform = Cesium.Transforms.headingPitchRollToFixedFrame(
-          newPos,
-          new Cesium.HeadingPitchRoll(
-            Cesium.Math.toRadians(90),
-            Cesium.Math.toRadians(0),
-            Cesium.Math.toRadians(0)
-          )
-        );
+      viewer.camera.flyToBoundingSphere(tileset.boundingSphere, {
+        duration: 0,
+      });
 
-        // 缩放
-        var scaleValue = 10;
-        var scale = Cesium.Matrix4.fromUniformScale(scaleValue);
+      Cesium.Resource.fetchJson({
+        url: "./tiles/scenetree.json",
+      }).then((res) => {
+        var scene = res.scenes[0];
+        scene.children.forEach((child) => {
+          var text = document.createElement("div");
+          text.textContent = child.name;
 
-        Cesium.Matrix4.multiply(transform, scale, transform);
+          var realTransform = tileset._root.transform.clone();
+          realTransform = Cesium.Matrix4.multiply(
+            realTransform,
+            tileset.modelMatrix,
+            realTransform
+          );
 
-        tileset._root.transform = transform;
+          // 用逆计算相对于模型原点的位置
+          var orgPos = Cesium.Matrix4.multiplyByPoint(
+            inverse,
+            new Cesium.Cartesian3(
+              child.sphere[0],
+              child.sphere[1],
+              child.sphere[2]
+            ),
+            new Cesium.Cartesian3()
+          );
 
-        viewer.camera.flyToBoundingSphere(tileset.boundingSphere, {
-          duration: 0,
-        });
+          var newPos = Cesium.Matrix4.multiplyByPoint(
+            realTransform,
+            orgPos,
+            new Cesium.Cartesian3()
+          );
 
-        Cesium.Resource.fetchJson({
-          url: "./tiles/scenetree.json",
-        }).then((res) => {
-          var scene = res.scenes[0];
-          scene.children.forEach((child) => {
-            var text = document.createElement("div");
-            text.textContent = child.name;
+          var boundingSphere = new Cesium.BoundingSphere(
+            newPos,
+            child.sphere[3] * scaleValue
+          );
 
-            var realTransform = tileset._root.transform.clone();
-            realTransform = Cesium.Matrix4.multiply(
-              realTransform,
-              tileset.modelMatrix,
-              realTransform
-            );
+          text.onclick = () => {
+            viewer.camera.flyToBoundingSphere(boundingSphere, {
+              duration: 0,
+            });
+          };
 
-            // 用逆计算相对于模型原点的位置
-            var orgPos = Cesium.Matrix4.multiplyByPoint(
-              inverse,
-              new Cesium.Cartesian3(
-                child.sphere[0],
-                child.sphere[1],
-                child.sphere[2]
-              ),
-              new Cesium.Cartesian3()
-            );
-
-            var newPos = Cesium.Matrix4.multiplyByPoint(
-              realTransform,
-              orgPos,
-              new Cesium.Cartesian3()
-            );
-
-            var boundingSphere = new Cesium.BoundingSphere(
-              newPos,
-              child.sphere[3] * scaleValue
-            );
-
-            text.onclick = () => {
-              viewer.camera.flyToBoundingSphere(boundingSphere, {
-                duration: 0,
-              });
-            };
-
-            list.appendChild(text);
-          });
+          list.appendChild(text);
         });
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
+
 </html>

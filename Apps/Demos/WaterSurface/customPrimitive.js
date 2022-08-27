@@ -1,4 +1,4 @@
-import * as Cesium from "../../../Source/Cesium.js";
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 class CustomPrimitive {
   constructor(options) {
     this.commandType = options.commandType;

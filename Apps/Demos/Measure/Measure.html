@@ -11,7 +11,7 @@
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
   <title>测量工具</title>
   <style>
-    @import url(../../../Build/Cesium/Widgets/widgets.css);
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
     html,
     body,
@@ -60,14 +60,14 @@
       }
       measure = new Cesium.Measure(viewer, Cesium.MeasureType.AREA);
       measure.activate();
-    }
+    };
     document.getElementById("distance").onclick = () => {
       if (measure) {
         measure.deactivate();
       }
       measure = new Cesium.Measure(viewer, Cesium.MeasureType.DISTANCE);
       measure.activate();
-    }
+    };
     document.getElementById("clear").onclick = () => {
       if (measure) {
         measure.clear();

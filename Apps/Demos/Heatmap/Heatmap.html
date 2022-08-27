@@ -1,164 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>热力图示例</title>
-    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>热力图示例</title>
+  <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-      #heatmap {
-        width: 800px;
-        height: 800px;
-        display: none;
-      }
-    </style>
-  </head>
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
 
-  <body>
-    <div id="cesiumContainer">
-      <div id="heatmap"></div>
-    </div>
-    <script src="../Lib/heatmap.js"></script>
-    <script src="../Lib/tool.js"></script>
-    <script type="module">
-      /* eslint-disable*/
-      import * as Cesium from "../../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../../Source";
+    #heatmap {
+      width: 800px;
+      height: 800px;
+      display: none;
+    }
+  </style>
+</head>
 
-      function createHeatmapData({
-        lonMin,
-        latMin,
-        lonMax,
-        latMax,
-        pointNumber,
-        maxValue,
-        imgWidth,
-        imgHeight,
-      }) {
-        var len = pointNumber;
-        var max = maxValue;
+<body>
+  <div id="cesiumContainer">
+    <div id="heatmap"></div>
+  </div>
+  <script src="../Lib/heatmap.js"></script>
+  <script src="../Lib/tool.js"></script>
+  <script type="module">
+    /* eslint-disable*/
+    import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+    window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
 
-        //热力图图片大小
-        var width = imgWidth;
-        var height = imgHeight;
+    function createHeatmapData({
+      lonMin,
+      latMin,
+      lonMax,
+      latMax,
+      pointNumber,
+      maxValue,
+      imgWidth,
+      imgHeight,
+    }) {
+      var len = pointNumber;
+      var max = maxValue;
 
-        var points = [];
+      //热力图图片大小
+      var width = imgWidth;
+      var height = imgHeight;
 
-        //随机点（经度、纬度、热力值）
-        var dataRaw = [];
-        for (var i = 0; i <= len; i++) {
-          for (var j = 0; j <= len; j++) {
-            var point = {
-              lat: latMin + ((latMax - latMin) / len) * i,
-              lon: lonMin + ((lonMax - lonMin) / len) * j,
-              value: Math.floor(Math.random() * maxValue),
-            };
-            dataRaw.push(point);
-          }
-        }
+      var points = [];
 
-        //计算canvas坐标
-        for (var i = 0; i < dataRaw.length; i++) {
-          var dataItem = dataRaw[i];
+      //随机点（经度、纬度、热力值）
+      var dataRaw = [];
+      for (var i = 0; i <= len; i++) {
+        for (var j = 0; j <= len; j++) {
           var point = {
-            x: Math.floor(
-              ((dataItem.lat - latMin) / (latMax - latMin)) * width
-            ),
-            y: Math.floor(
-              ((dataItem.lon - lonMin) / (lonMax - lonMin)) * height
-            ),
-            value: Math.floor(dataItem.value),
+            lat: latMin + ((latMax - latMin) / len) * i,
+            lon: lonMin + ((lonMax - lonMin) / len) * j,
+            value: Math.floor(Math.random() * maxValue),
           };
-          max = Math.max(max, dataItem.value);
-          points.push(point);
+          dataRaw.push(point);
         }
-
-        return {
-          max: max,
-          data: points,
-        };
       }
 
-      function createHeatmap({ latMin, latMax, lonMin, lonMax, canvasId }) {
-        var merMin = getMercator({
-          lng: lonMin,
-          lat: latMin,
-        });
-
-        var merMax = getMercator({
-          lng: lonMax,
-          lat: latMax,
-        });
-
-        var h_w = Math.abs((merMax.y - merMin.y) / (merMax.x - merMin.x));
-
-        var c = document.querySelector("#" + canvasId);
-
-        var width = getComputedStyle(c).width;
-        width = Number(width.slice(0, -2));
-
-        var height = getComputedStyle(c).height;
-        height = Number(height.slice(0, -2));
-
-        if (h_w <= 1) {
-          height = height * h_w;
-          c.style.height = height + "px";
-        } else {
-          width = width / h_w;
-          c.style.width = width + "px";
-        }
-
-        var heatmapInstance = h337.create({
-          container: c,
-        });
-
-        var nuConfig = {
-          radius: 1,
-          maxOpacity: 1,
-          minOpacity: 0,
-          blur: 0.75,
+      //计算canvas坐标
+      for (var i = 0; i < dataRaw.length; i++) {
+        var dataItem = dataRaw[i];
+        var point = {
+          x: Math.floor(
+            ((dataItem.lat - latMin) / (latMax - latMin)) * width
+          ),
+          y: Math.floor(
+            ((dataItem.lon - lonMin) / (lonMax - lonMin)) * height
+          ),
+          value: Math.floor(dataItem.value),
         };
-        heatmapInstance.configure(nuConfig);
-
-        return heatmapInstance;
+        max = Math.max(max, dataItem.value);
+        points.push(point);
       }
 
-      //点坐标的矩形范围
-      var latMin = 30;
-      var latMax = 31;
-      var lonMin = 120;
-      var lonMax = 121;
+      return {
+        max: max,
+        data: points,
+      };
+    }
 
-      var heatmapInstance = createHeatmap({
-        lonMin: lonMin,
-        lonMax: lonMax,
-        latMin: latMin,
-        latMax: latMax,
-        canvasId: "heatmap",
+    function createHeatmap({ latMin, latMax, lonMin, lonMax, canvasId }) {
+      var merMin = getMercator({
+        lng: lonMin,
+        lat: latMin,
       });
 
-      var height = heatmapInstance._renderer._height;
-      var width = heatmapInstance._renderer._width;
+      var merMax = getMercator({
+        lng: lonMax,
+        lat: latMax,
+      });
 
+      var h_w = Math.abs((merMax.y - merMin.y) / (merMax.x - merMin.x));
+
+      var c = document.querySelector("#" + canvasId);
+
+      var width = getComputedStyle(c).width;
+      width = Number(width.slice(0, -2));
+
+      var height = getComputedStyle(c).height;
+      height = Number(height.slice(0, -2));
+
+      if (h_w <= 1) {
+        height = height * h_w;
+        c.style.height = height + "px";
+      } else {
+        width = width / h_w;
+        c.style.width = width + "px";
+      }
+
+      var heatmapInstance = h337.create({
+        container: c,
+      });
+
+      var nuConfig = {
+        radius: 1,
+        maxOpacity: 1,
+        minOpacity: 0,
+        blur: 0.75,
+      };
+      heatmapInstance.configure(nuConfig);
+
+      return heatmapInstance;
+    }
+
+    //点坐标的矩形范围
+    var latMin = 30;
+    var latMax = 31;
+    var lonMin = 120;
+    var lonMax = 121;
+
+    var heatmapInstance = createHeatmap({
+      lonMin: lonMin,
+      lonMax: lonMax,
+      latMin: latMin,
+      latMax: latMax,
+      canvasId: "heatmap",
+    });
+
+    var height = heatmapInstance._renderer._height;
+    var width = heatmapInstance._renderer._width;
+
+    var data = createHeatmapData({
+      lonMin: lonMin,
+      lonMax: lonMax,
+      latMin: latMin,
+      latMax: latMax,
+      pointNumber: 20,
+      maxValue: 100,
+      imgHeight: height,
+      imgWidth: width,
+    });
+
+    heatmapInstance.setData(data);
+
+    var viewer = new Cesium.Viewer("cesiumContainer");
+    var canvas = document.getElementsByClassName("heatmap-canvas");
+
+    var heatmapImage = viewer.entities.add({
+      name: "heatmap",
+      rectangle: {
+        coordinates: Cesium.Rectangle.fromDegrees(
+          lonMin,
+          latMin,
+          lonMax,
+          latMax
+        ),
+        material: new Cesium.ImageMaterialProperty({
+          image: canvas[0],
+          transparent: true,
+        }),
+      },
+    });
+
+    viewer.entities.add({
+      name: "range_1",
+      position: Cesium.Cartesian3.fromDegrees(lonMin, latMin, 5),
+      point: {
+        pixelSize: 10,
+        color: Cesium.Color.GREEN,
+      },
+    });
+
+    viewer.entities.add({
+      name: "range_2",
+      position: Cesium.Cartesian3.fromDegrees(lonMax, latMax, 5),
+      point: {
+        pixelSize: 10,
+        color: Cesium.Color.GREEN,
+      },
+    });
+
+    viewer.zoomTo(viewer.entities);
+
+    var handler = setInterval(() => {
       var data = createHeatmapData({
         lonMin: lonMin,
         lonMax: lonMax,
@@ -169,62 +221,10 @@
         imgHeight: height,
         imgWidth: width,
       });
-
       heatmapInstance.setData(data);
+      heatmapImage.rectangle.material.image = canvas[0];
+    }, 1000);
+  </script>
+</body>
 
-      var viewer = new Cesium.Viewer("cesiumContainer");
-      var canvas = document.getElementsByClassName("heatmap-canvas");
-
-      var heatmapImage = viewer.entities.add({
-        name: "heatmap",
-        rectangle: {
-          coordinates: Cesium.Rectangle.fromDegrees(
-            lonMin,
-            latMin,
-            lonMax,
-            latMax
-          ),
-          material: new Cesium.ImageMaterialProperty({
-            image: canvas[0],
-            transparent: true,
-          }),
-        },
-      });
-
-      viewer.entities.add({
-        name: "range_1",
-        position: Cesium.Cartesian3.fromDegrees(lonMin, latMin, 5),
-        point: {
-          pixelSize: 10,
-          color: Cesium.Color.GREEN,
-        },
-      });
-
-      viewer.entities.add({
-        name: "range_2",
-        position: Cesium.Cartesian3.fromDegrees(lonMax, latMax, 5),
-        point: {
-          pixelSize: 10,
-          color: Cesium.Color.GREEN,
-        },
-      });
-
-      viewer.zoomTo(viewer.entities);
-
-      var handler = setInterval(() => {
-        var data = createHeatmapData({
-          lonMin: lonMin,
-          lonMax: lonMax,
-          latMin: latMin,
-          latMax: latMax,
-          pointNumber: 20,
-          maxValue: 100,
-          imgHeight: height,
-          imgWidth: width,
-        });
-        heatmapInstance.setData(data);
-        heatmapImage.rectangle.material.image = canvas[0];
-      }, 1000);
-    </script>
-  </body>
 </html>

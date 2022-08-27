@@ -1,151 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>规则流场展示</title>
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>规则流场展示</title>
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+  <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
+  <script>
+    /* eslint-disable*/
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    var viewer = new Cesium.Viewer("cesiumContainer");
+    viewer.scene.debugShowFramesPerSecond = true;
+    viewer.targetFrameRate = 60;
+    var supportsImageRenderingPixelated =
+      viewer.cesiumWidget._supportsImageRenderingPixelated;
+    if (supportsImageRenderingPixelated) {
+      var vtxf_dpr = window.devicePixelRatio;
+      while (vtxf_dpr >= 2.0) {
+        vtxf_dpr /= 2.0;
       }
-    </style>
-  </head>
+      viewer.resolutionScale = vtxf_dpr;
+    }
 
-  <body>
-    <div id="cesiumContainer"></div>
-    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-    <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
-    <script>
-      /* eslint-disable*/
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+    var promise = Cesium.Resource.fetch({
+      url: "./processed.json",
+    });
 
-      var viewer = new Cesium.Viewer("cesiumContainer");
-      viewer.scene.debugShowFramesPerSecond = true;
-      viewer.targetFrameRate = 60;
-      var supportsImageRenderingPixelated =
-        viewer.cesiumWidget._supportsImageRenderingPixelated;
-      if (supportsImageRenderingPixelated) {
-        var vtxf_dpr = window.devicePixelRatio;
-        while (vtxf_dpr >= 2.0) {
-          vtxf_dpr /= 2.0;
+    var trails = [];
+
+    promise.then((res) => {
+      res = JSON.parse(res);
+      var instances = [];
+      var cameraPos;
+      //计算时间，数据时间戳：秒
+      var startTimeOri = res.times[0] * 1000;
+      var timeDuration = res.times[res.times.length - 1] - res.times[0];
+      var startTime = Cesium.JulianDate.fromDate(
+        new Date(res.times[0] * 1000)
+      );
+      var endTime = Cesium.JulianDate.fromDate(
+        new Date(res.times[res.times.length - 1] * 1000)
+      );
+
+      var invisibleMaterial = Cesium.Material.fromType(
+        Cesium.Material.PolylineTrailType2,
+        {
+          color: new Cesium.Color(1, 1, 1, 0),
+          duration: timeDuration,
+          image: "../Lib/red.png",
+          repeat: 1,
+          length: 1,
+          time: 0,
         }
-        viewer.resolutionScale = vtxf_dpr;
-      }
+      );
+      //处理轨迹
+      res.data.forEach((data, i) => {
+        var coords = data.coordinates;
 
-      var promise = Cesium.Resource.fetch({
-        url: "./processed.json",
+        var positions = coords.map((coord) => {
+          return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 1);
+        });
+        if (i == 0) cameraPos = positions[0];
+        let times = data.timestamps;
+        var polyline = new Cesium.PolylineGeometry({
+          positions: positions,
+          width: 1,
+        });
+        var instance = new Cesium.GeometryInstance({
+          geometry: polyline,
+        });
+        instances.push(instance);
       });
 
-      var trails = [];
+      var trailCollection = viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          show: true,
+          geometryInstances: instances,
+          appearance: new Cesium.PolylineMaterialAppearance({
+            material: Cesium.Material.fromType(
+              Cesium.Material.PolylineTrailType2,
+              {
+                color: new Cesium.Color(1, 1, 1, 1),
+                duration: timeDuration,
+                image: "../Lib/red.png",
+                repeat: 1,
+                length: 0.1,
+                time: 0,
+              }
+            ),
+          }),
+          asynchronous: false,
+          // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+          //   material: invisibleMaterial,
+          // }),
+        })
+      );
 
-      promise.then((res) => {
-        res = JSON.parse(res);
-        var instances = [];
-        var cameraPos;
-        //计算时间，数据时间戳：秒
-        var startTimeOri = res.times[0] * 1000;
-        var timeDuration = res.times[res.times.length - 1] - res.times[0];
-        var startTime = Cesium.JulianDate.fromDate(
-          new Date(res.times[0] * 1000)
-        );
-        var endTime = Cesium.JulianDate.fromDate(
-          new Date(res.times[res.times.length - 1] * 1000)
-        );
-
-        var invisibleMaterial = Cesium.Material.fromType(
-          Cesium.Material.PolylineTrailType2,
-          {
-            color: new Cesium.Color(1, 1, 1, 0),
-            duration: timeDuration,
-            image: "../Lib/red.png",
-            repeat: 1,
-            length: 1,
-            time: 0,
-          }
-        );
-        //处理轨迹
-        res.data.forEach((data, i) => {
-          var coords = data.coordinates;
-
-          var positions = coords.map((coord) => {
-            return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 1);
-          });
-          if (i == 0) cameraPos = positions[0];
-          let times = data.timestamps;
-          var polyline = new Cesium.PolylineGeometry({
-            positions: positions,
-            width: 1,
-          });
-          var instance = new Cesium.GeometryInstance({
-            geometry: polyline,
-          });
-          instances.push(instance);
-        });
-
-        var trailCollection = viewer.scene.primitives.add(
-          new Cesium.Primitive({
-            show: true,
-            geometryInstances: instances,
-            appearance: new Cesium.PolylineMaterialAppearance({
-              material: Cesium.Material.fromType(
-                Cesium.Material.PolylineTrailType2,
-                {
-                  color: new Cesium.Color(1, 1, 1, 1),
-                  duration: timeDuration,
-                  image: "../Lib/red.png",
-                  repeat: 1,
-                  length: 0.1,
-                  time: 0,
-                }
-              ),
-            }),
-            asynchronous: false,
-            // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-            //   material: invisibleMaterial,
-            // }),
-          })
-        );
-
-        trailCollection.readyPromise.then(() => {
-          viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
-          viewer.clock.startTime = startTime;
-          viewer.clock.stopTime = endTime;
-          viewer.clock.currentTime = startTime;
-          viewer.timeline.zoomTo(startTime, endTime);
-          trailCollection.show = true;
-          viewer.scene.preRender.addEventListener(() => {
-            let now = Cesium.JulianDate.toDate(viewer.clock.currentTime);
-            trailCollection.appearance.material.uniforms.time =
-              (now.getTime() - startTimeOri) / 1000; //毫秒转秒
-          });
-        });
-
-        viewer.camera.flyTo({
-          duration: 0,
-          destination: cameraPos,
-          orientation: {
-            heading: 5.984184,
-            pitch: -0.439199,
-            roll: 0,
-          },
+      trailCollection.readyPromise.then(() => {
+        viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
+        viewer.clock.startTime = startTime;
+        viewer.clock.stopTime = endTime;
+        viewer.clock.currentTime = startTime;
+        viewer.timeline.zoomTo(startTime, endTime);
+        trailCollection.show = true;
+        viewer.scene.preRender.addEventListener(() => {
+          let now = Cesium.JulianDate.toDate(viewer.clock.currentTime);
+          trailCollection.appearance.material.uniforms.time =
+            (now.getTime() - startTimeOri) / 1000; //毫秒转秒
         });
       });
-    </script>
-  </body>
+
+      viewer.camera.flyTo({
+        duration: 0,
+        destination: cameraPos,
+        orientation: {
+          heading: 5.984184,
+          pitch: -0.439199,
+          roll: 0,
+        },
+      });
+    });
+  </script>
+</body>
+
 </html>

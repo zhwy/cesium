@@ -1,185 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>PolylineTimeTrailMaterial数据展示</title>
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>PolylineTimeTrailMaterial数据展示</title>
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+  <script src="../Lib/PolylineTimeTrailMaterialProperty.js"></script>
+  <script>
+    /* eslint-disable*/
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    const vertexSource = (function(filePath) {
+      var request = new XMLHttpRequest();
+      request.open("GET", filePath, false);
+      request.send();
+      return request.responseText;
+    })("../Lib/PolylineTimeTrailMaterialAppearanceVS.glsl");
+
+    var viewer = new Cesium.Viewer("cesiumContainer");
+    viewer.scene.debugShowFramesPerSecond = true;
+    viewer.targetFrameRate = 60;
+    var supportsImageRenderingPixelated =
+      viewer.cesiumWidget._supportsImageRenderingPixelated;
+    if (supportsImageRenderingPixelated) {
+      var vtxf_dpr = window.devicePixelRatio;
+      while (vtxf_dpr >= 2.0) {
+        vtxf_dpr /= 2.0;
       }
-    </style>
-  </head>
+      viewer.resolutionScale = vtxf_dpr;
+    }
 
-  <body>
-    <div id="cesiumContainer"></div>
-    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-    <script src="../Lib/PolylineTimeTrailMaterialProperty.js"></script>
-    <script>
-      /* eslint-disable*/
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+    var promise = Cesium.Resource.fetch({
+      url: "./irregular.json",
+    });
 
-      const vertexSource = (function (filePath) {
-        var request = new XMLHttpRequest();
-        request.open("GET", filePath, false);
-        request.send();
-        return request.responseText;
-      })("../Lib/PolylineTimeTrailMaterialAppearanceVS.glsl");
+    promise.then((res) => {
+      res = JSON.parse(res);
+      const instances = [];
 
-      var viewer = new Cesium.Viewer("cesiumContainer");
-      viewer.scene.debugShowFramesPerSecond = true;
-      viewer.targetFrameRate = 60;
-      var supportsImageRenderingPixelated =
-        viewer.cesiumWidget._supportsImageRenderingPixelated;
-      if (supportsImageRenderingPixelated) {
-        var vtxf_dpr = window.devicePixelRatio;
-        while (vtxf_dpr >= 2.0) {
-          vtxf_dpr /= 2.0;
+      // res = res.slice(0, 5)
+      let startTime = 10e6,
+        endTime = 0;
+
+      res.forEach((data) => {
+        const times = data.timestamps;
+        startTime = Math.min(startTime, times[0]);
+        endTime = Math.max(endTime, times[times.length - 1]);
+      });
+
+      const timeDuration = endTime - startTime;
+
+      console.log({ startTime, endTime });
+
+      const segments = new Float32Array(res.length);
+
+      res.forEach((data, i) => {
+        var coords = data.path;
+
+        var positions = coords.map((coord) => {
+          return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 0);
+        });
+        const times = data.timestamps;
+
+        console.log(times[times.length - 1] - times[0]);
+
+        segments[i] = coords.length - 1;
+
+        // 计算时间比例
+        const timeOffsets = new Array((positions.length - 1) * 2);
+        for (var j = 0; j < positions.length - 1; j++) {
+          timeOffsets[j * 2] = (times[j] - startTime) / timeDuration; // 时间偏移
+          timeOffsets[j * 2 + 1] = (times[j + 1] - times[j]) / timeDuration; // 占总时间比例
         }
-        viewer.resolutionScale = vtxf_dpr;
-      }
 
-      var promise = Cesium.Resource.fetch({
-        url: "./irregular.json",
+        var polyline = new Cesium.PolylineGeometry({
+          positions: positions,
+          width: 2,
+        });
+
+        var size = positions.length * 4 - 4;
+        var vertexTimeOffset = new Float32Array(size * 4);
+
+        var count = 0;
+        for (var k = 0; k < positions.length - 1; k++) {
+          for (var j = 0; j < 4; j++) {
+            vertexTimeOffset[count * 4] = timeOffsets[k * 2];
+            vertexTimeOffset[count * 4 + 1] = timeOffsets[k * 2 + 1];
+            vertexTimeOffset[count * 4 + 2] = k + 1;
+            vertexTimeOffset[count * 4 + 3] = positions.length - 1;
+            count++;
+          }
+        }
+
+        //存入时间信息
+        var geometry = Cesium.PolylineGeometry.createGeometry(polyline);
+        geometry.attributes.timeOffset = new Cesium.GeometryAttribute({
+          componentDatatype: Cesium.ComponentDatatype.FLOAT,
+          componentsPerAttribute: 4,
+          values: vertexTimeOffset,
+        });
+
+        var instance = new Cesium.GeometryInstance({
+          geometry: geometry,
+        });
+
+        instances.push(instance);
       });
 
-      promise.then((res) => {
-        res = JSON.parse(res);
-        const instances = [];
+      var material = Cesium.Material.fromType(
+        Cesium.Material.PolylineTimeTrailType,
+        {
+          color: new Cesium.Color(1, 0, 0, 1),
+          duration: timeDuration,
+          image: "../Lib/red.png",
+          repeat: 1,
+          length: 0.1,
+          time: 0,
+        }
+      );
 
-        // res = res.slice(0, 5)
-        let startTime = 10e6,
-          endTime = 0;
+      const trails = new Cesium.Primitive({
+        geometryInstances: instances,
+        appearance: new Cesium.PolylineMaterialAppearance({
+          material: material,
+          vertexShaderSource: vertexSource,
+        }),
+      });
+      viewer.scene.primitives.add(trails);
 
-        res.forEach((data) => {
-          const times = data.timestamps;
-          startTime = Math.min(startTime, times[0]);
-          endTime = Math.max(endTime, times[times.length - 1]);
-        });
+      viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
+      viewer.clock.startTime = new Cesium.JulianDate(0, startTime);
+      viewer.clock.stopTime = new Cesium.JulianDate(0, endTime);
+      viewer.clock.currentTime = viewer.clock.startTime;
+      viewer.timeline.zoomTo(viewer.clock.startTime, viewer.clock.stopTime);
 
-        const timeDuration = endTime - startTime;
-
-        console.log({ startTime, endTime });
-
-        const segments = new Float32Array(res.length);
-
-        res.forEach((data, i) => {
-          var coords = data.path;
-
-          var positions = coords.map((coord) => {
-            return new Cesium.Cartesian3.fromDegrees(coord[0], coord[1], 0);
-          });
-          const times = data.timestamps;
-
-          console.log(times[times.length - 1] - times[0]);
-
-          segments[i] = coords.length - 1;
-
-          // 计算时间比例
-          const timeOffsets = new Array((positions.length - 1) * 2);
-          for (var j = 0; j < positions.length - 1; j++) {
-            timeOffsets[j * 2] = (times[j] - startTime) / timeDuration; // 时间偏移
-            timeOffsets[j * 2 + 1] = (times[j + 1] - times[j]) / timeDuration; // 占总时间比例
-          }
-
-          var polyline = new Cesium.PolylineGeometry({
-            positions: positions,
-            width: 2,
-          });
-
-          var size = positions.length * 4 - 4;
-          var vertexTimeOffset = new Float32Array(size * 4);
-
-          var count = 0;
-          for (var k = 0; k < positions.length - 1; k++) {
-            for (var j = 0; j < 4; j++) {
-              vertexTimeOffset[count * 4] = timeOffsets[k * 2];
-              vertexTimeOffset[count * 4 + 1] = timeOffsets[k * 2 + 1];
-              vertexTimeOffset[count * 4 + 2] = k + 1;
-              vertexTimeOffset[count * 4 + 3] = positions.length - 1;
-              count++;
-            }
-          }
-
-          //存入时间信息
-          var geometry = Cesium.PolylineGeometry.createGeometry(polyline);
-          geometry.attributes.timeOffset = new Cesium.GeometryAttribute({
-            componentDatatype: Cesium.ComponentDatatype.FLOAT,
-            componentsPerAttribute: 4,
-            values: vertexTimeOffset,
-          });
-
-          var instance = new Cesium.GeometryInstance({
-            geometry: geometry,
-          });
-
-          instances.push(instance);
-        });
-
-        var material = Cesium.Material.fromType(
-          Cesium.Material.PolylineTimeTrailType,
-          {
-            color: new Cesium.Color(1, 0, 0, 1),
-            duration: timeDuration,
-            image: "../Lib/red.png",
-            repeat: 1,
-            length: 0.1,
-            time: 0,
-          }
+      viewer.scene.preRender.addEventListener(() => {
+        trails.appearance.material.uniforms.time = Cesium.JulianDate.secondsDifference(
+          viewer.clock.currentTime,
+          viewer.clock.startTime
         );
-
-        const trails = new Cesium.Primitive({
-          geometryInstances: instances,
-          appearance: new Cesium.PolylineMaterialAppearance({
-            material: material,
-            vertexShaderSource: vertexSource,
-          }),
-        });
-        viewer.scene.primitives.add(trails);
-
-        viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
-        viewer.clock.startTime = new Cesium.JulianDate(0, startTime);
-        viewer.clock.stopTime = new Cesium.JulianDate(0, endTime);
-        viewer.clock.currentTime = viewer.clock.startTime;
-        viewer.timeline.zoomTo(viewer.clock.startTime, viewer.clock.stopTime);
-
-        viewer.scene.preRender.addEventListener(() => {
-          trails.appearance.material.uniforms.time = Cesium.JulianDate.secondsDifference(
-            viewer.clock.currentTime,
-            viewer.clock.startTime
-          );
-        });
-
-        viewer.camera.flyTo({
-          duration: 0,
-          destination: new Cesium.Cartesian3(
-            1338961.0616347308,
-            -4657267.370001955,
-            4137298.189785462
-          ),
-          orientation: {
-            heading: 5.984184,
-            pitch: -0.439199,
-            roll: 0,
-          },
-        });
       });
-    </script>
-  </body>
+
+      viewer.camera.flyTo({
+        duration: 0,
+        destination: new Cesium.Cartesian3(
+          1338961.0616347308,
+          -4657267.370001955,
+          4137298.189785462
+        ),
+        orientation: {
+          heading: 5.984184,
+          pitch: -0.439199,
+          roll: 0,
+        },
+      });
+    });
+  </script>
+</body>
+
 </html>

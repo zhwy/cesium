@@ -1,253 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>3d tiles 展示</title>
-    <script src="../Lib/tool.js"></script>
-    <style>
-      @import url(../../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>3d tiles 展示</title>
+  <script src="../Lib/tool.js"></script>
+  <style>
+    @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-      button {
-        position: absolute;
-        z-index: 99;
-      }
-    </style>
-  </head>
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
 
-  <body>
-    <script>
-      function locate() {
-        _viewer.zoomTo(
-          _tileset,
-          new Cesium.HeadingPitchRange(
-            0,
-            -2.0,
-            Math.max(100.0 - _tileset.boundingSphere.radius, 0.0)
-          )
-        );
-      }
-    </script>
-    <div id="cesiumContainer">
-      <button onclick="locate()">定位</button>
-    </div>
-    <script type="module">
-      // import IndexedDbCache from "../Lib/indexDbCache.js";
-      import * as Cesium from "../../../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../../../Source";
-      window.Cesium = Cesium;
-      /* eslint-disable */
-      var viewer;
-      var modelHeight;
-      viewer = new Cesium.Viewer("cesiumContainer", {
-        shadows: true,
-      });
-      window._viewer = viewer;
-      viewer.scene.logarithmicDepthBuffer = false;
-      viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
-      var tileset = viewer.scene.primitives.add(
-        new Cesium.Cesium3DTileset({
-          // url: "../TilesLocate/tiles/tileset.json",
-          url:
-            "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-1/tileset.json",
-          debugShowBoundingVolume: false,
-          skipLevelOfDetail: true,
-          shadows: Cesium.ShadowMode.DISABLED,
-          //   preferLeaves: true,
-          maximumScreenSpaceError: 16,
-        })
+    button {
+      position: absolute;
+      z-index: 99;
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    function locate() {
+      _viewer.zoomTo(
+        _tileset,
+        new Cesium.HeadingPitchRange(
+          0,
+          -2.0,
+          Math.max(100.0 - _tileset.boundingSphere.radius, 0.0)
+        )
       );
-      tileset.readyPromise.then(function () {
-        // 绘制一个圆，查看遮挡情况
-        var radius = 100;
-        var orginPoint = Cesium.Matrix4.multiplyByPoint(
-          tileset.modelMatrix,
-          tileset.boundingSphere.center,
-          new Cesium.Cartesian3()
-        ); //这是原点坐标
-        var cartographic = Cesium.Cartographic.fromCartesian(orginPoint);
-        cartographic.longitude += 0.00001;
-        cartographic.latitude += 0.00001;
-        var pos2 = Cesium.Cartographic.toCartesian(cartographic);
+    }
+  </script>
+  <div id="cesiumContainer">
+    <button onclick="locate()">定位</button>
+  </div>
+  <script type="module">
+    // import IndexedDbCache from "../Lib/indexDbCache.js";
+    import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+    window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+    window.Cesium = Cesium;
+    /* eslint-disable */
+    var viewer;
+    var modelHeight;
+    viewer = new Cesium.Viewer("cesiumContainer", {
+      shadows: true,
+    });
+    window._viewer = viewer;
+    viewer.scene.logarithmicDepthBuffer = false;
+    viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
+    var tileset = viewer.scene.primitives.add(
+      new Cesium.Cesium3DTileset({
+        // url: "../TilesLocate/tiles/tileset.json",
+        url:
+          "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-1/tileset.json",
+        debugShowBoundingVolume: false,
+        skipLevelOfDetail: true,
+        shadows: Cesium.ShadowMode.DISABLED,
+        //   preferLeaves: true,
+        maximumScreenSpaceError: 16,
+      })
+    );
+    tileset.readyPromise.then(function() {
+      // 绘制一个圆，查看遮挡情况
+      var radius = 100;
+      var orginPoint = Cesium.Matrix4.multiplyByPoint(
+        tileset.modelMatrix,
+        tileset.boundingSphere.center,
+        new Cesium.Cartesian3()
+      ); //这是原点坐标
+      var cartographic = Cesium.Cartographic.fromCartesian(orginPoint);
+      cartographic.longitude += 0.00001;
+      cartographic.latitude += 0.00001;
+      var pos2 = Cesium.Cartographic.toCartesian(cartographic);
 
-        var circle1 = new Cesium.CircleGeometry({
-          center: orginPoint,
-          radius: radius,
-          height: 3,
-        });
-        var instance1 = new Cesium.GeometryInstance({
-          geometry: circle1,
-          id: "normal primitive",
-        });
-        var circle2 = new Cesium.CircleGeometry({
-          center: orginPoint,
-          radius: radius,
-          height: 20,
-        });
-        var instance2 = new Cesium.GeometryInstance({
-          geometry: circle2,
-          id: "ground primitive1",
-        });
-        var circle3 = new Cesium.CircleGeometry({
-          center: orginPoint,
-          radius: radius / 2,
-          height: 20,
-        });
-        var instance3 = new Cesium.GeometryInstance({
-          geometry: circle3,
-          id: "ground primitive2",
-        });
-
-        // 普通
-        window._p = viewer.scene.primitives.add(
-          new Cesium.Primitive({
-            geometryInstances: instance1,
-            appearance: new Cesium.MaterialAppearance({
-              material: Cesium.Material.fromType("Color", {
-                color: new Cesium.Color(1, 0, 0, 1),
-              }),
-            }),
-          })
-        );
-
-        // 贴地
-        window._groundp = viewer.scene.groundPrimitives.add(
-          new Cesium.GroundPrimitive({
-            geometryInstances: instance2,
-            appearance: new Cesium.MaterialAppearance({
-              material: Cesium.Material.fromType("Color", {
-                color: new Cesium.Color(0, 1, 0, 1),
-              }),
-            }),
-          })
-        );
-        viewer.scene.groundPrimitives.add(
-          new Cesium.GroundPrimitive({
-            geometryInstances: instance3,
-            appearance: new Cesium.MaterialAppearance({
-              material: Cesium.Material.fromType("Color", {
-                color: new Cesium.Color(1, 1, 0, 1),
-              }),
-            }),
-          })
-        );
-
-        // entity
-        window._entity = viewer.entities.add({
-          position: pos2,
-          id: "entity",
-          ellipse: {
-            semiMajorAxis: radius,
-            semiMinorAxis: radius,
-            material: new Cesium.Color(0, 0, 1, 1),
-          },
-        });
-
-        viewer.zoomTo(
-          tileset,
-          new Cesium.HeadingPitchRange(
-            0,
-            -2.0,
-            Math.max(100.0 - tileset.boundingSphere.radius, 0.0)
-          )
-        );
-        // _enableTranslate()
+      var circle1 = new Cesium.CircleGeometry({
+        center: orginPoint,
+        radius: radius,
+        height: 3,
       });
-      window._tileset = tileset;
+      var instance1 = new Cesium.GeometryInstance({
+        geometry: circle1,
+        id: "normal primitive",
+      });
+      var circle2 = new Cesium.CircleGeometry({
+        center: orginPoint,
+        radius: radius,
+        height: 20,
+      });
+      var instance2 = new Cesium.GeometryInstance({
+        geometry: circle2,
+        id: "ground primitive1",
+      });
+      var circle3 = new Cesium.CircleGeometry({
+        center: orginPoint,
+        radius: radius / 2,
+        height: 20,
+      });
+      var instance3 = new Cesium.GeometryInstance({
+        geometry: circle3,
+        id: "ground primitive2",
+      });
 
-      var tileset2 = viewer.scene.primitives.add(
-        new Cesium.Cesium3DTileset({
-          url:
-            "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-2/tileset.json",
-          debugShowBoundingVolume: false,
-          skipLevelOfDetail: true,
-          shadows: Cesium.ShadowMode.DISABLED,
-          //   preferLeaves: true,
-          maximumScreenSpaceError: 16,
+      // 普通
+      window._p = viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: instance1,
+          appearance: new Cesium.MaterialAppearance({
+            material: Cesium.Material.fromType("Color", {
+              color: new Cesium.Color(1, 0, 0, 1),
+            }),
+          }),
         })
       );
 
-      // 移动模型
-      function _enableTranslate() {
-        let handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
-        let pickedObject = null;
-        let leftDownFlag = false;
+      // 贴地
+      window._groundp = viewer.scene.groundPrimitives.add(
+        new Cesium.GroundPrimitive({
+          geometryInstances: instance2,
+          appearance: new Cesium.MaterialAppearance({
+            material: Cesium.Material.fromType("Color", {
+              color: new Cesium.Color(0, 1, 0, 1),
+            }),
+          }),
+        })
+      );
+      viewer.scene.groundPrimitives.add(
+        new Cesium.GroundPrimitive({
+          geometryInstances: instance3,
+          appearance: new Cesium.MaterialAppearance({
+            material: Cesium.Material.fromType("Color", {
+              color: new Cesium.Color(1, 1, 0, 1),
+            }),
+          }),
+        })
+      );
 
-        handler.setInputAction(function (movement) {
-          pickedObject = viewer.scene.pick(movement.position);
-          if (Cesium.defined(pickedObject)) {
-            if (pickedObject.primitive.isCesium3DTileset == undefined) {
-              leftDownFlag = true;
-              document.body.style.cursor = "pointer";
-              viewer.scene.screenSpaceCameraController.enableRotate = false; //锁定相机
-              pickedObject.primitive.style = new Cesium.Cesium3DTileStyle({
-                color: {
-                  conditions: [["true", 'color("rgba(0,255,0,0.5)")']],
-                },
-              });
-            }
-          }
-        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+      // entity
+      window._entity = viewer.entities.add({
+        position: pos2,
+        id: "entity",
+        ellipse: {
+          semiMajorAxis: radius,
+          semiMinorAxis: radius,
+          material: new Cesium.Color(0, 0, 1, 1),
+        },
+      });
 
-        handler.setInputAction(function () {
-          leftDownFlag = false;
-          if (pickedObject) {
+      viewer.zoomTo(
+        tileset,
+        new Cesium.HeadingPitchRange(
+          0,
+          -2.0,
+          Math.max(100.0 - tileset.boundingSphere.radius, 0.0)
+        )
+      );
+      // _enableTranslate()
+    });
+    window._tileset = tileset;
+
+    var tileset2 = viewer.scene.primitives.add(
+      new Cesium.Cesium3DTileset({
+        url:
+          "https://maps.bim-ace.com:10202/%E5%85%A8%E6%99%AF/%E8%AF%B8%E6%9A%A8/%E5%9C%B0%E5%BD%A217%E7%BA%A7%E5%88%86%E5%9D%97/10-2/tileset.json",
+        debugShowBoundingVolume: false,
+        skipLevelOfDetail: true,
+        shadows: Cesium.ShadowMode.DISABLED,
+        //   preferLeaves: true,
+        maximumScreenSpaceError: 16,
+      })
+    );
+
+    // 移动模型
+    function _enableTranslate() {
+      let handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+      let pickedObject = null;
+      let leftDownFlag = false;
+
+      handler.setInputAction(function(movement) {
+        pickedObject = viewer.scene.pick(movement.position);
+        if (Cesium.defined(pickedObject)) {
+          if (pickedObject.primitive.isCesium3DTileset == undefined) {
+            leftDownFlag = true;
+            document.body.style.cursor = "pointer";
+            viewer.scene.screenSpaceCameraController.enableRotate = false; //锁定相机
             pickedObject.primitive.style = new Cesium.Cesium3DTileStyle({
               color: {
-                conditions: [["true", 'color("white")']],
+                conditions: [["true", 'color("rgba(0,255,0,0.5)")']],
               },
             });
-            pickedObject = null;
-            viewer.scene.screenSpaceCameraController.enableRotate = true; //解除锁定相机
-            //handler.destroy();//销毁左键监听事件
-            document.body.style.cursor = "default";
           }
-        }, Cesium.ScreenSpaceEventType.LEFT_UP);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-        handler.setInputAction((movement) => {
-          if (false && pickedObject.primitive.modelMatrix) {
-            // ************关键代码：cartesian的值************
-            let ray = viewer.camera.getPickRay(movement.endPosition);
-            let cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-            if (cartesian) {
-              let cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-              cartographic.height = modelHeight;
-              cartesian = Cesium.Cartesian3.fromRadians(
-                cartographic.longitude,
-                cartographic.latitude,
-                cartographic.height
-              );
-              let headingPitchRoll = new Cesium.HeadingPitchRoll(
-                Cesium.Math.toRadians(0),
-                0,
-                0
-              );
-              let m = Cesium.Transforms.headingPitchRollToFixedFrame(
-                cartesian,
-                headingPitchRoll
-              );
-              pickedObject.primitive.modelMatrix = m;
-            }
+      handler.setInputAction(function() {
+        leftDownFlag = false;
+        if (pickedObject) {
+          pickedObject.primitive.style = new Cesium.Cesium3DTileStyle({
+            color: {
+              conditions: [["true", 'color("white")']],
+            },
+          });
+          pickedObject = null;
+          viewer.scene.screenSpaceCameraController.enableRotate = true; //解除锁定相机
+          //handler.destroy();//销毁左键监听事件
+          document.body.style.cursor = "default";
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+      handler.setInputAction((movement) => {
+        if (false && pickedObject.primitive.modelMatrix) {
+          // ************关键代码：cartesian的值************
+          let ray = viewer.camera.getPickRay(movement.endPosition);
+          let cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+          if (cartesian) {
+            let cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+            cartographic.height = modelHeight;
+            cartesian = Cesium.Cartesian3.fromRadians(
+              cartographic.longitude,
+              cartographic.latitude,
+              cartographic.height
+            );
+            let headingPitchRoll = new Cesium.HeadingPitchRoll(
+              Cesium.Math.toRadians(0),
+              0,
+              0
+            );
+            let m = Cesium.Transforms.headingPitchRollToFixedFrame(
+              cartesian,
+              headingPitchRoll
+            );
+            pickedObject.primitive.modelMatrix = m;
           }
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-      }
-    </script>
-  </body>
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    }
+  </script>
+</body>
+
 </html>

@@ -1,4 +1,4 @@
-import * as Cesium from "../../../Source/Cesium.js";
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 import CoordTransform from "./CoordTransform.js";
 
 class AmapMercatorTilingScheme extends Cesium.WebMercatorTilingScheme {
