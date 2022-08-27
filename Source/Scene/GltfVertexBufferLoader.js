@@ -43,7 +43,7 @@ import ComponentDatatype from "../Core/ComponentDatatype.js";
  *
  * @private
  */
-export default function GltfVertexBufferLoader(options) {
+function GltfVertexBufferLoader(options) {
   options = defaultValue(options, defaultValue.EMPTY_OBJECT);
   const resourceCache = options.resourceCache;
   const gltf = options.gltf;
@@ -384,7 +384,11 @@ function loadFromDraco(vertexBufferLoader) {
     }
 
     // Now wait for process() to run to finish loading
-    vertexBufferLoader._typedArray = typedArray;
+    vertexBufferLoader._typedArray = new Uint8Array(
+      typedArray.buffer,
+      typedArray.byteOffset,
+      typedArray.byteLength
+    );
     vertexBufferLoader._state = ResourceLoaderState.PROCESSING;
     return vertexBufferLoader;
   });
@@ -522,3 +526,5 @@ GltfVertexBufferLoader.prototype.unload = function () {
   this._buffer = undefined;
   this._gltf = undefined;
 };
+
+export default GltfVertexBufferLoader;
