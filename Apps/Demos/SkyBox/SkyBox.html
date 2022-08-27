@@ -1,62 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>天空盒</title>
-    <!-- <script src="../../../Build/Cesium/Cesium.js"></script> -->
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-    </style>
-  </head>
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>天空盒</title>
+  <!-- <script src="../../../Build/Cesium/Cesium.js"></script> -->
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-  <body>
-    <div id="cesiumContainer"></div>
-    <script type="module">
-      import * as Cesium from "../../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../../Source";
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
 
-      var viewer = new Cesium.Viewer("cesiumContainer", {
-        nearGroundSkyBoxShowHeight: 10000,
-        nearGroundSkyBox: new Cesium.SkyBox({
-          nearGround: true,
-          sources: {
-            positiveX: "./pictures/test/px.jpg",
-            negativeX: "./pictures/test/nx.jpg",
-            positiveY: "./pictures/test/py.jpg",
-            negativeY: "./pictures/test/ny.jpg",
-            positiveZ: "./pictures/test/pz.jpg",
-            negativeZ: "./pictures/test/nz.jpg",
-          },
-        }),
-      });
-      window._viewer = viewer;
-      viewer.camera.setView({
-        destination: new Cesium.Cartesian3.fromDegrees(0, 0, 7e7),
-        duration: 0,
-      });
+<body>
+  <div id="cesiumContainer"></div>
+  <script type="module">
+    import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+    window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-      viewer.scene.moon = undefined;
-      viewer.scene.sun = undefined;
+    var viewer = new Cesium.Viewer("cesiumContainer", {
+      nearGroundSkyBoxShowHeight: 10000,
+      nearGroundSkyBox: new Cesium.SkyBox({
+        nearGround: true,
+        sources: {
+          positiveX: "./pictures/test/px.jpg",
+          negativeX: "./pictures/test/nx.jpg",
+          positiveY: "./pictures/test/py.jpg",
+          negativeY: "./pictures/test/ny.jpg",
+          positiveZ: "./pictures/test/pz.jpg",
+          negativeZ: "./pictures/test/nz.jpg",
+        },
+      }),
+    });
+    window._viewer = viewer;
+    viewer.camera.setView({
+      destination: new Cesium.Cartesian3.fromDegrees(0, 0, 7e7),
+      duration: 0,
+    });
+
+    viewer.scene.moon = undefined;
+    viewer.scene.sun = undefined;
 
       // var defaultSkybox = viewer.scene.skyBox;
       // var nearGroundSkybox = new Cesium.SkyBox({
@@ -93,6 +92,7 @@
       //     viewer.scene.skyAtmosphere.show = true;
       //   }
       // });
-    </script>
-  </body>
+  </script>
+</body>
+
 </html>

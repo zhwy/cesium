@@ -12,7 +12,7 @@
   <title>Moving Objects</title>
   <!-- <script src="../../../Build/Cesium/Cesium.js"></script> -->
   <style>
-    @import url(../../../Build/Cesium/Widgets/widgets.css);
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
     html,
     body,
@@ -30,8 +30,8 @@
   <div id="cesiumContainer"></div>
   <script type="module">
     /* eslint-disable no-undef */
-    import * as Cesium from "../../../Source/Cesium.js";
-    window.CESIUM_BASE_URL = "../../../Source";
+    import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+    window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
     var viewer = new Cesium.Viewer("cesiumContainer");
     viewer.scene.debugShowFramesPerSecond = true;
     var pathLists = [];
@@ -95,7 +95,7 @@
       if (time == totalTime) time = 0;
       pathLists.forEach(line => {
         line.path.position = line.positions.getValue(now);
-      })
+      });
 
     });
 

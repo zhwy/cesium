@@ -1,271 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>水面效果</title>
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        position: relative;
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>水面效果</title>
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #button {
+      position: absolute;
+      left: 0;
+      top: 0;
+      margin: 10px;
+      border-radius: 5px;
+      background-color: white;
+      color: black;
+      padding: 5px 10px;
+      z-index: 99;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer">
+    <div id="button">扰动</div>
+  </div>
+  <script type="module">
+    /* eslint-disable */
+    import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+    import { SimplexNoise } from "./SimplexNoise.js";
+    import CustomPrimitive from "./customPrimitive.js";
+    window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    const viewer = new Cesium.Viewer("cesiumContainer");
+    window._viewer = viewer;
+
+    viewer.scene.globe.depthTestAgainstTerrain = false;
+    // viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
+
+    const WIDTH = 128;
+    const rectangle = Cesium.Rectangle.fromDegrees(120, 30, 120.001, 30.001);
+
+    const polygon = new Cesium.PolygonHierarchy(
+      Cesium.Cartesian3.fromDegreesArrayHeights([
+        120,
+        30,
+        5,
+        120.001,
+        30,
+        5,
+        120.001,
+        30.001,
+        5,
+        120,
+        30.001,
+        5,
+        120,
+        30,
+        5,
+      ])
+    );
+    const polygonGeom = new Cesium.PolygonGeometry({
+      polygonHierarchy: polygon,
+      vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
+      // height: 10000
+      perPositionHeight: true,
+    });
+
+    const test = Cesium.PolygonGeometry.createGeometry(polygonGeom);
+    console.log(test);
+
+    const width = rectangle.east - rectangle.west;
+    const height = rectangle.north - rectangle.south;
+
+    const gridX = Math.floor(WIDTH);
+    const gridY = Math.floor(WIDTH);
+
+    const gridX1 = gridX + 1;
+    const gridY1 = gridY + 1;
+
+    const segment_width = width / gridX;
+    const segment_height = height / gridY;
+
+    const indices = [];
+    const vertices = [];
+    const uvs = [];
+
+    for (let iy = 0; iy < gridY1; iy++) {
+      const lat = iy * segment_height + rectangle.south;
+
+      for (let ix = 0; ix < gridX1; ix++) {
+        const lon = ix * segment_width + rectangle.west;
+
+        const pos = Cesium.Cartesian3.fromRadians(lon, lat);
+
+        vertices.push(pos.x, pos.y, pos.z);
+
+        uvs.push(ix / gridX);
+        uvs.push(iy / gridY);
       }
+    }
 
-      #button {
-        position: absolute;
-        left: 0;
-        top: 0;
-        margin: 10px;
-        border-radius: 5px;
-        background-color: white;
-        color: black;
-        padding: 5px 10px;
-        z-index: 99;
-        cursor: pointer;
+    for (let iy = 0; iy < gridY; iy++) {
+      for (let ix = 0; ix < gridX; ix++) {
+        const a = ix + gridX1 * iy;
+        const b = ix + gridX1 * (iy + 1);
+        const c = ix + 1 + gridX1 * (iy + 1);
+        const d = ix + 1 + gridX1 * iy;
+
+        indices.push(a, d, b);
+        indices.push(c, b, d);
       }
-    </style>
-  </head>
+    }
 
-  <body>
-    <div id="cesiumContainer">
-      <div id="button">扰动</div>
-    </div>
-    <script type="module">
-      /* eslint-disable */
-      import * as Cesium from "../../../Source/Cesium.js";
-      import { SimplexNoise } from "./SimplexNoise.js";
-      import CustomPrimitive from "./customPrimitive.js";
-      window.CESIUM_BASE_URL = "../../../Source";
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+    const attributes = new Cesium.GeometryAttributes({
+      position: new Cesium.GeometryAttribute({
+        componentDatatype: Cesium.ComponentDatatype.FLOAT,
+        componentsPerAttribute: 3,
+        values: new Float64Array(vertices),
+      }),
+      st: new Cesium.GeometryAttribute({
+        componentDatatype: Cesium.ComponentDatatype.FLOAT,
+        componentsPerAttribute: 2,
+        values: new Float32Array(uvs),
+      }),
+    });
+    const geometry = new Cesium.Geometry({
+      indices: new Uint16Array(indices),
+      attributes: attributes,
+    });
 
-      const viewer = new Cesium.Viewer("cesiumContainer");
-      window._viewer = viewer;
-
-      viewer.scene.globe.depthTestAgainstTerrain = false;
-      // viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
-
-      const WIDTH = 128;
-      const rectangle = Cesium.Rectangle.fromDegrees(120, 30, 120.001, 30.001);
-
-      const polygon = new Cesium.PolygonHierarchy(
-        Cesium.Cartesian3.fromDegreesArrayHeights([
-          120,
-          30,
-          5,
-          120.001,
-          30,
-          5,
-          120.001,
-          30.001,
-          5,
-          120,
-          30.001,
-          5,
-          120,
-          30,
-          5,
-        ])
-      );
-      const polygonGeom = new Cesium.PolygonGeometry({
-        polygonHierarchy: polygon,
-        vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
-        // height: 10000
-        perPositionHeight: true,
-      });
-
-      const test = Cesium.PolygonGeometry.createGeometry(polygonGeom);
-      console.log(test);
-
-      const width = rectangle.east - rectangle.west;
-      const height = rectangle.north - rectangle.south;
-
-      const gridX = Math.floor(WIDTH);
-      const gridY = Math.floor(WIDTH);
-
-      const gridX1 = gridX + 1;
-      const gridY1 = gridY + 1;
-
-      const segment_width = width / gridX;
-      const segment_height = height / gridY;
-
-      const indices = [];
-      const vertices = [];
-      const uvs = [];
-
-      for (let iy = 0; iy < gridY1; iy++) {
-        const lat = iy * segment_height + rectangle.south;
-
-        for (let ix = 0; ix < gridX1; ix++) {
-          const lon = ix * segment_width + rectangle.west;
-
-          const pos = Cesium.Cartesian3.fromRadians(lon, lat);
-
-          vertices.push(pos.x, pos.y, pos.z);
-
-          uvs.push(ix / gridX);
-          uvs.push(iy / gridY);
-        }
-      }
-
-      for (let iy = 0; iy < gridY; iy++) {
-        for (let ix = 0; ix < gridX; ix++) {
-          const a = ix + gridX1 * iy;
-          const b = ix + gridX1 * (iy + 1);
-          const c = ix + 1 + gridX1 * (iy + 1);
-          const d = ix + 1 + gridX1 * iy;
-
-          indices.push(a, d, b);
-          indices.push(c, b, d);
-        }
-      }
-
-      const attributes = new Cesium.GeometryAttributes({
-        position: new Cesium.GeometryAttribute({
-          componentDatatype: Cesium.ComponentDatatype.FLOAT,
-          componentsPerAttribute: 3,
-          values: new Float64Array(vertices),
-        }),
-        st: new Cesium.GeometryAttribute({
-          componentDatatype: Cesium.ComponentDatatype.FLOAT,
-          componentsPerAttribute: 2,
-          values: new Float32Array(uvs),
-        }),
-      });
-      const geometry = new Cesium.Geometry({
-        indices: new Uint16Array(indices),
-        attributes: attributes,
-      });
-
-      const sample = new Cesium.Primitive({
-        geometryInstances: new Cesium.GeometryInstance({
-          geometry: geometry,
-        }),
-        appearance: new Cesium.EllipsoidSurfaceAppearance({
-          // flat: true,
-          material: new Cesium.Material({
-            fabric: {
-              type: "Image",
-              uniforms: {
-                image: "./waterNormals.jpg",
-              },
+    const sample = new Cesium.Primitive({
+      geometryInstances: new Cesium.GeometryInstance({
+        geometry: geometry,
+      }),
+      appearance: new Cesium.EllipsoidSurfaceAppearance({
+        // flat: true,
+        material: new Cesium.Material({
+          fabric: {
+            type: "Image",
+            uniforms: {
+              image: "./waterNormals.jpg",
             },
-          }),
+          },
         }),
-      });
-      // viewer.scene.primitives.add(sample)
+      }),
+    });
+    // viewer.scene.primitives.add(sample)
 
-      viewer.camera.setView({
-        destination: rectangle,
-      });
+    viewer.camera.setView({
+      destination: rectangle,
+    });
 
-      // 填充heightmap
+    // 填充heightmap
 
-      const waterMaxHeight = 10;
-      const simplex = new SimplexNoise();
+    const waterMaxHeight = 10;
+    const simplex = new SimplexNoise();
 
-      let tempTexture = new Cesium.Texture({
-        width: WIDTH,
-        height: WIDTH,
-        context: viewer.scene.context,
-        pixelFormat: Cesium.PixelFormat.RGBA,
-        pixelDatatype: Cesium.PixelDatatype.FLOAT,
-        flipX: false,
-        flipY: false,
-      });
+    let tempTexture = new Cesium.Texture({
+      width: WIDTH,
+      height: WIDTH,
+      context: viewer.scene.context,
+      pixelFormat: Cesium.PixelFormat.RGBA,
+      pixelDatatype: Cesium.PixelDatatype.FLOAT,
+      flipX: false,
+      flipY: false,
+    });
 
-      const fillTexture = (texture) => {
-        function noise(x, y) {
-          let multR = waterMaxHeight;
-          let mult = 0.025;
-          let r = 0;
-          for (let i = 0; i < 15; i++) {
-            r += multR * simplex.noise(x * mult, y * mult);
-            multR *= 0.53 + 0.025 * i;
-            mult *= 1.25;
-          }
-
-          return r;
-          // return Math.random();
+    const fillTexture = (texture) => {
+      function noise(x, y) {
+        let multR = waterMaxHeight;
+        let mult = 0.025;
+        let r = 0;
+        for (let i = 0; i < 15; i++) {
+          r += multR * simplex.noise(x * mult, y * mult);
+          multR *= 0.53 + 0.025 * i;
+          mult *= 1.25;
         }
 
-        const pixels = new Float32Array(WIDTH * WIDTH * 4);
+        return r;
+        // return Math.random();
+      }
 
-        let p = 0;
-        for (let j = 0; j < WIDTH; j++) {
-          for (let i = 0; i < WIDTH; i++) {
-            const x = i;
-            const y = j;
+      const pixels = new Float32Array(WIDTH * WIDTH * 4);
 
-            // pixels[p + 0] = noise(x, y);
-            // pixels[p + 1] = pixels[p + 0];
-            // pixels[p + 2] = 0;
-            // pixels[p + 3] = 1;
-            if (x === WIDTH / 2 && y === WIDTH / 2) {
-              pixels[p + 0] = 10;
-              pixels[p + 1] = pixels[p + 0];
-              pixels[p + 2] = 0;
-              pixels[p + 3] = 1;
-            } else {
-              pixels[p + 3] = 1;
-            }
+      let p = 0;
+      for (let j = 0; j < WIDTH; j++) {
+        for (let i = 0; i < WIDTH; i++) {
+          const x = i;
+          const y = j;
 
-            p += 4;
+          // pixels[p + 0] = noise(x, y);
+          // pixels[p + 1] = pixels[p + 0];
+          // pixels[p + 2] = 0;
+          // pixels[p + 3] = 1;
+          if (x === WIDTH / 2 && y === WIDTH / 2) {
+            pixels[p + 0] = 10;
+            pixels[p + 1] = pixels[p + 0];
+            pixels[p + 2] = 0;
+            pixels[p + 3] = 1;
+          } else {
+            pixels[p + 3] = 1;
           }
+
+          p += 4;
         }
+      }
 
-        texture.copyFrom({
-          source: {
-            width: WIDTH,
-            height: WIDTH,
-            arrayBufferView: pixels,
-          },
-        });
-      };
-
-      document.getElementById("button").addEventListener("click", () => {
-        fillTexture(tempTexture);
-      });
-      fillTexture(tempTexture);
-
-      const command = new Cesium.ComputeCommand({
-        outputTexture: tempTexture,
-        uniformMap: {
-          u_color: () => {
-            return new Cesium.Cartesian3(
-              Math.random(),
-              Math.random(),
-              Math.random()
-            );
-          },
-          viscosityConstant: () => {
-            return 0.98;
-          },
-          heightCompensation: () => {
-            return 0;
-          },
-          resolution: () => {
-            return new Cesium.Cartesian2(WIDTH, WIDTH);
-          },
-          heightmap: () => {
-            return tempTexture;
-          },
+      texture.copyFrom({
+        source: {
+          width: WIDTH,
+          height: WIDTH,
+          arrayBufferView: pixels,
         },
-        fragmentShaderSource: `
+      });
+    };
+
+    document.getElementById("button").addEventListener("click", () => {
+      fillTexture(tempTexture);
+    });
+    fillTexture(tempTexture);
+
+    const command = new Cesium.ComputeCommand({
+      outputTexture: tempTexture,
+      uniformMap: {
+        u_color: () => {
+          return new Cesium.Cartesian3(
+            Math.random(),
+            Math.random(),
+            Math.random()
+          );
+        },
+        viscosityConstant: () => {
+          return 0.98;
+        },
+        heightCompensation: () => {
+          return 0;
+        },
+        resolution: () => {
+          return new Cesium.Cartesian2(WIDTH, WIDTH);
+        },
+        heightmap: () => {
+          return tempTexture;
+        },
+      },
+      fragmentShaderSource: `
         // uniform vec3 u_color;
         varying vec2 v_textureCoordinates;
         // void main() {
@@ -312,43 +311,43 @@
 
         }
       `,
-        preExecute: () => {
-          const nextTexture = new Cesium.Texture({
-            width: WIDTH,
-            height: WIDTH,
-            context: viewer.scene.context,
-            pixelFormat: Cesium.PixelFormat.RGBA,
-            pixelDatatype: Cesium.PixelDatatype.FLOAT,
-            flipX: false,
-            flipY: false,
-          });
-          command.outputTexture = nextTexture;
-        },
-        postExecute: (outputTexture) => {
-          tempTexture = outputTexture;
-          // primitive.appearance.material._textures.image = outputTexture;
-        },
-      });
-      const computer = new Cesium.ComputeEngine(viewer.scene.context);
+      preExecute: () => {
+        const nextTexture = new Cesium.Texture({
+          width: WIDTH,
+          height: WIDTH,
+          context: viewer.scene.context,
+          pixelFormat: Cesium.PixelFormat.RGBA,
+          pixelDatatype: Cesium.PixelDatatype.FLOAT,
+          flipX: false,
+          flipY: false,
+        });
+        command.outputTexture = nextTexture;
+      },
+      postExecute: (outputTexture) => {
+        tempTexture = outputTexture;
+        // primitive.appearance.material._textures.image = outputTexture;
+      },
+    });
+    const computer = new Cesium.ComputeEngine(viewer.scene.context);
 
-      viewer.scene.preRender.addEventListener((scene) => {
-        computer.execute(command);
-      });
+    viewer.scene.preRender.addEventListener((scene) => {
+      computer.execute(command);
+    });
 
-      const custom = new CustomPrimitive({
-        commandType: "Draw",
-        geometry: geometry,
-        attributeLocations: {
-          st: 0,
-          position: 1,
+    const custom = new CustomPrimitive({
+      commandType: "Draw",
+      geometry: geometry,
+      attributeLocations: {
+        st: 0,
+        position: 1,
+      },
+      uniformMap: {
+        image_0: () => {
+          return command.outputTexture;
         },
-        uniformMap: {
-          image_0: () => {
-            return command.outputTexture;
-          },
-        },
-        primitiveType: Cesium.PrimitiveType.TRIANGLES,
-        vertexShaderSource: `
+      },
+      primitiveType: Cesium.PrimitiveType.TRIANGLES,
+      vertexShaderSource: `
             uniform sampler2D image_0;
 
             attribute vec3 position3DHigh;
@@ -360,7 +359,7 @@
 
             varying vec3 v_positionMC;
             varying vec3 v_positionEC;
-            varying vec2 v_st;            
+            varying vec2 v_st;
 
             vec3 shiftPos(vec3 pos)
             {
@@ -399,7 +398,7 @@
             }
 
             void main()
-            {                 
+            {
 
                 vec4 p = czm_computePosition();
 
@@ -410,7 +409,7 @@
                 gl_Position = czm_modelViewProjectionRelativeToEye * p;
             }
           `,
-        fragmentShaderSource: `
+      fragmentShaderSource: `
             uniform sampler2D image_0;
             varying vec3 v_positionMC;
             varying vec3 v_positionEC;
@@ -419,7 +418,7 @@
             void main()
             {
                 czm_materialInput materialInput;
-               
+
                 vec2 cellSize = 1. / vec2(${WIDTH}.);
 
                 vec3 normalEC = normalize(vec3(
@@ -427,7 +426,7 @@
                   ( texture2D( image_0, v_st + vec2( 0, - cellSize.y ) ).x - texture2D( image_0, v_st + vec2( 0, cellSize.y ) ).x ) ,
                   1.0 ));
                 // vec3 normalEC = normalize(czm_normal3D * czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));
-      
+
 
                 materialInput.s = v_st.s;
                 materialInput.st = v_st;
@@ -450,10 +449,11 @@
             }
 
         `,
-        rawRenderState: Cesium.Appearance.getDefaultRenderState(),
-      });
+      rawRenderState: Cesium.Appearance.getDefaultRenderState(),
+    });
 
-      viewer.scene.primitives.add(custom);
-    </script>
-  </body>
+    viewer.scene.primitives.add(custom);
+  </script>
+</body>
+
 </html>

@@ -1,4 +1,4 @@
-import * as Cesium from "/Source/Cesium.js";
+import * as Cesium from "/Build/CesiumUnminified/index.js";
 class LineRoamingHelper {
   constructor(viewer) {
     this.viewer = viewer;
@@ -12,7 +12,7 @@ class LineRoamingHelper {
     this.roaming = false;
     this.multiplier = 60; // 行进速度
     this.cameraDirection = 1;
-    this.whenStopRoaming = () => { };
+    this.whenStopRoaming = () => {};
 
     this.rotateCtrls = this.viewer.scene.screenSpaceCameraController.rotateEventTypes;
     this.tiltCtrls = this.viewer.scene.screenSpaceCameraController.tiltEventTypes;
@@ -106,7 +106,7 @@ class LineRoamingHelper {
       orientation: {
         heading: geodesic.startHeading,
         pitch: 0,
-        roll: 0
+        roll: 0,
       },
       maximumHeight: geodesic.start.height,
       duration: 2,
@@ -156,7 +156,7 @@ class LineRoamingHelper {
             }
           }
         });
-      }
+      },
     });
   }
   /**
@@ -180,7 +180,7 @@ class LineRoamingHelper {
           break;
         case "S".charCodeAt(0):
           this.clock.shouldAnimate = true;
-          this.clock.multiplier = this.multiplier * this.cameraDirection * (-1);
+          this.clock.multiplier = this.multiplier * this.cameraDirection * -1;
           break;
         case 27: //esc
           this.deactivateRoaming();

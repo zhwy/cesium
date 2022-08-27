@@ -1,282 +1,282 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>Hello My Cesium</title>
-    <script src="Demos/Lib/tool.js"></script>
-    <style>
-      @import url(../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>Hello My Cesium</title>
+  <script src="Demos/Lib/tool.js"></script>
+  <style>
+    @import url(../Build/Cesium/Widgets/widgets.css);
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <script type="module">
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+    window.CESIUM_BASE_URL = "../Source";
+    import * as Cesium from "../Build/CesiumUnminified/index.js";
+    import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
+    /* eslint-disable */
+    var _roam = true;
+    var viewer = new Cesium.Viewer("cesiumContainer", {
+      animation: false,
+      baseLayerPicker: false,
+      geocoder: false,
+      timeline: false,
+      infobox: false,
+      navigationHelpButton: false,
+      sceneModePicker: false,
+      scene3DOnly: true,
+      homeButton: false,
+      infoBox: false,
+      selectionIndicator: false,
+      fullscreenButton: false,
+      shouldAnimate: true,
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url:
+          "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
+        maximumLevel: 20,
+        tileWidth: 512,
+        tileHeight: 512,
+      }),
+      terrainProvider: Cesium.createWorldTerrain(),
+    });
+    window._viewer = viewer;
+    //抗锯齿
+    viewer.scene.postProcessStages.fxaa.enabled = true;
+    //3d tiles inspector
+    // viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    //防止模型显示不完整
+    viewer.scene.logarithmicDepthBuffer = false;
+    //鼠标控制
+    viewer.scene.screenSpaceCameraController.rotateEventTypes = [
+      Cesium.CameraEventType.LEFT_DRAG,
+    ];
+    viewer.scene.screenSpaceCameraController.zoomEventTypes = [
+      Cesium.CameraEventType.WHEEL,
+    ];
+    //加载模型
+    // var model = new Cesium.Cesium3DTileset({
+    //   url: "http://localhost:8082/compare_with_glb/tileset.json",
+    //   // url: 'http://localhost:8082/revit/tileset.json',
+    //   luminanceAtZenith: 1,
+    //   lightColor: new Cesium.Cartesian3(1, 1, 1),
+    //   immediatelyLoadDesiredLevelOfDetail: true,
+    //   maximumScreenSpaceError: 100,
+    //   debugShowGeometricError: false,
+    //   // debugShowBoundingVolume: true
+    //   //debugShowUrl: true,
+    //   // loadSiblings: true
+    //   maximumMemoryUsage: 512,
+    //   dynamicScreenSpaceError: false,
+    // });
+    // changeTilesetPosition(model, 0, 0, 200);
+    var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+    var orientation = Cesium.Transforms.headingPitchRollQuaternion(
+      pos,
+      new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
+    );
+    var model = viewer.entities.add({
+      position: pos,
+      orientation: orientation,
+      model: {
+        uri: "/Apps/Demos/Underground/隧道test.glb",
+      },
+    });
+    viewer.zoomTo(model);
+    viewer.camera.moveEnd.addEventListener(function(e) {
+      var pos = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+      console.log("camera height: " + pos.height);
+    });
+    //球体
+    var ballPos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 660.67);
+    var ball = viewer.entities.add({
+      name: "ball",
+      position: ballPos,
+      point: {
+        pixelSize: 10,
+        fill: true,
+        color: Cesium.Color.YELLOW,
+      },
+    });
+    var picker = new PickFromRay(viewer, [ball]);
+    //按键移动相机
+    var keydown = function(e) {
+      if (_roam) {
+        _movePosition(e, viewer, viewer.camera);
       }
-    </style>
-  </head>
-
-  <body>
-    <div id="cesiumContainer"></div>
-    <script type="module">
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-      window.CESIUM_BASE_URL = "../Source";
-      import * as Cesium from "../Source/Cesium.js";
-      import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
-      /* eslint-disable */
-      var _roam = true;
-      var viewer = new Cesium.Viewer("cesiumContainer", {
-        animation: false,
-        baseLayerPicker: false,
-        geocoder: false,
-        timeline: false,
-        infobox: false,
-        navigationHelpButton: false,
-        sceneModePicker: false,
-        scene3DOnly: true,
-        homeButton: false,
-        infoBox: false,
-        selectionIndicator: false,
-        fullscreenButton: false,
-        shouldAnimate: true,
-        imageryProvider: new Cesium.UrlTemplateImageryProvider({
-          url:
-            "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-          maximumLevel: 20,
-          tileWidth: 512,
-          tileHeight: 512,
-        }),
-        terrainProvider: Cesium.createWorldTerrain(),
-      });
-      window._viewer = viewer;
-      //抗锯齿
-      viewer.scene.postProcessStages.fxaa.enabled = true;
-      //3d tiles inspector
-      // viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
-      viewer.scene.globe.depthTestAgainstTerrain = true;
-      //防止模型显示不完整
-      viewer.scene.logarithmicDepthBuffer = false;
-      //鼠标控制
-      viewer.scene.screenSpaceCameraController.rotateEventTypes = [
-        Cesium.CameraEventType.LEFT_DRAG,
-      ];
-      viewer.scene.screenSpaceCameraController.zoomEventTypes = [
-        Cesium.CameraEventType.WHEEL,
-      ];
-      //加载模型
-      // var model = new Cesium.Cesium3DTileset({
-      //   url: "http://localhost:8082/compare_with_glb/tileset.json",
-      //   // url: 'http://localhost:8082/revit/tileset.json',
-      //   luminanceAtZenith: 1,
-      //   lightColor: new Cesium.Cartesian3(1, 1, 1),
-      //   immediatelyLoadDesiredLevelOfDetail: true,
-      //   maximumScreenSpaceError: 100,
-      //   debugShowGeometricError: false,
-      //   // debugShowBoundingVolume: true
-      //   //debugShowUrl: true,
-      //   // loadSiblings: true
-      //   maximumMemoryUsage: 512,
-      //   dynamicScreenSpaceError: false,
-      // });
-      // changeTilesetPosition(model, 0, 0, 200);
-      var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-      var orientation = Cesium.Transforms.headingPitchRollQuaternion(
-        pos,
-        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
-      );
-      var model = viewer.entities.add({
-        position: pos,
-        orientation: orientation,
-        model: {
-          uri: "/Apps/Demos/Underground/隧道test.glb",
-        },
-      });
-      viewer.zoomTo(model);
-      viewer.camera.moveEnd.addEventListener(function (e) {
-        var pos = Cesium.Cartographic.fromCartesian(viewer.camera.position);
-        console.log("camera height: " + pos.height);
-      });
-      //球体
-      var ballPos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 660.67);
-      var ball = viewer.entities.add({
-        name: "ball",
-        position: ballPos,
-        point: {
-          pixelSize: 10,
-          fill: true,
-          color: Cesium.Color.YELLOW,
-        },
-      });
-      var picker = new PickFromRay(viewer, [ball]);
-      //按键移动相机
-      var keydown = function (e) {
-        if (_roam) {
-          _movePosition(e, viewer, viewer.camera);
-        }
-      };
-      document.addEventListener("keydown", keydown);
-      var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction(function (movement) {
-        var scene = viewer.scene;
-        if (scene.mode !== Cesium.SceneMode.MORPHING) {
-          var pickedObject = scene.pick(movement.position);
-          if (scene.pickPositionSupported && Cesium.defined(pickedObject)) {
-            var clickPos = Cesium.Cartographic.fromCartesian(
-              scene.pickPosition(movement.position)
-            );
-            if (Cesium.defined(pickedObject.tileset)) {
-              var name = pickedObject.getProperty("name");
-              console.log(name + " click height: " + clickPos.height);
-            }
+    };
+    document.addEventListener("keydown", keydown);
+    var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    handler.setInputAction(function(movement) {
+      var scene = viewer.scene;
+      if (scene.mode !== Cesium.SceneMode.MORPHING) {
+        var pickedObject = scene.pick(movement.position);
+        if (scene.pickPositionSupported && Cesium.defined(pickedObject)) {
+          var clickPos = Cesium.Cartographic.fromCartesian(
+            scene.pickPosition(movement.position)
+          );
+          if (Cesium.defined(pickedObject.tileset)) {
+            var name = pickedObject.getProperty("name");
+            console.log(name + " click height: " + clickPos.height);
           }
         }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-      //右键旋转视角
-      var startMousePosition;
-      var mousePosition;
-      var turning = false;
-      viewer.clock.onTick.addEventListener((clock) => {
-        if (turning) {
-          var width = viewer.scene.canvas.clientWidth;
-          var height = viewer.scene.canvas.clientHeight;
-          var x = (mousePosition.x - startMousePosition.x) / width;
-          var y = -(mousePosition.y - startMousePosition.y) / height;
-          var lookFactor = 3;
-          viewer.camera.setView({
-            orientation: {
-              heading: viewer.camera.heading + x * lookFactor,
-              pitch: viewer.camera.pitch + y * lookFactor,
-              roll: 0,
-            },
-          });
-          mousePosition.clone(startMousePosition);
-        }
-      });
-      handler.setInputAction(function (movement) {
-        mousePosition = movement.endPosition;
-      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-      handler.setInputAction(function (movement) {
-        turning = true;
-        mousePosition = startMousePosition = Cesium.Cartesian3.clone(
-          movement.position
-        );
-      }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
-      handler.setInputAction(function (movement) {
-        turning = false;
-        mousePosition = startMousePosition = Cesium.Cartesian3.clone(
-          movement.position
-        );
-      }, Cesium.ScreenSpaceEventType.RIGHT_UP);
-
-      var webMercatorProjection = new Cesium.WebMercatorProjection(
-        viewer.scene.globe.ellipsoid
+    //右键旋转视角
+    var startMousePosition;
+    var mousePosition;
+    var turning = false;
+    viewer.clock.onTick.addEventListener((clock) => {
+      if (turning) {
+        var width = viewer.scene.canvas.clientWidth;
+        var height = viewer.scene.canvas.clientHeight;
+        var x = (mousePosition.x - startMousePosition.x) / width;
+        var y = -(mousePosition.y - startMousePosition.y) / height;
+        var lookFactor = 3;
+        viewer.camera.setView({
+          orientation: {
+            heading: viewer.camera.heading + x * lookFactor,
+            pitch: viewer.camera.pitch + y * lookFactor,
+            roll: 0,
+          },
+        });
+        mousePosition.clone(startMousePosition);
+      }
+    });
+    handler.setInputAction(function(movement) {
+      mousePosition = movement.endPosition;
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    handler.setInputAction(function(movement) {
+      turning = true;
+      mousePosition = startMousePosition = Cesium.Cartesian3.clone(
+        movement.position
       );
+    }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
+    handler.setInputAction(function(movement) {
+      turning = false;
+      mousePosition = startMousePosition = Cesium.Cartesian3.clone(
+        movement.position
+      );
+    }, Cesium.ScreenSpaceEventType.RIGHT_UP);
 
-      function _movePosition(e, viewer, entity) {
-        var position;
-        var isCamare;
-        if (entity.position.x) {
-          position = entity.position.clone();
-          isCamare = true;
-        } else {
-          position = entity.position._value.clone();
-          isCamare = false;
-        }
-        var mercPosition = webMercatorProjection.project(
-          Cesium.Cartographic.fromCartesian(position)
-        );
-        var distance = 0.5;
-        var heading = viewer.camera.heading;
-        var newMercPosition;
-        var control = true;
-        switch (e.keyCode) {
-          case "W".charCodeAt(0):
-            newMercPosition = new Cesium.Cartesian3(
-              (mercPosition.x += distance * Math.sin(heading)),
-              (mercPosition.y += distance * Math.cos(heading)),
-              mercPosition.z
+    var webMercatorProjection = new Cesium.WebMercatorProjection(
+      viewer.scene.globe.ellipsoid
+    );
+
+    function _movePosition(e, viewer, entity) {
+      var position;
+      var isCamare;
+      if (entity.position.x) {
+        position = entity.position.clone();
+        isCamare = true;
+      } else {
+        position = entity.position._value.clone();
+        isCamare = false;
+      }
+      var mercPosition = webMercatorProjection.project(
+        Cesium.Cartographic.fromCartesian(position)
+      );
+      var distance = 0.5;
+      var heading = viewer.camera.heading;
+      var newMercPosition;
+      var control = true;
+      switch (e.keyCode) {
+        case "W".charCodeAt(0):
+          newMercPosition = new Cesium.Cartesian3(
+            (mercPosition.x += distance * Math.sin(heading)),
+            (mercPosition.y += distance * Math.cos(heading)),
+            mercPosition.z
+          );
+          break;
+        case "S".charCodeAt(0):
+          newMercPosition = new Cesium.Cartesian3(
+            (mercPosition.x -= distance * Math.sin(heading)),
+            (mercPosition.y -= distance * Math.cos(heading)),
+            mercPosition.z
+          );
+          break;
+        case "A".charCodeAt(0):
+          newMercPosition = new Cesium.Cartesian3(
+            (mercPosition.x -= distance * Math.cos(heading)),
+            (mercPosition.y += distance * Math.sin(heading)),
+            mercPosition.z
+          );
+          break;
+        case "D".charCodeAt(0):
+          newMercPosition = new Cesium.Cartesian3(
+            (mercPosition.x += distance * Math.cos(heading)),
+            (mercPosition.y -= distance * Math.sin(heading)),
+            mercPosition.z
+          );
+          break;
+        case "Z".charCodeAt(0):
+          newMercPosition = new Cesium.Cartesian3(
+            mercPosition.x,
+            mercPosition.y,
+            (mercPosition.z += 1)
+          );
+          control = false;
+          break;
+        case "X".charCodeAt(0):
+          newMercPosition = new Cesium.Cartesian3(
+            mercPosition.x,
+            mercPosition.y,
+            (mercPosition.z -= 1)
+          );
+          control = false;
+          break;
+      }
+      if (newMercPosition) {
+        var newCarto = webMercatorProjection.unproject(newMercPosition);
+        var direction = newCarto.clone();
+        direction.height -= 1; // 用于计算下个位置高度
+        direction = Cesium.Cartographic.toCartesian(direction);
+        var finalPos = Cesium.Cartographic.toCartesian(newCarto);
+        if (control) {
+          var floor = picker.pickFromRay(finalPos, [direction])[0];
+          if (floor && floor.position) {
+            var intersectedPos = Cesium.Cartographic.fromCartesian(
+              floor.position
             );
-            break;
-          case "S".charCodeAt(0):
-            newMercPosition = new Cesium.Cartesian3(
-              (mercPosition.x -= distance * Math.sin(heading)),
-              (mercPosition.y -= distance * Math.cos(heading)),
-              mercPosition.z
-            );
-            break;
-          case "A".charCodeAt(0):
-            newMercPosition = new Cesium.Cartesian3(
-              (mercPosition.x -= distance * Math.cos(heading)),
-              (mercPosition.y += distance * Math.sin(heading)),
-              mercPosition.z
-            );
-            break;
-          case "D".charCodeAt(0):
-            newMercPosition = new Cesium.Cartesian3(
-              (mercPosition.x += distance * Math.cos(heading)),
-              (mercPosition.y -= distance * Math.sin(heading)),
-              mercPosition.z
-            );
-            break;
-          case "Z".charCodeAt(0):
-            newMercPosition = new Cesium.Cartesian3(
-              mercPosition.x,
-              mercPosition.y,
-              (mercPosition.z += 1)
-            );
-            control = false;
-            break;
-          case "X".charCodeAt(0):
-            newMercPosition = new Cesium.Cartesian3(
-              mercPosition.x,
-              mercPosition.y,
-              (mercPosition.z -= 1)
-            );
-            control = false;
-            break;
-        }
-        if (newMercPosition) {
-          var newCarto = webMercatorProjection.unproject(newMercPosition);
-          var direction = newCarto.clone();
-          direction.height -= 1; // 用于计算下个位置高度
-          direction = Cesium.Cartographic.toCartesian(direction);
-          var finalPos = Cesium.Cartographic.toCartesian(newCarto);
-          if (control) {
-            var floor = picker.pickFromRay(finalPos, [direction])[0];
-            if (floor && floor.position) {
-              var intersectedPos = Cesium.Cartographic.fromCartesian(
-                floor.position
+            if (intersectedPos.height >= 0) {
+              finalPos = Cesium.Cartesian3.fromRadians(
+                newCarto.longitude,
+                newCarto.latitude,
+                intersectedPos.height + 1
               );
-              if (intersectedPos.height >= 0) {
-                finalPos = Cesium.Cartesian3.fromRadians(
-                  newCarto.longitude,
-                  newCarto.latitude,
-                  intersectedPos.height + 1
-                );
-              }
-              console.log("intersect height: " + intersectedPos.height);
             }
+            console.log("intersect height: " + intersectedPos.height);
           }
         }
-        if (isCamare) {
-          entity.position = finalPos;
-        } else {
-          entity.position.setValue(finalPos);
-        }
       }
-    </script>
-  </body>
+      if (isCamare) {
+        entity.position = finalPos;
+      } else {
+        entity.position.setValue(finalPos);
+      }
+    }
+  </script>
+</body>
+
 </html>

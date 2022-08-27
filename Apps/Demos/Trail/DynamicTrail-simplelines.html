@@ -1,125 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>流动轨迹示例（未绑定时间）</title>
-    <style>
-      @import url(../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>流动轨迹示例（未绑定时间）</title>
+  <style>
+    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+  <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
+  <script>
+    /* eslint-disable*/
+    Cesium.Ion.defaultAccessToken =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+    var viewer = new Cesium.Viewer("cesiumContainer");
+    viewer.scene.debugShowFramesPerSecond = true;
+    viewer.targetFrameRate = 60;
+
+    var supportsImageRenderingPixelated =
+      viewer.cesiumWidget._supportsImageRenderingPixelated;
+    if (supportsImageRenderingPixelated) {
+      var vtxf_dpr = window.devicePixelRatio;
+      while (vtxf_dpr >= 2.0) {
+        vtxf_dpr /= 2.0;
       }
-    </style>
-  </head>
+      viewer.resolutionScale = vtxf_dpr;
+    }
 
-  <body>
-    <div id="cesiumContainer"></div>
-    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-    <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
-    <script>
-      /* eslint-disable*/
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-
-      var viewer = new Cesium.Viewer("cesiumContainer");
-      viewer.scene.debugShowFramesPerSecond = true;
-      viewer.targetFrameRate = 60;
-
-      var supportsImageRenderingPixelated =
-        viewer.cesiumWidget._supportsImageRenderingPixelated;
-      if (supportsImageRenderingPixelated) {
-        var vtxf_dpr = window.devicePixelRatio;
-        while (vtxf_dpr >= 2.0) {
-          vtxf_dpr /= 2.0;
-        }
-        viewer.resolutionScale = vtxf_dpr;
+    var invisibleMaterial = Cesium.Material.fromType(
+      Cesium.Material.PolylineTrailType2,
+      {
+        color: new Cesium.Color(1, 1, 1, 0.01),
+        duration: 10000,
+        image: "../Lib/red.png",
+        repeat: 1,
+        length: 0.1,
       }
+    );
 
-      var invisibleMaterial = Cesium.Material.fromType(
-        Cesium.Material.PolylineTrailType2,
-        {
-          color: new Cesium.Color(1, 1, 1, 0.01),
-          duration: 10000,
-          image: "../Lib/red.png",
-          repeat: 1,
-          length: 0.1,
-        }
-      );
-
-      var trails = [];
-      var singleMaterial = Cesium.Material.fromType(
-        Cesium.Material.PolylineTrailType2,
-        {
-          color: new Cesium.Color(1, 1, 0, 1),
-          duration: 1000,
-          image: "../Lib/red.png",
-          repeat: 1,
-          length: 0.1,
-        }
-      );
-      Cesium.GeoJsonDataSource.load("./simplelines.geojson").then(function (
-        ds
-      ) {
-        var instances = [];
-        ds.entities.values.forEach((entity, i) => {
-          if (i == 0) {
-            var pos = Cesium.Cartographic.fromCartesian(
-              entity.polyline.positions.getValue()[0]
-            );
-            viewer.camera.flyTo({
-              duration: 0,
-              destination: new Cesium.Cartesian3.fromRadians(
-                pos.longitude,
-                pos.latitude,
-                50000
-              ),
-              orientation: {
-                heading: Cesium.Math.toRadians(-35),
-                pitch: Cesium.Math.toRadians(-45),
-                roll: 0,
-              },
-            });
-          }
-          var geo = new Cesium.PolylineGeometry({
-            positions: entity.polyline.positions.getValue(),
-            width: 1,
+    var trails = [];
+    var singleMaterial = Cesium.Material.fromType(
+      Cesium.Material.PolylineTrailType2,
+      {
+        color: new Cesium.Color(1, 1, 0, 1),
+        duration: 1000,
+        image: "../Lib/red.png",
+        repeat: 1,
+        length: 0.1,
+      }
+    );
+    Cesium.GeoJsonDataSource.load("./simplelines.geojson").then(function(
+      ds
+    ) {
+      var instances = [];
+      ds.entities.values.forEach((entity, i) => {
+        if (i == 0) {
+          var pos = Cesium.Cartographic.fromCartesian(
+            entity.polyline.positions.getValue()[0]
+          );
+          viewer.camera.flyTo({
+            duration: 0,
+            destination: new Cesium.Cartesian3.fromRadians(
+              pos.longitude,
+              pos.latitude,
+              50000
+            ),
+            orientation: {
+              heading: Cesium.Math.toRadians(-35),
+              pitch: Cesium.Math.toRadians(-45),
+              roll: 0,
+            },
           });
-          var instance = new Cesium.GeometryInstance({
-            geometry: geo,
-          });
-          instances.push(instance);
+        }
+        var geo = new Cesium.PolylineGeometry({
+          positions: entity.polyline.positions.getValue(),
+          width: 1,
         });
-
-        var trailCollection = viewer.scene.primitives.add(
-          new Cesium.Primitive({
-            geometryInstances: instances,
-            appearance: new Cesium.PolylineMaterialAppearance({
-              material: singleMaterial,
-            }),
-            // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-            //   material: invisibleMaterial,
-            // }),
-          })
-        );
-
-        viewer.scene.preRender.addEventListener(() => {
-          trailCollection.appearance.material.uniforms.time++;
+        var instance = new Cesium.GeometryInstance({
+          geometry: geo,
         });
+        instances.push(instance);
       });
-    </script>
-  </body>
+
+      var trailCollection = viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: instances,
+          appearance: new Cesium.PolylineMaterialAppearance({
+            material: singleMaterial,
+          }),
+          // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+          //   material: invisibleMaterial,
+          // }),
+        })
+      );
+
+      viewer.scene.preRender.addEventListener(() => {
+        trailCollection.appearance.material.uniforms.time++;
+      });
+    });
+  </script>
+</body>
+
 </html>

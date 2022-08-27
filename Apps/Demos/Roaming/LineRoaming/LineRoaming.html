@@ -12,7 +12,7 @@
   <title>轴线漫游</title>
   <script src="/Apps/Demos/Lib/tool.js"></script>
   <style>
-    @import url(/Source/Widgets/widgets.css);
+    @import url(/Build/CesiumUnminified//Widgets/widgets.css);
 
     html,
     body,
@@ -30,8 +30,8 @@
   <div id="cesiumContainer"></div>
   <script type="module">
     /* eslint-disable */
-    window.CESIUM_BASE_URL = "/Source";
-    import * as Cesium from "/Source/Cesium.js";
+    window.CESIUM_BASE_URL = "/Build/CesiumUnminified/";
+    import * as Cesium from "/Build/CesiumUnminified/index.js";
     import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
     import LineRoamingHelper from "./lineRoamingHelper.js";
     Cesium.Ion.defaultAccessToken =
@@ -128,7 +128,7 @@
     roamingHelper.setRoamPath(positions);
     roamingHelper.whenStopRoaming = () => {
       viewer.flyTo(model);
-    }
+    };
 
     var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     //双击模型

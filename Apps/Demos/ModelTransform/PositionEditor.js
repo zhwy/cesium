@@ -1,4 +1,4 @@
-import * as Cesium from "../../../Source/Cesium.js";
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 import PolylineCommon from "./PolylineCommon.js";
 
 // rewrite the shaders to make PolylineMaterialAppearance accept per-instance color attribute

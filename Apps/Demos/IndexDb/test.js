@@ -1,6 +1,6 @@
 /* eslint-disable */
-import * as Cesium from "../../../Source/Cesium.js";
-window.CESIUM_BASE_URL = "../../../Source";
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
 function Test() {
   var _originCamera = {
     position: new Cesium.Cartesian3.fromDegrees(116.794479, 36.495727, 500),

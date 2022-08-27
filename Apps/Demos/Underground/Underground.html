@@ -1,83 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Use correct character set. -->
-    <meta charset="utf-8" />
-    <!-- Tell IE to use the latest, best version. -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>地下模式-隧道测试</title>
-    <style>
-      @import url(../../../../Build/Cesium/Widgets/widgets.css);
 
-      html,
-      body,
-      #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8" />
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>地下模式-隧道测试</title>
+  <style>
+    @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-      button {
-        position: absolute;
-        z-index: 99;
-      }
-    </style>
-  </head>
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
 
-  <body>
-    <div id="cesiumContainer"></div>
-    <script type="module">
-      // import IndexedDbCache from "../Lib/indexDbCache.js";
-      import * as Cesium from "../../../../Source/Cesium.js";
-      window.CESIUM_BASE_URL = "../../../../Source";
-      window.Cesium = Cesium;
-      /* eslint-disable */
-      var viewer;
-      var modelHeight;
-      viewer = new Cesium.Viewer("cesiumContainer", {
-        terrainProvider: Cesium.createWorldTerrain(),
-        imageryProvider: new Cesium.UrlTemplateImageryProvider({
-          url:
-            "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-          maximumLevel: 20,
-          tileWidth: 512,
-          tileHeight: 512,
-        }),
-      });
-      window._viewer = viewer;
+    button {
+      position: absolute;
+      z-index: 99;
+    }
+  </style>
+</head>
 
-      var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-      var orientation = Cesium.Transforms.headingPitchRollQuaternion(
-        pos,
-        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
-      );
+<body>
+  <div id="cesiumContainer"></div>
+  <script type="module">
+    // import IndexedDbCache from "../Lib/indexDbCache.js";
+    import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+    window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+    window.Cesium = Cesium;
+    /* eslint-disable */
+    var viewer;
+    var modelHeight;
+    viewer = new Cesium.Viewer("cesiumContainer", {
+      terrainProvider: Cesium.createWorldTerrain(),
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url:
+          "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
+        maximumLevel: 20,
+        tileWidth: 512,
+        tileHeight: 512,
+      }),
+    });
+    window._viewer = viewer;
 
-      var entity = viewer.entities.add({
-        position: pos,
-        orientation: orientation,
-        model: {
-          uri: "/Apps/Demos/Underground/隧道test.glb",
-        },
-      });
-      viewer.zoomTo(entity);
-      viewer.scene.screenSpaceCameraController.enableCollisionDetection = false; // 允许相机下地
+    var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+    var orientation = Cesium.Transforms.headingPitchRollQuaternion(
+      pos,
+      new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
+    );
 
-      var globe = viewer.scene.globe;
-      globe.depthTestAgainstTerrain = true;
-      globe.undergroundColor = Cesium.Color.fromCssColorString(
-        "rgb(61, 53, 51)"
-      );
-      globe.undergroundColorAlphaByDistance.near = 0;
-      globe.undergroundColorAlphaByDistance.far = 100;
-      globe.undergroundColorAlphaByDistance.nearValue = 0;
-      globe.undergroundColorAlphaByDistance.farValue = 1;
-    </script>
-  </body>
+    var entity = viewer.entities.add({
+      position: pos,
+      orientation: orientation,
+      model: {
+        uri: "/Apps/Demos/Underground/隧道test.glb",
+      },
+    });
+    viewer.zoomTo(entity);
+    viewer.scene.screenSpaceCameraController.enableCollisionDetection = false; // 允许相机下地
+
+    var globe = viewer.scene.globe;
+    globe.depthTestAgainstTerrain = true;
+    globe.undergroundColor = Cesium.Color.fromCssColorString(
+      "rgb(61, 53, 51)"
+    );
+    globe.undergroundColorAlphaByDistance.near = 0;
+    globe.undergroundColorAlphaByDistance.far = 100;
+    globe.undergroundColorAlphaByDistance.nearValue = 0;
+    globe.undergroundColorAlphaByDistance.farValue = 1;
+  </script>
+</body>
+
 </html>

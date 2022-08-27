@@ -11,7 +11,7 @@
         content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
     <title>地形裁剪</title>
     <style>
-        @import url(../../../../Build/Cesium/Widgets/widgets.css);
+        @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
         html,
         body,
@@ -34,8 +34,8 @@
     <div id="cesiumContainer"></div>
     <script type="module">
         // import IndexedDbCache from "../Lib/indexDbCache.js";
-        import * as Cesium from "../../../../Source/Cesium.js";
-        window.CESIUM_BASE_URL = "../../../../Source";
+        import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+        window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
         window.Cesium = Cesium;
         Cesium.Ion.defaultAccessToken =
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
@@ -77,7 +77,7 @@
             var worldPosition = viewer.scene.pickPosition(movement.position);
             if (Cesium.defined(worldPosition)) {
                 positions.push(worldPosition);
-                console.log(Cesium.Cartographic.fromCartesian(worldPosition))
+                console.log(Cesium.Cartographic.fromCartesian(worldPosition));
             }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
