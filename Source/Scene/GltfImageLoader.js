@@ -1,7 +1,9 @@
 import Check from "../Core/Check.js";
 import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
+import loadCRN from "../Core/loadCRN.js";
 import loadImageFromTypedArray from "../Core/loadImageFromTypedArray.js";
+import loadKTX from "../Core/loadKTX";
 import loadKTX2 from "../Core/loadKTX2.js";
 import RuntimeError from "../Core/RuntimeError.js";
 import ResourceLoader from "./ResourceLoader.js";
@@ -252,6 +254,8 @@ function getMimeTypeFromTypedArray(typedArray) {
   } else if (header[0] === 0xab && header[1] === 0x4b) {
     // See http://github.khronos.org/KTX-Specification/#_identifier
     return "image/ktx2";
+  } else if (header[0] === 0x48 && header[1] === 0x78) {
+    return "image/crn";
   } else if (
     // See https://developers.google.com/speed/webp/docs/riff_container#webp_file_header
     webpHeaderRIFFChars[0] === 0x52 &&
@@ -281,6 +285,12 @@ function loadImageFromBufferTypedArray(typedArray) {
     // Resolves to a CompressedTextureBuffer
     return loadKTX2(ktxBuffer);
   }
+
+  if (mimeType === "image/crn") {
+    const crnBuffer = new Uint8Array(typedArray);
+    return loadCRN(crnBuffer);
+  }
+
   // Resolves to an Image or ImageBitmap
   return GltfImageLoader._loadImageFromTypedArray({
     uint8Array: typedArray,
@@ -291,12 +301,18 @@ function loadImageFromBufferTypedArray(typedArray) {
 }
 
 const ktx2Regex = /(^data:image\/ktx2)|(\.ktx2$)/i;
+const ktxRegex = /(^data:image\/ktx)|(\.ktx$)/i;
+const crnRegex = /(^data:image\/crn)|(\.crn$)/i;
 
 function loadImageFromUri(resource) {
   const uri = resource.url;
   if (ktx2Regex.test(uri)) {
     // Resolves to a CompressedTextureBuffer
     return loadKTX2(resource);
+  } else if (ktxRegex.test(uri)) {
+    return loadKTX(resource);
+  } else if (crnRegex.test(uri)) {
+    return loadCRN(resource);
   }
   // Resolves to an ImageBitmap or Image
   return resource.fetchImage({

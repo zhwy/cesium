@@ -45,10 +45,10 @@ import deprecationWarning from "./deprecationWarning.js";
  * @example
  * // load a single URL asynchronously
  * Cesium.loadKTX('some/url').then(function(ktxData) {
- *     var width = ktxData.width;
- *     var height = ktxData.height;
- *     var format = ktxData.internalFormat;
- *     var arrayBufferView = ktxData.bufferView;
+ *     const width = ktxData.width;
+ *     const height = ktxData.height;
+ *     const format = ktxData.internalFormat;
+ *     const arrayBufferView = ktxData.bufferView;
  *     // use the data to create a texture
  * }).otherwise(function(error) {
  *     // an error occurred
@@ -62,7 +62,7 @@ import deprecationWarning from "./deprecationWarning.js";
 function loadKTX(resourceOrUrlOrBuffer) {
   deprecationWarning(
     "loadKTX",
-    "loadKTX is deprecated and will be removed in CesiumJS 1.82."
+    "loadKTX is deprecated and has been removed in CesiumJS 1.82."
   );
   //>>includeStart('debug', pragmas.debug);
   Check.defined("resourceOrUrlOrBuffer", resourceOrUrlOrBuffer);
@@ -90,7 +90,7 @@ function loadKTX(resourceOrUrlOrBuffer) {
   });
 }
 
-var fileIdentifier = [
+const fileIdentifier = [
   0xab,
   0x4b,
   0x54,
@@ -104,8 +104,8 @@ var fileIdentifier = [
   0x1a,
   0x0a,
 ];
-var endiannessTest = 0x04030201;
-var faceOrder = [
+const endiannessTest = 0x04030201;
+const faceOrder = [
   "positiveX",
   "negativeX",
   "positiveY",
@@ -114,13 +114,13 @@ var faceOrder = [
   "negativeZ",
 ];
 
-var sizeOfUint32 = 4;
+const sizeOfUint32 = 4;
 
 function parseKTX(data) {
-  var byteBuffer = new Uint8Array(data);
+  const byteBuffer = new Uint8Array(data);
 
-  var isKTX = true;
-  var i;
+  let isKTX = true;
+  let i;
   for (i = 0; i < fileIdentifier.length; ++i) {
     if (fileIdentifier[i] !== byteBuffer[i]) {
       isKTX = false;
@@ -132,8 +132,8 @@ function parseKTX(data) {
     throw new RuntimeError("Invalid KTX file.");
   }
 
-  var view;
-  var byteOffset;
+  let view;
+  let byteOffset;
 
   if (defined(data.buffer)) {
     view = new DataView(data.buffer);
@@ -145,44 +145,44 @@ function parseKTX(data) {
 
   byteOffset += 12; // skip identifier
 
-  var endianness = view.getUint32(byteOffset, true);
+  const endianness = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
   if (endianness !== endiannessTest) {
     throw new RuntimeError("File is the wrong endianness.");
   }
 
-  var glType = view.getUint32(byteOffset, true);
+  const glType = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var glTypeSize = view.getUint32(byteOffset, true);
+  const glTypeSize = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var glFormat = view.getUint32(byteOffset, true);
+  const glFormat = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var glInternalFormat = view.getUint32(byteOffset, true);
+  let glInternalFormat = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var glBaseInternalFormat = view.getUint32(byteOffset, true);
+  const glBaseInternalFormat = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var pixelWidth = view.getUint32(byteOffset, true);
+  const pixelWidth = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var pixelHeight = view.getUint32(byteOffset, true);
+  const pixelHeight = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var pixelDepth = view.getUint32(byteOffset, true);
+  const pixelDepth = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var numberOfArrayElements = view.getUint32(byteOffset, true);
+  const numberOfArrayElements = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var numberOfFaces = view.getUint32(byteOffset, true);
+  const numberOfFaces = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var numberOfMipmapLevels = view.getUint32(byteOffset, true);
+  const numberOfMipmapLevels = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
-  var bytesOfKeyValueByteSize = view.getUint32(byteOffset, true);
+  const bytesOfKeyValueByteSize = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
 
   // skip metadata
   byteOffset += bytesOfKeyValueByteSize;
 
-  var imageSize = view.getUint32(byteOffset, true);
+  const imageSize = view.getUint32(byteOffset, true);
   byteOffset += sizeOfUint32;
 
-  var texture;
+  let texture;
   if (defined(data.buffer)) {
     texture = new Uint8Array(data.buffer, byteOffset, imageSize);
   } else {
@@ -233,14 +233,14 @@ function parseKTX(data) {
     throw new RuntimeError("Texture arrays are unsupported.");
   }
 
-  var offset = texture.byteOffset;
-  var mipmaps = new Array(numberOfMipmapLevels);
+  let offset = texture.byteOffset;
+  const mipmaps = new Array(numberOfMipmapLevels);
   for (i = 0; i < numberOfMipmapLevels; ++i) {
-    var level = (mipmaps[i] = {});
-    for (var j = 0; j < numberOfFaces; ++j) {
-      var width = pixelWidth >> i;
-      var height = pixelHeight >> i;
-      var levelSize = PixelFormat.isCompressedFormat(glInternalFormat)
+    const level = (mipmaps[i] = {});
+    for (let j = 0; j < numberOfFaces; ++j) {
+      const width = pixelWidth >> i;
+      const height = pixelHeight >> i;
+      const levelSize = PixelFormat.isCompressedFormat(glInternalFormat)
         ? PixelFormat.compressedTextureSizeInBytes(
             glInternalFormat,
             width,
@@ -252,7 +252,7 @@ function parseKTX(data) {
             width,
             height
           );
-      var levelBuffer = new Uint8Array(texture.buffer, offset, levelSize);
+      const levelBuffer = new Uint8Array(texture.buffer, offset, levelSize);
       level[faceOrder[j]] = new CompressedTextureBuffer(
         glInternalFormat,
         glType,
@@ -265,7 +265,7 @@ function parseKTX(data) {
     offset += 3 - ((offset + 3) % 4) + 4;
   }
 
-  var result = mipmaps;
+  let result = mipmaps;
   if (numberOfFaces === 1) {
     for (i = 0; i < numberOfMipmapLevels; ++i) {
       result[i] = result[i][faceOrder[0]];
