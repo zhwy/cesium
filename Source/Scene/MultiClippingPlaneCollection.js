@@ -105,6 +105,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @memberof MultiClippingPlaneCollection.prototype
    * @type {*}
    * @readonly
+   * @private
    */
   dataTexture: {
     get: function () {
@@ -118,6 +119,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * @memberof MultiClippingPlaneCollection.prototype
    * @type {*}
    * @readonly
+   * @private
    */
   lengthTexture: {
     get: function () {
