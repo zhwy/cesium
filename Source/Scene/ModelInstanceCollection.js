@@ -752,7 +752,8 @@ function createModel(collection, context) {
     modelOptions.uniformMapLoaded = getUniformMapCallback(collection, context);
 
     if (defined(collection._url)) {
-      modelOptions.cacheKey = `${collection._url.getUrlComponent()}#instanced`;
+      // modelOptions.cacheKey = `${collection._url.getUrlComponent()}#instanced`;
+      modelOptions.cacheKey = collection._url.url;
     }
   } else {
     modelOptions.vertexShaderLoaded = getVertexShaderNonInstancedCallback(

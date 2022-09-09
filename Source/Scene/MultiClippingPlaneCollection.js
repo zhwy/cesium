@@ -103,7 +103,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * Returns a texture containing all planes of all ClippingPlaneCollections.
    *
    * @memberof MultiClippingPlaneCollection.prototype
-   * @type {Texture}
+   * @type {*}
    * @readonly
    * @private
    */
@@ -117,7 +117,7 @@ Object.defineProperties(MultiClippingPlaneCollection.prototype, {
    * Returns a texture containing length of each ClippingPlaneCollection.
    *
    * @memberof MultiClippingPlaneCollection.prototype
-   * @type {Texture}
+   * @type {*}
    * @readonly
    * @private
    */
