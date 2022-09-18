@@ -73,6 +73,8 @@ describe(
       "./Data/Cesium3DTiles/Instanced/InstancedWithBatchTable/tileset.json";
     const instancedExternalGltfUrl =
       "./Data/Cesium3DTiles/Instanced/InstancedGltfExternal/tileset.json";
+    const instancedWithoutNormalsUrl =
+      "./Data/Cesium3DTiles/Instanced/InstancedWithoutNormals/tileset.json";
     const instancedWithoutBatchTableUrl =
       "./Data/Cesium3DTiles/Instanced/InstancedWithoutBatchTable/tileset.json";
     const instancedWithBatchIdsUrl =
@@ -530,6 +532,15 @@ describe(
         return Cesium3DTilesTester.loadTileset(
           scene,
           instancedExternalGltfUrl
+        ).then(function (tileset) {
+          Cesium3DTilesTester.expectRenderTileset(scene, tileset);
+        });
+      });
+
+      it("renders without normals", function () {
+        return Cesium3DTilesTester.loadTileset(
+          scene,
+          instancedWithoutNormalsUrl
         ).then(function (tileset) {
           Cesium3DTilesTester.expectRenderTileset(scene, tileset);
         });
@@ -999,21 +1010,15 @@ describe(
       });
 
       it("point cloud with per-point properties work", function () {
-        // When the batch table contains per-point properties, aka no batching,
-        // a ModelFeatureTable is created, but it will have no properties
+        // When the batch table contains only per-point properties, no feature
+        // table will be created.
         return Cesium3DTilesTester.loadTileset(
           scene,
           pointCloudWithPerPointPropertiesUrl
         ).then(function (tileset) {
           const content = tileset.root.content;
-          expect(content.featuresLength).toBe(1000);
+          expect(content.featuresLength).toBe(0);
           expect(content.innerContents).toBeUndefined();
-
-          const feature = content.getFeature(0);
-          expect(feature).toBeDefined();
-          const propertyNames = [];
-          feature.getPropertyNames(propertyNames);
-          expect(propertyNames).toEqual([]);
         });
       });
 
