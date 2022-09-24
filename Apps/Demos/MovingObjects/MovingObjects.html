@@ -32,19 +32,19 @@
     /* eslint-disable no-undef */
     import * as Cesium from "../../../Build/CesiumUnminified/index.js";
     window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
-    var viewer = new Cesium.Viewer("cesiumContainer");
+    const viewer = new Cesium.Viewer("cesiumContainer");
     viewer.scene.debugShowFramesPerSecond = true;
-    var pathLists = [];
-    var startTime = new Cesium.JulianDate();
+    const pathLists = [];
+    const startTime = new Cesium.JulianDate();
 
-    var totalTime = 10000;
+    const totalTime = 10000;
 
-    for (var i = 0; i < 2; i++) {
-      var lng = 120 + 0.1 * i;
+    for (let i = 0; i < 1000; i++) {
+      const lng = 120 + 0.1 * i;
 
-      var positions = new Cesium.SampledPositionProperty();
-      var startPos = new Cesium.Cartesian3.fromDegrees(lng, 30, 5000);
-      var endPos = new Cesium.Cartesian3.fromDegrees(lng, 31, 5000);
+      const positions = new Cesium.SampledPositionProperty();
+      const startPos = new Cesium.Cartesian3.fromDegrees(lng, 30, 5000);
+      const endPos = new Cesium.Cartesian3.fromDegrees(lng, 31, 5000);
 
       positions.addSample(startTime, startPos);
       positions.addSample(
@@ -56,10 +56,10 @@
         endPos
       );
 
-      var hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
-      var orientation = Cesium.Transforms.headingPitchRollQuaternion(startPos, hpr);
+      const hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
+      const orientation = Cesium.Transforms.headingPitchRollQuaternion(startPos, hpr);
 
-      var line = viewer.entities.add({
+      const line = viewer.entities.add({
         polyline: {
           positions: [startPos, endPos],
           material: Cesium.Color.RED,
@@ -72,7 +72,6 @@
         model: {
           uri: "../../SampleData/models/CesiumAir/Cesium_Air.glb",
           scale: 100,
-          forwardAxis: Cesium.Axis.X
         },
         position: startPos,
         orientation: orientation
@@ -84,15 +83,15 @@
       });
     }
 
-    var time = 0;
+    let time = 0;
     viewer.scene.preRender.addEventListener(function() {
-      var now = Cesium.JulianDate.addSeconds(
+      const now = Cesium.JulianDate.addSeconds(
         startTime,
         time,
         new Cesium.JulianDate()
       );
       time++;
-      if (time == totalTime) time = 0;
+      if (time === totalTime) { time = 0; };
       pathLists.forEach(line => {
         line.path.position = line.positions.getValue(now);
       });

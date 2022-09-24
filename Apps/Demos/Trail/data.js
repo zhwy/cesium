@@ -16,17 +16,19 @@ const czml = [
       "<p>Hang gliding flight log data from Daniel H. Friedman.<br>Icon created by Larisa Skosyrska from the Noun Project</p>",
     availability: "2012-08-04T10:00:00Z/2012-08-04T15:00:00Z",
     path: {
+      show: true,
       material: {
         image: {
-          image: { uri: "./red.png" },
+          image: { uri: "../Lib/red.png" },
           color: {
             rgba: [255, 255, 255, 128],
           },
+          trasparent: true
         },
       },
       width: 5,
       leadTime: 0,
-      trailTime: 100,
+      trailTime: 1000,
       resolution: 5,
     },
     billboard: {

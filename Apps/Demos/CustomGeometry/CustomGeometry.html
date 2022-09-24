@@ -10,7 +10,7 @@
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
   <title>Geometry</title>
-  <script src="../../../Build/Cesium/Cesium.js"></script>
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
   <style>
     @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -34,12 +34,12 @@
     // import * as Cesium from "../../Build/CesiumUnminified/index.js";
     // window.CESIUM_BASE_URL = "../../Build/CesiumUnminified/";
     function TetrahedronGeometry() {
-      var negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
-      var negativeOneThird = -1.0 / 3.0;
-      var rootSixOverThree = Math.sqrt(6.0) / 3.0;
+      const negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
+      const negativeOneThird = -1.0 / 3.0;
+      const rootSixOverThree = Math.sqrt(6.0) / 3.0;
 
       //四面体的四个顶点
-      var positions = new Float64Array(4 * 3);
+      const positions = new Float64Array(4 * 3);
 
       // position 0
       positions[0] = 0.0;
@@ -61,7 +61,7 @@
       positions[10] = negativeRootTwoOverThree;
       positions[11] = negativeOneThird;
 
-      var attributes = new Cesium.GeometryAttributes({
+      const attributes = new Cesium.GeometryAttributes({
         position: new Cesium.GeometryAttribute({
           componentDatatype: Cesium.ComponentDatatype.DOUBLE,
           componentsPerAttribute: 3,
@@ -70,7 +70,7 @@
       });
 
       //顶点索引
-      var indices = new Uint16Array(4 * 3);
+      const indices = new Uint16Array(4 * 3);
 
       // back triangle
       indices[0] = 0;
@@ -93,12 +93,12 @@
       indices[11] = 3;
 
       //包围球
-      var boundingSphere = new Cesium.BoundingSphere(
+      const boundingSphere = new Cesium.BoundingSphere(
         new Cesium.Cartesian3(0.0, 0.0, 0.0),
         1.0
       );
 
-      var geometry = Cesium.GeometryPipeline.computeNormal(
+      const geometry = Cesium.GeometryPipeline.computeNormal(
         new Cesium.Geometry({
           attributes: attributes,
           indices: indices,
@@ -114,12 +114,12 @@
       //this.boundingSphere = Cesium.BoundingSphere.fromVertices(positions);
     }
 
-    var cesiumWidget = new Cesium.CesiumWidget("cesiumContainer");
-    var scene = cesiumWidget.scene;
-    var ellipsoid = cesiumWidget.scene.globe.ellipsoid;
+    const cesiumWidget = new Cesium.CesiumWidget("cesiumContainer");
+    const scene = cesiumWidget.scene;
+    const ellipsoid = cesiumWidget.scene.globe.ellipsoid;
 
     //模型矩阵
-    var modelMatrix = Cesium.Matrix4.multiplyByUniformScale(
+    const modelMatrix = Cesium.Matrix4.multiplyByUniformScale(
       Cesium.Matrix4.multiplyByTranslation(
         Cesium.Transforms.eastNorthUpToFixedFrame(
           ellipsoid.cartographicToCartesian(
@@ -134,7 +134,7 @@
     );
 
     //四面体的实例
-    var instance = new Cesium.GeometryInstance({
+    const instance = new Cesium.GeometryInstance({
       geometry: new TetrahedronGeometry(),
       modelMatrix: modelMatrix,
       attributes: {
@@ -156,7 +156,7 @@
     );
 
     //线
-    var material = Cesium.Material.fromType(
+    const material = Cesium.Material.fromType(
       Cesium.Material.PolylineTrailType2,
       {
         color: new Cesium.Color(1, 1, 1, 0.01),
@@ -166,8 +166,7 @@
         length: 0.1
       }
     );
-    var trail, trail2;
-    trail = scene.primitives.add(
+    const trail = scene.primitives.add(
       new Cesium.Primitive({
         geometryInstances: new Cesium.GeometryInstance({
           geometry: new Cesium.PolylineGeometry({
@@ -196,8 +195,10 @@
         trail &&
         trail.appearance.material &&
         trail.appearance.material.uniforms
-      )
+      ) {
         trail.appearance.material.uniforms.time++;
+      }
+
     });
   </script>
 </body>
