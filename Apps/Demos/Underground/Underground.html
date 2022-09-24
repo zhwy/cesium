@@ -37,28 +37,20 @@
     import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
     window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
     window.Cesium = Cesium;
+
     /* eslint-disable */
-    var viewer;
-    var modelHeight;
-    viewer = new Cesium.Viewer("cesiumContainer", {
+    const viewer = new Cesium.Viewer("cesiumContainer", {
       terrainProvider: Cesium.createWorldTerrain(),
-      imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url:
-          "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-        maximumLevel: 20,
-        tileWidth: 512,
-        tileHeight: 512,
-      }),
     });
     window._viewer = viewer;
 
-    var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-    var orientation = Cesium.Transforms.headingPitchRollQuaternion(
+    const pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+    const orientation = Cesium.Transforms.headingPitchRollQuaternion(
       pos,
       new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
     );
 
-    var entity = viewer.entities.add({
+    const entity = viewer.entities.add({
       position: pos,
       orientation: orientation,
       model: {
@@ -68,15 +60,15 @@
     viewer.zoomTo(entity);
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = false; // 允许相机下地
 
-    var globe = viewer.scene.globe;
+    const globe = viewer.scene.globe;
     globe.depthTestAgainstTerrain = true;
     globe.undergroundColor = Cesium.Color.fromCssColorString(
       "rgb(61, 53, 51)"
     );
-    globe.undergroundColorAlphaByDistance.near = 0;
-    globe.undergroundColorAlphaByDistance.far = 100;
-    globe.undergroundColorAlphaByDistance.nearValue = 0;
-    globe.undergroundColorAlphaByDistance.farValue = 1;
+
+    const translucency = globe.translucency;
+    translucency.frontFaceAlphaByDistance = new Cesium.NearFarScalar(100, 0, 1000, 1);
+    translucency.enabled = true;
   </script>
 </body>
 

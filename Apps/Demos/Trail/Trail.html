@@ -27,10 +27,10 @@
 
 <body>
   <div id="cesiumContainer"></div>
-  <script src="../../../Build/Cesium/Cesium.js"></script>
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
   <script src="./data.js"></script>
   <script>
-    var viewer = new Cesium.Viewer("cesiumContainer");
+    const viewer = new Cesium.Viewer("cesiumContainer");
     // viewer.dataSources
     //   .add(Cesium.CzmlDataSource.load(czml))
     //   .then(function (ds) {
@@ -42,11 +42,11 @@
      * entity位置为单个坐标，不断更新，但是这样无法做出轨迹(path)效果
      * 因为轨迹需要给出坐标时间采样集合，而这个时间要与系统时钟绑定才能生效
      **/
-    var custom = new Cesium.CustomDataSource();
+    const custom = new Cesium.CustomDataSource();
     custom.realClock = new Cesium.Clock();
     custom.realClock.onTick.addEventListener((clock) => {
       // console.log(clock.currentTime.secondsOfDay);
-      var entities = custom.entities._entities._array;
+      const entities = custom.entities._entities._array;
       entities.forEach((e) => {
         if (e.samples) {
           e.position = e.samples.getValue(clock.currentTime);
@@ -59,11 +59,13 @@
     };
 
     viewer.dataSources.add(custom);
-    var entity;
+    let entity;
 
     Cesium.CzmlDataSource.load(czml).then((ds) => {
-      var czmlEntity = ds.entities._entities._array[0];
-      var dataClock = ds.clock.getValue();
+      const czmlEntity = ds.entities._entities._array[0];
+      const dataClock = ds.clock.getValue();
+
+      viewer.dataSources.add(ds);
 
       entity = custom.entities.add({
         // availability: czmlEntity.availability,
