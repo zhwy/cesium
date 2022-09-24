@@ -3,7 +3,7 @@ import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
 import loadCRN from "../Core/loadCRN.js";
 import loadImageFromTypedArray from "../Core/loadImageFromTypedArray.js";
-import loadKTX from "../Core/loadKTX";
+import loadKTX from "../Core/loadKTX.js";
 import loadKTX2 from "../Core/loadKTX2.js";
 import RuntimeError from "../Core/RuntimeError.js";
 import ResourceLoader from "./ResourceLoader.js";
@@ -80,7 +80,7 @@ Object.defineProperties(GltfImageLoader.prototype, {
    * @private
    */
   promise: {
-    get: function () {
+    get: function() {
       return this._promise;
     },
   },
@@ -94,7 +94,7 @@ Object.defineProperties(GltfImageLoader.prototype, {
    * @private
    */
   cacheKey: {
-    get: function () {
+    get: function() {
       return this._cacheKey;
     },
   },
@@ -108,7 +108,7 @@ Object.defineProperties(GltfImageLoader.prototype, {
    * @private
    */
   image: {
-    get: function () {
+    get: function() {
       return this._image;
     },
   },
@@ -122,7 +122,7 @@ Object.defineProperties(GltfImageLoader.prototype, {
    * @private
    */
   mipLevels: {
-    get: function () {
+    get: function() {
       return this._mipLevels;
     },
   },
@@ -133,7 +133,7 @@ Object.defineProperties(GltfImageLoader.prototype, {
  * @returns {Promise.<GltfImageLoader>} A promise which resolves to the loader when the resource loading is completed.
  * @private
  */
-GltfImageLoader.prototype.load = function () {
+GltfImageLoader.prototype.load = function() {
   if (defined(this._bufferViewId)) {
     this._promise = loadFromBufferView(this);
     return this._promise;
@@ -149,7 +149,7 @@ function getImageAndMipLevels(image) {
   let mipLevels;
   if (Array.isArray(image)) {
     // highest detail mip should be level 0
-    mipLevels = image.slice(1, image.length).map(function (mipLevel) {
+    mipLevels = image.slice(1, image.length).map(function(mipLevel) {
       return mipLevel.bufferView;
     });
     image = image[0];
@@ -173,13 +173,13 @@ function loadFromBufferView(imageLoader) {
   imageLoader._state = ResourceLoaderState.LOADING;
 
   return bufferViewLoader.promise
-    .then(function () {
+    .then(function() {
       if (imageLoader.isDestroyed()) {
         return;
       }
 
       const typedArray = bufferViewLoader.typedArray;
-      return loadImageFromBufferTypedArray(typedArray).then(function (image) {
+      return loadImageFromBufferTypedArray(typedArray).then(function(image) {
         if (imageLoader.isDestroyed()) {
           return;
         }
@@ -195,7 +195,7 @@ function loadFromBufferView(imageLoader) {
         return imageLoader;
       });
     })
-    .catch(function (error) {
+    .catch(function(error) {
       if (imageLoader.isDestroyed()) {
         return;
       }
@@ -211,7 +211,7 @@ function loadFromUri(imageLoader) {
   });
   imageLoader._state = ResourceLoaderState.LOADING;
   return loadImageFromUri(resource)
-    .then(function (image) {
+    .then(function(image) {
       if (imageLoader.isDestroyed()) {
         return;
       }
@@ -226,7 +226,7 @@ function loadFromUri(imageLoader) {
       imageLoader._state = ResourceLoaderState.READY;
       return imageLoader;
     })
-    .catch(function (error) {
+    .catch(function(error) {
       if (imageLoader.isDestroyed()) {
         return;
       }
@@ -325,7 +325,7 @@ function loadImageFromUri(resource) {
  * Unloads the resource.
  * @private
  */
-GltfImageLoader.prototype.unload = function () {
+GltfImageLoader.prototype.unload = function() {
   if (defined(this._bufferViewLoader)) {
     this._resourceCache.unload(this._bufferViewLoader);
   }
