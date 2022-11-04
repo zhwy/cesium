@@ -12,12 +12,15 @@
 /.vscode
 /Apps
 /Build/Apps
+/Build/CesiumDev
 /Build/Coverage
 /Build/minifyShaders.state
 /Build/Documentation
 /Build/Sandcastle
 /Build/Specs
 /Cesium-*.zip
+/cesium-engine-*.tgz
+/cesium-widgets-*.tgz
 /Documentation
 /build.js
 /favicon.ico
@@ -25,6 +28,7 @@
 /index.html
 /index.release.html
 /launches
+/packages/
 /server.js
 /Source/copyrightHeader.js
 /Specs
