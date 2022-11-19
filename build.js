@@ -313,7 +313,7 @@ export async function createSpecList() {
   const files = await globby(["Specs/**/*Spec.js"]);
 
   let contents = "";
-  files.forEach(function (file) {
+  files.forEach(function(file) {
     contents += `import './${filePathToModuleId(file).replace(
       "Specs/",
       ""
@@ -480,7 +480,7 @@ export async function glslToJavaScript(minify, minifyStateFilePath, workspace) {
     `packages/${workspace}/Source/Shaders/**/*.js`,
     `packages/${workspace}/Source/ThirdParty/Shaders/*.js`,
   ]);
-  files.forEach(function (file) {
+  files.forEach(function(file) {
     leftOverJsFiles[path.normalize(file)] = true;
   });
 
@@ -490,7 +490,7 @@ export async function glslToJavaScript(minify, minifyStateFilePath, workspace) {
 
   const glslFiles = await globby(shaderFiles);
   await Promise.all(
-    glslFiles.map(async function (glslFile) {
+    glslFiles.map(async function(glslFile) {
       glslFile = path.normalize(glslFile);
       const baseName = path.basename(glslFile, ".glsl");
       const jsFile = `${path.join(path.dirname(glslFile), baseName)}.js`;
@@ -562,11 +562,11 @@ export default "${contents}";\n`;
   );
 
   // delete any left over JS files from old shaders
-  Object.keys(leftOverJsFiles).forEach(function (filepath) {
+  Object.keys(leftOverJsFiles).forEach(function(filepath) {
     rimraf.sync(filepath);
   });
 
-  const generateBuiltinContents = function (contents, builtins, path) {
+  const generateBuiltinContents = function(contents, builtins, path) {
     for (let i = 0; i < builtins.length; i++) {
       const builtin = builtins[i];
       contents.imports.push(
@@ -677,7 +677,7 @@ export async function createGalleryList(noDevelopmentGallery) {
 
   let helloWorld;
   const files = await globby(fileList);
-  files.forEach(function (file) {
+  files.forEach(function(file) {
     const demo = filePathToModuleId(
       path.relative("Apps/Sandcastle/gallery", file)
     );
@@ -698,7 +698,7 @@ export async function createGalleryList(noDevelopmentGallery) {
     }
   });
 
-  demoObjects.sort(function (a, b) {
+  demoObjects.sort(function(a, b) {
     if (a.name < b.name) {
       return -1;
     } else if (a.name > b.name) {
@@ -866,7 +866,7 @@ async function createIndexJs(workspace) {
   }
 
   const files = await globby(workspaceSources);
-  files.forEach(function (file) {
+  files.forEach(function(file) {
     file = path.relative(`packages/${workspace}`, file);
 
     let moduleId = file;
@@ -897,7 +897,7 @@ async function createIndexJs(workspace) {
  */
 async function createSpecListJs(files, workspace, outputPath) {
   let contents = "";
-  files.forEach(function (file) {
+  files.forEach(function(file) {
     contents += `import './${filePathToModuleId(file).replace(
       `packages/${workspace}/Specs/`,
       ""
@@ -1155,7 +1155,7 @@ export async function buildCesium(options) {
       path: outputDirectory,
       removePragmas: removePragmas,
     }),
-    createGalleryList(development),
+    createGalleryList(!development),
   ]);
 
   // Generate Specs bundle.

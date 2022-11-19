@@ -9,7 +9,7 @@
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>拾取方法对比</title>
+  <title>位置拾取方法对比</title>
   <style>
     @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -58,7 +58,7 @@
         pitch: -0.45,
         roll: 0
       }
-    })
+    });
 
     viewer.scene.globe.translucency.enabled = true;
     viewer.scene.globe.translucency.frontFaceAlpha = 0.5;
@@ -70,7 +70,7 @@
         height: 100,
         material: new Cesium.Color(1, 0, 0, 0.5)
       }
-    })
+    });
 
     const cartToDegree = (cartesian) => {
       if (!cartesian) return '-';
@@ -79,9 +79,9 @@
         lon: Cesium.Math.toDegrees(carto.longitude),
         lat: Cesium.Math.toDegrees(carto.latitude),
         height: carto.height
-      }
+      };
       return `${result.lon.toFixed(6)}, ${result.lat.toFixed(6)}, ${result.height.toFixed(2)}`;
-    }
+    };
 
     const ele = document.getElementById("info");
 
@@ -95,7 +95,7 @@
       const globePosition = viewer.scene.globe.pick(ray, viewer.scene);
 
       ele.innerHTML = `pickPosition: ${cartToDegree(pickPosition)}<br/>
-      scenePosition: ${cartToDegree(pickPosition)}<br/>
+      scenePosition: ${cartToDegree(scenePosition?.position)}<br/>
       globePosition: ${cartToDegree(globePosition)}
       `;
 
