@@ -305,7 +305,7 @@ const ktxRegex = /(^data:image\/ktx)|(\.ktx$)/i;
 const crnRegex = /(^data:image\/crn)|(\.crn$)/i;
 
 function loadImageFromUri(resource) {
-  const uri = resource.url;
+  const uri = resource.getUrlComponent(false, true);
   if (ktx2Regex.test(uri)) {
     // Resolves to a CompressedTextureBuffer
     return loadKTX2(resource);

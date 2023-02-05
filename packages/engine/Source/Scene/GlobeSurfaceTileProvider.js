@@ -89,6 +89,7 @@ function GlobeSurfaceTileProvider(options) {
   this.dynamicAtmosphereLightingFromSun = false;
   this.showGroundAtmosphere = false;
   this.shadows = ShadowMode.RECEIVE_ONLY;
+  this.vertexShadowDarkness = 0.3;
 
   /**
    * The color to use to highlight terrain fill tiles. If undefined, fill tiles are not
@@ -1874,6 +1875,9 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
     u_lambertDiffuseMultiplier: function () {
       return this.properties.lambertDiffuseMultiplier;
     },
+    u_vertexShadowDarkness: function () {
+      return this.properties.vertexShadowDarkness;
+    },
 
     // make a separate object so that changes to the properties are seen on
     // derived commands that combine another uniform map with this one.
@@ -1935,6 +1939,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       undergroundColor: Color.clone(Color.TRANSPARENT),
       undergroundColorAlphaByDistance: new Cartesian4(),
       lambertDiffuseMultiplier: 0.0,
+      vertexShadowDarkness: 0.0,
     },
   };
 
@@ -2206,6 +2211,7 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
       undergroundColorAlphaByDistance.farValue > 0.0);
 
   const lambertDiffuseMultiplier = tileProvider.lambertDiffuseMultiplier;
+  const vertexShadowDarkness = tileProvider.vertexShadowDarkness;
 
   const showReflectiveOcean =
     tileProvider.hasWaterMask && defined(waterMaskTexture);
@@ -2510,6 +2516,7 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
     Color.clone(undergroundColor, uniformMapProperties.undergroundColor);
 
     uniformMapProperties.lambertDiffuseMultiplier = lambertDiffuseMultiplier;
+    uniformMapProperties.vertexShadowDarkness = vertexShadowDarkness;
 
     const highlightFillTile =
       !defined(surfaceTile.vertexArray) &&
