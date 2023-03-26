@@ -1227,7 +1227,7 @@ function multipleContentFailed(tile, tileset) {
  * @param {Cesium3DTile} tile
  * @returns {number}
  */
-function requestSingleContent(tile) {
+function requestSingleContent(tile, fromIndexDb) {
   // it is important to clone here. The fetchArrayBuffer() below uses
   // throttling, but other uses of the resources do not.
   const resource = tile._contentResource.clone();
