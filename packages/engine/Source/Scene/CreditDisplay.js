@@ -174,7 +174,7 @@ function addStyle(selector, styles) {
   return style;
 }
 
-function appendCss() {
+function appendCss(container) {
   let style = "";
   style += addStyle(".cesium-credit-lightbox-overlay", {
     display: "none",
@@ -270,17 +270,33 @@ function appendCss() {
     }
   );
 
-  const head = document.head;
+  function getShadowRoot(container) {
+    if (container.shadowRoot) {
+      return container.shadowRoot;
+    }
+    if (container.getRootNode) {
+      const root = container.getRootNode();
+      if (root instanceof ShadowRoot) {
+        return root;
+      }
+    }
+    return undefined;
+  }
+
+  const shadowRootOrDocumentHead = defaultValue(
+    getShadowRoot(container),
+    document.head
+  );
   const css = document.createElement("style");
   css.innerHTML = style;
-  head.insertBefore(css, head.firstChild);
+  shadowRootOrDocumentHead.appendChild(css);
 }
 
 /**
  * The credit display is responsible for displaying credits on screen.
  *
  * @param {HTMLElement} container The HTML element where credits will be displayed
- * @param {String} [delimiter= ' • '] The string to separate text credits
+ * @param {string} [delimiter= ' • '] The string to separate text credits
  * @param {HTMLElement} [viewport=document.body] The HTML element that will contain the credits popup
  *
  * @alias CreditDisplay
@@ -343,7 +359,7 @@ function CreditDisplay(container, delimiter, viewport) {
   expandLink.textContent = "Data attribution";
   container.appendChild(expandLink);
 
-  appendCss();
+  appendCss(container);
   const cesiumCredit = Credit.clone(CreditDisplay.cesiumCredit);
 
   this._delimiter = defaultValue(delimiter, " • ");
@@ -550,7 +566,7 @@ CreditDisplay.prototype.destroy = function () {
  * Returns true if this object was destroyed; otherwise, false.
  * <br /><br />
  *
- * @returns {Boolean} <code>true</code> if this object was destroyed; otherwise, <code>false</code>.
+ * @returns {boolean} <code>true</code> if this object was destroyed; otherwise, <code>false</code>.
  */
 CreditDisplay.prototype.isDestroyed = function () {
   return false;
