@@ -10,7 +10,7 @@
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
   <title>Geometry</title>
-  <!-- <script src="../../../Build/CesiumUnminified/Cesium.js"></script> -->
+  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
   <style>
     @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -29,10 +29,10 @@
 <body>
   <div id="cesiumContainer"></div>
   <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
-  <script type="module">
+  <script>
     /* eslint-disable no-undef */
-    import * as Cesium from "../../../Source/Cesium.js";
-    window.CESIUM_BASE_URL = "../../../Source/";
+    // import * as Cesium from "../../../Source/Cesium.js";
+    // window.CESIUM_BASE_URL = "../../../Source/";
     function TetrahedronGeometry() {
       const negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
       const negativeOneThird = -1.0 / 3.0;
@@ -169,16 +169,15 @@
       flat: false,
       translucent: false,
       vertexShaderSource: `
-        attribute vec3 position3DHigh;
-        attribute vec3 position3DLow;
-        attribute vec3 normal;
-        attribute vec4 color;
-        attribute float batchId;
+        in vec3 position3DHigh;
+        in vec3 position3DLow;
+        in vec3 normal;
+        in vec4 color;
+        in float batchId;
 
-        varying vec3 v_positionEC;
-        varying vec3 v_normalEC;
-        varying vec4 v_color;
-        varying float v_custom;
+        out vec3 v_positionEC;
+        out vec3 v_normalEC;
+        out vec4 v_color;
 
         void main()
         {
@@ -191,34 +190,7 @@
 
             gl_Position = czm_modelViewProjectionRelativeToEye * p;
         }
-        `,
-      fragmentShaderSource: `
-        varying vec3 v_positionEC;
-        varying vec3 v_normalEC;
-        varying vec4 v_color;
-        varying float v_custom;
-
-        void main()
-        {
-            vec3 positionToEyeEC = -v_positionEC;
-
-            vec3 normalEC = normalize(v_normalEC);
-        #ifdef FACE_FORWARD
-            normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
-        #endif
-
-            vec4 color = czm_gammaCorrect(v_color);
-
-            czm_materialInput materialInput;
-            materialInput.normalEC = normalEC;
-            materialInput.positionToEyeEC = positionToEyeEC;
-            czm_material material = czm_getDefaultMaterial(materialInput);
-            material.diffuse = color.rgb;
-            material.alpha = color.a;
-
-            gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
-        }
-      `
+      `,
     });
 
     scene.primitives.add(
