@@ -1,11 +1,13 @@
 import {
   CesiumWidget,
   Clock,
+  CreditDisplay,
   defaultValue,
   EllipsoidTerrainProvider,
   ScreenSpaceEventHandler,
   WebMercatorProjection,
   Camera,
+  ImageryLayer,
   ImageryLayerCollection,
   Scene,
   SceneMode,
@@ -58,6 +60,7 @@ describe(
       expect(widget.isDestroyed()).toEqual(false);
       expect(widget.container).toBeInstanceOf(HTMLElement);
       expect(widget.canvas).toBeInstanceOf(HTMLElement);
+      expect(widget.creditDisplay).toBeInstanceOf(CreditDisplay);
       expect(widget.creditContainer).toBeInstanceOf(HTMLElement);
       expect(widget.creditViewport).toBeInstanceOf(HTMLElement);
       expect(widget.scene).toBeInstanceOf(Scene);
@@ -141,6 +144,26 @@ describe(
       widget = createCesiumWidget(container, {
         imageryProvider: false,
       });
+      const imageryLayers = widget.scene.imageryLayers;
+      expect(imageryLayers.length).toEqual(0);
+    });
+
+    it("sets expected options baseLayer", function () {
+      const provider = new TileCoordinatesImageryProvider();
+      const options = {
+        baseLayer: new ImageryLayer(provider),
+      };
+      widget = createCesiumWidget(container, options);
+      const imageryLayers = widget.scene.imageryLayers;
+      expect(imageryLayers.length).toEqual(1);
+      expect(imageryLayers.get(0).imageryProvider).toBe(provider);
+    });
+
+    it("does not create imagery if baseLayer option is false", function () {
+      const options = {
+        baseLayer: false,
+      };
+      widget = createCesiumWidget(container, options);
       const imageryLayers = widget.scene.imageryLayers;
       expect(imageryLayers.length).toEqual(0);
     });

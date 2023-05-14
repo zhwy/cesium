@@ -520,6 +520,7 @@ function selectTilesForRendering(primitive, frameState) {
   let i;
   const tileProvider = primitive._tileProvider;
   if (!defined(primitive._levelZeroTiles)) {
+    // ready is deprecated. This is here for backwards compatibility
     if (tileProvider.ready) {
       const tilingScheme = tileProvider.tilingScheme;
       primitive._levelZeroTiles = QuadtreeTile.createLevelZeroTiles(
@@ -1274,8 +1275,9 @@ function screenSpaceError(primitive, frameState, tile) {
 function screenSpaceError2D(primitive, frameState, tile) {
   const camera = frameState.camera;
   let frustum = camera.frustum;
-  if (defined(frustum._offCenterFrustum)) {
-    frustum = frustum._offCenterFrustum;
+  const offCenterFrustum = frustum.offCenterFrustum;
+  if (defined(offCenterFrustum)) {
+    frustum = offCenterFrustum;
   }
 
   const context = frameState.context;
@@ -1387,6 +1389,7 @@ const scratchPosition = new Cartesian3();
 const scratchArray = [];
 
 function updateHeights(primitive, frameState) {
+  // ready is deprecated. This is here for backwards compatibility.
   if (!primitive.tileProvider.ready) {
     return;
   }
