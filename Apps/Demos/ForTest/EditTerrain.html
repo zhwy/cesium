@@ -1,96 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <!-- Use correct character set. -->
     <meta charset="utf-8" />
     <!-- Tell IE to use the latest, best version. -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
     <title>地形裁剪</title>
     <style>
-        @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-        html,
-        body,
-        #cesiumContainer {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
 
-        button {
-            position: absolute;
-            z-index: 99;
-        }
+      button {
+        position: absolute;
+        z-index: 99;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="cesiumContainer"></div>
+    <script type="module" src="../../Sandcastle/load-cesium-es6.js"></script>
     <script type="module">
-        // import IndexedDbCache from "../Lib/indexDbCache.js";
-        import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-        window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
-        window.Cesium = Cesium;
-        Cesium.Ion.defaultAccessToken =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-        /* eslint-disable */
-        var viewer;
-        var modelHeight;
-        viewer = new Cesium.Viewer("cesiumContainer", {
-            terrainProvider: Cesium.createWorldTerrain(),
-            imageryProvider: new Cesium.UrlTemplateImageryProvider({
-                url:
-                    "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-                maximumLevel: 20,
-                tileWidth: 512,
-                tileHeight: 512,
-            }),
-        });
-        window._viewer = viewer;
+      var viewer;
+      var modelHeight;
+      viewer = new Cesium.Viewer("cesiumContainer", {
+        infoBox: false,
+        terrainProvider: Cesium.createWorldTerrain(),
+      });
+      window._viewer = viewer;
 
-        var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-        var orientation = Cesium.Transforms.headingPitchRollQuaternion(
-            pos,
-            new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
-        );
+      var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+      var orientation = Cesium.Transforms.headingPitchRollQuaternion(
+        pos,
+        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
+      );
 
-        var entity = viewer.entities.add({
-            position: pos,
-            orientation: orientation,
-            model: {
-                uri: "/Apps/Demos/Underground/隧道test.glb",
-            },
-        });
-        viewer.zoomTo(entity);
+      var entity = viewer.entities.add({
+        position: pos,
+        orientation: orientation,
+        model: {
+          uri: "/Apps/Demos/Underground/隧道test.glb",
+        },
+      });
+      viewer.zoomTo(entity);
 
-        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        var positions = [];
+      var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      var positions = [];
 
-        handler.setInputAction(function(movement) {
-            var worldPosition = viewer.scene.pickPosition(movement.position);
-            if (Cesium.defined(worldPosition)) {
-                positions.push(worldPosition);
-                console.log(Cesium.Cartographic.fromCartesian(worldPosition));
-            }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+      handler.setInputAction(function (movement) {
+        var worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+          console.log(Cesium.Cartographic.fromCartesian(worldPosition));
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-        handler.setInputAction(function(movement) {
-            var worldPosition = viewer.scene.pickPosition(movement.position);
-            if (Cesium.defined(worldPosition)) {
-                positions.push(worldPosition);
-                if (positions.length > 2) {
-                    positions = [];
-                }
-            }
-        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+      handler.setInputAction(function (movement) {
+        var worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+          if (positions.length > 2) {
+            positions = [];
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
     </script>
-</body>
-
+  </body>
 </html>
