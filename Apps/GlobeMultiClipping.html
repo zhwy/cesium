@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>MultiClipping On Globe</title>
+    <script src="../Build/CesiumUnminified/Cesium.js"></script>
+    <style>
+      @import url(../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <script>
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      viewer.camera.setView({
+        destination: new Cesium.Cartesian3(1e7, 0, 0),
+      });
+
+      viewer.scene.debugShowFramesPerSecond = true;
+
+      const { globe } = viewer.scene;
+      globe.depthTestAgainstTerrain = true;
+
+      const multiCollections = new Cesium.MultiClippingPlaneCollection({
+        collections: [
+          generateClippingPlanesCollection([
+            Cesium.Cartesian3.fromDegrees(-10, -5),
+            Cesium.Cartesian3.fromDegrees(10, -5),
+            Cesium.Cartesian3.fromDegrees(0, 10),
+          ]),
+          generateClippingPlanesCollection([
+            Cesium.Cartesian3.fromDegrees(-10, 5),
+            Cesium.Cartesian3.fromDegrees(0, -10),
+            Cesium.Cartesian3.fromDegrees(10, 5),
+          ]),
+        ],
+        modelMatrix: Cesium.Matrix4.IDENTITY,
+        edgeWidth: 5,
+        edgeColor: Cesium.Color.WHITE,
+      });
+      globe.multiClippingPlanes = multiCollections;
+
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      let positions = [];
+
+      // left click to add points to a clipping planes collection
+      handler.setInputAction(function (movement) {
+        const worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      // right click to end a clipping planes collection
+      handler.setInputAction(function (movement) {
+        const worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+          if (positions.length > 2) {
+            const collection = generateClippingPlanesCollection(positions);
+            multiCollections.add(collection);
+            positions = [];
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+      function generateClippingPlanesCollection(points) {
+        const pointsLength = points.length;
+        const clippingPlanes = [];
+        for (let i = 0; i < pointsLength; ++i) {
+          const nextIndex = (i + 1) % pointsLength;
+          let midpoint = Cesium.Cartesian3.add(
+            points[i],
+            points[nextIndex],
+            new Cesium.Cartesian3()
+          );
+          midpoint = Cesium.Cartesian3.multiplyByScalar(
+            midpoint,
+            0.5,
+            midpoint
+          );
+
+          const up = Cesium.Cartesian3.normalize(
+            midpoint,
+            new Cesium.Cartesian3()
+          );
+          let right = Cesium.Cartesian3.subtract(
+            points[nextIndex],
+            midpoint,
+            new Cesium.Cartesian3()
+          );
+          right = Cesium.Cartesian3.normalize(right, right);
+
+          let normal = Cesium.Cartesian3.cross(
+            right,
+            up,
+            new Cesium.Cartesian3()
+          );
+          normal = Cesium.Cartesian3.normalize(normal, normal);
+
+          // Compute distance by pretending the plane is at the origin
+          const originCenteredPlane = new Cesium.Plane(normal, 0.0);
+          const distance = Cesium.Plane.getPointDistance(
+            originCenteredPlane,
+            midpoint
+          );
+
+          clippingPlanes.push(new Cesium.ClippingPlane(normal, distance));
+        }
+
+        return new Cesium.ClippingPlaneCollection({
+          planes: clippingPlanes,
+          modelMatrix: Cesium.Matrix4.IDENTITY,
+        });
+      }
+    </script>
+  </body>
+</html>
