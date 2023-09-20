@@ -20,11 +20,16 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    - name: Clean for Deploy
+      run: |
+        rm .gitignore        
+
     - name: Install and Build
       run: |
         npm install
         npm run build
         npm run build-release
+        
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@v4
       with:
