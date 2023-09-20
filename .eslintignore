@@ -1,7 +1,6 @@
 Apps/HelloWorld.html
 Apps/Sandcastle/ThirdParty/**
 Build/**
-!Build/Cesium
 Documentation/**
 Source/**
 Specs/jasmine/**
