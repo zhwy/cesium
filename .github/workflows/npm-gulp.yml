@@ -25,7 +25,8 @@ jobs:
         npm install
         npm run build
     - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@v4.2.2
+      uses: arctions/deploy-pages@v2
       with:
         branch: gh-pages
+        path: .
         
