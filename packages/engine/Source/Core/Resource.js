@@ -207,6 +207,13 @@ Resource.supportsImageBitmapOptions = function () {
   // Until the HTML folks figure out what to do about this, we need to actually try loading an image to
   // know if this browser supports passing options to the createImageBitmap function.
   // https://github.com/whatwg/html/pull/4248
+  //
+  // We also need to check whether the colorSpaceConversion option is supported.
+  // We do this by loading a PNG with an embedded color profile, first with
+  // colorSpaceConversion: "none" and then with colorSpaceConversion: "default".
+  // If the pixel color is different then we know the option is working.
+  // As of Webkit 17612.3.6.1.6 the createImageBitmap promise resolves but the
+  // option is not actually supported.
   if (defined(supportsImageBitmapOptionsPromise)) {
     return supportsImageBitmapOptionsPromise;
   }
@@ -1459,6 +1466,8 @@ Resource.prototype._makeRequest = function (options) {
 
   return promise
     .then(function (data) {
+      // explicitly set to undefined to ensure GC of request response data. See #8843
+      request.cancelFunction = undefined;
       return data;
     })
     .catch(function (e) {

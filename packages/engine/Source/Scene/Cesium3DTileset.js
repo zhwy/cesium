@@ -394,9 +394,10 @@ function Cesium3DTileset(options) {
   );
 
   /**
-   * Gets a function that will update the foveated screen space error for a tile.
+   * Gets or sets a callback to control how much to raise the screen space error for tiles outside the foveated cone,
+   * interpolating between {@link Cesium3DTileset#foveatedMinimumScreenSpaceErrorRelaxation} and {@link Cesium3DTileset#maximumScreenSpaceError}.
    *
-   * @type {Cesium3DTileset.foveatedInterpolationCallback} A callback to control how much to raise the screen space error for tiles outside the foveated cone, interpolating between {@link Cesium3DTileset#foveatedMinimumScreenSpaceErrorRelaxation} and {@link Cesium3DTileset#maximumScreenSpaceError}.
+   * @type {Cesium3DTileset.foveatedInterpolationCallback}
    */
   this.foveatedInterpolationCallback = defaultValue(
     options.foveatedInterpolationCallback,
@@ -769,7 +770,7 @@ function Cesium3DTileset(options) {
   }
 
   /**
-   * The color and intensity of the sunlight used to shade a model.
+   * The light color when shading models. When <code>undefined</code> the scene's light color is used instead.
    * <p>
    * For example, disabling additional light sources by setting
    * <code>tileset.imageBasedLighting.imageBasedLightingFactor = new Cartesian2(0.0, 0.0)</code>
@@ -1171,7 +1172,7 @@ Object.defineProperties(Cesium3DTileset.prototype, {
    *
    * @memberof Cesium3DTileset.prototype
    *
-   * @type {Cesium3DTileStyle}
+   * @type {Cesium3DTileStyle|undefined}
    *
    * @default undefined
    *
@@ -3239,9 +3240,8 @@ Cesium3DTileset.prototype.updateForPass = function (
       (!this.preloadFlightDestinations ||
         (!this.show && !this.preloadWhenHidden))) ||
     (pass === Cesium3DTilePass.REQUEST_RENDER_MODE_DEFER_CHECK &&
-      !this.cullRequestsWhileMoving &&
-      this.foveatedTimeDelay <= 0) ||
-    !this.show
+      ((!this._cullRequestsWhileMoving && this.foveatedTimeDelay <= 0) ||
+        !this.show))
   ) {
     return;
   }

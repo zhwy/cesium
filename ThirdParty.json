@@ -36,7 +36,7 @@
     "license": [
       "MIT"
     ],
-    "version": "1.0.3",
+    "version": "1.0.4",
     "url": "https://www.npmjs.com/package/bitmap-sdf"
   },
   {
@@ -182,7 +182,7 @@
     "license": [
       "MIT"
     ],
-    "version": "1.19.7",
+    "version": "1.19.11",
     "url": "https://www.npmjs.com/package/urijs"
   }
 ]
