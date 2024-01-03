@@ -3,7 +3,7 @@ import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
 import loadCRN from "../Core/loadCRN.js";
 import loadImageFromTypedArray from "../Core/loadImageFromTypedArray.js";
-import loadKTX from "../Core/loadKTX";
+import loadKTX from "../Core/loadKTX.js";
 import loadKTX2 from "../Core/loadKTX2.js";
 import RuntimeError from "../Core/RuntimeError.js";
 import ResourceLoader from "./ResourceLoader.js";

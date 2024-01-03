@@ -34,7 +34,6 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-      // import IndexedDbCache from "../Lib/indexDbCache.js";
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
@@ -146,7 +145,7 @@
             // }
             collection = generateClippingPlanesCollection(positions);
             multiCollections.add(collection);
-            drawExcavation(positions);
+            // drawExcavation(positions);
             positions = [];
             cartos = [];
           }
