@@ -1,252 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Geometry</title>
+    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>Geometry</title>
-  <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-  <style>
-    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
 
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-  </style>
-</head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
+    <script>
+      /* eslint-disable no-undef */
+      // import * as Cesium from "../../../Source/Cesium.js";
+      // window.CESIUM_BASE_URL = "../../../Source/";
+      function TetrahedronGeometry() {
+        const negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
+        const negativeOneThird = -1.0 / 3.0;
+        const rootSixOverThree = Math.sqrt(6.0) / 3.0;
 
-<body>
-  <div id="cesiumContainer"></div>
-  <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
-  <script>
-    /* eslint-disable no-undef */
-    // import * as Cesium from "../../../Source/Cesium.js";
-    // window.CESIUM_BASE_URL = "../../../Source/";
-    function TetrahedronGeometry() {
-      const negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
-      const negativeOneThird = -1.0 / 3.0;
-      const rootSixOverThree = Math.sqrt(6.0) / 3.0;
+        //四面体的四个顶点
+        const positions = new Float64Array(4 * 3);
 
-      //四面体的四个顶点
-      const positions = new Float64Array(4 * 3);
+        // position 0
+        positions[0] = 0.0;
+        positions[1] = 0.0;
+        positions[2] = 1.0;
 
-      // position 0
-      positions[0] = 0.0;
-      positions[1] = 0.0;
-      positions[2] = 1.0;
+        // position 1
+        positions[3] = 0.0;
+        positions[4] = (2.0 * Math.sqrt(2.0)) / 3.0;
+        positions[5] = negativeOneThird;
 
-      // position 1
-      positions[3] = 0.0;
-      positions[4] = (2.0 * Math.sqrt(2.0)) / 3.0;
-      positions[5] = negativeOneThird;
+        // position 2
+        positions[6] = -rootSixOverThree;
+        positions[7] = negativeRootTwoOverThree;
+        positions[8] = negativeOneThird;
 
-      // position 2
-      positions[6] = -rootSixOverThree;
-      positions[7] = negativeRootTwoOverThree;
-      positions[8] = negativeOneThird;
+        // position 3
+        positions[9] = rootSixOverThree;
+        positions[10] = negativeRootTwoOverThree;
+        positions[11] = negativeOneThird;
 
-      // position 3
-      positions[9] = rootSixOverThree;
-      positions[10] = negativeRootTwoOverThree;
-      positions[11] = negativeOneThird;
+        const attributes = new Cesium.GeometryAttributes({
+          position: new Cesium.GeometryAttribute({
+            componentDatatype: Cesium.ComponentDatatype.DOUBLE,
+            componentsPerAttribute: 3,
+            values: positions,
+          }),
+        });
 
-      const attributes = new Cesium.GeometryAttributes({
-        position: new Cesium.GeometryAttribute({
-          componentDatatype: Cesium.ComponentDatatype.DOUBLE,
-          componentsPerAttribute: 3,
-          values: positions,
-        }),
+        /**
+         * Cesium会对geometry上componentDatatype为DOUBLE的attributes做二维投影（GeometryPipeline.projectTo2D）
+         * 当componentDatatype为DOUBLE时，不能传入与位置无关的属性，否则投影会报错
+         */
+        // const tmpValue = new Float64Array(4 * 4);
+        // for (let i = 0; i < 16; i += 1) {
+        //   tmpValue[i] = 1.0;
+        // }
+
+        // attributes.customAttr = new Cesium.GeometryAttribute({
+        //   componentDatatype: Cesium.ComponentDatatype.FLOAT,
+        //   componentsPerAttribute: 4,
+        //   values: tmpValue,
+        // });
+
+        //顶点索引
+        const indices = new Uint16Array(4 * 3);
+
+        // back triangle
+        indices[0] = 0;
+        indices[1] = 1;
+        indices[2] = 2;
+
+        // left triangle
+        indices[3] = 0;
+        indices[4] = 2;
+        indices[5] = 3;
+
+        // right triangle
+        indices[6] = 0;
+        indices[7] = 3;
+        indices[8] = 1;
+
+        // bottom triangle
+        indices[9] = 2;
+        indices[10] = 1;
+        indices[11] = 3;
+
+        // 包围球
+        const boundingSphere = new Cesium.BoundingSphere(
+          new Cesium.Cartesian3(0.0, 0.0, 0.0),
+          1.0
+        );
+
+        const geometry = Cesium.GeometryPipeline.computeNormal(
+          new Cesium.Geometry({
+            attributes: attributes,
+            indices: indices,
+            primitiveType: Cesium.PrimitiveType.TRIANGLES,
+            boundingSphere: boundingSphere,
+          })
+        );
+        return geometry;
+      }
+
+      const cesiumWidget = new Cesium.CesiumWidget("cesiumContainer");
+      const scene = cesiumWidget.scene;
+      const ellipsoid = cesiumWidget.scene.globe.ellipsoid;
+
+      //模型矩阵
+      const modelMatrix = Cesium.Matrix4.multiplyByUniformScale(
+        Cesium.Matrix4.multiplyByTranslation(
+          Cesium.Transforms.eastNorthUpToFixedFrame(
+            ellipsoid.cartographicToCartesian(
+              Cesium.Cartographic.fromDegrees(-100.0, 40.0)
+            )
+          ),
+          new Cesium.Cartesian3(0.0, 0.0, 200000.0),
+          new Cesium.Matrix4()
+        ),
+        500000.0,
+        new Cesium.Matrix4()
+      );
+      //四面体的实例
+      const instance = new Cesium.GeometryInstance({
+        geometry: new TetrahedronGeometry(),
+        modelMatrix: modelMatrix,
+        attributes: {
+          color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+            new Cesium.Color(1, 1, 0, 1)
+          ),
+          /**
+           * 这里添加的自定义参数，在着色器中需要使用czm_batchTable_customAttr(batchId)方法获取值
+           * 注意和geometry中的attributes区分
+           * 查看Primitive中的createShaderProgram内部方法，它会对传入的着色器方法做一些修改，
+           * 包括自动添加czm_batchTable_customAttr方法，以及处理color、show和distanceDisplayCondition等
+           */
+          customAttr: {
+            componentDatatype: Cesium.ComponentDatatype.UNSIGNED_BYTE,
+            componentsPerAttribute: 1,
+            normalize: false,
+            value: new Uint8Array([0]),
+          },
+        },
       });
 
-      /**
-       * Cesium会对geometry上的attributes做二维投影（GeometryPipeline.projectTo2D）
-       * 这里不能传入与位置无关的属性，否则投影会报错
-       */
-      // const tmpValue = new Float64Array(4 * 4);
-      // for (let i = 0; i < 16; i += 1) {
-      //   tmpValue[i] = 1.0;
-      // }
+      //加入场景
+      const appearance = new Cesium.PerInstanceColorAppearance({
+        flat: false,
+        translucent: false,
+        vertexShaderSource: `
+          in vec3 position3DHigh;
+          in vec3 position3DLow;
+          in vec3 normal;
+          in vec4 color;
+          in float batchId;
 
-      // attributes.customAttr = new Cesium.GeometryAttribute({
-      //   componentDatatype: Cesium.ComponentDatatype.DOUBLE,
-      //   componentsPerAttribute: 4,
-      //   values: tmpValue,
-      // });
+          out vec3 v_positionEC;
+          out vec3 v_normalEC;
+          out vec4 v_color;
 
-      //顶点索引
-      const indices = new Uint16Array(4 * 3);
+          void main()
+          {
+              vec4 p = czm_computePosition();
 
-      // back triangle
-      indices[0] = 0;
-      indices[1] = 1;
-      indices[2] = 2;
+              v_positionEC = (czm_modelViewRelativeToEye * p).xyz;      // position in eye coordinates
+              v_normalEC = czm_normal * normal;                         // normal in eye coordinates
+              v_color = color;
+              v_color.y = czm_batchTable_customAttr(batchId);
 
-      // left triangle
-      indices[3] = 0;
-      indices[4] = 2;
-      indices[5] = 3;
+              gl_Position = czm_modelViewProjectionRelativeToEye * p;
+          }
+        `,
+      });
 
-      // right triangle
-      indices[6] = 0;
-      indices[7] = 3;
-      indices[8] = 1;
-
-      // bottom triangle
-      indices[9] = 2;
-      indices[10] = 1;
-      indices[11] = 3;
-
-      //包围球
-      const boundingSphere = new Cesium.BoundingSphere(
-        new Cesium.Cartesian3(0.0, 0.0, 0.0),
-        1.0
-      );
-
-      const geometry = Cesium.GeometryPipeline.computeNormal(
-        new Cesium.Geometry({
-          attributes: attributes,
-          indices: indices,
-          primitiveType: Cesium.PrimitiveType.TRIANGLES,
-          boundingSphere: boundingSphere,
+      scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: instance,
+          appearance,
+          asynchronous: false,
         })
       );
-      return geometry;
-    }
 
-    const cesiumWidget = new Cesium.CesiumWidget("cesiumContainer");
-    const scene = cesiumWidget.scene;
-    const ellipsoid = cesiumWidget.scene.globe.ellipsoid;
+      //线
+      // const material = Cesium.Material.fromType(
+      //   Cesium.Material.PolylineTrailType2,
+      //   {
+      //     color: new Cesium.Color(1, 1, 1, 0.01),
+      //     duration: 1000,
+      //     image: "../Lib/red.png",
+      //     repeat: 1,
+      //     length: 0.1
+      //   }
+      // );
+      // const trail = scene.primitives.add(
+      //   new Cesium.Primitive({
+      //     geometryInstances: new Cesium.GeometryInstance({
+      //       geometry: new Cesium.PolylineGeometry({
+      //         positions: Cesium.Cartesian3.fromDegreesArray([
+      //           -100,
+      //           40,
+      //           100,
+      //           40,
+      //         ]),
+      //         width: 3,
+      //       }),
+      //     }),
+      //     appearance: new Cesium.PolylineMaterialAppearance({
+      //       material: material,
+      //     }),
+      //     // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+      //     //   material: Cesium.Material.fromType("Color"),
+      //     // }),
+      //     depthFailAppearance: new Cesium.PolylineMaterialAppearance({
+      //       material: material,
+      //     }),
+      //   })
+      // );
+      // scene.preRender.addEventListener(() => {
+      //   if (
+      //     trail &&
+      //     trail.appearance.material &&
+      //     trail.appearance.material.uniforms
+      //   ) {
+      //     trail.appearance.material.uniforms.time++;
+      //   }
 
-    //模型矩阵
-    const modelMatrix = Cesium.Matrix4.multiplyByUniformScale(
-      Cesium.Matrix4.multiplyByTranslation(
-        Cesium.Transforms.eastNorthUpToFixedFrame(
-          ellipsoid.cartographicToCartesian(
-            Cesium.Cartographic.fromDegrees(-100.0, 40.0)
-          )
-        ),
-        new Cesium.Cartesian3(0.0, 0.0, 200000.0),
-        new Cesium.Matrix4()
-      ),
-      500000.0,
-      new Cesium.Matrix4()
-    );
-    //四面体的实例
-    const instance = new Cesium.GeometryInstance({
-      geometry: new TetrahedronGeometry(),
-      modelMatrix: modelMatrix,
-      attributes: {
-        color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-          new Cesium.Color(1, 1, 0, 1)
-        ),
-        /**
-         * 这里添加的自定义参数，在着色器中需要使用czm_batchTable_customAttr(batchId)方法获取值
-         * 注意和geometry中的attributes区分
-         * 查看Primitive中的createShaderProgram内部方法，它会对传入的着色器方法做一些修改，
-         * 包括自动添加czm_batchTable_customAttr方法，以及处理color、show和distanceDisplayCondition等
-         */
-        customAttr: {
-          componentDatatype: Cesium.ComponentDatatype.UNSIGNED_BYTE,
-          componentsPerAttribute: 1,
-          normalize: false,
-          value: new Uint8Array([0]),
-        },
-      },
-    });
-    //加入场景
-    const appearance = new Cesium.PerInstanceColorAppearance({
-      flat: false,
-      translucent: false,
-      vertexShaderSource: `
-        in vec3 position3DHigh;
-        in vec3 position3DLow;
-        in vec3 normal;
-        in vec4 color;
-        in float batchId;
-
-        out vec3 v_positionEC;
-        out vec3 v_normalEC;
-        out vec4 v_color;
-
-        void main()
-        {
-            vec4 p = czm_computePosition();
-
-            v_positionEC = (czm_modelViewRelativeToEye * p).xyz;      // position in eye coordinates
-            v_normalEC = czm_normal * normal;                         // normal in eye coordinates
-            v_color = color;
-            v_color.y = czm_batchTable_customAttr(batchId);
-
-            gl_Position = czm_modelViewProjectionRelativeToEye * p;
-        }
-      `,
-    });
-
-    scene.primitives.add(
-      new Cesium.Primitive({
-        geometryInstances: instance,
-        appearance,
-        asynchronous: false,
-      })
-    );
-
-    //线
-    // const material = Cesium.Material.fromType(
-    //   Cesium.Material.PolylineTrailType2,
-    //   {
-    //     color: new Cesium.Color(1, 1, 1, 0.01),
-    //     duration: 1000,
-    //     image: "../Lib/red.png",
-    //     repeat: 1,
-    //     length: 0.1
-    //   }
-    // );
-    // const trail = scene.primitives.add(
-    //   new Cesium.Primitive({
-    //     geometryInstances: new Cesium.GeometryInstance({
-    //       geometry: new Cesium.PolylineGeometry({
-    //         positions: Cesium.Cartesian3.fromDegreesArray([
-    //           -100,
-    //           40,
-    //           100,
-    //           40,
-    //         ]),
-    //         width: 3,
-    //       }),
-    //     }),
-    //     appearance: new Cesium.PolylineMaterialAppearance({
-    //       material: material,
-    //     }),
-    //     // depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-    //     //   material: Cesium.Material.fromType("Color"),
-    //     // }),
-    //     depthFailAppearance: new Cesium.PolylineMaterialAppearance({
-    //       material: material,
-    //     }),
-    //   })
-    // );
-    // scene.preRender.addEventListener(() => {
-    //   if (
-    //     trail &&
-    //     trail.appearance.material &&
-    //     trail.appearance.material.uniforms
-    //   ) {
-    //     trail.appearance.material.uniforms.time++;
-    //   }
-
-    // });
-  </script>
-</body>
-
+      // });
+    </script>
+  </body>
 </html>
