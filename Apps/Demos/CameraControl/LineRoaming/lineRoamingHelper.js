@@ -1,4 +1,5 @@
 import * as Cesium from "/Build/CesiumUnminified/index.js";
+
 class LineRoamingHelper {
   constructor(viewer) {
     this.viewer = viewer;
@@ -8,9 +9,9 @@ class LineRoamingHelper {
     this.viewer.scene.preRender.addEventListener(() => {
       this.clock.tick();
     });
-    this.tickHandler = null;
+    this.removeTickHandler = null;
     this.roaming = false;
-    this.multiplier = 60; // 行进速度
+    this.multiplier = 600; // 行进速度
     this.cameraDirection = 1;
     this.whenStopRoaming = () => {};
 
@@ -36,6 +37,7 @@ class LineRoamingHelper {
         cartographic.push(Cesium.Cartographic.fromDegrees(p[0], p[1], p[2]));
       });
       const sampledPos = new Cesium.SampledPositionProperty();
+
       let startTime = this.clock.startTime.clone();
       sampledPos.addSample(
         startTime,
@@ -45,6 +47,7 @@ class LineRoamingHelper {
           positions[0][2]
         )
       );
+
       let endTime = new Cesium.JulianDate();
       for (let i = 1; i < cartographic.length; i++) {
         const pos = positions[i];
@@ -64,6 +67,7 @@ class LineRoamingHelper {
         );
         startTime = endTime.clone();
       }
+
       this.clock.stopTime = endTime.clone();
       // 路径entity
       this.roamPath = this.viewer.entities.add({
@@ -83,7 +87,8 @@ class LineRoamingHelper {
   activateRoaming() {
     const me = this;
     this.roaming = true;
-    if (this.tickHandler) this.tickHandler(); // 移除
+
+    if (this.removeTickHandler) this.removeTickHandler(); // 移除
     const camera = this.viewer.camera;
     this.clock.currentTime = this.clock.startTime.clone();
     const pos1 = this.roamPath.position.getValue(this.clock.startTime);
@@ -111,7 +116,7 @@ class LineRoamingHelper {
       maximumHeight: geodesic.start.height,
       duration: 2,
       complete: () => {
-        this.tickHandler = this.clock.onTick.addEventListener((clock) => {
+        this.removeTickHandler = this.clock.onTick.addEventListener((clock) => {
           const pos = this.roamPath.position.getValue(clock.currentTime);
           if (pos) {
             camera.setView({
@@ -165,7 +170,8 @@ class LineRoamingHelper {
   deactivateRoaming() {
     this.clock.shouldAnimate = false;
     this.roaming = false;
-    if (this.tickHandler) this.tickHandler(); // 移除
+    if (this.removeTickHandler) this.removeTickHandler(); // 移除
+
     this.viewer.scene.screenSpaceCameraController.enableRotate = true;
     this.viewer.scene.screenSpaceCameraController.enableTilt = true;
     this.viewer.scene.screenSpaceCameraController.enableZoom = true;
@@ -173,16 +179,16 @@ class LineRoamingHelper {
   }
   _keydown(e) {
     if (this.roaming) {
-      switch (e.keyCode) {
-        case "W".charCodeAt(0):
+      switch (e.code) {
+        case "KeyW":
           this.clock.shouldAnimate = true;
           this.clock.multiplier = this.multiplier * this.cameraDirection;
           break;
-        case "S".charCodeAt(0):
+        case "KeyS":
           this.clock.shouldAnimate = true;
           this.clock.multiplier = this.multiplier * this.cameraDirection * -1;
           break;
-        case 27: //esc
+        case "Escape": //esc
           this.deactivateRoaming();
           break;
         default:
@@ -191,11 +197,11 @@ class LineRoamingHelper {
     }
   }
   _keyup(e) {
-    switch (e.keyCode) {
-      case "W".charCodeAt(0):
+    switch (e.code) {
+      case "KeyW":
         this.clock.shouldAnimate = false;
         break;
-      case "S".charCodeAt(0):
+      case "KeyS":
         this.clock.shouldAnimate = false;
         break;
       default:
