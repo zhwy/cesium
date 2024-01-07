@@ -1,282 +1,249 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Hello My Cesium</title>
+    <script src="Demos/Lib/tool.js"></script>
+    <style>
+      @import url(../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>Hello My Cesium</title>
-  <script src="Demos/Lib/tool.js"></script>
-  <style>
-    @import url(../Build/Cesium/Widgets/widgets.css);
-
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="cesiumContainer"></div>
-  <script type="module">
-    Cesium.Ion.defaultAccessToken =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-    window.CESIUM_BASE_URL = "../Source";
-    import * as Cesium from "../Build/CesiumUnminified/index.js";
-    import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
-    /* eslint-disable */
-    var _roam = true;
-    var viewer = new Cesium.Viewer("cesiumContainer", {
-      animation: false,
-      baseLayerPicker: false,
-      geocoder: false,
-      timeline: false,
-      infobox: false,
-      navigationHelpButton: false,
-      sceneModePicker: false,
-      scene3DOnly: true,
-      homeButton: false,
-      infoBox: false,
-      selectionIndicator: false,
-      fullscreenButton: false,
-      shouldAnimate: true,
-      imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url:
-          "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-        maximumLevel: 20,
-        tileWidth: 512,
-        tileHeight: 512,
-      }),
-      terrainProvider: Cesium.createWorldTerrain(),
-    });
-    window._viewer = viewer;
-    //抗锯齿
-    viewer.scene.postProcessStages.fxaa.enabled = true;
-    //3d tiles inspector
-    // viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
-    viewer.scene.globe.depthTestAgainstTerrain = true;
-    //防止模型显示不完整
-    viewer.scene.logarithmicDepthBuffer = false;
-    //鼠标控制
-    viewer.scene.screenSpaceCameraController.rotateEventTypes = [
-      Cesium.CameraEventType.LEFT_DRAG,
-    ];
-    viewer.scene.screenSpaceCameraController.zoomEventTypes = [
-      Cesium.CameraEventType.WHEEL,
-    ];
-    //加载模型
-    // var model = new Cesium.Cesium3DTileset({
-    //   url: "http://localhost:8082/compare_with_glb/tileset.json",
-    //   // url: 'http://localhost:8082/revit/tileset.json',
-    //   luminanceAtZenith: 1,
-    //   lightColor: new Cesium.Cartesian3(1, 1, 1),
-    //   immediatelyLoadDesiredLevelOfDetail: true,
-    //   maximumScreenSpaceError: 100,
-    //   debugShowGeometricError: false,
-    //   // debugShowBoundingVolume: true
-    //   //debugShowUrl: true,
-    //   // loadSiblings: true
-    //   maximumMemoryUsage: 512,
-    //   dynamicScreenSpaceError: false,
-    // });
-    // changeTilesetPosition(model, 0, 0, 200);
-    var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-    var orientation = Cesium.Transforms.headingPitchRollQuaternion(
-      pos,
-      new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
-    );
-    var model = viewer.entities.add({
-      position: pos,
-      orientation: orientation,
-      model: {
-        uri: "/Apps/Demos/Underground/隧道test.glb",
-      },
-    });
-    viewer.zoomTo(model);
-    viewer.camera.moveEnd.addEventListener(function(e) {
-      var pos = Cesium.Cartographic.fromCartesian(viewer.camera.position);
-      console.log("camera height: " + pos.height);
-    });
-    //球体
-    var ballPos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 660.67);
-    var ball = viewer.entities.add({
-      name: "ball",
-      position: ballPos,
-      point: {
-        pixelSize: 10,
-        fill: true,
-        color: Cesium.Color.YELLOW,
-      },
-    });
-    var picker = new PickFromRay(viewer, [ball]);
-    //按键移动相机
-    var keydown = function(e) {
-      if (_roam) {
-        _movePosition(e, viewer, viewer.camera);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
       }
-    };
-    document.addEventListener("keydown", keydown);
-    var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction(function(movement) {
-      var scene = viewer.scene;
-      if (scene.mode !== Cesium.SceneMode.MORPHING) {
-        var pickedObject = scene.pick(movement.position);
-        if (scene.pickPositionSupported && Cesium.defined(pickedObject)) {
-          var clickPos = Cesium.Cartographic.fromCartesian(
-            scene.pickPosition(movement.position)
-          );
-          if (Cesium.defined(pickedObject.tileset)) {
-            var name = pickedObject.getProperty("name");
-            console.log(name + " click height: " + clickPos.height);
-          }
-        }
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    </style>
+  </head>
 
-    //右键旋转视角
-    var startMousePosition;
-    var mousePosition;
-    var turning = false;
-    viewer.clock.onTick.addEventListener((clock) => {
-      if (turning) {
-        var width = viewer.scene.canvas.clientWidth;
-        var height = viewer.scene.canvas.clientHeight;
-        var x = (mousePosition.x - startMousePosition.x) / width;
-        var y = -(mousePosition.y - startMousePosition.y) / height;
-        var lookFactor = 3;
-        viewer.camera.setView({
-          orientation: {
-            heading: viewer.camera.heading + x * lookFactor,
-            pitch: viewer.camera.pitch + y * lookFactor,
-            roll: 0,
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      // window.CESIUM_BASE_URL = "../Build/CesiumUnminified";
+
+      import * as Cesium from "../Build/CesiumUnminified/index.js";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      async function main() {
+        const viewer = new Cesium.Viewer("cesiumContainer", {
+          animation: false,
+          baseLayerPicker: false,
+          geocoder: false,
+          timeline: false,
+          infobox: false,
+          navigationHelpButton: false,
+          sceneModePicker: false,
+          scene3DOnly: true,
+          homeButton: false,
+          infoBox: false,
+          selectionIndicator: false,
+          fullscreenButton: false,
+          shouldAnimate: true,
+          terrainProvider: await Cesium.createWorldTerrainAsync(),
+        });
+
+        window._viewer = viewer;
+        // 抗锯齿
+        viewer.scene.postProcessStages.fxaa.enabled = true;
+        // 3d tiles inspector
+        // viewer.extend(Cesium.viewerCesium3DTilesInspectorMixin);
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        // 防止模型显示不完整
+        viewer.scene.logarithmicDepthBuffer = false;
+        // 鼠标控制
+        viewer.scene.screenSpaceCameraController.rotateEventTypes = [
+          Cesium.CameraEventType.LEFT_DRAG,
+        ];
+        viewer.scene.screenSpaceCameraController.zoomEventTypes = [
+          Cesium.CameraEventType.WHEEL,
+        ];
+
+        const pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+        const orientation = Cesium.Transforms.headingPitchRollQuaternion(
+          pos,
+          new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
+        );
+        const model = viewer.entities.add({
+          position: pos,
+          orientation: orientation,
+          model: {
+            uri: "/Apps/Demos/Underground/隧道test.glb",
           },
         });
-        mousePosition.clone(startMousePosition);
-      }
-    });
-    handler.setInputAction(function(movement) {
-      mousePosition = movement.endPosition;
-    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-    handler.setInputAction(function(movement) {
-      turning = true;
-      mousePosition = startMousePosition = Cesium.Cartesian3.clone(
-        movement.position
-      );
-    }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
-    handler.setInputAction(function(movement) {
-      turning = false;
-      mousePosition = startMousePosition = Cesium.Cartesian3.clone(
-        movement.position
-      );
-    }, Cesium.ScreenSpaceEventType.RIGHT_UP);
+        viewer.zoomTo(model);
 
-    var webMercatorProjection = new Cesium.WebMercatorProjection(
-      viewer.scene.globe.ellipsoid
-    );
+        const movingStatus = {
+          forward: false,
+          backward: false,
+          left: false,
+          right: false,
+          up: false,
+          down: false,
+        };
 
-    function _movePosition(e, viewer, entity) {
-      var position;
-      var isCamare;
-      if (entity.position.x) {
-        position = entity.position.clone();
-        isCamare = true;
-      } else {
-        position = entity.position._value.clone();
-        isCamare = false;
-      }
-      var mercPosition = webMercatorProjection.project(
-        Cesium.Cartographic.fromCartesian(position)
-      );
-      var distance = 0.5;
-      var heading = viewer.camera.heading;
-      var newMercPosition;
-      var control = true;
-      switch (e.keyCode) {
-        case "W".charCodeAt(0):
-          newMercPosition = new Cesium.Cartesian3(
-            (mercPosition.x += distance * Math.sin(heading)),
-            (mercPosition.y += distance * Math.cos(heading)),
-            mercPosition.z
-          );
-          break;
-        case "S".charCodeAt(0):
-          newMercPosition = new Cesium.Cartesian3(
-            (mercPosition.x -= distance * Math.sin(heading)),
-            (mercPosition.y -= distance * Math.cos(heading)),
-            mercPosition.z
-          );
-          break;
-        case "A".charCodeAt(0):
-          newMercPosition = new Cesium.Cartesian3(
-            (mercPosition.x -= distance * Math.cos(heading)),
-            (mercPosition.y += distance * Math.sin(heading)),
-            mercPosition.z
-          );
-          break;
-        case "D".charCodeAt(0):
-          newMercPosition = new Cesium.Cartesian3(
-            (mercPosition.x += distance * Math.cos(heading)),
-            (mercPosition.y -= distance * Math.sin(heading)),
-            mercPosition.z
-          );
-          break;
-        case "Z".charCodeAt(0):
-          newMercPosition = new Cesium.Cartesian3(
-            mercPosition.x,
-            mercPosition.y,
-            (mercPosition.z += 1)
-          );
-          control = false;
-          break;
-        case "X".charCodeAt(0):
-          newMercPosition = new Cesium.Cartesian3(
-            mercPosition.x,
-            mercPosition.y,
-            (mercPosition.z -= 1)
-          );
-          control = false;
-          break;
-      }
-      if (newMercPosition) {
-        var newCarto = webMercatorProjection.unproject(newMercPosition);
-        var direction = newCarto.clone();
-        direction.height -= 1; // 用于计算下个位置高度
-        direction = Cesium.Cartographic.toCartesian(direction);
-        var finalPos = Cesium.Cartographic.toCartesian(newCarto);
-        if (control) {
-          var floor = picker.pickFromRay(finalPos, [direction])[0];
-          if (floor && floor.position) {
-            var intersectedPos = Cesium.Cartographic.fromCartesian(
-              floor.position
-            );
-            if (intersectedPos.height >= 0) {
-              finalPos = Cesium.Cartesian3.fromRadians(
-                newCarto.longitude,
-                newCarto.latitude,
-                intersectedPos.height + 1
-              );
+        /**
+         * 按下键移动相机
+         * @param {*} e
+         */
+        function keydwonEvt(e) {
+          if (e.target === document.body) {
+            switch (e.code) {
+              case "KeyW":
+                movingStatus.forward = true;
+                break;
+              case "KeyS":
+                movingStatus.backward = true;
+                break;
+              case "KeyA":
+                movingStatus.left = true;
+                break;
+              case "KeyD":
+                movingStatus.right = true;
+                break;
+              case "KeyZ":
+                movingStatus.up = true;
+                break;
+              case "KeyX":
+                movingStatus.down = true;
+                break;
             }
-            console.log("intersect height: " + intersectedPos.height);
           }
         }
-      }
-      if (isCamare) {
-        entity.position = finalPos;
-      } else {
-        entity.position.setValue(finalPos);
-      }
-    }
-  </script>
-</body>
+        /**
+         * 抬起键停止移动
+         * @param {*} e
+         */
+        function keyupEvt(e) {
+          if (e.target === document.body) {
+            switch (e.code) {
+              case "KeyW":
+                movingStatus.forward = false;
+                break;
+              case "KeyS":
+                movingStatus.backward = false;
+                break;
+              case "KeyA":
+                movingStatus.left = false;
+                break;
+              case "KeyD":
+                movingStatus.right = false;
+                break;
+              case "KeyZ":
+                movingStatus.up = false;
+                break;
+              case "KeyX":
+                movingStatus.down = false;
+                break;
+            }
+          }
+        }
 
+        document.body.addEventListener("keydown", keydwonEvt);
+        document.body.addEventListener("keyup", keyupEvt);
+
+        viewer.scene.preRender.addEventListener((scene) => {
+          const { camera } = scene;
+          const height = Math.abs(camera.positionCartographic.height);
+
+          // const pos = scene.clampToHeight(camera.position);
+          // if (pos) {
+          //   const clampHeight = Cesium.Cartographic.fromCartesian(pos).height;
+          //   height = height - clampHeight;
+          // }
+          const max = 10000000;
+          const min = 0.1;
+          const maxAmount = 500000;
+          const minAmout = 0.5;
+          let amount = 1;
+
+          if (height < min) {
+            amount = minAmout;
+          } else if (height >= min && height <= max) {
+            amount = ((height - min) / (max - min)) * maxAmount;
+            if (amount < min) {
+              amount = min;
+            }
+          } else if (height > max) {
+            amount = maxAmount;
+          }
+
+          if (movingStatus.forward) {
+            camera.moveForward(amount);
+          }
+          if (movingStatus.backward) {
+            camera.moveBackward(amount);
+          }
+          if (movingStatus.left) {
+            camera.moveLeft(amount);
+          }
+          if (movingStatus.right) {
+            camera.moveRight(amount);
+          }
+          if (movingStatus.up) {
+            camera.moveUp(amount);
+          }
+          if (movingStatus.down) {
+            camera.moveDown(amount);
+          }
+        });
+
+        let startMousePosition;
+        let mousePosition;
+        let turning = false;
+        const lookFactor = 3;
+
+        // 鼠标右键旋转相机
+        const evtHandler = new Cesium.ScreenSpaceEventHandler(
+          viewer.scene.canvas
+        );
+
+        evtHandler.setInputAction((movement) => {
+          if (turning) {
+            mousePosition = movement.endPosition;
+
+            const width = viewer.scene.canvas.clientWidth;
+            const height = viewer.scene.canvas.clientHeight;
+            const x = (mousePosition.x - startMousePosition.x) / width;
+            const y = -(mousePosition.y - startMousePosition.y) / height;
+            viewer.camera.setView({
+              orientation: {
+                heading: viewer.camera.heading + x * lookFactor,
+                pitch: viewer.camera.pitch + y * lookFactor,
+                roll: 0,
+              },
+            });
+            mousePosition.clone(startMousePosition);
+          }
+        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+        evtHandler.setInputAction((movement) => {
+          turning = true;
+          mousePosition = startMousePosition = Cesium.Cartesian3.clone(
+            movement.position
+          );
+        }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
+
+        evtHandler.setInputAction((movement) => {
+          turning = false;
+          mousePosition = startMousePosition = Cesium.Cartesian3.clone(
+            movement.position
+          );
+        }, Cesium.ScreenSpaceEventType.RIGHT_UP);
+      }
+
+      main();
+    </script>
+  </body>
 </html>
