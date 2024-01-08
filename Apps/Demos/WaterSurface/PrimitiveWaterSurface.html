@@ -35,18 +35,67 @@
       window._viewer = viewer;
       viewer.scene.globe.depthTestAgainstTerrain = false;
 
-      const promise = Cesium.GeoJsonDataSource.load("border.json", {
-        fill: new Cesium.Color(174 / 255, 238 / 255, 238 / 255, 1),
-        stroke: new Cesium.Color(68 / 255, 155 / 255, 1, 1),
-        strokeWidth: 1,
-      });
-      promise.then(
-        (ds) => {
-          ds.name = "water-surface";
-          console.log("geojson", ds);
-          // me.viewer.dataSources.add(ds);
-          const polygon = ds.entities.values[0].polygon;
-          // polygon.height = 0;
+      const textureCoordinates = {
+        positions: [],
+        holes: [],
+      };
+
+      fetch("./border.json")
+        .then((res) => res.json())
+        .then((json) => {
+          // json.features[0].geometry.coordinates[0] = [
+          //   json.features[0].geometry.coordinates[0][0],
+          // ];
+
+          const coordinates = json.features[0].geometry.coordinates[0];
+
+          let west = 180,
+            south = 90,
+            east = -180,
+            north = -90;
+          // 确定范围
+          coordinates[0].forEach((p) => {
+            west = Math.min(west, p[0]);
+            south = Math.min(south, p[1]);
+            east = Math.max(east, p[0]);
+            north = Math.max(north, p[1]);
+          });
+
+          const width = east - west;
+          const height = north - south;
+
+          const hierarchy = new Cesium.PolygonHierarchy();
+
+          coordinates[0].forEach((p) => {
+            textureCoordinates.positions.push(
+              new Cesium.Cartesian2(
+                (p[0] - west) / width,
+                (p[1] - south) / height
+              )
+            );
+            hierarchy.positions.push(Cesium.Cartesian3.fromDegrees(p[0], p[1]));
+          });
+
+          for (let i = 1; i < coordinates.length; i += 1) {
+            const hole = { positions: [] };
+            const coords = coordinates[i];
+            const tmpHierarchy = new Cesium.PolygonHierarchy();
+
+            coords.forEach((p) => {
+              hole.positions.push(
+                new Cesium.Cartesian2(
+                  (p[0] - west) / width,
+                  (p[1] - south) / height
+                )
+              );
+              tmpHierarchy.positions.push(
+                Cesium.Cartesian3.fromDegrees(p[0], p[1])
+              );
+            });
+
+            textureCoordinates.holes.push(hole);
+            hierarchy.holes.push(tmpHierarchy);
+          }
 
           const material = new Cesium.Material({
             fabric: {
@@ -62,37 +111,49 @@
               },
             },
           });
-          // polygon.material = material;
 
-          const geometry = new Cesium.PolygonGeometry({
-            polygonHierarchy: polygon.hierarchy._value,
+          const polygonGeom = new Cesium.PolygonGeometry({
+            polygonHierarchy: hierarchy,
             vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
             height: 100,
+            // 需要指定纹理坐标，否则Primitive创建纹理会失效
+            textureCoordinates,
           });
+
           const primitive = viewer.scene.primitives.add(
             new Cesium.Primitive({
               geometryInstances: new Cesium.GeometryInstance({
-                geometry: geometry,
+                geometry: polygonGeom,
               }),
               appearance: new Cesium.EllipsoidSurfaceAppearance({
                 aboveGround: true,
               }),
-              // depthFailAppearance: new Cesium.EllipsoidSurfaceAppearance({
-              //   aboveGround: true,
+              // appearance: new Cesium.DebugAppearance({
+              //   attributeName: "st",
+              //   glslDatatype: "vec2",
               // }),
+              asynchronous: false,
             })
           );
           primitive.appearance.material = material;
           // primitive.depthFailAppearance.material = material;
-          viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(120.486, 32.03, 50000),
+
+          // viewer.entities.add({
+          //   rectangle: {
+          //     coordinates: Cesium.Rectangle.fromDegrees(
+          //       west,
+          //       south,
+          //       east,
+          //       north
+          //     ),
+          //   },
+          // });
+
+          viewer.camera.setView({
+            destination: Cesium.Rectangle.fromDegrees(west, south, east, north),
             duration: 0,
           });
-        },
-        (e) => {
-          console.log(e);
-        }
-      );
+        });
     </script>
   </body>
 </html>

@@ -6,13 +6,13 @@ import createPropertyDescriptor from "./createPropertyDescriptor.js";
 import Property from "./Property.js";
 import Material from "../Scene/Material.js";
 
-var defaultBaseWaterColor = new Color(0.2, 0.3, 0.6, 1.0);
-var defaultBlendColor = new Color(0.0, 1.0, 0.699, 1.0);
-var defaultFrequency = 10;
-var defaultAnimationSpped = 0.01;
-var defaultAmplitude = 1;
-var defaultSpecularIntensity = 0.5;
-var defaultFadeFactor = 1;
+const defaultBaseWaterColor = new Color(0.2, 0.3, 0.6, 1.0);
+const defaultBlendColor = new Color(0.0, 1.0, 0.699, 1.0);
+const defaultFrequency = 10;
+const defaultAnimationSpped = 0.01;
+const defaultAmplitude = 1;
+const defaultSpecularIntensity = 0.5;
+const defaultFadeFactor = 1;
 
 /**
  * A {@link MaterialProperty} that maps to image {@link Material} uniforms.

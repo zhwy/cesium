@@ -1477,7 +1477,7 @@ PolygonGeometry.createGeometry = function (polygonGeometry) {
   const polygons = results.polygons;
 
   const dummyFunction = function (identity) {
-    return identity;
+    return identity.slice();
   };
 
   const textureCoordinatePolygons = hasTextureCoordinates
