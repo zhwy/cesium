@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>PBR材质</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      /* eslint-disable */
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window._viewer = viewer;
+
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+      // viewer.scene.globe.show = false;
+
+      //放置到对应位置
+      const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
+        Cesium.Cartesian3.fromDegrees(30, 40, 10e6)
+      );
+
+      Cesium.Model.fromGltfAsync({
+        url: "./pbr_balls/scene.gltf",
+        modelMatrix: modelMatrix,
+        // debugShowBoundingVolume: true,
+        // heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        scene: viewer.scene,
+        scale: 10e5,
+      }).then((model) => {
+        viewer.scene.primitives.add(model);
+
+        model.readyEvent.addEventListener(() => {
+          viewer.camera.flyToBoundingSphere(model.boundingSphere, {
+            duration: 0,
+          });
+        });
+      });
+    </script>
+    <script></script>
+  </body>
+</html>

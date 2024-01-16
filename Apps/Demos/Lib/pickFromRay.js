@@ -3,12 +3,15 @@ class PickFromRay {
   constructor(viewer, objectsToExclude) {
     this.viewer = viewer;
     this.originExcluded = objectsToExclude;
-    var dataSource = new Cesium.CustomDataSource("pick-from-ray");
-    this.drawEntities = dataSource.entities;
-    this.parentEntity = null;
+    this.objectsToExclude = this.originExcluded.slice(); //记录长度
+
     this.draw = true;
     this.visible = false;
-    this.objectsToExclude = this.originExcluded.slice(); //记录长度
+    this.parentEntity = null;
+
+    const dataSource = new Cesium.CustomDataSource("pick-from-ray");
+    this.drawEntities = dataSource.entities;
+
     viewer.dataSources.add(dataSource);
   }
   /**
@@ -20,6 +23,7 @@ class PickFromRay {
   pickFromRay(viewPoint, destPoints) {
     this.drawEntities.removeAll();
     this.objectsToExclude = this.originExcluded.slice();
+
     if (this.draw) {
       this.parentEntity = this.drawEntities.add({
         position: viewPoint,
@@ -32,10 +36,10 @@ class PickFromRay {
       this.objectsToExclude.push(this.parentEntity);
     }
 
-    var intersectedPos = new Array(destPoints.length);
-    for (var i = 0; i < destPoints.length; i++) {
+    const intersectedPos = new Array(destPoints.length);
+    for (let i = 0; i < destPoints.length; i++) {
       // 计算射线的方向，目标点left 视域点right
-      var direction = Cesium.Cartesian3.normalize(
+      const direction = Cesium.Cartesian3.normalize(
         Cesium.Cartesian3.subtract(
           destPoints[i],
           viewPoint,
@@ -44,13 +48,15 @@ class PickFromRay {
         new Cesium.Cartesian3()
       );
       // 建立射线
-      var ray = new Cesium.Ray(viewPoint, direction);
-      var result = this.viewer.scene.pickFromRay(ray, this.objectsToExclude); // 计算交互点，返回第一个
+      const ray = new Cesium.Ray(viewPoint, direction);
+      const result = this.viewer.scene.pickFromRay(ray, this.objectsToExclude); // 计算交互点，返回第一个
       intersectedPos[i] = result;
+
       if (this.draw) {
         this._showIntersection(result, destPoints[i], viewPoint);
       }
     }
+
     return intersectedPos;
   }
   /**

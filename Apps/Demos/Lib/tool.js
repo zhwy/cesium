@@ -60,49 +60,38 @@ function changeTilesetPosition(tileset, dx, dy, dz) {
  * @param {*} lat
  * @param {*} rotationZ
  */
-function changeModelPosition(
-  model,
-  height = 0,
-  lng = 0,
-  lat = 0,
-  rotationZ = 0
-) {
-  let surface = Cesium.Matrix4.multiplyByPoint(
-    model.modelMatrix,
-    model.boundingSphere.center,
-    new Cesium.Cartesian3()
-  );
-  let cartographic = Cesium.Cartographic.fromCartesian(surface);
-  // console.log("move", {
-  //     lng: Cesium.Math.toDegrees(cartographic.longitude + lng),
-  //     lat: Cesium.Math.toDegrees(cartographic.latitude + lat),
-  //     height: cartographic.height + height
-  // })
-  let offset = Cesium.Cartesian3.fromRadians(
-    cartographic.longitude + Cesium.Math.toRadians(lng),
-    cartographic.latitude + Cesium.Math.toRadians(lat),
-    cartographic.height + height
-  );
-  let translation = Cesium.Cartesian3.subtract(
-    offset,
-    surface,
-    new Cesium.Cartesian3()
-  );
-  let tmp = Cesium.Matrix4.add(
-    model.modelMatrix,
-    Cesium.Matrix4.fromTranslation(translation),
-    new Cesium.Matrix4()
-  );
-  model.modelMatrix[12] = tmp[12];
-  model.modelMatrix[13] = tmp[13];
-  model.modelMatrix[14] = tmp[14];
+function changeModelPosition(model, z = 0, x = 0, y = 0, rotationZ = 0) {
+  const { modelMatrix } = model;
 
-  //旋转
-  var rotation = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(rotationZ));
-  let modelMatrix = Cesium.Matrix4.multiplyByMatrix3(
-    model.modelMatrix.clone(),
-    rotation,
-    new Cesium.Matrix4()
+  const cartesian = new Cesium.Cartesian3(
+    modelMatrix[12],
+    modelMatrix[13],
+    modelMatrix[14]
   );
-  model.modelMatrix = modelMatrix;
+
+  const transform = Cesium.Transforms.eastNorthUpToFixedFrame(cartesian);
+
+  const translationVector = new Cesium.Cartesian3(x, y, z);
+  Cesium.Matrix4.multiplyByPointAsVector(
+    transform,
+    translationVector,
+    translationVector
+  );
+
+  Cesium.Matrix4.multiply(
+    Cesium.Matrix4.fromTranslation(translationVector),
+    modelMatrix,
+    modelMatrix
+  );
+
+  // 旋转
+  const rotation = Cesium.Matrix3.fromRotationZ(
+    Cesium.Math.toRadians(rotationZ)
+  );
+
+  Cesium.Matrix4.multiplyByMatrix3(
+    model.modelMatrix,
+    rotation,
+    model.modelMatrix
+  );
 }

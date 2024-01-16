@@ -1,208 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Online Map Resources</title>
+    <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>Online Map Resources</title>
-  <!-- <script src="../../Build/Cesium/Cesium.js"></script> -->
-  <style>
-    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
 
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-  </style>
-</head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import AmapMercatorTilingScheme from "./AmapMercatorTilingScheme.js";
 
-<body>
-  <div id="cesiumContainer"></div>
-  <script type="module">
-    /* eslint-disable*/
-    import * as Cesium from "../../../Build/CesiumUnminified/index.js";
-    import AmapMercatorTilingScheme from "./AmapMercatorTilingScheme.js";
-    window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
-
-    var imageryLayers = [
-      new Cesium.ProviderViewModel({
-        name: "高德卫星",
-        tooltip: "高德卫星底图",
-        iconUrl: "",
-        category: "卫星",
-        creationFunction: function() {
-          return new Cesium.UrlTemplateImageryProvider({
-            url:
-              "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
-            maximumLevel: 18,
-            tileMatrixSetID: "GoogleMapsCompatible",
-          });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "高德卫星",
-        tooltip: "高德卫星底图纠偏",
-        iconUrl: "",
-        category: "卫星",
-        creationFunction: function() {
-          return new Cesium.UrlTemplateImageryProvider({
-            url:
-              "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
-            maximumLevel: 18,
-            tileMatrixSetID: "GoogleMapsCompatible",
-            tilingScheme: new AmapMercatorTilingScheme(),
-          });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "谷歌卫星",
-        tooltip: "谷歌卫星底图无偏移",
-        iconUrl: "",
-        category: "卫星",
-        creationFunction: function() {
-          return new Cesium.UrlTemplateImageryProvider({
-            url:
-              "https://mt1.google.cn/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
-            maximumLevel: 20,
-            tileWidth: 512,
-            tileHeight: 512,
-          });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "天地图",
-        tooltip: "天地图卫星底图",
-        iconUrl: "",
-        category: "卫星",
-        creationFunction: function() {
-          return new Cesium.UrlTemplateImageryProvider({
-            url:
-              "https://t{sub}.tianditu.gov.cn/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
-            maximumLevel: 18,
-            customTags: {
-              sub: (imageryProvider, x, y, level) => {
-                return Math.round(Math.random() * 6);
-                // return 6;
+      const imageryLayers = [
+        new Cesium.ProviderViewModel({
+          name: "高德卫星",
+          tooltip: "高德卫星底图",
+          iconUrl: "",
+          category: "卫星",
+          creationFunction: function () {
+            return new Cesium.UrlTemplateImageryProvider({
+              url:
+                "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
+              maximumLevel: 18,
+              tileMatrixSetID: "GoogleMapsCompatible",
+            });
+          },
+        }),
+        new Cesium.ProviderViewModel({
+          name: "高德卫星",
+          tooltip: "高德卫星底图纠偏",
+          iconUrl: "",
+          category: "卫星",
+          creationFunction: function () {
+            return new Cesium.UrlTemplateImageryProvider({
+              url:
+                "https://webst04.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}",
+              maximumLevel: 18,
+              tileMatrixSetID: "GoogleMapsCompatible",
+              tilingScheme: new AmapMercatorTilingScheme(),
+            });
+          },
+        }),
+        new Cesium.ProviderViewModel({
+          name: "谷歌卫星",
+          tooltip: "谷歌卫星底图无偏移",
+          iconUrl: "",
+          category: "卫星",
+          creationFunction: function () {
+            return new Cesium.UrlTemplateImageryProvider({
+              url:
+                "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&s=Gali&scale=2",
+              maximumLevel: 20,
+              tileWidth: 512,
+              tileHeight: 512,
+            });
+          },
+        }),
+        new Cesium.ProviderViewModel({
+          name: "天地图",
+          tooltip: "天地图卫星底图",
+          iconUrl: "",
+          category: "卫星",
+          creationFunction: function () {
+            return new Cesium.UrlTemplateImageryProvider({
+              url:
+                "https://t{sub}.tianditu.gov.cn/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
+              maximumLevel: 18,
+              customTags: {
+                sub: (imageryProvider, x, y, level) => {
+                  return Math.round(Math.random() * 6);
+                  // return 6;
+                },
               },
+            });
+          },
+        }),
+        new Cesium.ProviderViewModel({
+          name: "Esri卫星",
+          tooltip: "Esri卫星256x256",
+          iconUrl: "",
+          category: "卫星",
+          creationFunction: async function () {
+            return await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+              "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer"
+            );
+          },
+        }),
+        // new Cesium.ProviderViewModel({
+        //   name: "Esri卫星",
+        //   tooltip: "Esri卫星512x512",
+        //   iconUrl: "",
+        //   category: "卫星",
+        //   creationFunction: async function () {
+        //     return await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+        //       "https://services.arcgisonline.com/arcgis/rest/services/ESRI_Imagery_World_2D/MapServer"
+        //       {
+        //         tileWidth: 512,
+        //         tileHeight: 512,
+        //       }
+        //     );
+        //   },
+        // }),
+        new Cesium.ProviderViewModel({
+          name: "mapbox暗黑",
+          tooltip: "Map Box 暗黑风格",
+          iconUrl: "",
+          category: "街道",
+          creationFunction: function () {
+            return new Cesium.UrlTemplateImageryProvider({
+              url:
+                "https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibW14cWFubnkiLCJhIjoiY2pjZmlzNXp3MWJqaDMzdDUxdXMweG15eCJ9.Onu8fH96QnXhOJmqh0bZZA",
+              maximumLevel: 22,
+              tileMatrixSetID: "GoogleMapsCompatible",
+            });
+          },
+        }),
+        new Cesium.ProviderViewModel({
+          name: "mapbox自定义",
+          tooltip: "Map Box 自定义样式",
+          iconUrl: "",
+          category: "街道",
+          creationFunction: function () {
+            return new Cesium.MapboxStyleImageryProvider({
+              url: "https://api.mapbox.com/styles/v1",
+              styleId: "cjcfiuux653bj2rr48yk6hs7g",
+              username: "mmxqanny",
+              accessToken:
+                "pk.eyJ1IjoibW14cWFubnkiLCJhIjoiY2pjZmlzNXp3MWJqaDMzdDUxdXMweG15eCJ9.Onu8fH96QnXhOJmqh0bZZA",
+            });
+          },
+        }),
+      ];
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        animation: false,
+        baseLayerPicker: true,
+        imageryProviderViewModels: imageryLayers,
+        geocoder: false,
+        timeline: false,
+        infobox: false,
+        navigationHelpButton: false,
+        sceneModePicker: true,
+        scene3DOnly: false,
+        homeButton: false,
+        infoBox: false,
+        selectionIndicator: true,
+        fullscreenButton: false,
+        //shadows: true,
+        //terrainShadows:Cesium.ShadowMode.ENABLED,
+        shouldAnimate: true,
+      });
+
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      const positions = [];
+
+      handler.setInputAction(function (movement) {
+        const worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      handler.setInputAction(function (movement) {
+        const worldPosition = viewer.scene.pickPosition(movement.position);
+        if (Cesium.defined(worldPosition)) {
+          positions.push(worldPosition);
+          viewer.entities.add({
+            polygon: {
+              hierarchy: new Cesium.PolygonHierarchy(positions),
+              material: new Cesium.ColorMaterialProperty(
+                new Cesium.Color(1, 0, 0, 0.5)
+              ),
+              outline: true,
+              outlineColor: Cesium.Color.GREEN,
             },
           });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "Esri卫星",
-        tooltip: "Esri卫星256x256",
-        iconUrl: "",
-        category: "卫星",
-        creationFunction: function() {
-          return new Cesium.ArcGisMapServerImageryProvider({
-            url:
-              "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer",
-          });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "Esri卫星",
-        tooltip: "Esri卫星512x512",
-        iconUrl: "",
-        category: "卫星",
-        creationFunction: function() {
-          return new Cesium.ArcGisMapServerImageryProvider({
-            url:
-              "https://services.arcgisonline.com/arcgis/rest/services/ESRI_Imagery_World_2D/MapServer",
-            tileWidth: 512,
-            tileHeight: 512,
-          });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "mapbox暗黑",
-        tooltip: "Map Box 暗黑风格",
-        iconUrl: "",
-        category: "街道",
-        creationFunction: function() {
-          return new Cesium.UrlTemplateImageryProvider({
-            url:
-              "https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoibW14cWFubnkiLCJhIjoiY2pjZmlzNXp3MWJqaDMzdDUxdXMweG15eCJ9.Onu8fH96QnXhOJmqh0bZZA",
-            maximumLevel: 22,
-            tileMatrixSetID: "GoogleMapsCompatible",
-          });
-        },
-      }),
-      new Cesium.ProviderViewModel({
-        name: "mapbox自定义",
-        tooltip: "Map Box 自定义样式",
-        iconUrl: "",
-        category: "街道",
-        creationFunction: function() {
-          return new Cesium.MapboxStyleImageryProvider({
-            url: "https://api.mapbox.com/styles/v1",
-            styleId: "cjcfiuux653bj2rr48yk6hs7g",
-            username: "mmxqanny",
-            accessToken:
-              "pk.eyJ1IjoibW14cWFubnkiLCJhIjoiY2pjZmlzNXp3MWJqaDMzdDUxdXMweG15eCJ9.Onu8fH96QnXhOJmqh0bZZA",
-          });
-        },
-      }),
-    ];
-    var viewer = new Cesium.Viewer("cesiumContainer", {
-      animation: false,
-      baseLayerPicker: true,
-      imageryProviderViewModels: imageryLayers,
-      geocoder: false,
-      timeline: false,
-      infobox: false,
-      navigationHelpButton: false,
-      sceneModePicker: true,
-      scene3DOnly: false,
-      homeButton: false,
-      infoBox: false,
-      selectionIndicator: true,
-      fullscreenButton: false,
-      //shadows: true,
-      //terrainShadows:Cesium.ShadowMode.ENABLED,
-      shouldAnimate: true,
-    });
-
-    viewer.scene.globe.depthTestAgainstTerrain = true;
-
-    var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    var positions = [];
-
-    handler.setInputAction(function(movement) {
-      var worldPosition = viewer.scene.pickPosition(movement.position);
-      if (Cesium.defined(worldPosition)) {
-        positions.push(worldPosition);
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-    handler.setInputAction(function(movement) {
-      var worldPosition = viewer.scene.pickPosition(movement.position);
-      if (Cesium.defined(worldPosition)) {
-        positions.push(worldPosition);
-        viewer.entities.add({
-          polygon: {
-            hierarchy: new Cesium.PolygonHierarchy(positions),
-            material: new Cesium.ColorMaterialProperty(
-              new Cesium.Color(1, 0, 0, 0.5)
-            ),
-            outline: true,
-            outlineColor: Cesium.Color.GREEN,
-          },
-        });
-        positions = [];
-      }
-    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
-  </script>
-</body>
-
+          positions = [];
+        }
+      }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+    </script>
+  </body>
 </html>

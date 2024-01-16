@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>加载本地模型</title>
+    <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      input {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer">
+      <input type="file" id="selector" />
+    </div>
+    <script type="module">
+      /* eslint-disable */
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import { SimpleDropzone } from "./simpleDropZone.js";
+
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      enableDropModel();
+
+      const ellipsoid = new Cesium.Ellipsoid(1, 1, 1);
+      ellipsoid.cartesianToCartographic = (cartesian, result) => {
+        return new Cesium.Cartographic(0, 0, 0.1);
+      };
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        shouldAnimate: true,
+        skyBox: false,
+        nearGroundSkyBox: false,
+        sceneMode: Cesium.SceneMode.COLUMBUS_VIEW,
+        skyAtmosphere: false,
+        animation: false,
+        baseLayerPicker: false,
+        geocoder: false,
+        timeline: false,
+        infobox: false,
+        navigationHelpButton: false,
+        sceneModePicker: false,
+        homeButton: false,
+        infoBox: false,
+        selectionIndicator: false,
+        fullscreenButton: false,
+        globe: false,
+      });
+      window._viewer = viewer;
+
+      /** 隐藏球体效果 **/
+      viewer.scene.backgroundColor = new Cesium.Color(0.5, 0.5, 0.5);
+      viewer.scene.screenSpaceCameraController.enableCollisionDetection = false; //关闭后相机可进入地下
+      // viewer.scene.globe.show = false;
+      // viewer.scene.globe.baseColor = new Cesium.Color(0.5, 0.5, 0.5);
+      // viewer.scene.globe.undergroundColor = new Cesium.Color(0.5, 0.5, 0.5);
+      // viewer.imageryLayers.removeAll();
+      viewer.scene.fog.enabled = false;
+
+      viewer.camera.setView({
+        destination: new Cesium.Cartesian3(0, 0, 1),
+        duration: 0,
+      });
+
+      // 光照修改
+      // viewer.scene.globe.dynamicAtmosphereLighting = false;
+      viewer.scene.light = new Cesium.DirectionalLight({
+        direction: viewer.scene.camera.directionWC, // Updated every frame
+        color: Cesium.Color.WHITE,
+        intensity: 2,
+      });
+
+      viewer.scene.preRender.addEventListener((scene, time) => {
+        scene.light.direction = Cesium.Cartesian3.clone(
+          scene.camera.direction,
+          scene.light.direction
+        );
+      });
+
+      function enableDropModel() {
+        function readModelFile(file, files) {
+          const reader = new FileReader();
+          if (file.name.includes(".glb")) {
+            reader.readAsArrayBuffer(file);
+          } else if (file.name.includes(".gltf")) {
+            reader.readAsText(file);
+          } else {
+            alert("未找到glb或gltf文件！");
+          }
+
+          reader.onload = (res) => {
+            viewer.scene.primitives.removeAll();
+
+            let width = getComputedStyle(viewer.container).width;
+            let height = getComputedStyle(viewer.container).height;
+            width = Number(width.slice(0, -2));
+            height = Number(height.slice(0, -2));
+
+            // const pos = viewer.scene.pickPosition({
+            //   x: width / 2,
+            //   y: height / 2,
+            // });
+            const pos = Cesium.Cartesian3.fromDegrees(0, 0, 0);
+
+            Cesium.Model.fromGltfAsync({
+              gltf:
+                typeof reader.result == "string"
+                  ? JSON.parse(reader.result)
+                  : new Uint8Array(reader.result),
+              // basePath: new Cesium.Resource({
+              //   url: "http://localhost:804/",
+              //   request: new Cesium.Request({
+              //     url: "http://localhost:804/",
+              //     requestFunction: new Promise((resolve, reject) => {
+              //       if (files) {
+              //         for (let key of files.keys()) {
+              //           if (key.includes(".bin")) {
+              //             return files.get(key);
+              //             var reader2 = new FileReader();
+              //             reader2.readAsArrayBuffer(files.get(key));
+              //             reader2.onload = () => {
+              //               resolve(reader2.result);
+              //             }
+              //             break;
+              //           }
+              //         }
+              //       }
+              //     })
+              //   })
+              // }),
+              // debugShowBoundingVolume: true
+              modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(pos),
+            }).then((dropModel) => {
+              viewer.scene.primitives.add(dropModel);
+
+              dropModel.readyEvent.addEventListener(() => {
+                viewer.camera.flyToBoundingSphere(dropModel.boundingSphere, {
+                  duration: 0,
+                });
+
+                dropModel.activeAnimations.addAll({
+                  multiplier: 1,
+                  loop: Cesium.ModelAnimationLoop.REPEAT,
+                });
+              });
+            });
+          };
+        }
+
+        function allowDrop(e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        function drop(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var df = e.dataTransfer;
+          readModelFile(df.files[0]);
+        }
+
+        const container = document.getElementById("cesiumContainer");
+        // container.ondragenter = allowDrop;
+        // container.ondragover = allowDrop;
+        // container.ondragleave = allowDrop;
+        // container.ondrop = drop;
+
+        const controller = new SimpleDropzone(
+          container,
+          document.getElementById("selector")
+        );
+        controller.on("drop", ({ files }) => {
+          console.log(files);
+
+          for (let key of files.keys()) {
+            if (key.includes(".glb") || key.includes(".gltf")) {
+              readModelFile(files.get(key), files);
+              break;
+            }
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

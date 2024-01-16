@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>模型矩阵</title>
+    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+    <script src="../Lib/tool.js"></script>
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      #toolbar {
+        background: rgba(42, 42, 42, 0.8);
+        padding: 4px;
+        border-radius: 4px;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+      }
+
+      #toolbar input {
+        vertical-align: middle;
+        padding-top: 2px;
+        padding-bottom: 2px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <div id="toolbar">
+      <div>Height</div>
+      <input
+        type="range"
+        min="-500.0"
+        max="500.0"
+        step="1"
+        data-bind="value: height, valueUpdate: 'input'"
+      />
+      <input type="text" size="5" data-bind="value: height" />
+
+      <div>RotateX</div>
+      <input
+        type="range"
+        min="-180.0"
+        max="180.0"
+        step="1"
+        data-bind="value: RotateX, valueUpdate: 'input'"
+      />
+      <input type="text" size="5" data-bind="value: RotateX" />
+
+      <div>RotateY</div>
+      <input
+        type="range"
+        min="-180.0"
+        max="180.0"
+        step="1"
+        data-bind="value: RotateY, valueUpdate: 'input'"
+      />
+      <input type="text" size="5" data-bind="value: RotateY" />
+
+      <div>RotateZ</div>
+      <input
+        type="range"
+        min="-180.0"
+        max="180.0"
+        step="1"
+        data-bind="value: RotateZ, valueUpdate: 'input'"
+      />
+      <input type="text" size="5" data-bind="value: RotateZ" />
+    </div>
+    <script>
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      const viewModel = {
+        height: 0,
+        RotateX: 0,
+        RotateY: 0,
+        RotateZ: 0,
+      };
+
+      Cesium.knockout.track(viewModel);
+
+      const toolbar = document.getElementById("toolbar");
+      Cesium.knockout.applyBindings(viewModel, toolbar);
+
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window._viewer = viewer;
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+
+      // 放置到对应位置
+      const cartesian = Cesium.Cartesian3.fromDegrees(
+        116.790876,
+        36.498398,
+        50
+      );
+      const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+        cartesian,
+        new Cesium.HeadingPitchRoll(0, 0, 0)
+      );
+
+      let model;
+
+      Cesium.Model.fromGltfAsync({
+        url: "../../SampleData/models/CesiumBalloon/CesiumBalloon.glb",
+        modelMatrix: modelMatrix,
+        debugShowBoundingVolume: false,
+      }).then((res) => {
+        model = res;
+        viewer.scene.primitives.add(model);
+      });
+
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(116.790876, 36.498398, 100),
+        duration: 0,
+      });
+
+      enableDragMoveModel();
+
+      let oldHeight = 0,
+        oldRx = 0,
+        oldRy = 0,
+        oldRz = 0;
+
+      // 模型矩阵可以直接从位置和姿态直接计算得到，
+      // 下面的操作是为了更好的理解TSR和fixedFrame的transform之间的关系
+
+      // 调整高度
+      Cesium.knockout
+        .getObservable(viewModel, "height")
+        .subscribe(function (height) {
+          const delta = Number(height) - oldHeight;
+          oldHeight = Number(height);
+
+          if (isNaN(delta)) {
+            return;
+          }
+
+          const { modelMatrix } = model;
+
+          const transform = Cesium.Transforms.eastNorthUpToFixedFrame(
+            new Cesium.Cartesian3(
+              modelMatrix[12],
+              modelMatrix[13],
+              modelMatrix[14]
+            )
+          );
+
+          const translationVector = new Cesium.Cartesian3(0, 0, delta);
+          // 转换到fixedFrame
+          Cesium.Matrix4.multiplyByPointAsVector(
+            transform,
+            translationVector,
+            translationVector
+          );
+
+          // 模型将沿fixedFrame的z轴变化
+          Cesium.Matrix4.multiply(
+            Cesium.Matrix4.fromTranslation(translationVector),
+            modelMatrix,
+            modelMatrix
+          );
+        });
+
+      // 绕X旋转
+      Cesium.knockout
+        .getObservable(viewModel, "RotateX")
+        .subscribe(function (rotateValue) {
+          const delta = Number(rotateValue) - oldRx;
+          oldRx = Number(rotateValue);
+
+          if (isNaN(delta)) {
+            return;
+          }
+
+          const rotation = Cesium.Matrix3.fromRotationX(
+            Cesium.Math.toRadians(delta)
+          );
+
+          rotate(model.modelMatrix, rotation);
+        });
+
+      // 绕Y旋转
+      Cesium.knockout
+        .getObservable(viewModel, "RotateY")
+        .subscribe(function (rotateValue) {
+          const delta = Number(rotateValue) - oldRy;
+          oldRy = Number(rotateValue);
+
+          if (isNaN(delta)) {
+            return;
+          }
+
+          const rotation = Cesium.Matrix3.fromRotationY(
+            Cesium.Math.toRadians(delta)
+          );
+
+          rotate(model.modelMatrix, rotation);
+        });
+
+      // 绕Z旋转
+      Cesium.knockout
+        .getObservable(viewModel, "RotateZ")
+        .subscribe(function (rotateValue) {
+          const delta = Number(rotateValue) - oldRz;
+          oldRz = Number(rotateValue);
+
+          if (isNaN(delta)) {
+            return;
+          }
+
+          const rotation = Cesium.Matrix3.fromRotationZ(
+            Cesium.Math.toRadians(delta)
+          );
+
+          rotate(model.modelMatrix, rotation);
+        });
+
+      function rotate(matrix, rotation) {
+        // finalModelMatrix = transform * T * S * R
+
+        // 位于最右侧，这样是相对自身坐标系旋转
+        const rightTransform = Cesium.Matrix4.fromRotation(
+          rotation,
+          new Cesium.Matrix4()
+        );
+
+        Cesium.Matrix4.multiply(matrix, rightTransform, matrix);
+      }
+
+      function enableDragMoveModel() {
+        const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        let pickedObject = null;
+        let leftDownFlag = false;
+
+        handler.setInputAction(function (movement) {
+          pickedObject = viewer.scene.pick(movement.position);
+          if (Cesium.defined(pickedObject)) {
+            leftDownFlag = true;
+            document.body.style.cursor = "pointer";
+            viewer.scene.screenSpaceCameraController.enableRotate = false; // 锁定相机
+            viewer.scene.screenSpaceCameraController.enableTranslate = false;
+          }
+        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+        handler.setInputAction(function () {
+          leftDownFlag = false;
+          document.body.style.cursor = "default";
+          viewer.scene.screenSpaceCameraController.enableRotate = true;
+          viewer.scene.screenSpaceCameraController.enableTranslate = true;
+        }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+        handler.setInputAction((movement) => {
+          if (leftDownFlag && pickedObject.primitive.modelMatrix) {
+            const cartesian = viewer.scene.pickPosition(movement.endPosition);
+
+            if (cartesian) {
+              pickedObject.primitive.modelMatrix[12] = cartesian.x;
+              pickedObject.primitive.modelMatrix[13] = cartesian.y;
+              pickedObject.primitive.modelMatrix[14] = cartesian.z;
+            }
+          }
+        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+        let deltax = 0,
+          deltay = 0,
+          deltah = 0,
+          rotation = 0,
+          deltaRotation = 0,
+          delta = 0.1;
+
+        document.addEventListener("keydown", (e) => {
+          if (model) {
+            switch (e.keyCode) {
+              case "W".charCodeAt(0):
+                changeModelPosition(model, 0, 0, delta);
+                deltay += delta;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "S".charCodeAt(0):
+                changeModelPosition(model, 0, 0, -delta);
+                deltay -= delta;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "A".charCodeAt(0):
+                changeModelPosition(model, 0, -delta, 0);
+                deltax -= delta;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "D".charCodeAt(0):
+                changeModelPosition(model, 0, delta, 0);
+                deltax += delta;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "Z".charCodeAt(0):
+                changeModelPosition(model, -delta);
+                deltah -= 1;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "X".charCodeAt(0):
+                changeModelPosition(model, delta);
+                deltah += 1;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "Q".charCodeAt(0):
+                changeModelPosition(model, 0, 0, 0, -0.5);
+                rotation -= 0.5;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+                break;
+              case "E".charCodeAt(0):
+                changeModelPosition(model, 0, 0, 0, 0.5);
+                rotation += 0.5;
+                deltaRotation = -rotation; // 航偏角取反
+                console.log({
+                  deltax,
+                  deltay,
+                  deltah,
+                  deltaRotation,
+                });
+            }
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
