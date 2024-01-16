@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>改变Mesh材质测试</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.Cesium = Cesium;
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window._viewer = viewer;
+
+      // viewer.entities.add({
+      //   position: Cesium.Cartesian3.fromDegrees(121.489627, 31.237938),
+      //   model: {
+      //     uri: "../../SampleData/models/WoodTower/Wood_Tower.glb"
+      //   }
+      // });
+      const labelEntity = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(121.489627, 31.237938),
+        label: {
+          pixelOffset: new Cesium.Cartesian2(0, -10),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          text: "",
+          font: "10px",
+        },
+      });
+
+      const model = await Cesium.Model.fromGltfAsync({
+        url: "../../SampleData/models/DracoBuggy/Buggy.gltf",
+        modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(
+          Cesium.Cartesian3.fromDegrees(121.489627, 31.237938, 5)
+        ),
+      });
+      viewer.scene.primitives.add(model);
+
+      model.readyEvent.addEventListener(() => {
+        viewer.camera.flyToBoundingSphere(model.boundingSphere, {
+          duration: 0,
+        });
+      });
+
+      let old;
+
+      window.model = model;
+
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.container);
+      handler.setInputAction((evt) => {
+        const endPosition = viewer.scene.pickPosition(evt.endPosition);
+        const result = viewer.scene.pick(evt.endPosition);
+        // console.log(result);
+
+        // 复原
+        if (old) {
+          old.forEach((p) => {
+            p.material.metallicRoughness.baseColorFactor =
+              p.material.metallicRoughness.originColor;
+
+            p.material.metallicRoughness.baseColorTexture =
+              p.material.metallicRoughness.originTexture;
+          });
+
+          old = null;
+        }
+
+        if (result && result.detail && result.detail.node) {
+          old = result.detail.node._node.primitives;
+          old.forEach((p) => {
+            p.material.metallicRoughness.originColor =
+              p.material.metallicRoughness.baseColorFactor;
+            p.material.metallicRoughness.baseColorFactor = new Cesium.Cartesian4(
+              1,
+              0,
+              0,
+              1
+            );
+
+            p.material.metallicRoughness.originTexture =
+              p.material.metallicRoughness.baseColorTexture;
+
+            p.material.metallicRoughness.baseColorTexture = undefined;
+          });
+          labelEntity.position = endPosition;
+
+          labelEntity.label.text = result.detail.node._name;
+        } else {
+          labelEntity.label.text = "";
+        }
+
+        // model.resetDrawCommands();
+        model.makeStyleDirty();
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    </script>
+  </body>
+</html>

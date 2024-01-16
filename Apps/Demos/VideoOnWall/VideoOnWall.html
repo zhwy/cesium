@@ -1,132 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Wall上放视频</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>Wall上放视频</title>
-  <style>
-    @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
 
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
+      .video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        margin: 10px;
+        width: auto;
+        height: auto;
+        z-index: 99;
+        display: none;
+      }
+    </style>
+  </head>
 
-    .video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      margin: 10px;
-      width: auto;
-      height: auto;
-      z-index: 99;
-      display: none;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="cesiumContainer">
-    <div class="video" id="video">
-      <video controls crossorigin="use-credentials" autoplay="autoplay">
-        <source src="./big_buck_bunny.mp4" type="video/mp4" />
-        <!-- <source
+  <body>
+    <div id="cesiumContainer">
+      <div class="video" id="video">
+        <video controls crossorigin="use-credentials" autoplay="autoplay">
+          <source src="./big_buck_bunny.mp4" type="video/mp4" />
+          <!-- <source
             src="https://media.w3.org/2010/05/sintel/trailer.mp4"
             type="video/mp4"
           /> -->
-      </video>
+        </video>
+      </div>
     </div>
-  </div>
-  <script type="module">
-    // import IndexedDbCache from "../Lib/indexDbCache.js";
-    import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-    window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
-    window.Cesium = Cesium;
-    /* eslint-disable */
-    var viewer = new Cesium.Viewer("cesiumContainer");
-    window.viewer = viewer;
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(120.5, 31, 10e5),
-    });
-    viewer.entities.add({
-      wall: {
-        positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-          120,
-          32,
-          5e4,
-          121,
-          32,
-          5e4,
-        ]),
-        material: new Cesium.ImageMaterialProperty({
-          image: new Cesium.CallbackProperty(function() {
-            var container = document.getElementById("video");
-            return container.firstElementChild;
-          }, true),
-          transparent: true,
-          color: Cesium.Color.WHITE,
-        }),
-      },
-    });
+    <script type="module">
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      window.Cesium = Cesium;
 
-    //双面
-    let instances = [];
-    //正面
-    instances.push(
-      new Cesium.GeometryInstance({
-        geometry: new Cesium.WallGeometry({
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window.viewer = viewer;
+
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(120.5, 31, 10e5),
+      });
+
+      viewer.entities.add({
+        wall: {
           positions: Cesium.Cartesian3.fromDegreesArrayHeights([
             120,
-            33,
+            32,
             5e4,
             121,
-            33,
+            32,
             5e4,
           ]),
-        }),
-      })
-    );
-    //反面
-    instances.push(
-      new Cesium.GeometryInstance({
-        geometry: new Cesium.WallGeometry({
-          positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-            121,
-            33,
-            5e4,
-            120,
-            33,
-            5e4,
-          ]),
-        }),
-      })
-    );
-    viewer.scene.primitives.add(
-      new Cesium.Primitive({
-        geometryInstances: instances,
-        appearance: new Cesium.MaterialAppearance({
-          faceForward: true,
-          closed: true,
-          material: Cesium.Material.fromType("Image", {
-            image: document.getElementById("video").firstElementChild,
-            transparent: false,
+          material: new Cesium.ImageMaterialProperty({
+            image: new Cesium.CallbackProperty(function () {
+              const container = document.getElementById("video");
+              return container.firstElementChild;
+            }, true),
+            transparent: true,
             color: Cesium.Color.WHITE,
           }),
-        }),
-      })
-    );
-  </script>
-</body>
+        },
+      });
 
+      //双面
+      const instances = [];
+      //正面
+      instances.push(
+        new Cesium.GeometryInstance({
+          geometry: new Cesium.WallGeometry({
+            positions: Cesium.Cartesian3.fromDegreesArrayHeights([
+              120,
+              33,
+              5e4,
+              121,
+              33,
+              5e4,
+            ]),
+          }),
+        })
+      );
+      //反面
+      instances.push(
+        new Cesium.GeometryInstance({
+          geometry: new Cesium.WallGeometry({
+            positions: Cesium.Cartesian3.fromDegreesArrayHeights([
+              121,
+              33,
+              5e4,
+              120,
+              33,
+              5e4,
+            ]),
+          }),
+        })
+      );
+
+      viewer.scene.primitives.add(
+        new Cesium.Primitive({
+          geometryInstances: instances,
+          appearance: new Cesium.MaterialAppearance({
+            faceForward: true,
+            closed: true,
+            material: Cesium.Material.fromType("Image", {
+              image: document.getElementById("video").firstElementChild,
+              transparent: false,
+              color: Cesium.Color.WHITE,
+            }),
+          }),
+        })
+      );
+    </script>
+  </body>
 </html>

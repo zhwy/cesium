@@ -35,30 +35,26 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-      /* eslint-disable */
-      var viewer;
-      var modelHeight;
-      viewer = new Cesium.Viewer("cesiumContainer", {
-        // terrainProvider: Cesium.createWorldTerrain(),
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        // terrainProvider: await Cesium.createWorldTerrainAsync(),
       });
       window._viewer = viewer;
 
-      var pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
-      var orientation = Cesium.Transforms.headingPitchRollQuaternion(
+      const pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
+      const orientation = Cesium.Transforms.headingPitchRollQuaternion(
         pos,
         new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
       );
 
-      var entity = viewer.entities.add({
+      const entity = viewer.entities.add({
         position: pos,
-        orientation: orientation,
+        orientation,
         model: {
-          uri: "/Apps/Demos/Underground/隧道test.glb",
+          uri: "./隧道test.glb",
         },
       });
       viewer.zoomTo(entity);
@@ -66,7 +62,7 @@
       viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#7d9cd6");
       viewer.scene.debugShowFramesPerSecond = true;
 
-      var globe = viewer.scene.globe;
+      const globe = viewer.scene.globe;
       globe.depthTestAgainstTerrain = true;
       globe.undergroundColor = Cesium.Color.fromCssColorString(
         "rgb(61, 53, 51)"
@@ -77,7 +73,7 @@
       globe.undergroundColorAlphaByDistance.farValue = 1;
 
       // 裁剪面
-      var clippingPlanecollection1 = new Cesium.ClippingPlaneCollection({
+      const clippingPlanecollection1 = new Cesium.ClippingPlaneCollection({
         planes: [
           new Cesium.ClippingPlane(new Cesium.Cartesian3(1.0, 0.0, 0.0), 0.0),
           new Cesium.ClippingPlane(
@@ -91,7 +87,7 @@
           ),
         ],
       });
-      var clippingPlanecollection2 = new Cesium.ClippingPlaneCollection({
+      const clippingPlanecollection2 = new Cesium.ClippingPlaneCollection({
         planes: [
           new Cesium.ClippingPlane(new Cesium.Cartesian3(1.0, 0.0, 0.0), 1000),
           new Cesium.ClippingPlane(
@@ -106,7 +102,7 @@
         ],
       });
 
-      var multiCollections = new Cesium.MultiClippingPlaneCollection({
+      const multiCollections = new Cesium.MultiClippingPlaneCollection({
         collections: [],
         // modelMatrix: entity.computeModelMatrix(Cesium.JulianDate.now()),
         modelMatrix: Cesium.Matrix4.IDENTITY,
@@ -115,16 +111,15 @@
       });
       globe.multiClippingPlanes = multiCollections;
 
-      var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-      var positions = [];
-
-      var collection;
-      var cartos = [];
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      let positions = [];
+      let collection;
+      let cartos = [];
 
       handler.setInputAction(function (movement) {
         var worldPosition = viewer.scene.pickPosition(movement.position);
         if (Cesium.defined(worldPosition)) {
-          var carto = Cesium.Cartographic.fromCartesian(worldPosition);
+          const carto = Cesium.Cartographic.fromCartesian(worldPosition);
 
           // positions.push(
           //   Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0)
@@ -135,7 +130,8 @@
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       handler.setInputAction(function (movement) {
-        var worldPosition = viewer.scene.pickPosition(movement.position);
+        const worldPosition = viewer.scene.pickPosition(movement.position);
+
         if (Cesium.defined(worldPosition)) {
           positions.push(worldPosition);
           cartos.push(Cesium.Cartographic.fromCartesian(worldPosition));
@@ -153,48 +149,45 @@
       }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
       function generateClippingPlanesCollection(points) {
-        var pointsLength = points.length;
-        var clippingPlanes = [];
+        const pointsLength = points.length;
+        const clippingPlanes = [];
         for (var i = 0; i < pointsLength; ++i) {
-          var nextIndex = (i + 1) % pointsLength;
-          var midpoint = Cesium.Cartesian3.add(
+          const nextIndex = (i + 1) % pointsLength;
+          const midpoint = Cesium.Cartesian3.add(
             points[i],
             points[nextIndex],
             new Cesium.Cartesian3()
           );
-          midpoint = Cesium.Cartesian3.multiplyByScalar(
-            midpoint,
-            0.5,
-            midpoint
-          );
+          Cesium.Cartesian3.multiplyByScalar(midpoint, 0.5, midpoint);
 
-          var up = Cesium.Cartesian3.normalize(
+          const up = Cesium.Cartesian3.normalize(
             midpoint,
             new Cesium.Cartesian3()
           );
-          var right = Cesium.Cartesian3.subtract(
+          const right = Cesium.Cartesian3.subtract(
             points[nextIndex],
             midpoint,
             new Cesium.Cartesian3()
           );
-          right = Cesium.Cartesian3.normalize(right, right);
+          Cesium.Cartesian3.normalize(right, right);
 
-          var normal = Cesium.Cartesian3.cross(
+          const normal = Cesium.Cartesian3.cross(
             right,
             up,
             new Cesium.Cartesian3()
           );
-          normal = Cesium.Cartesian3.normalize(normal, normal);
+          Cesium.Cartesian3.normalize(normal, normal);
 
           // Compute distance by pretending the plane is at the origin
-          var originCenteredPlane = new Cesium.Plane(normal, 0.0);
-          var distance = Cesium.Plane.getPointDistance(
+          const originCenteredPlane = new Cesium.Plane(normal, 0.0);
+          const distance = Cesium.Plane.getPointDistance(
             originCenteredPlane,
             midpoint
           );
 
           clippingPlanes.push(new Cesium.ClippingPlane(normal, distance));
         }
+
         return new Cesium.ClippingPlaneCollection({
           planes: clippingPlanes,
           modelMatrix: Cesium.Matrix4.IDENTITY,

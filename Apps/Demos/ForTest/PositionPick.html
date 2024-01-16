@@ -1,107 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>位置拾取方法对比</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>位置拾取方法对比</title>
-  <style>
-    @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
-
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-
-    #info {
-      position: absolute;
-      left: 0;
-      top: 0;
-      margin: 1rem;
-      border-radius: 10px;
-      padding: 1rem;
-      background-color: rgba(255, 255, 255, 0.8);
-      z-index: 99;
-      color: black;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="cesiumContainer">
-    <div id="info"></div>
-  </div>
-  <script type="module">
-    import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-    window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
-    window.Cesium = Cesium;
-    Cesium.Ion.defaultAccessToken =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-
-    /* eslint-disable */
-    const viewer = new Cesium.Viewer("cesiumContainer");
-    window._viewer = viewer;
-    viewer.camera.setView({
-      destination: { x: -2852305.4734007875, y: 4655626.560440111, z: 3287513.333432459 },
-      orientation: {
-        heading: 6.16,
-        pitch: -0.45,
-        roll: 0
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
       }
-    });
 
-    viewer.scene.globe.translucency.enabled = true;
-    viewer.scene.globe.translucency.frontFaceAlpha = 0.5;
-
-    viewer.scene.primitives.add(Cesium.createOsmBuildings());
-    viewer.entities.add({
-      polygon: {
-        hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray([121.48, 31.23, 121.49, 31.23, 121.49, 31.24, 121.48, 31.24, 121.48, 31.23])),
-        height: 100,
-        material: new Cesium.Color(1, 0, 0, 0.5)
+      #info {
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin: 1rem;
+        border-radius: 10px;
+        padding: 1rem;
+        background-color: rgba(255, 255, 255, 0.8);
+        z-index: 99;
+        color: black;
       }
-    });
+    </style>
+  </head>
 
-    const cartToDegree = (cartesian) => {
-      if (!cartesian) return '-';
-      const carto = Cesium.Cartographic.fromCartesian(cartesian);
-      const result = {
-        lon: Cesium.Math.toDegrees(carto.longitude),
-        lat: Cesium.Math.toDegrees(carto.latitude),
-        height: carto.height
+  <body>
+    <div id="cesiumContainer">
+      <div id="info"></div>
+    </div>
+    <script type="module">
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.Cesium = Cesium;
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      /* eslint-disable */
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window._viewer = viewer;
+      viewer.camera.setView({
+        destination: {
+          x: -2852305.4734007875,
+          y: 4655626.560440111,
+          z: 3287513.333432459,
+        },
+        orientation: {
+          heading: 6.16,
+          pitch: -0.45,
+          roll: 0,
+        },
+      });
+
+      viewer.scene.globe.translucency.enabled = true;
+      viewer.scene.globe.translucency.frontFaceAlpha = 0.5;
+
+      viewer.scene.primitives.add(await Cesium.createOsmBuildingsAsync());
+      viewer.entities.add({
+        polygon: {
+          hierarchy: new Cesium.PolygonHierarchy(
+            Cesium.Cartesian3.fromDegreesArray([
+              121.48,
+              31.23,
+              121.49,
+              31.23,
+              121.49,
+              31.24,
+              121.48,
+              31.24,
+              121.48,
+              31.23,
+            ])
+          ),
+          height: 100,
+          material: new Cesium.Color(1, 0, 0, 0.5),
+        },
+      });
+
+      const cartToDegree = (cartesian) => {
+        if (!cartesian) return "-";
+        const carto = Cesium.Cartographic.fromCartesian(cartesian);
+        const result = {
+          lon: Cesium.Math.toDegrees(carto.longitude),
+          lat: Cesium.Math.toDegrees(carto.latitude),
+          height: carto.height,
+        };
+        return `${result.lon.toFixed(6)}, ${result.lat.toFixed(
+          6
+        )}, ${result.height.toFixed(2)}`;
       };
-      return `${result.lon.toFixed(6)}, ${result.lat.toFixed(6)}, ${result.height.toFixed(2)}`;
-    };
 
-    const ele = document.getElementById("info");
+      const ele = document.getElementById("info");
 
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.container);
-    handler.setInputAction((evt => {
-      const pos = evt.endPosition;
-      const ray = viewer.camera.getPickRay(pos);
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.container);
+      handler.setInputAction((evt) => {
+        const pos = evt.endPosition;
+        const ray = viewer.camera.getPickRay(pos);
 
-      const pickPosition = viewer.scene.pickPosition(pos);
-      const scenePosition = viewer.scene.pickFromRay(ray);
-      const globePosition = viewer.scene.globe.pick(ray, viewer.scene);
+        const pickPosition = viewer.scene.pickPosition(pos);
+        const scenePosition = viewer.scene.pickFromRay(ray);
+        const globePosition = viewer.scene.globe.pick(ray, viewer.scene);
 
-      ele.innerHTML = `pickPosition: ${cartToDegree(pickPosition)}<br/>
+        ele.innerHTML = `pickPosition: ${cartToDegree(pickPosition)}<br/>
       scenePosition: ${cartToDegree(scenePosition?.position)}<br/>
       globePosition: ${cartToDegree(globePosition)}
       `;
-
-    }), Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-  </script>
-</body>
-
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    </script>
+  </body>
 </html>
