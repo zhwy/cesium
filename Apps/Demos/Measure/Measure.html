@@ -1,80 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>测量工具</title>
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>测量工具</title>
-  <style>
-    @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
 
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
+      #tools {
+        position: absolute;
+        z-index: 99;
+        margin: 10px;
+        top: 0;
+        left: 0;
+        padding: 10px;
+      }
+    </style>
+    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
+    <script src="./Measure.js"></script>
+  </head>
 
-    #tools {
-      position: absolute;
-      z-index: 99;
-      margin: 10px;
-      top: 0;
-      left: 0;
-      padding: 10px;
-    }
-  </style>
-  <script src="../../../Build/Cesium/Cesium.js"></script>
-  <script src="./Measure.js"></script>
-</head>
-
-<body>
-  <div id="cesiumContainer">
-    <div id="tools">
-      <button id="area">测面积</button>
-      <button id="distance">测距离</button>
-      <button id="clear">清除</button>
+  <body>
+    <div id="cesiumContainer">
+      <div id="tools">
+        <button id="area">测面积</button>
+        <button id="distance">测距离</button>
+        <button id="clear">清除</button>
+      </div>
     </div>
-  </div>
-  <script>
-    /* eslint-disable*/
-    Cesium.Ion.defaultAccessToken =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+    <script>
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-    let viewer = new Cesium.Viewer("cesiumContainer", {
-      selectionIndicator: false,
-      infoBox: false
-    });
-    let measure;
-    document.getElementById("area").onclick = () => {
-      if (measure) {
-        measure.deactivate();
-      }
-      measure = new Cesium.Measure(viewer, Cesium.MeasureType.AREA);
-      measure.activate();
-    };
-    document.getElementById("distance").onclick = () => {
-      if (measure) {
-        measure.deactivate();
-      }
-      measure = new Cesium.Measure(viewer, Cesium.MeasureType.DISTANCE);
-      measure.activate();
-    };
-    document.getElementById("clear").onclick = () => {
-      if (measure) {
-        measure.clear();
-      }
-    }
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        selectionIndicator: false,
+        infoBox: false,
+      });
 
-  </script>
-</body>
+      let measure;
 
+      document.getElementById("area").onclick = () => {
+        if (measure) {
+          measure.deactivate();
+        }
+
+        measure = new Cesium.Measure(viewer, Cesium.MeasureType.AREA);
+        measure.activate();
+      };
+
+      document.getElementById("distance").onclick = () => {
+        if (measure) {
+          measure.deactivate();
+        }
+
+        measure = new Cesium.Measure(viewer, Cesium.MeasureType.DISTANCE);
+        measure.activate();
+      };
+
+      document.getElementById("clear").onclick = () => {
+        if (measure) {
+          measure.clear();
+        }
+      };
+    </script>
+  </body>
 </html>

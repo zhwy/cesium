@@ -124,7 +124,7 @@ class MeasureTool {
     this.lastCompleted = true; //上次测量已完成
     this.orginLeftDblEvt = null; //原有鼠标左键事件
 
-    let me = this;
+    const me = this;
     this.pointerOptions = {
       name: "measure-pointer",
       position: new Cesium.CallbackProperty(() => {
@@ -136,14 +136,15 @@ class MeasureTool {
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
       },
+      clampToGround: false,
     };
   }
   /**
    * 开始一次测量
    */
   activate() {
-    let me = this;
-    let viewer = this.viewer;
+    const me = this;
+    const viewer = this.viewer;
 
     this.measureEntity = viewer.entities.add(this.measureOptions);
     this.pointer = viewer.entities.add(this.pointerOptions);
@@ -162,40 +163,51 @@ class MeasureTool {
 
     let cartesian = null;
 
-    this.handler.setInputAction(function (movement) {
-      let ray = viewer.camera.getPickRay(movement.endPosition);
-      cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-      if (cartesian) me.pointerPos = cartesian.clone();
-      if (cartesian && !me.lastCompleted) {
-        if (me.positions.length <= 1) {
-          me.positions.push(cartesian);
-        } else {
-          me.positions.pop();
-          me.positions.push(cartesian);
+    this.handler.setInputAction(function (evt) {
+      if (me.viewer.scene.mode != Cesium.SceneMode.MORPHING) {
+        if (me.viewer.scene.pickPositionSupported) {
+          cartesian = me.getPickPosition(evt.endPosition);
+
+          if (cartesian) me.pointerPos = cartesian.clone();
+          if (cartesian && !me.lastCompleted) {
+            if (me.positions.length <= 1) {
+              me.positions.push(cartesian);
+            } else {
+              me.positions.pop();
+              me.positions.push(cartesian);
+            }
+          }
         }
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    this.handler.setInputAction(function (movement) {
-      // tooltip.style.display = "none";
-      // cartesian = viewer.scene.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
-      // cartesian = viewer.scene.pickPosition(movement.position);
+    this.handler.setInputAction(function (evt) {
       if (me.lastCompleted) {
         me.clear();
         me.lastCompleted = false;
-        // me.pointer.show = true;
       }
-      let ray = viewer.camera.getPickRay(movement.position);
-      cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-      if (cartesian) {
-        me.positions.push(cartesian);
+
+      if (me.viewer.scene.mode !== Cesium.SceneMode.MORPHING) {
+        if (me.viewer.scene.pickPositionSupported) {
+          cartesian = me.getPickPosition(evt.position);
+
+          if (cartesian) {
+            me.positions.push(cartesian);
+            // let cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+            // let lng = Cesium.Math.toDegrees(cartographic.longitude);
+            // let lat = Cesium.Math.toDegrees(cartographic.latitude);
+            // let height = cartographic.height;
+            // let mapPosition = { lng: lng, lat: lat, height: height };
+            // console.log("measure position", mapPosition);
+          }
+        }
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-    this.handler.setInputAction(function (movement) {
+    this.handler.setInputAction(function (evt) {
       me.lastCompleted = true;
       //添加最后一个点
-      // let ray = viewer.camera.getPickRay(movement.position);
+      // let ray = viewer.camera.getPickRay(evt.position);
       // cartesian = viewer.scene.globe.pick(ray, viewer.scene);
       // if (cartesian) {
       //     me.positions.push(cartesian);
@@ -221,13 +233,32 @@ class MeasureTool {
     this.label = null;
     this.positions = [];
     this.lastCompleted = true;
-    if (!this.handler.isDestroyed()) {
+    if (this.handler && !this.handler.isDestroyed()) {
       this.handler.destroy();
+      this.handler = null;
     }
+
     this.viewer.screenSpaceEventHandler.setInputAction(
       this.orginLeftDblEvt,
       Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
     ); //添加回双击事件
+  }
+  getPickPosition(pos) {
+    let cartesian;
+    const viewer = this.viewer;
+
+    if (this.pickMode === "scene") {
+      cartesian = viewer.scene.pickPosition(pos); // 此法在地表透明时获取坐标会有问题
+      if (!cartesian) {
+        const ray = viewer.camera.getPickRay(pos);
+        const result = viewer.scene.pickFromRay(ray, [this.pointer]);
+        if (result) return result.position;
+      }
+    } else {
+      const ray = viewer.camera.getPickRay(pos);
+      cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+    }
+    return cartesian;
   }
   /**
    * 销毁
@@ -260,9 +291,10 @@ class MeasureDistance extends MeasureTool {
         }, false),
         material: Cesium.Color.CHARTREUSE,
         width: 3,
-        clampToGround: true,
+        depthFailMaterial: Cesium.Color.CHARTREUSE,
       },
     };
+
     this.labelOptions = {
       name: "measure-label",
       position: new Cesium.CallbackProperty(() => {
@@ -270,8 +302,10 @@ class MeasureDistance extends MeasureTool {
       }, false),
       label: {
         text: new Cesium.CallbackProperty(() => {
-          let distance = getSpaceDistance(me.positions);
-          return `${distance.toFixed(2)}米`;
+          const distance = getSpaceDistance(me.positions);
+          return distance >= 1000
+            ? `${Math.round((distance / 1000) * 100) / 100}公里`
+            : `${Math.round(distance * 100) / 100}米`;
         }, false),
         font: "15px sans-serif",
         fillColor: Cesium.Color.GOLD,
@@ -279,7 +313,6 @@ class MeasureDistance extends MeasureTool {
         outlineWidth: 2,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -20),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     };
@@ -293,7 +326,7 @@ class MeasureArea extends MeasureTool {
   constructor(viewer) {
     super(viewer);
 
-    let me = this;
+    const me = this;
     this.measureOptions = {
       name: "measure-polygon",
       polygon: {
@@ -302,8 +335,8 @@ class MeasureArea extends MeasureTool {
             positions: me.positions,
           };
         }, false),
+        perPositionHeight: true,
         material: Cesium.Color.GREEN.withAlpha(0.5),
-        clampToGround: true,
       },
       polyline: {
         positions: new Cesium.CallbackProperty(() => {
@@ -311,18 +344,41 @@ class MeasureArea extends MeasureTool {
         }, false),
         material: Cesium.Color.CHARTREUSE,
         width: 3,
-        clampToGround: true,
+        depthFailMaterial: Cesium.Color.CHARTREUSE,
       },
     };
+
     this.labelOptions = {
       name: "measure-label",
       position: new Cesium.CallbackProperty(() => {
         return me.positions[me.positions.length - 1];
+
+        // if (me.positions.length <= 2) {
+        //   return me.positions[me.positions.length - 1];
+        // } else {
+        //   const positions = me.positions.concat(me.positions[0]);
+        //   const points = positions.map((pos) => {
+        //     const coord = Cesium.Cartographic.fromCartesian(pos);
+        //     // return {
+        //     //     lon: coord.longitude,
+        //     //     lat: coord.latitude
+        //     // }
+        //     return [
+        //       Cesium.Math.toDegrees(coord.longitude),
+        //       Cesium.Math.toDegrees(coord.latitude),
+        //     ];
+        //   });
+        //   const polygon = turf.polygon([points]);
+        //   const center = turf.center(polygon).geometry.coordinates;
+        //   return Cesium.Cartesian3.fromDegrees(center[0], center[1]);
+        // }
       }, false),
       label: {
         text: new Cesium.CallbackProperty(() => {
-          let area = getArea(me.positions);
-          return `${(area / 10e5).toFixed(2)}平方公里`;
+          const area = getArea(me.positions.concat(me.positions[0]));
+          return area >= 1e7
+            ? `${Math.round((area / 1e7) * 100) / 100}平方公里`
+            : `${Math.round(area * 100) / 100}平方米`;
         }, false),
         font: "15px sans-serif",
         fillColor: Cesium.Color.GOLD,
@@ -330,7 +386,6 @@ class MeasureArea extends MeasureTool {
         outlineWidth: 2,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -20),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     };

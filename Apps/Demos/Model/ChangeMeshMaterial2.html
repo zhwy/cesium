@@ -55,7 +55,7 @@
       });
 
       const model = await Cesium.Model.fromGltfAsync({
-        url: "../../SampleData/models/DracoBuggy/Buggy.gltf",
+        url: "../../SampleData/models/GroundVehicle/GroundVehicle.glb",
         modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(
           Cesium.Cartesian3.fromDegrees(121.489627, 31.237938, 5)
         ),
@@ -70,17 +70,10 @@
 
       let old;
 
-      window.model = model;
-
-      const handler = new Cesium.ScreenSpaceEventHandler(viewer.container);
-      handler.setInputAction((evt) => {
-        const endPosition = viewer.scene.pickPosition(evt.endPosition);
-        const result = viewer.scene.pick(evt.endPosition);
-        // console.log(result);
-
+      const restore = () => {
         // 复原
         if (old) {
-          old.forEach((p) => {
+          old._node.primitives.forEach((p) => {
             p.material.metallicRoughness.baseColorFactor =
               p.material.metallicRoughness.originColor;
 
@@ -90,33 +83,50 @@
 
           old = null;
         }
+      };
+
+      window.model = model;
+
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.container);
+      handler.setInputAction((evt) => {
+        const endPosition = viewer.scene.pickPosition(evt.endPosition);
+        const result = viewer.scene.drillPick(evt.endPosition)[0];
+        console.log(result);
 
         if (result && result.detail && result.detail.node) {
-          old = result.detail.node._node.primitives;
-          old.forEach((p) => {
-            p.material.metallicRoughness.originColor =
-              p.material.metallicRoughness.baseColorFactor;
-            p.material.metallicRoughness.baseColorFactor = new Cesium.Cartesian4(
-              1,
-              0,
-              0,
-              1
-            );
+          if (old !== result.detail.node) {
+            restore();
 
-            p.material.metallicRoughness.originTexture =
-              p.material.metallicRoughness.baseColorTexture;
+            old = result.detail.node;
 
-            p.material.metallicRoughness.baseColorTexture = undefined;
-          });
-          labelEntity.position = endPosition;
+            old._node.primitives.forEach((p) => {
+              p.material.metallicRoughness.originColor =
+                p.material.metallicRoughness.baseColorFactor;
+              p.material.metallicRoughness.baseColorFactor = new Cesium.Cartesian4(
+                1,
+                0,
+                0,
+                1
+              );
 
-          labelEntity.label.text = result.detail.node._name;
+              p.material.metallicRoughness.originTexture =
+                p.material.metallicRoughness.baseColorTexture;
+
+              p.material.metallicRoughness.baseColorTexture = undefined;
+            });
+
+            labelEntity.position = endPosition;
+            labelEntity.label.text = result.detail.node._name;
+
+            // model.makeStyleDirty();
+            model.resetDrawCommands();
+          }
         } else {
           labelEntity.label.text = "";
-        }
 
-        // model.resetDrawCommands();
-        model.makeStyleDirty();
+          restore();
+          model.resetDrawCommands();
+        }
       }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
     </script>
   </body>
