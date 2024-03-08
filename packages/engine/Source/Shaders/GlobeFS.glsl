@@ -272,20 +272,6 @@ vec4 sampleAndBlend(
     return vec4(outColor, max(outAlpha, 0.0));
 }
 
-vec3 colorCorrect(vec3 rgb) {
-#ifdef COLOR_CORRECT
-    // Convert rgb color to hsb
-    vec3 hsb = czm_RGBToHSB(rgb);
-    // Perform hsb shift
-    hsb.x += u_hsbShift.x; // hue
-    hsb.y = clamp(hsb.y + u_hsbShift.y, 0.0, 1.0); // saturation
-    hsb.z = hsb.z > czm_epsilon7 ? hsb.z + u_hsbShift.z : 0.0; // brightness
-    // Convert shifted hsb back to rgb
-    rgb = czm_HSBToRGB(hsb);
-#endif
-    return rgb;
-}
-
 vec4 computeDayColor(vec4 initialColor, vec3 textureCoordinates, float nightBlend);
 vec4 computeWaterColor(vec3 positionEyeCoordinates, vec2 textureCoordinates, mat3 enuToEye, vec4 imageryColor, float specularMapValue, float fade);
 
@@ -480,8 +466,11 @@ void main()
             opacity = v_atmosphereOpacity;
         #endif
 
-        rayleighColor = colorCorrect(rayleighColor);
-        mieColor = colorCorrect(mieColor);
+        #ifdef COLOR_CORRECT
+            const bool ignoreBlackPixels = true;
+            rayleighColor = czm_applyHSBShift(rayleighColor, u_hsbShift, ignoreBlackPixels);
+            mieColor = czm_applyHSBShift(mieColor, u_hsbShift, ignoreBlackPixels);
+        #endif
 
         vec4 groundAtmosphereColor = computeAtmosphereColor(positionWC, lightDirection, rayleighColor, mieColor, opacity);
 
@@ -504,6 +493,8 @@ void main()
             finalColor = vec4(czm_fog(v_distance, finalColor.rgb, fogColor.rgb, modifier), finalColor.a);
 
         #else
+            // Apply ground atmosphere. This happens when the camera is far away from the earth.
+
             // The transmittance is based on optical depth i.e. the length of segment of the ray inside the atmosphere.
             // This value is larger near the "circumference", as it is further away from the camera. We use it to
             // brighten up that area of the ground atmosphere.
@@ -552,7 +543,7 @@ void main()
       finalColor.a *= interpolateByDistance(alphaByDistance, v_distance);
     }
 #endif
-    
+
     out_FragColor =  finalColor;
 }
 
