@@ -3,7 +3,6 @@ import destroyObject from "../Core/destroyObject.js";
 import TerrainQuantization from "../Core/TerrainQuantization.js";
 import ShaderProgram from "../Renderer/ShaderProgram.js";
 import getClippingFunction from "./getClippingFunction.js";
-import getMultiClippingFunction from "./getMultiClippingFunction.js";
 import SceneMode from "./SceneMode.js";
 
 function GlobeSurfaceShader(
@@ -12,14 +11,14 @@ function GlobeSurfaceShader(
   material,
   shaderProgram,
   clippingShaderState,
-  multiClippingShaderState
+  clippingPolygonShaderState
 ) {
   this.numberOfDayTextures = numberOfDayTextures;
   this.flags = flags;
   this.material = material;
   this.shaderProgram = shaderProgram;
   this.clippingShaderState = clippingShaderState;
-  this.multiClippingShaderState = multiClippingShaderState;
+  this.clippingPolygonShaderState = clippingPolygonShaderState;
 }
 
 /**
@@ -63,6 +62,31 @@ function getPositionMode(sceneMode) {
   return positionMode;
 }
 
+function getPolygonClippingFunction(context) {
+  // return a noop for webgl1
+  if (!context.webgl2) {
+    return `void clipPolygons(highp sampler2D clippingDistance, int regionsLength, vec2 clippingPosition, int regionIndex) {
+    }`;
+  }
+
+  return `void clipPolygons(highp sampler2D clippingDistance, int regionsLength, vec2 clippingPosition, int regionIndex) {
+    czm_clipPolygons(clippingDistance, regionsLength, clippingPosition, regionIndex);
+  }`;
+}
+
+function getUnpackClippingFunction(context) {
+  // return a noop for webgl1
+  if (!context.webgl2) {
+    return `vec4 unpackClippingExtents(highp sampler2D extentsTexture, int index) {
+      return vec4();
+    }`;
+  }
+
+  return `vec4 unpackClippingExtents(highp sampler2D extentsTexture, int index) {
+    return czm_unpackClippingExtents(extentsTexture, index);
+  }`;
+}
+
 function get2DYPositionFraction(useWebMercatorProjection) {
   const get2DYPositionFractionGeographicProjection =
     "float get2DYPositionFraction(vec2 textureCoordinates) { return get2DGeographicYPositionFraction(textureCoordinates); }";
@@ -97,11 +121,9 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
   const useWebMercatorProjection = options.useWebMercatorProjection;
   const enableFog = options.enableFog;
   const enableClippingPlanes = options.enableClippingPlanes;
-  const multiClippingPlanes = options.multiClippingPlanes;
-  const enableMultiClippingPlanes =
-    defined(multiClippingPlanes) && multiClippingPlanes.length > 0;
-  // if (defined(multiClippingPlanes) && multiClippingPlanes.length > 0) enableClippingPlanes = true;
   const clippingPlanes = options.clippingPlanes;
+  const enableClippingPolygons = options.enableClippingPolygons;
+  const clippingPolygons = options.clippingPolygons;
   const clippedByBoundaries = options.clippedByBoundaries;
   const hasImageryLayerCutout = options.hasImageryLayerCutout;
   const colorCorrect = options.colorCorrect;
@@ -159,17 +181,18 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     (quantization << 18) |
     (applySplit << 19) |
     (enableClippingPlanes << 20) |
-    (cartographicLimitRectangleFlag << 21) |
-    (imageryCutoutFlag << 22) |
-    (colorCorrect << 23) |
-    (highlightFillTile << 24) |
-    (colorToAlpha << 25) |
-    (hasGeodeticSurfaceNormals << 26) |
-    (hasExaggeration << 27) |
-    (showUndergroundColor << 28) |
-    (translucent << 29) |
-    (applyDayNightAlpha << 30) |
-    (enableMultiClippingPlanes << 31);
+    (enableClippingPolygons << 21) |
+    (cartographicLimitRectangleFlag << 22) |
+    (imageryCutoutFlag << 23) |
+    (colorCorrect << 24) |
+    (highlightFillTile << 25) |
+    (colorToAlpha << 26) |
+    (hasGeodeticSurfaceNormals << 27) |
+    (hasExaggeration << 28) |
+    (showUndergroundColor << 29) |
+    (translucent << 30) |
+    (applyDayNightAlpha << 31);
+
   let currentClippingShaderState = 0;
   if (defined(clippingPlanes) && clippingPlanes.length > 0) {
     currentClippingShaderState = enableClippingPlanes
@@ -177,9 +200,11 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       : 0;
   }
 
-  let currentMultiClippingShaderState = 0;
-  if (enableMultiClippingPlanes) {
-    currentMultiClippingShaderState = multiClippingPlanes.collectionsState;
+  let currentClippingPolygonsShaderState = 0;
+  if (defined(clippingPolygons) && clippingPolygons.length > 0) {
+    currentClippingPolygonsShaderState = enableClippingPolygons
+      ? clippingPolygons.clippingPolygonsState
+      : 0;
   }
 
   let surfaceShader = surfaceTile.surfaceShader;
@@ -189,7 +214,8 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     surfaceShader.flags === flags &&
     surfaceShader.material === this.material &&
     surfaceShader.clippingShaderState === currentClippingShaderState &&
-    surfaceShader.multiClippingShaderState === currentMultiClippingShaderState
+    surfaceShader.clippingPolygonShaderState ===
+      currentClippingPolygonsShaderState
   ) {
     return surfaceShader.shaderProgram;
   }
@@ -205,22 +231,24 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
     !defined(surfaceShader) ||
     surfaceShader.material !== this.material ||
     surfaceShader.clippingShaderState !== currentClippingShaderState ||
-    surfaceShader.multiClippingShaderState !== currentMultiClippingShaderState
+    surfaceShader.clippingPolygonShaderState !==
+      currentClippingPolygonsShaderState
   ) {
     // Cache miss - we've never seen this combination of numberOfDayTextures and flags before.
     const vs = this.baseVertexShaderSource.clone();
     const fs = this.baseFragmentShaderSource.clone();
 
-    if (currentClippingShaderState !== 0 && !defined(multiClippingPlanes)) {
+    // Need to go before GlobeFS
+    if (currentClippingShaderState !== 0) {
       fs.sources.unshift(
         getClippingFunction(clippingPlanes, frameState.context)
-      ); // Need to go before GlobeFS
+      );
     }
 
-    if (currentMultiClippingShaderState !== 0) {
-      fs.sources.unshift(
-        getMultiClippingFunction(multiClippingPlanes, frameState.context)
-      );
+    // Need to go before GlobeFS
+    if (currentClippingPolygonsShaderState !== 0) {
+      fs.sources.unshift(getPolygonClippingFunction(frameState.context));
+      vs.sources.unshift(getUnpackClippingFunction(frameState.context));
     }
 
     vs.defines.push(quantizationDefine);
@@ -313,8 +341,20 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       fs.defines.push("ENABLE_CLIPPING_PLANES");
     }
 
-    if (enableMultiClippingPlanes) {
-      fs.defines.push("ENABLE_MULTI_CLIPPING_PLANES");
+    if (enableClippingPolygons) {
+      fs.defines.push("ENABLE_CLIPPING_POLYGONS");
+      vs.defines.push("ENABLE_CLIPPING_POLYGONS");
+
+      if (clippingPolygons.inverse) {
+        fs.defines.push("CLIPPING_INVERSE");
+      }
+
+      fs.defines.push(
+        `CLIPPING_POLYGON_REGIONS_LENGTH ${clippingPolygons.extentsCount}`
+      );
+      vs.defines.push(
+        `CLIPPING_POLYGON_REGIONS_LENGTH ${clippingPolygons.extentsCount}`
+      );
     }
 
     if (colorCorrect) {
@@ -403,7 +443,7 @@ GlobeSurfaceShaderSet.prototype.getShaderProgram = function (options) {
       this.material,
       shader,
       currentClippingShaderState,
-      currentMultiClippingShaderState
+      currentClippingPolygonsShaderState
     );
   }
 

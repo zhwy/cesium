@@ -71,14 +71,16 @@ uniform vec4 u_cartographicLimitRectangle;
 uniform vec2 u_nightFadeDistance;
 #endif
 
-#if defined(ENABLE_CLIPPING_PLANES) || defined(ENABLE_MULTI_CLIPPING_PLANES)
+#ifdef ENABLE_CLIPPING_PLANES
 uniform highp sampler2D u_clippingPlanes;
 uniform mat4 u_clippingPlanesMatrix;
 uniform vec4 u_clippingPlanesEdgeStyle;
 #endif
 
-#ifdef ENABLE_MULTI_CLIPPING_PLANES
-uniform mediump sampler2D u_multiClippingPlanesLength;
+#ifdef ENABLE_CLIPPING_POLYGONS
+uniform highp sampler2D u_clippingDistance;
+in vec2 v_clippingPosition;
+flat in int v_regionIndex;
 #endif
 
 #if defined(GROUND_ATMOSPHERE) || defined(FOG) && defined(DYNAMIC_ATMOSPHERE_LIGHTING) && (defined(ENABLE_VERTEX_LIGHTING) || defined(ENABLE_DAYNIGHT_SHADING))
@@ -308,10 +310,6 @@ void main()
     float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix);
 #endif
 
-#ifdef ENABLE_MULTI_CLIPPING_PLANES
-    float clipDistance = clip(gl_FragCoord, u_clippingPlanes, u_clippingPlanesMatrix, u_multiClippingPlanesLength);
-#endif
-
 #if defined(SHOW_REFLECTIVE_OCEAN) || defined(ENABLE_DAYNIGHT_SHADING) || defined(HDR)
     vec3 normalMC = czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0));   // normalized surface normal in model coordinates
     vec3 normalEC = czm_normal3D * normalMC;                                         // normalized surface normal in eye coordinates
@@ -410,7 +408,7 @@ void main()
     vec4 finalColor = color;
 #endif
 
-#if defined(ENABLE_CLIPPING_PLANES) || defined(ENABLE_MULTI_CLIPPING_PLANES)
+#ifdef ENABLE_CLIPPING_PLANES
     vec4 clippingPlanesEdgeColor = vec4(1.0);
     clippingPlanesEdgeColor.rgb = u_clippingPlanesEdgeStyle.rgb;
     float clippingPlanesEdgeWidth = u_clippingPlanesEdgeStyle.a;
@@ -419,6 +417,12 @@ void main()
     {
         finalColor = clippingPlanesEdgeColor;
     }
+#endif
+
+#ifdef ENABLE_CLIPPING_POLYGONS
+    vec2 clippingPosition = v_clippingPosition;
+    int regionIndex = v_regionIndex;
+    clipPolygons(u_clippingDistance, CLIPPING_POLYGON_REGIONS_LENGTH, clippingPosition, regionIndex);    
 #endif
 
 #ifdef HIGHLIGHT_FILL_TILE

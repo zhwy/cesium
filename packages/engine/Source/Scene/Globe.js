@@ -450,17 +450,17 @@ Object.defineProperties(Globe.prototype, {
     },
   },
   /**
-   * A property specifying a {@link MultiClippingPlaneCollection} used to selectively disable rendering on the outside of each ClippingPlaneCollection.
+   * A property specifying a {@link ClippingPolygonCollection} used to selectively disable rendering inside or outside a list of polygons.
    *
    * @memberof Globe.prototype
-   * @type {MultiClippingPlaneCollection}
+   * @type {ClippingPolygonCollection}
    */
-  multiClippingPlanes: {
+  clippingPolygons: {
     get: function () {
-      return this._surface.tileProvider._multiClippingPlanes;
+      return this._surface.tileProvider.clippingPolygons;
     },
     set: function (value) {
-      this._surface.tileProvider._multiClippingPlanes = value;
+      this._surface.tileProvider.clippingPolygons = value;
     },
   },
   /**
