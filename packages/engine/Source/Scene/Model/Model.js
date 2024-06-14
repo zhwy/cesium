@@ -2123,8 +2123,7 @@ function updateClamping(model) {
     return;
   }
 
-  const globe = scene.globe;
-  const ellipsoid = defaultValue(globe?.ellipsoid, Ellipsoid.WGS84);
+  const ellipsoid = defaultValue(scene.ellipsoid, Ellipsoid.default);
 
   // Compute cartographic position so we don't recompute every update
   const modelMatrix = model.modelMatrix;
@@ -2206,7 +2205,7 @@ function updateComputedScale(model, modelMatrix, frameState) {
     Matrix4.getTranslation(modelMatrix, scratchPosition);
 
     if (model._sceneMode !== SceneMode.SCENE3D) {
-      SceneTransforms.computeActualWgs84Position(
+      SceneTransforms.computeActualEllipsoidPosition(
         frameState,
         scratchPosition,
         scratchPosition
@@ -2250,6 +2249,10 @@ function updatePickIds(model) {
   }
 }
 
+// Matrix3 is a row-major constructor.
+// The same constructor in GLSL will produce the transpose of this.
+const yUpToZUp = new Matrix3(-1, 0, 0, 0, 0, 1, 0, -1, 0);
+
 function updateReferenceMatrices(model, frameState) {
   const modelMatrix = defined(model._clampedModelMatrix)
     ? model._clampedModelMatrix
@@ -2267,15 +2270,16 @@ function updateReferenceMatrices(model, frameState) {
       referenceMatrix,
       iblReferenceFrameMatrix4
     );
-    iblReferenceFrameMatrix3 = Matrix4.getMatrix3(
+    iblReferenceFrameMatrix3 = Matrix4.getRotation(
       iblReferenceFrameMatrix4,
       iblReferenceFrameMatrix3
     );
-    iblReferenceFrameMatrix3 = Matrix3.getRotation(
+    iblReferenceFrameMatrix3 = Matrix3.transpose(
       iblReferenceFrameMatrix3,
       iblReferenceFrameMatrix3
     );
-    model._iblReferenceFrameMatrix = Matrix3.transpose(
+    model._iblReferenceFrameMatrix = Matrix3.multiply(
+      yUpToZUp,
       iblReferenceFrameMatrix3,
       model._iblReferenceFrameMatrix
     );
@@ -2460,7 +2464,11 @@ function passesDistanceDisplayCondition(model, frameState) {
 
     // This will project the position if the scene is in Columbus View,
     // but leave the position as-is in 3D mode.
-    SceneTransforms.computeActualWgs84Position(frameState, position, position);
+    SceneTransforms.computeActualEllipsoidPosition(
+      frameState,
+      position,
+      position
+    );
 
     distanceSquared = Cartesian3.distanceSquared(
       position,
