@@ -30,10 +30,13 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
-      const viewer = new Cesium.Viewer("cesiumContainer");
+      const viewer = new Cesium.Viewer("cesiumContainer", {});
       window._viewer = viewer;
       viewer.scene.globe.depthTestAgainstTerrain = false;
+      viewer.scene.verticalExaggeration = 10.0;
 
       const textureCoordinates = {
         positions: [],
@@ -43,10 +46,6 @@
       fetch("./border.json")
         .then((res) => res.json())
         .then((json) => {
-          // json.features[0].geometry.coordinates[0] = [
-          //   json.features[0].geometry.coordinates[0][0],
-          // ];
-
           const coordinates = json.features[0].geometry.coordinates[0];
 
           let west = 180,
@@ -63,18 +62,19 @@
 
           const width = east - west;
           const height = north - south;
+          const max = Math.max(width, height);
 
           const hierarchy = new Cesium.PolygonHierarchy();
 
           coordinates[0].forEach((p) => {
             textureCoordinates.positions.push(
-              new Cesium.Cartesian2(
-                (p[0] - west) / width,
-                (p[1] - south) / height
-              )
+              new Cesium.Cartesian2((p[0] - west) / max, (p[1] - south) / max)
             );
             hierarchy.positions.push(Cesium.Cartesian3.fromDegrees(p[0], p[1]));
           });
+
+          const minX = west;
+          const minY = south;
 
           for (let i = 1; i < coordinates.length; i += 1) {
             const hole = { positions: [] };
@@ -83,10 +83,7 @@
 
             coords.forEach((p) => {
               hole.positions.push(
-                new Cesium.Cartesian2(
-                  (p[0] - west) / width,
-                  (p[1] - south) / height
-                )
+                new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max)
               );
               tmpHierarchy.positions.push(
                 Cesium.Cartesian3.fromDegrees(p[0], p[1])
@@ -105,7 +102,12 @@
                 frequency: 5000.0,
                 animationSpeed: 0.01,
                 amplitude: 5,
-                baseWaterColor: new Cesium.Color(0.4, 0.6, 1, 1),
+                baseWaterColor: new Cesium.Color(
+                  76 / 255,
+                  130 / 255,
+                  150 / 255,
+                  1
+                ), // 67, 130, 150
                 specularIntensity: 0.5,
                 fadeFactor: 1.0,
               },
@@ -115,7 +117,7 @@
           const polygonGeom = new Cesium.PolygonGeometry({
             polygonHierarchy: hierarchy,
             vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
-            height: 100,
+            height: 1,
             // 需要指定纹理坐标，否则Primitive创建纹理会失效
             textureCoordinates,
           });
