@@ -160,6 +160,7 @@ function UniformState() {
   this._specularEnvironmentMapsMaximumLOD = undefined;
 
   this._fogDensity = undefined;
+  this._fogVisualDensityScalar = undefined;
   this._fogMinimumBrightness = undefined;
 
   this._atmosphereHsbShift = undefined;
@@ -925,6 +926,17 @@ Object.defineProperties(UniformState.prototype, {
   },
 
   /**
+   * A scalar used to mix a color with the fog color based on the distance to the camera.
+   * @memberof UniformState.prototype
+   * @type {number}
+   */
+  fogVisualDensityScalar: {
+    get: function () {
+      return this._fogVisualDensityScalar;
+    },
+  },
+
+  /**
    * A scalar used as a minimum value when brightening fog
    * @memberof UniformState.prototype
    * @type {number}
@@ -1362,7 +1374,10 @@ UniformState.prototype.updateCamera = function (camera) {
  * @param {object} frustum The frustum to synchronize with.
  */
 UniformState.prototype.updateFrustum = function (frustum) {
+  // If any frustum parameters have changed, calling the frustum.projectionMatrix
+  // getter will recompute the projection before it is copied.
   setProjection(this, frustum.projectionMatrix);
+
   if (defined(frustum.infiniteProjectionMatrix)) {
     setInfiniteProjection(this, frustum.infiniteProjectionMatrix);
   }
@@ -1489,6 +1504,7 @@ UniformState.prototype.update = function (frameState) {
     frameState.specularEnvironmentMapsMaximumLOD;
 
   this._fogDensity = frameState.fog.density;
+  this._fogVisualDensityScalar = frameState.fog.visualDensityScalar;
   this._fogMinimumBrightness = frameState.fog.minimumBrightness;
 
   const atmosphere = frameState.atmosphere;

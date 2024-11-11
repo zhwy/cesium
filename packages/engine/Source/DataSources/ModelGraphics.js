@@ -26,6 +26,7 @@ function createArticulationStagePropertyBag(value) {
  * @property {Property | boolean} [show=true] A boolean Property specifying the visibility of the model.
  * @property {Property | string | Resource} [uri] A string or Resource Property specifying the URI of the glTF asset.
  * @property {Property | number} [scale=1.0] A numeric Property specifying a uniform linear scale.
+ * @property {Property | boolean} [enableVerticalExaggeration=true] A boolean Property specifying if the model is exaggerated along the ellipsoid normal when {@link Scene.verticalExaggeration} is set to a value other than <code>1.0</code>.
  * @property {Property | number} [minimumPixelSize=0.0] A numeric Property specifying the approximate minimum pixel size of the model regardless of zoom.
  * @property {Property | number} [maximumScale] The maximum scale size of a model. An upper limit for minimumPixelSize.
  * @property {Property | boolean} [incrementallyLoadTextures=true] Determine if textures may continue to stream in after the model is loaded.
@@ -70,6 +71,10 @@ function ModelGraphics(options) {
   this._uriSubscription = undefined;
   this._scale = undefined;
   this._scaleSubscription = undefined;
+  this._hasVerticalExaggeration = undefined;
+  this._hasVerticalExaggerationSubscription = undefined;
+  this._enableVerticalExaggeration = undefined;
+  this._enableVerticalExaggerationSubscription = undefined;
   this._minimumPixelSize = undefined;
   this._minimumPixelSizeSubscription = undefined;
   this._maximumScale = undefined;
@@ -121,7 +126,7 @@ Object.defineProperties(ModelGraphics.prototype, {
    * @readonly
    */
   definitionChanged: {
-    get: function() {
+    get: function () {
       return this._definitionChanged;
     },
   },
@@ -150,6 +155,16 @@ Object.defineProperties(ModelGraphics.prototype, {
    * @default 1.0
    */
   scale: createPropertyDescriptor("scale"),
+
+  /**
+   * Gets or sets the boolean Property specifying if the model is exaggerated along the ellipsoid normal when {@link Scene.verticalExaggeration} is set to a value other than <code>1.0</code>.
+   * @memberof ModelGraphics.prototype
+   * @type {Property|undefined}
+   * @default true
+   */
+  enableVerticalExaggeration: createPropertyDescriptor(
+    "enableVerticalExaggeration"
+  ),
 
   /**
    * Gets or sets the numeric Property specifying the approximate minimum
@@ -328,13 +343,14 @@ Object.defineProperties(ModelGraphics.prototype, {
  * @param {ModelGraphics} [result] The object onto which to store the result.
  * @returns {ModelGraphics} The modified result parameter or a new instance if one was not provided.
  */
-ModelGraphics.prototype.clone = function(result) {
+ModelGraphics.prototype.clone = function (result) {
   if (!defined(result)) {
     return new ModelGraphics(this);
   }
   result.show = this.show;
   result.uri = this.uri;
   result.scale = this.scale;
+  result.enableVerticalExaggeration = this.enableVerticalExaggeration;
   result.minimumPixelSize = this.minimumPixelSize;
   result.maximumScale = this.maximumScale;
   result.incrementallyLoadTextures = this.incrementallyLoadTextures;
@@ -363,7 +379,7 @@ ModelGraphics.prototype.clone = function(result) {
  *
  * @param {ModelGraphics} source The object to be merged into this object.
  */
-ModelGraphics.prototype.merge = function(source) {
+ModelGraphics.prototype.merge = function (source) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(source)) {
     throw new DeveloperError("source is required.");
@@ -373,6 +389,10 @@ ModelGraphics.prototype.merge = function(source) {
   this.show = defaultValue(this.show, source.show);
   this.uri = defaultValue(this.uri, source.uri);
   this.scale = defaultValue(this.scale, source.scale);
+  this.enableVerticalExaggeration = defaultValue(
+    this.enableVerticalExaggeration,
+    source.enableVerticalExaggeration
+  );
   this.minimumPixelSize = defaultValue(
     this.minimumPixelSize,
     source.minimumPixelSize
@@ -413,6 +433,7 @@ ModelGraphics.prototype.merge = function(source) {
     this.imageBasedLightingFactor,
     source.imageBasedLightingFactor
   );
+
   this.lightColor = defaultValue(this.lightColor, source.lightColor);
   this.distanceDisplayCondition = defaultValue(
     this.distanceDisplayCondition,
@@ -422,10 +443,7 @@ ModelGraphics.prototype.merge = function(source) {
     this.clippingPlanes,
     source.clippingPlanes
   );
-  this.forwardAxis = defaultValue(
-    this.forwardAxis,
-    source.forwardAxis
-  );
+  this.forwardAxis = defaultValue(this.forwardAxis, source.forwardAxis);
   this.customShader = defaultValue(this.customShader, source.customShader);
 
   const sourceNodeTransformations = source.nodeTransformations;

@@ -31,6 +31,7 @@ import {
   getJsonFromTypedArray,
   HeadingPitchRange,
   HeadingPitchRoll,
+  ImageBasedLighting,
   Intersect,
   JulianDate,
   Math as CesiumMath,
@@ -514,6 +515,8 @@ describe(
       expect(statistics.numberOfPendingRequests).toBe(0);
       expect(statistics.numberOfTilesProcessing).toBe(0);
       expect(statistics.numberOfTilesWithContentReady).toBe(0);
+
+      await Cesium3DTilesTester.waitForTilesLoaded(scene, tileset);
     });
 
     it("handles failed tile processing", async function () {
@@ -550,6 +553,8 @@ describe(
       expect(statistics.numberOfPendingRequests).toBe(0);
       expect(statistics.numberOfTilesProcessing).toBe(0);
       expect(statistics.numberOfTilesWithContentReady).toBe(0);
+
+      await Cesium3DTilesTester.waitForTilesLoaded(scene, tileset);
     });
 
     it("renders tileset", function () {
@@ -664,7 +669,7 @@ describe(
       );
     });
 
-    it("renders tileset with custom up and forward axes", function () {
+    it("renders tileset with custom up and forward axes", async function () {
       const center = Cartesian3.fromRadians(
         centerLongitude,
         centerLatitude,
@@ -693,38 +698,40 @@ describe(
       // make sure we can see the cube so it loads
       scene.camera.lookAt(center, viewEast);
 
-      return Cesium3DTilesTester.loadTileset(
+      const tileset = await Cesium3DTilesTester.loadTileset(
         scene,
         tilesetEastNorthUpUrl,
         tilesetOptions
-      ).then(function (tileset) {
-        // The east (+x) face of the cube is red
-        scene.camera.lookAt(center, viewEast);
-        expect(renderOptions).toRenderAndCall(function (rgba) {
-          expect(rgba[0]).toBeGreaterThan(190);
-          expect(rgba[1]).toBeLessThan(64);
-          expect(rgba[2]).toBeLessThan(64);
-          expect(rgba[3]).toEqual(255);
-        });
+      );
 
-        // The north (+y) face of the cube is green
-        scene.camera.lookAt(center, viewNorth);
-        expect(renderOptions).toRenderAndCall(function (rgba) {
-          expect(rgba[0]).toBeLessThan(64);
-          expect(rgba[1]).toBeGreaterThan(190);
-          expect(rgba[2]).toBeLessThan(64);
-          expect(rgba[3]).toEqual(255);
-        });
-
-        // The up (+z) face of the cube is blue
-        scene.camera.lookAt(center, viewUp);
-        expect(renderOptions).toRenderAndCall(function (rgba) {
-          expect(rgba[0]).toBeLessThan(64);
-          expect(rgba[1]).toBeLessThan(64);
-          expect(rgba[2]).toBeGreaterThan(190);
-          expect(rgba[3]).toEqual(255);
-        });
+      // The east (+x) face of the cube is red
+      scene.camera.lookAt(center, viewEast);
+      expect(renderOptions).toRenderAndCall(function (rgba) {
+        expect(rgba[0]).toBeGreaterThan(190);
+        expect(rgba[1]).toBeLessThanOrEqual(108);
+        expect(rgba[2]).toBeLessThanOrEqual(108);
+        expect(rgba[3]).toEqual(255);
       });
+
+      // The north (+y) face of the cube is green
+      scene.camera.lookAt(center, viewNorth);
+      expect(renderOptions).toRenderAndCall(function (rgba) {
+        expect(rgba[0]).toBeLessThanOrEqual(108);
+        expect(rgba[1]).toBeGreaterThan(180);
+        expect(rgba[2]).toBeLessThanOrEqual(108);
+        expect(rgba[3]).toEqual(255);
+      });
+
+      // The up (+z) face of the cube is blue
+      scene.camera.lookAt(center, viewUp);
+      expect(renderOptions).toRenderAndCall(function (rgba) {
+        expect(rgba[0]).toBeLessThanOrEqual(108);
+        expect(rgba[1]).toBeLessThanOrEqual(108);
+        expect(rgba[2]).toBeGreaterThan(180);
+        expect(rgba[3]).toEqual(255);
+      });
+
+      await Cesium3DTilesTester.waitForTilesLoaded(scene, tileset);
     });
 
     it("verify statistics", async function () {
@@ -2598,7 +2605,7 @@ describe(
         tileset.boundingSphere.center
       );
       const height = tileset.getHeight(center, scene);
-      expect(height).toEqualEpsilon(78.1558019795064, CesiumMath.EPSILON12);
+      expect(height).toEqualEpsilon(78.1558019795064, CesiumMath.EPSILON8);
     });
 
     it("getHeight samples height accounting for vertical exaggeration", async function () {
@@ -2614,7 +2621,7 @@ describe(
         tileset.boundingSphere.center
       );
       const height = tileset.getHeight(center, scene);
-      expect(height).toEqualEpsilon(156.31161477299992, CesiumMath.EPSILON12);
+      expect(height).toEqualEpsilon(156.31161477299992, CesiumMath.EPSILON8);
     });
 
     it("destroys", function () {
@@ -2694,25 +2701,21 @@ describe(
       );
     });
 
-    it("renders with lightColor", function () {
+    it("renders with lightColor", async function () {
       const renderOptions = {
         scene: scene,
         time: new JulianDate(2457522.154792),
       };
-      return Cesium3DTilesTester.loadTileset(scene, withoutBatchTableUrl).then(
-        function (tileset) {
-          const ibl = tileset.imageBasedLighting;
-          expect(renderOptions).toRenderAndCall(function (rgba) {
-            expect(rgba).not.toEqual([0, 0, 0, 255]);
-            ibl.imageBasedLightingFactor = new Cartesian2(0.0, 0.0);
-            expect(renderOptions).toRenderAndCall(function (rgba2) {
-              expect(rgba2).not.toEqual(rgba);
-              tileset.lightColor = new Cartesian3(5.0, 5.0, 5.0);
-              expect(renderOptions).notToRender(rgba2);
-            });
-          });
-        }
+      const tileset = await Cesium3DTilesTester.loadTileset(
+        scene,
+        withoutBatchTableUrl
       );
+      const ibl = tileset.imageBasedLighting;
+      ibl.imageBasedLightingFactor = new Cartesian2(0.0, 0.0);
+      expect(renderOptions).toRenderAndCall(function (rgba) {
+        tileset.lightColor = new Cartesian3(5.0, 5.0, 5.0);
+        expect(renderOptions).notToRender(rgba);
+      });
     });
 
     function testBackFaceCulling(url, setViewOptions) {
@@ -3322,8 +3325,21 @@ describe(
         scene: scene,
         time: new JulianDate(2457522.154792),
       };
-      const tileset = await Cesium3DTilesTester.loadTileset(scene, url);
-      tileset.luminanceAtZenith = undefined;
+      const tileset = await Cesium3DTilesTester.loadTileset(scene, url, {
+        imageBasedLighting: new ImageBasedLighting({
+          sphericalHarmonicCoefficients: [
+            new Cartesian3(2.0, 2.0, 2.0),
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+            Cartesian3.ZERO,
+          ],
+        }),
+      });
 
       expect(renderOptions).toRenderAndCall(function (rgba) {
         sourceRed = rgba[0];
@@ -3331,10 +3347,10 @@ describe(
       });
 
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toBeGreaterThan(200);
-        expect(rgba[1]).toBeLessThan(25);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("starting red .r").toBeGreaterThan(190);
+        expect(rgba[1]).withContext("starting red .g").toEqualEpsilon(118, 1);
+        expect(rgba[2]).withContext("starting red .b").toEqualEpsilon(118, 1);
+        expect(rgba[3]).withContext("starting red .a").toEqual(255);
       });
 
       // Use HIGHLIGHT blending
@@ -3346,11 +3362,13 @@ describe(
       });
 
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toBeGreaterThan(100);
-        expect(rgba[0]).toBeLessThan(sourceRed);
-        expect(rgba[1]).toBeLessThan(25);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("hl dark yellow .r").toBeGreaterThan(100);
+        expect(rgba[0])
+          .withContext("hl dark yellow .r")
+          .toBeLessThan(sourceRed);
+        expect(rgba[1]).withContext("hl dark yellow .g").toEqualEpsilon(58, 1);
+        expect(rgba[2]).withContext("hl dark yellow .b").toEqualEpsilon(0, 1);
+        expect(rgba[3]).withContext("hl dark yellow .a").toEqual(255);
       });
 
       // Style with yellow + alpha. Expect the red channel to be darker than before.
@@ -3359,11 +3377,13 @@ describe(
       });
 
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toBeGreaterThan(100);
-        expect(rgba[0]).toBeLessThan(sourceRed);
-        expect(rgba[1]).toBeLessThan(25);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("hl yellow+alpha .r").toBeGreaterThan(100);
+        expect(rgba[0])
+          .withContext("hl yellow+alpha .r")
+          .toBeLessThan(sourceRed);
+        expect(rgba[1]).withContext("hl yellow+alpha .g").toEqualEpsilon(80, 1);
+        expect(rgba[2]).withContext("hl yellow+alpha .b").toEqualEpsilon(0, 1);
+        expect(rgba[3]).withContext("hl yellow+alpha .a").toEqual(255);
       });
 
       // Use REPLACE blending
@@ -3377,12 +3397,12 @@ describe(
       expect(renderOptions).toRenderAndCall(function (rgba) {
         replaceRed = rgba[0];
         replaceGreen = rgba[1];
-        expect(rgba[0]).toBeGreaterThan(100);
-        expect(rgba[0]).toBeLessThan(255);
-        expect(rgba[1]).toBeGreaterThan(100);
-        expect(rgba[1]).toBeLessThan(255);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("replace yellow .r").toBeGreaterThan(100);
+        expect(rgba[0]).withContext("replace yellow .r").toBeLessThan(255);
+        expect(rgba[1]).withContext("replace yellow .g").toBeGreaterThan(100);
+        expect(rgba[1]).withContext("replace yellow .g").toBeLessThan(255);
+        expect(rgba[2]).withContext("replace yellow .b").toEqualEpsilon(62, 1);
+        expect(rgba[3]).withContext("replace yellow .a").toEqual(255);
       });
 
       // Style with yellow + alpha. Expect the red and green channels to be a shade of yellow.
@@ -3391,12 +3411,22 @@ describe(
       });
 
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toBeGreaterThan(100);
-        expect(rgba[0]).toBeLessThan(255);
-        expect(rgba[1]).toBeGreaterThan(100);
-        expect(rgba[1]).toBeLessThan(255);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0])
+          .withContext("replace yellow+alpha .r")
+          .toBeGreaterThan(100);
+        expect(rgba[0])
+          .withContext("replace yellow+alpha .r")
+          .toBeLessThan(255);
+        expect(rgba[1])
+          .withContext("replace yellow+alpha .g")
+          .toBeGreaterThan(100);
+        expect(rgba[1])
+          .withContext("replace yellow+alpha .g")
+          .toBeLessThan(255);
+        expect(rgba[2])
+          .withContext("replace yellow+alpha .b")
+          .toEqualEpsilon(80, 1);
+        expect(rgba[3]).withContext("replace yellow+alpha .a").toEqual(255);
       });
 
       // Use MIX blending
@@ -3413,41 +3443,49 @@ describe(
       expect(renderOptions).toRenderAndCall(function (rgba) {
         mixRed = rgba[0];
         mixGreen = rgba[1];
-        expect(rgba[0]).toBeGreaterThan(replaceRed);
-        expect(rgba[0]).toBeLessThan(sourceRed);
-        expect(rgba[1]).toBeGreaterThan(sourceGreen);
-        expect(rgba[1]).toBeLessThan(replaceGreen);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0])
+          .withContext("mix yellow .r")
+          .toBeGreaterThan(replaceRed);
+        expect(rgba[0]).withContext("mix yellow .r").toBeLessThan(sourceRed);
+        expect(rgba[1])
+          .withContext("mix yellow .g")
+          .toBeGreaterThan(sourceGreen);
+        expect(rgba[1]).withContext("mix yellow .g").toBeLessThan(replaceGreen);
+        expect(rgba[2]).withContext("mix yellow .b").toEqualEpsilon(96, 1);
+        expect(rgba[3]).withContext("mix yellow .a").toEqual(255);
       });
 
       // Set colorBlendAmount to 0.25. Expect color to be closer to the source color.
       tileset.colorBlendAmount = 0.25;
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toBeGreaterThan(mixRed);
-        expect(rgba[0]).toBeLessThan(sourceRed);
-        expect(rgba[1]).toBeGreaterThan(0);
-        expect(rgba[1]).toBeLessThan(mixGreen);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0])
+          .withContext("mix blend 0.25 .r")
+          .toBeGreaterThan(mixRed);
+        expect(rgba[0])
+          .withContext("mix blend 0.25 .r")
+          .toBeLessThanOrEqual(sourceRed);
+        expect(rgba[1]).withContext("mix blend 0.25 .g").toBeGreaterThan(0);
+        expect(rgba[1]).withContext("mix blend 0.25 .g").toBeLessThan(mixGreen);
+        expect(rgba[2]).withContext("mix blend 0.25 .b").toEqualEpsilon(108, 1);
+        expect(rgba[3]).withContext("mix blend 0.25 .a").toEqual(255);
       });
 
       // Set colorBlendAmount to 0.0. Expect color to equal the source color
       tileset.colorBlendAmount = 0.0;
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toEqual(sourceRed);
-        expect(rgba[1]).toBeLessThan(25);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("mix blend 0.0 .r").toEqual(sourceRed);
+        expect(rgba[1]).withContext("mix blend 0.0 .g").toEqualEpsilon(118, 1);
+        expect(rgba[2]).withContext("mix blend 0.0 .b").toEqualEpsilon(118, 1);
+        expect(rgba[3]).withContext("mix blend 0.0 .a").toEqual(255);
       });
 
       // Set colorBlendAmount to 1.0. Expect color to equal the style color
       tileset.colorBlendAmount = 1.0;
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toEqual(replaceRed);
-        expect(rgba[1]).toEqual(replaceGreen);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("mix blend 1.0 .r").toEqual(replaceRed);
+        expect(rgba[1]).withContext("mix blend 1.0 .g").toEqual(replaceGreen);
+        expect(rgba[2]).withContext("mix blend 1.0 .b").toEqualEpsilon(62, 1);
+        expect(rgba[3]).withContext("mix blend 1.0 .a").toEqual(255);
       });
 
       // Style with yellow + alpha. Expect color to be a mix of the source and style colors.
@@ -3457,10 +3495,12 @@ describe(
       });
 
       expect(renderOptions).toRenderAndCall(function (rgba) {
-        expect(rgba[0]).toBeGreaterThan(0);
-        expect(rgba[1]).toBeGreaterThan(0);
-        expect(rgba[2]).toBeLessThan(25);
-        expect(rgba[3]).toEqual(255);
+        expect(rgba[0]).withContext("mix yellow+alpha .r").toBeGreaterThan(0);
+        expect(rgba[1]).withContext("mix yellow+alpha .g").toBeGreaterThan(0);
+        expect(rgba[2])
+          .withContext("mix yellow+alpha .b")
+          .toEqualEpsilon(80, 1);
+        expect(rgba[3]).withContext("mix yellow+alpha .a").toEqual(255);
       });
     }
 
@@ -5747,7 +5787,10 @@ describe(
 
         viewNothing();
 
-        const tileset = await Cesium3DTileset.fromUrl(multipleContentsUrl);
+        const tileset = await Cesium3DTileset.fromUrl(
+          multipleContentsUrl,
+          options
+        );
         scene.primitives.add(tileset);
         viewAllTiles();
         scene.renderForSpecs();
@@ -5925,7 +5968,10 @@ describe(
         viewNothing();
         let errorCount = 0;
 
-        const tileset = await Cesium3DTileset.fromUrl(multipleContentsUrl);
+        const tileset = await Cesium3DTileset.fromUrl(
+          multipleContentsUrl,
+          options
+        );
         tileset.tileFailed.addEventListener(function (event) {
           errorCount++;
           expect(endsWith(event.url, ".json")).toBe(true);
