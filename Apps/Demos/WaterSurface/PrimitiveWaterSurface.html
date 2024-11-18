@@ -38,15 +38,10 @@
       viewer.scene.globe.depthTestAgainstTerrain = false;
       viewer.scene.verticalExaggeration = 10.0;
 
-      const textureCoordinates = {
-        positions: [],
-        holes: [],
-      };
-
       fetch("./border.json")
         .then((res) => res.json())
         .then((json) => {
-          const coordinates = json.features[0].geometry.coordinates[0];
+          const coordinates = json.features[4].geometry.coordinates[0];
 
           let west = 180,
             south = 90,
@@ -63,26 +58,28 @@
           const width = east - west;
           const height = north - south;
           const max = Math.max(width, height);
+          const minX = west;
+          const minY = south;
 
           const hierarchy = new Cesium.PolygonHierarchy();
+          const textureCoordinates = new Cesium.PolygonHierarchy();
 
+          // 添加外环
           coordinates[0].forEach((p) => {
             textureCoordinates.positions.push(
-              new Cesium.Cartesian2((p[0] - west) / max, (p[1] - south) / max)
+              new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max)
             );
             hierarchy.positions.push(Cesium.Cartesian3.fromDegrees(p[0], p[1]));
           });
 
-          const minX = west;
-          const minY = south;
-
+          // 添加洞
           for (let i = 1; i < coordinates.length; i += 1) {
-            const hole = { positions: [] };
+            const textureHole = new Cesium.PolygonHierarchy();
             const coords = coordinates[i];
             const tmpHierarchy = new Cesium.PolygonHierarchy();
 
             coords.forEach((p) => {
-              hole.positions.push(
+              textureHole.positions.push(
                 new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max)
               );
               tmpHierarchy.positions.push(
@@ -90,7 +87,7 @@
               );
             });
 
-            textureCoordinates.holes.push(hole);
+            textureCoordinates.holes.push(textureHole);
             hierarchy.holes.push(tmpHierarchy);
           }
 
@@ -118,17 +115,20 @@
             polygonHierarchy: hierarchy,
             vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
             height: 1,
-            // 需要指定纹理坐标，否则Primitive创建纹理会失效
+            // 优化纹理坐标
             textureCoordinates,
           });
+          // const geometry = Cesium.PolygonGeometry.createGeometry(polygonGeom);
 
-          const primitive = viewer.scene.primitives.add(
+          // GroundPrimitive 纹理坐标设置无效
+          viewer.scene.primitives.add(
             new Cesium.Primitive({
               geometryInstances: new Cesium.GeometryInstance({
                 geometry: polygonGeom,
               }),
               appearance: new Cesium.EllipsoidSurfaceAppearance({
-                aboveGround: true,
+                // aboveGround: true,
+                material,
               }),
               // appearance: new Cesium.DebugAppearance({
               //   attributeName: "st",
@@ -137,8 +137,6 @@
               asynchronous: false,
             })
           );
-          primitive.appearance.material = material;
-          // primitive.depthFailAppearance.material = material;
 
           // viewer.entities.add({
           //   rectangle: {

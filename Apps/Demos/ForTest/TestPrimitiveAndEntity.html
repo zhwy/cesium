@@ -1,97 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>大量entity和primitive加载性能测试</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
-<head>
-  <!-- Use correct character set. -->
-  <meta charset="utf-8" />
-  <!-- Tell IE to use the latest, best version. -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-  <title>大量entity和primitive加载性能测试</title>
-  <style>
-    @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
 
-    html,
-    body,
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
+      .actions {
+        position: absolute;
+        z-index: 99;
+        margin: 10px;
+        top: 0;
+        left: 0;
+      }
 
-    .actions {
-      position: absolute;
-      z-index: 99;
-      margin: 10px;
-      top: 0;
-      left: 0;
-    }
+      .conclusion {
+        padding: 5px;
+        border-radius: 5px;
+        background-color: rgba(255, 255, 255, 0.5);
+        width: 200px;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
 
-    .conclusion {
-      padding: 5px;
-      border-radius: 5px;
-      background-color: rgba(255, 255, 255, 0.5);
-      width: 200px;
-      margin-top: 5px;
-    }
-  </style>
-</head>
+  <body>
+    <div id="cesiumContainer">
+      <div class="actions">
+        <button id="useEntity">entity加载</button>
+        <button id="usePrimitiveLayer">primitiveCollection加载</button><br />
+        <button id="usePrimitive">primitive加载</button>
+        <button id="useInstancedPrimitive">多instances primitive加载</button>
+        <div class="conclusion">
+          <p>
+            结论：<br />Primitive对于大量几何的优化是将各几何实例合并到用一个primitive中，若将多个几何实例独立成多个primitive，并不能起到优化作用。
+          </p>
+          <p>
+            若一个操作对象包含不同几何图形，如线、面、标签等，并需要统一管理时，不如使用Entity。使用Primitive实例化他们并用PrimitiveCollection管理将更加消耗资源。
+          </p>
+          <p>当然，需要修改着色器时另计。</p>
+        </div>
+      </div>
+    </div>
+    <script type="module">
+      // import IndexedDbCache from "../Lib/indexDbCache.js";
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.Cesium = Cesium;
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window.viewer = viewer;
+      viewer.scene.debugShowFramesPerSecond = true;
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(0, 0, 10e6),
+      });
 
-<body>
-  <script>
-    var count = 128;
-    var polygons = [];
-    function randomColor(alpha = 1) {
-      return Cesium.Color.fromCssColorString(
-        `rgba(${Math.random() * 256},${Math.random() * 256},${Math.random() * 256
-        },${alpha})`
-      );
-    }
-    function generatePolygon() {
-      for (var i = 0; i < count; i++) {
-        for (var j = 0; j < count; j++) {
-          var p1 = Cesium.Cartesian3.fromDegrees(i * 0.51, j * 0.51, 1);
-          var p2 = Cesium.Cartesian3.fromDegrees(i * 0.51, j * 0.51 + 0.5, 1);
-          var p3 = Cesium.Cartesian3.fromDegrees(
-            i * 0.51 + 0.5,
-            j * 0.51 + 0.5,
-            1
-          );
-          var p4 = Cesium.Cartesian3.fromDegrees(i * 0.51 + 0.5, j * 0.51, 1);
-          polygons.push([p1, p2, p3, p4, p1]);
+      const count = 128;
+      const polygons = [];
+      function randomColor(alpha = 1) {
+        return Cesium.Color.fromCssColorString(
+          `rgba(${Math.random() * 256},${Math.random() * 256},${
+            Math.random() * 256
+          },${alpha})`
+        );
+      }
+      function generatePolygon() {
+        for (let i = 0; i < count; i++) {
+          for (let j = 0; j < count; j++) {
+            const p1 = Cesium.Cartesian3.fromDegrees(i * 0.51, j * 0.51, 1);
+            const p2 = Cesium.Cartesian3.fromDegrees(
+              i * 0.51,
+              j * 0.51 + 0.5,
+              1
+            );
+            const p3 = Cesium.Cartesian3.fromDegrees(
+              i * 0.51 + 0.5,
+              j * 0.51 + 0.5,
+              1
+            );
+            const p4 = Cesium.Cartesian3.fromDegrees(
+              i * 0.51 + 0.5,
+              j * 0.51,
+              1
+            );
+            polygons.push([p1, p2, p3, p4, p1]);
+          }
         }
       }
-    }
 
-    function createEntity(positions, i) {
-      return new Cesium.Entity({
-        polygon: {
-          hierarchy: new Cesium.PolygonHierarchy(positions),
-          material: randomColor(),
-          // outline: true,
-          // outlineColor: Cesium.Color.WHITE,
-          // outlineWidth: 5,
-        },
-        polyline: {
-          positions: positions,
-          material: randomColor(),
-          width: 2,
-        },
-        label: {
+      function createEntity(positions, i) {
+        return new Cesium.Entity({
+          polygon: {
+            hierarchy: new Cesium.PolygonHierarchy(positions),
+            material: randomColor(),
+            // outline: true,
+            // outlineColor: Cesium.Color.WHITE,
+            // outlineWidth: 5,
+          },
+          polyline: {
+            positions: positions,
+            material: randomColor(),
+            width: 2,
+          },
+          label: {
+            text: i.toString(),
+          },
+          position: positions[0],
+        });
+      }
+      function createPrimitiveLayer(positions, i) {
+        const layer = new Cesium.PrimitiveCollection();
+        const labels = new Cesium.LabelCollection();
+        layer.add(
+          new Cesium.Primitive({
+            geometryInstances: new Cesium.GeometryInstance({
+              geometry: new Cesium.PolygonGeometry({
+                polygonHierarchy: new Cesium.PolygonHierarchy(positions),
+              }),
+            }),
+            appearance: new Cesium.EllipsoidSurfaceAppearance({
+              material: Cesium.Material.fromType("Color", {
+                color: Cesium.Color.BLUE,
+              }),
+            }),
+            asynchronous: false,
+          })
+        );
+        layer.add(
+          new Cesium.Primitive({
+            geometryInstances: new Cesium.GeometryInstance({
+              geometry: new Cesium.PolylineGeometry({
+                positions: positions,
+                width: 2,
+              }),
+            }),
+            appearance: new Cesium.PolylineMaterialAppearance({
+              material: Cesium.Material.fromType("Color", {
+                color: Cesium.Color.WHITE,
+              }),
+            }),
+            asynchronous: false,
+          })
+        );
+        labels.add({
           text: i.toString(),
-        },
-        position: positions[0],
-      });
-    }
-    function createPrimitiveLayer(positions, i) {
-      var layer = new Cesium.PrimitiveCollection();
-      var labels = new Cesium.LabelCollection();
-      layer.add(
-        new Cesium.Primitive({
+          position: positions[0],
+        });
+        // layer.add(labels); //会卡死
+        return layer;
+      }
+      function createInstancedPrimitive(polygons) {
+        const layer = new Cesium.PrimitiveCollection();
+        const labels = new Cesium.LabelCollection();
+        const polygonInstances = [],
+          polylineInstances = [];
+        polygons.forEach((positions, i) => {
+          labels.add({
+            text: i.toString(),
+            position: positions[0],
+          });
+          polygonInstances.push(
+            new Cesium.GeometryInstance({
+              geometry: new Cesium.PolygonGeometry({
+                polygonHierarchy: new Cesium.PolygonHierarchy(positions),
+              }),
+              attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+                  randomColor()
+                ),
+              },
+            })
+          );
+          polylineInstances.push(
+            new Cesium.GeometryInstance({
+              geometry: new Cesium.PolylineGeometry({
+                positions: positions,
+                width: 2,
+              }),
+              attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+                  randomColor()
+                ),
+              },
+            })
+          );
+        });
+        const p1 = new Cesium.Primitive({
+          geometryInstances: polygonInstances,
+          appearance: new Cesium.PerInstanceColorAppearance({
+            flat: true,
+          }),
+        });
+        const p2 = new Cesium.Primitive({
+          geometryInstances: polylineInstances,
+          appearance: new Cesium.PolylineColorAppearance(),
+        });
+        layer.add(p1);
+        layer.add(p2);
+        layer.add(labels);
+        return layer;
+      }
+      function createPrimitive(positions) {
+        return new Cesium.Primitive({
           geometryInstances: new Cesium.GeometryInstance({
             geometry: new Cesium.PolygonGeometry({
               polygonHierarchy: new Cesium.PolygonHierarchy(positions),
@@ -102,158 +229,47 @@
               color: Cesium.Color.BLUE,
             }),
           }),
-        })
-      );
-      layer.add(
-        new Cesium.Primitive({
-          geometryInstances: new Cesium.GeometryInstance({
-            geometry: new Cesium.PolylineGeometry({
-              positions: positions,
-              width: 2,
-            }),
-          }),
-          appearance: new Cesium.PolylineMaterialAppearance({
-            material: Cesium.Material.fromType("Color", {
-              color: Cesium.Color.WHITE,
-            }),
-          }),
-        })
-      );
-      labels.add({
-        text: i.toString(),
-        position: positions[0],
-      });
-      // layer.add(labels); //会卡死
-      return layer;
-    }
-    function createInstancedPrimitive(polygons) {
-      var layer = new Cesium.PrimitiveCollection();
-      var labels = new Cesium.LabelCollection();
-      var polygonInstances = [],
-        polylineInstances = [];
-      polygons.forEach((positions, i) => {
-        labels.add({
-          text: i.toString(),
-          position: positions[0],
+          asynchronous: false,
         });
-        polygonInstances.push(
-          new Cesium.GeometryInstance({
-            geometry: new Cesium.PolygonGeometry({
-              polygonHierarchy: new Cesium.PolygonHierarchy(positions),
-            }),
-            attributes: {
-              color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-                randomColor()
-              ),
-            },
-          })
-        );
-        polylineInstances.push(
-          new Cesium.GeometryInstance({
-            geometry: new Cesium.PolylineGeometry({
-              positions: positions,
-              width: 2,
-            }),
-            attributes: {
-              color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-                randomColor()
-              ),
-            },
-          })
-        );
-      });
-      var p1 = new Cesium.Primitive({
-        geometryInstances: polygonInstances,
-        appearance: new Cesium.PerInstanceColorAppearance({
-          flat: true,
-        }),
-      });
-      var p2 = new Cesium.Primitive({
-        geometryInstances: polylineInstances,
-        appearance: new Cesium.PolylineColorAppearance(),
-      });
-      layer.add(p1);
-      layer.add(p2);
-      layer.add(labels);
-      return layer;
-    }
-    function createPrimitive(positions) {
-      return new Cesium.Primitive({
-        geometryInstances: new Cesium.GeometryInstance({
-          geometry: new Cesium.PolygonGeometry({
-            polygonHierarchy: new Cesium.PolygonHierarchy(positions),
-          }),
-        }),
-        appearance: new Cesium.EllipsoidSurfaceAppearance({
-          material: Cesium.Material.fromType("Color", {
-            color: Cesium.Color.BLUE,
-          }),
-        }),
-      });
-    }
+      }
 
-    function useEntity() {
-      viewer.entities.removeAll();
-      viewer.scene.primitives.removeAll();
-      polygons.forEach((positions, i) => {
-        viewer.entities.add(
-          new Cesium.EntityCollection().add(createEntity(positions, i))
-        );
-      });
-    }
-    function usePrimitive() {
-      viewer.entities.removeAll();
-      viewer.scene.primitives.removeAll();
-      polygons.forEach((positions) => {
-        viewer.scene.primitives.add(createPrimitive(positions));
-      });
-    }
-    function usePrimitiveLayer() {
-      viewer.entities.removeAll();
-      viewer.scene.primitives.removeAll();
-      polygons.forEach((positions, i) => {
-        viewer.scene.primitives.add(createPrimitiveLayer(positions, i));
-      });
-    }
-    function useInstancedPrimitive() {
-      viewer.entities.removeAll();
-      viewer.scene.primitives.removeAll();
-      viewer.scene.primitives.add(createInstancedPrimitive(polygons));
-    }
-  </script>
-  <div id="cesiumContainer">
-    <div class="actions">
-      <button onclick="useEntity()">entity加载</button>
-      <button onclick="usePrimitiveLayer()">primitiveCollection加载</button><br />
-      <button onclick="usePrimitive()">primitive加载</button>
-      <button onclick="useInstancedPrimitive()">
-        多instances primitive加载
-      </button>
-      <div class="conclusion">
-        <p>
-          结论：<br />Primitive对于大量几何的优化是将各几何实例合并到用一个primitive中，若将多个几何实例独立成多个primitive，并不能起到优化作用。
-        </p>
-        <p>
-          若一个操作对象包含不同几何图形，如线、面、标签等，并需要统一管理时，不如使用Entity。使用Primitive实例化他们并用PrimitiveCollection管理将更加消耗资源。
-        </p>
-        <p>当然，需要修改着色器时另计。</p>
-      </div>
-    </div>
-  </div>
-  <script type="module">
-    // import IndexedDbCache from "../Lib/indexDbCache.js";
-    import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-    window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
-    window.Cesium = Cesium;
-    /* eslint-disable */
-    var viewer = new Cesium.Viewer("cesiumContainer");
-    window.viewer = viewer;
-    viewer.scene.debugShowFramesPerSecond = true;
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(0, 0, 10e6),
-    });
-    generatePolygon();
-  </script>
-</body>
+      function useEntity() {
+        viewer.entities.removeAll();
+        viewer.scene.primitives.removeAll();
+        polygons.forEach((positions, i) => {
+          viewer.entities.add(
+            new Cesium.EntityCollection().add(createEntity(positions, i))
+          );
+        });
+      }
+      function usePrimitive() {
+        viewer.entities.removeAll();
+        viewer.scene.primitives.removeAll();
+        polygons.forEach((positions) => {
+          viewer.scene.primitives.add(createPrimitive(positions));
+        });
+      }
+      function usePrimitiveLayer() {
+        viewer.entities.removeAll();
+        viewer.scene.primitives.removeAll();
+        polygons.forEach((positions, i) => {
+          viewer.scene.primitives.add(createPrimitiveLayer(positions, i));
+        });
+      }
+      function useInstancedPrimitive() {
+        viewer.entities.removeAll();
+        viewer.scene.primitives.removeAll();
+        viewer.scene.primitives.add(createInstancedPrimitive(polygons));
+      }
 
+      generatePolygon();
+
+      document.getElementById("useEntity").onclick = useEntity;
+      document.getElementById("usePrimitive").onclick = usePrimitive;
+      document.getElementById("usePrimitiveLayer").onclick = usePrimitiveLayer;
+      document.getElementById(
+        "useInstancedPrimitive"
+      ).onclick = useInstancedPrimitive;
+    </script>
+  </body>
 </html>
