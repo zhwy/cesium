@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -68,11 +68,12 @@
 
       async function main() {
         const viewer = new Cesium.Viewer("cesiumContainer", {
+          nearGroundSkyBox: undefined,
           terrainProvider: await Cesium.CesiumTerrainProvider.fromIonAssetId(
             1,
             {
               requestVertexNormals: true,
-            }
+            },
           ),
         });
 
@@ -89,6 +90,7 @@
           destination: rectangle,
           duration: 1.0,
         });
+        window.viewer = viewer;
 
         const terrainInfo = await getImageSource(viewer, extent, 2048, 2048); // getImageSource() await getImage(viewer, extent);
         const noise = await Cesium.Resource.fetchImage({
@@ -106,7 +108,7 @@
             extent[3],
             extent[0],
             extent[1],
-          ])
+          ]),
         );
         const test = new Erosion({
           viewer,
