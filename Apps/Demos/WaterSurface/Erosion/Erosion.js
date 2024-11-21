@@ -57,7 +57,7 @@ const Common = /* glsl */ `
             float f = 0.6000 * noise(p);
             f += 0.2500 * noise(p * m);
             f += 0.1666 * noise(p * m * m);
-            float wave = sin(p2.x * 0.622 + p2.y * 0.622 + shift2.x * 4.269) * large_waveheight * f * height * height;
+            float wave = sin(p2.x * 0.622 + p2.y * 0.622 + shift2.x * 4.269) * large_waveheight * f /* * height * height */;
 
             p *= small_wavesize;
             f = 0.;
@@ -112,7 +112,7 @@ const Common = /* glsl */ `
                     return 0.0;
                 }
                 t += 0.01 + height_diff * .02;
-                hit = min(hit, 2. * height_diff / t); // soft shaddow   
+                hit = min(hit, 2. * height_diff / t); // soft shaddow
             }
             return hit;
         }
@@ -123,6 +123,7 @@ export default class Erosion extends Cesium.Primitive {
     super();
     this.viewer = options.viewer;
     this.extent = options.extent;
+    this.polygon = options.polygon;
     this.maxElevation = options.maxElevation;
     this.minElevation = options.minElevation;
     this.heightMap = options.canvas;
@@ -141,20 +142,28 @@ export default class Erosion extends Cesium.Primitive {
 
     this.resolution = Cesium.defaultValue(
       options.resolution,
-      new Cesium.Cartesian2(1024, 1024),
+      new Cesium.Cartesian2(1024, 1024)
     );
   }
   createCommand(context) {
-    const rectangle = new Cesium.RectangleGeometry({
+    const polygon = new Cesium.PolygonGeometry({
       ellipsoid: Cesium.Ellipsoid.WGS84,
-      rectangle: Cesium.Rectangle.fromDegrees(...this.extent),
+      polygonHierarchy: this.polygon,
       vertexFormat: Cesium.VertexFormat.POSITION_AND_ST,
-      granularity: Cesium.Math.toRadians(0.0001), // 调整这个参数以增加顶点密度
+      granularity: Cesium.Math.toRadians(0.001), // 调整这个参数以增加顶点密度
       height: this.minElevation,
     });
-    const geometry = Cesium.RectangleGeometry.createGeometry(rectangle);
-    const attributeLocations =
-      Cesium.GeometryPipeline.createAttributeLocations(geometry);
+
+    let geometry = Cesium.PolygonGeometry.createGeometry(polygon);
+    geometry = Cesium.GeometryPipeline.encodeAttribute(
+      geometry,
+      "position",
+      "positionHigh",
+      "positionLow"
+    );
+    const attributeLocations = Cesium.GeometryPipeline.createAttributeLocations(
+      geometry
+    );
 
     const va = Cesium.VertexArray.fromGeometry({
       context: context,
@@ -163,6 +172,8 @@ export default class Erosion extends Cesium.Primitive {
     });
     const vs = /* glsl */ `
         in vec4 position;
+        in vec3 positionHigh;
+        in vec3 positionLow;
         in vec2 st;
         out vec2 v_st;
 
@@ -234,17 +245,23 @@ export default class Erosion extends Cesium.Primitive {
             }
 
             float heightOffset = (maxElevation - minElevation) * normalizedHeight;
-            
+
+            vec3 dir = normalize(positionHigh + positionLow);
+            vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
+            gl_Position = czm_modelViewProjectionRelativeToEye * (p + vec4(dir * heightOffset, 0.));
+
             // 将顶点位置从模型空间转换到世界空间
-            vec4 worldPosition = czm_model * position;
-            
+            // vec4 worldPosition = czm_model * position;
+
             // 将世界坐标转换为经纬度和高度
-            vec3 llh = worldToGeographic(worldPosition.xyz);
-            
+            // vec3 llh = worldToGeographic(worldPosition.xyz);
+
             // 将调整后的经纬度和高度转换回笛卡尔坐标
-            vec3 adjustedCartesian = deg2cartesian( vec3( llh.xy, minElevation + heightOffset ) );
-            
-            gl_Position = czm_projection * czm_view * vec4( adjustedCartesian , 1.0);
+            // vec3 adjustedCartesian = deg2cartesian( vec3( llh.xy, minElevation + heightOffset ) );
+
+            // gl_Position = czm_projection * czm_view * vec4( adjustedCartesian , 1.0);
+
+
             v_st = st;
         }
       `;
@@ -282,10 +299,10 @@ export default class Erosion extends Cesium.Primitive {
                 vec3 r0 = vec3(uv, WATER_LEVEL);
                 vec3 rd = normalize(light - r0); // ray-direction to the light from water-position
                 float grad = dot(normwater, rd); // dot-product of norm-vector and light-direction
-                float specular = pow(grad, water_softlight_fact);  // used for soft highlights                          
+                float specular = pow(grad, water_softlight_fact);  // used for soft highlights
                 float specular2 = pow(grad, water_glossylight_fact); // used for glossy highlights
                 float gradpos = dot(vec3(0., 0., 1.), rd);
-                float specular1 = smoothstep(0., 1., pow(gradpos, 5.));  // used for diffusity (some darker corona around light's specular reflections...)                          
+                float specular1 = smoothstep(0., 1., pow(gradpos, 5.));  // used for diffusity (some darker corona around light's specular reflections...)
                 float watershade = test_shadow(uv, level);
                 watercolor *= 2.2 + watershade;
                 watercolor += (.2 + .8 * watershade) * ((grad - 1.0) * .5 + specular) * .25;
@@ -294,13 +311,13 @@ export default class Erosion extends Cesium.Primitive {
                 watercolor += watershade * coastfade * (1. - coastfade2) * (vec3(.5, .6, .7) * nautic(uv) + vec3(1., 1., 1.) * particles(uv));
 
                 col = mix(col, watercolor, coastfade);
-    
+
                 float alpha = clamp(coastfade, 0.1, 0.6);
                 out_FragColor = vec4(col, 1.0);
                 return;
             }
         }
-  
+
       `;
     const shaderProgram = Cesium.ShaderProgram.fromCache({
       context: context,
@@ -322,6 +339,7 @@ export default class Erosion extends Cesium.Primitive {
         wrapT: Cesium.TextureWrap.REPEAT,
       }),
       source: this.heightMap,
+      // source: undefined,
     });
     const noise = new Cesium.Texture({
       context: context,
@@ -413,7 +431,7 @@ export default class Erosion extends Cesium.Primitive {
         };
         drawCommand.uniformMap = undefined;
         drawCommand.renderState = Cesium.RenderState.removeFromCache(
-          drawCommand.renderState,
+          drawCommand.renderState
         );
       }
     });
