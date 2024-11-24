@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>海面侵蚀效果</title>
+    <title>水面效果</title>
     <style>
       @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
       body {
@@ -22,7 +22,7 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      import Erosion from "./Erosion.js";
+      import Water from "./Water.js";
 
       const dat = window.dat;
 
@@ -47,28 +47,11 @@
         return [west, south, east, north];
       }
 
-      const config = {
-        minElevation: 1153.0408311859962,
-        // minElevation: 3150,
-        maxElevation: 3158.762303474051,
-        url: "./1724136544296.png",
-        center: [-119.5509508318, 37.7379837881],
-      };
-
-      async function getImageSource() {
-        const image = await Cesium.Resource.fetchImage({
-          url: config.url,
-        });
-        return {
-          minElevation: config.minElevation,
-          maxElevation: config.maxElevation,
-          canvas: image,
-        };
-      }
-
       async function main() {
         const viewer = new Cesium.Viewer("cesiumContainer", {
-          nearGroundSkyBox: undefined,
+          nearGroundSkyBox: false,
+          shadows: true,
+          terrainShadows: Cesium.ShadowMode.ENABLED,
           terrainProvider: await Cesium.CesiumTerrainProvider.fromIonAssetId(
             1,
             {
@@ -77,12 +60,13 @@
           ),
         });
 
+        // viewer.scene.sun.show = true;
         viewer.scene.msaaSamples = 4;
         viewer.scene.highDynamicRange = true;
         viewer.postProcessStages.fxaa.enabled = true;
-        viewer.scene.globe.depthTestAgainstTerrain = true;
+        viewer.scene.globe.depthTestAgainstTerrain = false;
         viewer.scene.debugShowFramesPerSecond = true;
-        const center = config.center;
+        const center = [-119.5509508318, 37.7379837881];
         const extent = createSquareRectangle(...center, 20000);
         console.log(extent);
         const rectangle = Cesium.Rectangle.fromDegrees(...extent);
@@ -92,10 +76,6 @@
         });
         window.viewer = viewer;
 
-        const terrainInfo = await getImageSource(viewer, extent, 2048, 2048); // getImageSource() await getImage(viewer, extent);
-        const noise = await Cesium.Resource.fetchImage({
-          url: "./texture4.png",
-        });
         const polygon = new Cesium.PolygonHierarchy(
           Cesium.Cartesian3.fromDegreesArray([
             extent[0],
@@ -110,25 +90,25 @@
             extent[1],
           ]),
         );
-        const test = new Erosion({
+
+        const test = new Water({
           viewer,
           extent,
           polygon,
-          ...terrainInfo,
-          noise,
+          minElevation: 1153.0408311859962,
+          maxElevation: 3158.762303474051,
+          heightMapUrl: "../Erosion/1724136544296.png",
+          noiseMapUrl: "../waterNormals.jpg",
         });
 
         const gui = new dat.GUI();
-        gui.add(test, "coast2water_fadedepth", 0.0, 1);
-        gui.add(test, "large_waveheight", 0.01, 1);
-        gui.add(test, "large_wavesize", 1, 10);
-        gui.add(test, "small_waveheight", 0, 2);
-        gui.add(test, "small_wavesize", 0, 1);
-        gui.add(test, "water_softlight_fact", 1, 200);
-        gui.add(test, "water_glossylight_fact", 1, 200);
-        gui.add(test, "particle_amount", 1, 200);
-        gui.add(test, "WATER_LEVEL", 0, 2);
+        gui.add(test, "frequency", 1, 10000);
+        gui.add(test, "amplitude", 0, 100);
+        gui.add(test, "waterLevel", 0, 1);
         gui.add(test, "showLines");
+        gui.add(test, "sunDirectionX", 0, 1);
+        gui.add(test, "sunDirectionY", 0, 1);
+        gui.add(test, "sunDirectionZ", 0, 1);
 
         viewer.scene.primitives.add(test);
       }

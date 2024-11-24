@@ -10,7 +10,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>Render To Texture</title>
+    <title>Render Scene To Texture</title>
     <style>
       @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -43,9 +43,21 @@
 
       const WIDTH = 1024;
 
-      class CustomPrimitive {
-        constructor(polygon) {
-          this.polygon = polygon;
+      class Reflector {
+        constructor(viewer) {
+          this.viewer = viewer;
+          this.scene = viewer.scene;
+          this.camera = viewer.camera;
+
+          this.camera2 = new Cesium.Camera(viewer.scene);
+          this.view2 = new Cesium.View(
+            viewer.scene,
+            this.camera2,
+            viewer.scene._defaultView.viewport,
+          );
+
+          this.originView = viewer.scene._defaultView;
+
           this.drawRenderState = Cesium.RenderState.fromCache({
             depthTest: {
               enabled: false,
@@ -69,18 +81,8 @@
           this.drawCommand = undefined;
           this.textureCommand = undefined;
           this.initialized = false;
-        }
-        update(frameState) {
-          if (!this.initialized) {
-            this._initialize(frameState.context);
-          }
 
-          frameState.commandList.push(this.clearCommand);
-          frameState.commandList.push(this.textureCommand);
-          frameState.commandList.push(this.drawCommand);
-        }
-        isDestroyed() {
-          return false;
+          this._initialize(viewer.scene.context);
         }
         _initialize(context) {
           this.outputTexture = new Cesium.Texture({
@@ -103,6 +105,8 @@
             colorTextures: [this.outputTexture],
           });
 
+          this.view2.passState.framebuffer = this.framebuffer;
+
           this.clearCommand = new Cesium.ClearCommand({
             color: new Cesium.Color(0.0, 0.0, 0.0, 0.0),
             framebuffer: this.framebuffer,
@@ -110,77 +114,114 @@
             pass: Cesium.Pass.OPAQUE,
           });
 
-          this.textureCommand = this._createTextureCommands(context);
           this.drawCommand = this._createDrawCommands(context);
 
+          this.scene.postUpdate.addEventListener((scene, time) => {});
+
+          const center = Cesium.Cartesian3.fromDegrees(0.25, 0.25, 0);
+
+          this.scene.postRender.addEventListener((scene, time) => {
+            const normal = Cesium.Cartesian3.normalize(
+              center,
+              new Cesium.Cartesian3(),
+            );
+
+            const length = Cesium.Cartesian3.magnitude(
+              Cesium.Cartesian3.subtract(
+                center,
+                this.camera.position,
+                new Cesium.Cartesian3(),
+              ),
+            );
+            // console.log(length);
+
+            const dotProduct = Cesium.Cartesian3.dot(
+              this.camera.direction,
+              normal,
+            );
+            const scaledNormal = Cesium.Cartesian3.multiplyByScalar(
+              normal,
+              2.0 * dotProduct,
+              new Cesium.Cartesian3(),
+            );
+            const reflection = Cesium.Cartesian3.subtract(
+              this.camera.direction,
+              scaledNormal,
+              new Cesium.Cartesian3(),
+            );
+
+            const reflectorPosition = Cesium.Cartesian3.subtract(
+              center,
+              Cesium.Cartesian3.multiplyByScalar(
+                reflection,
+                length * 2,
+                new Cesium.Cartesian3(),
+              ),
+              new Cesium.Cartesian3(),
+            );
+
+            this.camera2.position = reflectorPosition;
+            this.camera2.direction = reflection;
+            const right = Cesium.Cartesian3.cross(
+              reflection,
+              Cesium.Cartesian3.UNIT_Z,
+              new Cesium.Cartesian3(),
+            );
+            const up = Cesium.Cartesian3.cross(
+              right,
+              reflection,
+              new Cesium.Cartesian3(),
+            );
+            this.camera2.up = Cesium.Cartesian3.normalize(up, up);
+
+            if (scene._defaultView !== this.view2) {
+              // this.camera2.up = this.camera.up.clone();
+              // this.camera2.direction = this.camera.direction.clone();
+              // this.camera2.position = this.camera.position.clone();
+              scene._defaultView = this.view2;
+              scene.camera = this.camera2;
+              const passState = this.view2.passState;
+
+              if (scene.globe) {
+                scene.globe.beginFrame(scene._frameState);
+              }
+              scene.updateEnvironment();
+              scene.updateAndExecuteCommands(
+                passState,
+                new Cesium.Color(0.0, 0.0, 0.0, 0.0),
+              );
+              scene.resolveFramebuffers(passState);
+
+              scene.context.uniformState.updatePass(Cesium.Pass.OVERLAY);
+              const commandList = scene._overlayCommandList;
+              try {
+                for (let i = 0; i < commandList.length; ++i) {
+                  commandList[i].execute(scene.context, passState);
+                }
+                // if (scene.globe) {
+                //   scene.globe.endFrame(scene._frameState);
+
+                //   if (!scene.globe.tilesLoaded) {
+                //     scene._renderRequested = true;
+                //   }
+                // }
+
+                // scene.context.endFrame();
+              } catch (e) {
+                console.log(e);
+              }
+
+              scene._defaultView = this.originView;
+              scene.camera = this.camera;
+              // this.clearCommand.execute(scene.context, this.view2.passState);
+              this.drawCommand.execute(
+                scene.context,
+                this.originView.passState,
+              );
+            }
+          });
+
           this.initialized = true;
-        }
-        _createTextureCommands(context) {
-          const geometry = Cesium.PolygonGeometry.createGeometry(this.polygon);
-          // const geometry = new Cesium.Geometry({
-          //   attributes: {
-          //     position: new Cesium.GeometryAttribute({
-          //       componentDatatype: Cesium.ComponentDatatype.DOUBLE,
-          //       componentsPerAttribute: 3,
-          //       values: new Float64Array([0, 0, 0, 1, 0, 0, 1, 1, 0]),
-          //     }),
-          //   },
-          //   indices: new Uint16Array([0, 1, 2]),
-          // });
-          Cesium.GeometryPipeline.encodeAttribute(
-            geometry,
-            "position",
-            "positionHigh",
-            "positionLow",
-          );
-
-          const attributeLocations =
-            Cesium.GeometryPipeline.createAttributeLocations(geometry);
-
-          const vertexArray = Cesium.VertexArray.fromGeometry({
-            context,
-            geometry,
-            attributeLocations,
-            bufferUsage: Cesium.BufferUsage.STATIC_DRAW,
-          });
-
-          const command = new Cesium.DrawCommand({
-            vertexArray,
-            uniformMap: {},
-            renderState: this.texureRenderState,
-            modelMatrix: Cesium.Matrix4.IDENTITY,
-            pass: Cesium.Pass.OPAQUE,
-            framebuffer: this.framebuffer,
-            primitiveType: Cesium.PrimitiveType.TRIANGLES,
-            shaderProgram: Cesium.ShaderProgram.fromCache({
-              context,
-              attributeLocations,
-              vertexShaderSource: `
-              in vec3 positionHigh;
-              in vec3 positionLow;
-              // in vec3 position;
-
-              void main() {
-
-                vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
-                gl_Position = czm_modelViewProjectionRelativeToEye * p;
-
-                // gl_Position = vec4(positionHigh + positionLow, 1.);
-                // gl_Position = vec4(position, 1.);
-
-              }
-            `,
-              fragmentShaderSource: `
-
-              void main()	{
-                out_FragColor = vec4(1.);
-              }
-             `,
-            }),
-          });
-          command.name = "texture";
-
-          return command;
         }
         _createDrawCommands(context) {
           const drawGeometry = new Cesium.Geometry({
@@ -221,7 +262,7 @@
               in vec2 v_texCoord;
 
               void main() {
-                out_FragColor = texture(inputTexture, v_texCoord);
+                out_FragColor = texture(inputTexture, v_texCoord * (czm_viewport.zw / czm_viewport.ww));
               }
             `,
           });
@@ -230,7 +271,7 @@
 
           const drawCommand = new Cesium.DrawCommand({
             modelMatrix: Cesium.Matrix4.IDENTITY,
-            pass: Cesium.Pass.OPAQUE,
+            pass: Cesium.Pass.TRANSLUCENT,
             shaderProgram: shaderProgram,
             renderState: this.drawRenderState,
             vertexArray: Cesium.VertexArray.fromGeometry({
@@ -253,18 +294,21 @@
         }
       }
 
-      const viewer = new Cesium.Viewer("cesiumContainer");
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        neargroundSkyBox: false,
+      });
       window._viewer = viewer;
 
       const polygon = new Cesium.PolygonGeometry({
+        // height: 10000,
         polygonHierarchy: new Cesium.PolygonHierarchy(
           Cesium.Cartesian3.fromDegreesArrayHeights([
-            0, 0, 50, 0.5, 0, 50, 0.5, 0.5, 50, 0, 0.5, 50,
+            0, 0, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 0,
           ]),
         ),
       });
 
-      viewer.scene.primitives.add(
+      const test = viewer.scene.primitives.add(
         new Cesium.Primitive({
           geometryInstances: new Cesium.GeometryInstance({
             geometry: polygon,
@@ -274,26 +318,30 @@
               fabric: {
                 type: "Color",
                 uniforms: {
-                  color: new Cesium.Color(1.0, 1.0, 0.0, 1.0),
+                  color: new Cesium.Color(1.0, 1.0, 0.0, 1),
                 },
               },
             }),
           }),
         }),
       );
+      test.name = "test";
 
-      const primitive = new CustomPrimitive(polygon);
+      // const primitive = new CustomPrimitive();
 
-      viewer.scene.primitives.add(primitive);
+      // viewer.scene.primitives.add(primitive);
 
       viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(1, 0, 557000),
+        destination: Cesium.Cartesian3.fromDegrees(0, 0, 557000),
         orientation: {
           heading: 0,
           pitch: Cesium.Math.toRadians(-90),
           roll: 0,
         },
       });
+
+      const reflector = new Reflector(viewer);
+      reflector.initialized = true;
     </script>
   </body>
 </html>
