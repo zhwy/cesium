@@ -18,7 +18,7 @@ const COMMON = /* glsl */ `
   uniform float water_softlight_fact;  // range [1..200] (should be << smaller than glossy-fact)
   uniform float water_glossylight_fact; // range [1..200]
   uniform float particle_amount;
-  uniform float WATER_LEVEL; // Water level (range: 0.0 - 2.0)
+  uniform float waterLevel; // Water level (range: 0.0 - 2.0)
   vec3 watercolor = vec3(0.0, 0.60, 0.66); // 'transparent' low-water color (RGB)
   vec3 watercolor2 = vec3(0.0, 0.0, 0.3); // deep-water color (RGB, should be darker than the low-water color)
   vec3 water_specularcolor = vec3(1.3, 1.3, 0.9);    // specular Color (RGB) of the water-highlights
@@ -111,9 +111,9 @@ const COMMON = /* glsl */ `
       }
 
       hit = min(hit, 2. * height_diff / t);
-      t += 0.01 + height_diff * .02;      
+      t += 0.01 + height_diff * .02;
     }
-    
+
     return hit;
   }
 `;
@@ -184,8 +184,8 @@ const VERTEX_SHADER = /* glsl */ `
     vec2 uv = st;
 
     float height = height_map(uv);
-    float waveheight = clamp(WATER_LEVEL * 3. - 1.5, 0., 1.);
-    float level = WATER_LEVEL + 0.2 * water_map(uv * 15. + vec2(iTime * 0.1), waveheight);
+    float waveheight = waterLevel;
+    float level = waterLevel + 0.2 * water_map(uv * 15. + vec2(iTime * 0.1), waveheight);
 
     if (height <= level) {
         normalizedHeight = level;
@@ -232,11 +232,11 @@ const FRAGMENT_SHADER = /* glsl */ `
     float level = v_level;
     float height = v_height;
     // float height = height_map(uv);
-    // float waveheight = clamp(WATER_LEVEL * 3. - 1.5, 0., 1.);
-    // float level = WATER_LEVEL + 0.2 * water_map(uv * 15. + vec2(iTime * 0.1), waveheight);
+    // float waveheight = clamp(waterLevel * 3. - 1.5, 0., 1.);
+    // float level = waterLevel + 0.2 * water_map(uv * 15. + vec2(iTime * 0.1), waveheight);
 
     vec3 col;
-    
+
     if(height <= level) {
       vec2 dif = vec2(.0, .01);
       vec2 pos = uv * 15. + vec2(iTime * .01);
@@ -257,14 +257,14 @@ const FRAGMENT_SHADER = /* glsl */ `
       vec3 ro = vec3(uv, level);
       // vec3 rd = normalize(light - ro); // ray-direction to the light from water-position
       vec3 rd = normalize(vec3(0.3, -0.3, 2.)); // ray-direction to the light from water-position
-      
+
       float grad = dot(normwater, rd); // dot-product of norm-vector and light-direction
       float specular = pow(grad, water_softlight_fact);  // used for soft highlights
       float specular2 = pow(grad, water_glossylight_fact); // used for glossy highlights
       float gradpos = dot(vec3(0., 0., 1.), rd);
       float specular1 = smoothstep(0., 1., pow(gradpos, 5.));  // used for diffusity (some darker corona around light's specular reflections...)
       float watershade = soft_shadow(ro, rd);
-      
+
       watercolor *= 2.2 + watershade;
       watercolor += (.2 + .8 * watershade) * ((grad - 1.0) * .5 + specular) * .25;
       watercolor /= (1. + specular1 * 1.25);
@@ -300,12 +300,12 @@ export default class Erosion extends Cesium.Primitive {
     this.water_softlight_fact = 36; // range [1..200] (should be << smaller than glossy-fact)
     this.water_glossylight_fact = 120; // range [1..200]
     this.particle_amount = 70;
-    this.WATER_LEVEL = 0.34;
+    this.waterLevel = 0.34;
     this._showLines = false;
 
     this.resolution = Cesium.defaultValue(
       options.resolution,
-      new Cesium.Cartesian2(1024, 1024),
+      new Cesium.Cartesian2(1024, 1024)
     );
   }
   createCommand(context) {
@@ -322,10 +322,11 @@ export default class Erosion extends Cesium.Primitive {
       geometry,
       "position",
       "positionHigh",
-      "positionLow",
+      "positionLow"
     );
-    const attributeLocations =
-      Cesium.GeometryPipeline.createAttributeLocations(geometry);
+    const attributeLocations = Cesium.GeometryPipeline.createAttributeLocations(
+      geometry
+    );
 
     const va = Cesium.VertexArray.fromGeometry({
       context: context,
@@ -388,7 +389,7 @@ export default class Erosion extends Cesium.Primitive {
       water_softlight_fact: () => this.water_softlight_fact, // range [1..200] (should be << smaller than glossy-fact)
       water_glossylight_fact: () => this.water_glossylight_fact, // range [1..200]
       particle_amount: () => this.particle_amount,
-      WATER_LEVEL: () => this.WATER_LEVEL,
+      waterLevel: () => this.waterLevel,
     };
     const renderState = Cesium.RenderState.fromCache({
       depthTest: { enabled: true },
@@ -446,7 +447,7 @@ export default class Erosion extends Cesium.Primitive {
         };
         drawCommand.uniformMap = undefined;
         drawCommand.renderState = Cesium.RenderState.removeFromCache(
-          drawCommand.renderState,
+          drawCommand.renderState
         );
       }
     });

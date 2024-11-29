@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -72,7 +72,7 @@
           this.view2 = new Cesium.View(
             viewer.scene,
             this.camera2,
-            viewer.scene._defaultView.viewport,
+            viewer.scene._defaultView.viewport
           );
 
           this.originView = viewer.scene._defaultView;
@@ -118,7 +118,7 @@
           drawAxes(
             this.camera2.position,
             this.camera2.direction,
-            this.camera2.up,
+            this.camera2.up
           );
           drawAxes(this.camera.position, this.camera.direction, this.camera.up);
         }
@@ -161,24 +161,24 @@
           this.scene.preRender.addEventListener((scene, time) => {
             const planeNormal = Cesium.Cartesian3.normalize(
               this.camera.position,
-              new Cesium.Cartesian3(),
+              new Cesium.Cartesian3()
             );
             const cameraToPlaneDistance =
               this.camera.positionCartographic.height - this.planeHeight;
 
             const dotProduct = Cesium.Cartesian3.dot(
               this.camera.direction,
-              planeNormal,
+              planeNormal
             );
             const scaledNormal = Cesium.Cartesian3.multiplyByScalar(
               planeNormal,
               2.0 * dotProduct,
-              new Cesium.Cartesian3(),
+              new Cesium.Cartesian3()
             );
             const reflection = Cesium.Cartesian3.subtract(
               this.camera.direction,
               scaledNormal,
-              new Cesium.Cartesian3(),
+              new Cesium.Cartesian3()
             );
 
             const reflectorPosition = Cesium.Cartesian3.subtract(
@@ -186,25 +186,25 @@
               Cesium.Cartesian3.multiplyByScalar(
                 planeNormal,
                 2 * cameraToPlaneDistance,
-                new Cesium.Cartesian3(),
+                new Cesium.Cartesian3()
               ),
-              new Cesium.Cartesian3(),
+              new Cesium.Cartesian3()
             );
 
             const right = Cesium.Cartesian3.cross(
               reflection,
               Cesium.Cartesian3.normalize(
                 reflectorPosition,
-                new Cesium.Cartesian3(),
+                new Cesium.Cartesian3()
               ),
-              new Cesium.Cartesian3(),
+              new Cesium.Cartesian3()
             );
             Cesium.Cartesian3.normalize(right, right);
 
             const up = Cesium.Cartesian3.cross(
               right,
               reflection,
-              new Cesium.Cartesian3(),
+              new Cesium.Cartesian3()
             );
             Cesium.Cartesian3.normalize(up, up);
 
@@ -212,81 +212,94 @@
             this.camera2.direction = reflection;
             this.camera2.up = up;
 
+            // this.camera2.up = this.camera.up.clone();
+            // this.camera2.direction = this.camera.direction.clone();
+            // this.camera2.position = this.camera.position.clone();
+
             modifiedProjection = this.camera.frustum.projectionMatrix.clone();
 
             // 计算纹理矩阵
             const textureMatrix = Cesium.Matrix4.fromArray([
-              0.5, 0.0, 0.0, 0.0,
+              // 列1
+              0.5,
+              0.0,
+              0.0,
+              0.0,
               //
-              0.0, 0.5, 0.0, 0.0,
+              0.0,
+              0.5,
+              0.0,
+              0.0,
               //
-              0.0, 0.0, 0.5, 0.0,
+              0.0,
+              0.0,
+              0.5,
+              0.0,
               //
-              0.5, 0.5, 0.5, 1.0,
+              0.5,
+              0.5,
+              0.5,
+              1.0,
             ]);
             // const textureMatrix = Cesium.Matrix4.IDENTITY.clone();
             Cesium.Matrix4.multiply(
               textureMatrix,
               modifiedProjection,
-              textureMatrix,
+              textureMatrix
             );
             Cesium.Matrix4.multiply(
               textureMatrix,
               this.camera2.viewMatrix,
-              textureMatrix,
+              textureMatrix
             );
             this.textureMatrix = textureMatrix;
 
             // 优化投影矩阵，仅渲染反射平面之上的物体
-            // const reflectorPlane = Cesium.Plane.fromPointNormal(
-            //   Cesium.Cartographic.toCartesian(
-            //     new Cesium.Cartographic(
-            //       this.camera.positionCartographic.lon,
-            //       this.camera.positionCartographic.lat,
-            //       planeHeight
-            //     )
-            //   ),
-            //   planeNormal
-            // );
-            // Cesium.Plane.transform(
-            //   reflectorPlane,
-            //   this.camera2.viewMatrix,
-            //   reflectorPlane
-            // );
+            const reflectorPlane = Cesium.Plane.fromPointNormal(
+              Cesium.Cartographic.toCartesian(
+                new Cesium.Cartographic(
+                  this.camera.positionCartographic.lon,
+                  this.camera.positionCartographic.lat,
+                  this.planeHeight
+                )
+              ),
+              planeNormal
+            );
+            Cesium.Plane.transform(
+              reflectorPlane,
+              this.camera2.viewMatrix,
+              reflectorPlane
+            );
 
-            // const clipPlane = new Cesium.Cartesian4(
-            //   reflectorPlane.normal.x,
-            //   reflectorPlane.normal.y,
-            //   reflectorPlane.normal.z,
-            //   reflectorPlane.distance
-            // );
-            // const q = new Cesium.Cartesian4();
-            // q.x =
-            //   (Math.sign(clipPlane.x) + modifiedProjection[8]) /
-            //   modifiedProjection[0];
-            // q.y =
-            //   (Math.sign(clipPlane.y) + modifiedProjection[9]) /
-            //   modifiedProjection[5];
-            // q.z = -1.0;
-            // q.w = (1.0 + modifiedProjection[10]) / modifiedProjection[14];
+            const clipPlane = new Cesium.Cartesian4(
+              reflectorPlane.normal.x,
+              reflectorPlane.normal.y,
+              reflectorPlane.normal.z,
+              reflectorPlane.distance
+            );
+            const q = new Cesium.Cartesian4();
+            q.x =
+              (Math.sign(clipPlane.x) + modifiedProjection[8]) /
+              modifiedProjection[0];
+            q.y =
+              (Math.sign(clipPlane.y) + modifiedProjection[9]) /
+              modifiedProjection[5];
+            q.z = -1.0;
+            q.w = (1.0 + modifiedProjection[10]) / modifiedProjection[14];
 
-            // // Calculate the scaled plane vector
-            // Cesium.Cartesian4.multiplyByScalar(
-            //   clipPlane,
-            //   2.0 / Cesium.Cartesian4.dot(clipPlane, q),
-            //   clipPlane
-            // );
+            // Calculate the scaled plane vector
+            Cesium.Cartesian4.multiplyByScalar(
+              clipPlane,
+              2.0 / Cesium.Cartesian4.dot(clipPlane, q),
+              clipPlane
+            );
 
-            // // Replacing the third row of the projection matrix
-            // const clipBias = 0;
-            // modifiedProjection[2] = clipPlane.x;
-            // modifiedProjection[6] = clipPlane.y;
-            // modifiedProjection[10] = clipPlane.z + 1.0 - clipBias;
-            // modifiedProjection[14] = clipPlane.w;
-
-            // this.camera2.up = this.camera.up.clone();
-            // this.camera2.direction = this.camera.direction.clone();
-            // this.camera2.position = this.camera.position.clone();
+            // Replacing the third row of the projection matrix
+            const clipBias = 0;
+            modifiedProjection[2] = clipPlane.x;
+            modifiedProjection[6] = clipPlane.y;
+            modifiedProjection[10] = clipPlane.z + 1.0 - clipBias;
+            modifiedProjection[14] = clipPlane.w;
 
             scene._defaultView = this.view2;
             scene.camera = this.camera2;
@@ -322,7 +335,7 @@
             scene.updateEnvironment();
             scene.updateAndExecuteCommands(
               passState,
-              new Cesium.Color(0.0, 0.0, 0.0, 0.0),
+              new Cesium.Color(0.0, 0.0, 0.0, 0.0)
             );
             scene.resolveFramebuffers(passState);
 
@@ -359,11 +372,12 @@
             geometry,
             "position",
             "positionHigh",
-            "positionLow",
+            "positionLow"
           );
 
-          const attributeLocations =
-            Cesium.GeometryPipeline.createAttributeLocations(geometry);
+          const attributeLocations = Cesium.GeometryPipeline.createAttributeLocations(
+            geometry
+          );
 
           const vertexArray = Cesium.VertexArray.fromGeometry({
             context,
@@ -388,7 +402,7 @@
                 vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
                 gl_Position = czm_modelViewProjectionRelativeToEye * p;
 
-                v_st = u_textureMatrix * vec4(positionHigh + positionLow, 1.0);   
+                v_st = u_textureMatrix * vec4(positionHigh + positionLow, 1.0);
               }
             `,
             fragmentShaderSource: `
@@ -396,7 +410,7 @@
               in vec4 v_st;
 
               void main() {
-                vec2 st = v_st.xy;         
+                vec2 st = v_st.xy;
 
                 out_FragColor = textureProj(u_reflectorTexture, v_st);
               }
@@ -458,8 +472,15 @@
         height: height,
         polygonHierarchy: new Cesium.PolygonHierarchy(
           Cesium.Cartesian3.fromDegreesArray([
-            120.24, 30.24, 120.26, 30.24, 120.26, 30.26, 120.24, 30.26,
-          ]),
+            120.24,
+            30.24,
+            120.26,
+            30.24,
+            120.26,
+            30.26,
+            120.24,
+            30.26,
+          ])
         ),
       });
 
@@ -481,9 +502,9 @@
                 Cesium.Cartesian3.multiplyByScalar(
                   direction,
                   100,
-                  new Cesium.Cartesian3(),
+                  new Cesium.Cartesian3()
                 ),
-                new Cesium.Cartesian3(),
+                new Cesium.Cartesian3()
               ),
             ],
             width: 2,
@@ -499,9 +520,9 @@
                 Cesium.Cartesian3.multiplyByScalar(
                   up,
                   100,
-                  new Cesium.Cartesian3(),
+                  new Cesium.Cartesian3()
                 ),
-                new Cesium.Cartesian3(),
+                new Cesium.Cartesian3()
               ),
             ],
             width: 2,

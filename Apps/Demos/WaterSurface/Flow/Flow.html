@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>水面效果</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+      body {
+        padding: 0;
+        margin: 0;
+      }
+      #cesiumContainer {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <script src="../../Lib/dat.gui.min.js"></script>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      import Water from "./FlowWater.js";
+
+      const DATA_URL =
+        "http://10.7.10.105:31879/oss-huawei-obs/app/resource-view/water-digital-twin";
+
+      const dat = window.dat;
+
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto"; //设置你的ion加载Cesium资产
+
+      function generatePolygonAndUv(coordinates, extent) {
+        let west = 180;
+        let south = 90;
+        let east = -180;
+        let north = -90;
+
+        if (extent) {
+          west = Cesium.Math.toDegrees(extent.west);
+          south = Cesium.Math.toDegrees(extent.south);
+          east = Cesium.Math.toDegrees(extent.east);
+          north = Cesium.Math.toDegrees(extent.north);
+        }
+
+        let currentWest = 180;
+        let currentSouth = 90;
+        let currentEast = -180;
+        let currentNorth = -90;
+        let xyRatio = 1;
+        // 确定当前面范围
+        coordinates[0].forEach((p) => {
+          currentWest = Math.min(west, p[0]);
+          currentSouth = Math.min(south, p[1]);
+          currentEast = Math.max(east, p[0]);
+          currentNorth = Math.max(north, p[1]);
+        });
+        xyRatio = (currentEast - currentWest) / (currentNorth - currentSouth);
+
+        const width = east - west;
+        const height = north - south;
+        const minX = west;
+        const minY = south;
+
+        const polygonHierarchy = new Cesium.PolygonHierarchy();
+        const textureCoordinates = new Cesium.PolygonHierarchy();
+
+        // 添加外环
+        coordinates[0].forEach((p) => {
+          textureCoordinates.positions.push(
+            new Cesium.Cartesian2((p[0] - minX) / width, (p[1] - minY) / height)
+          );
+          polygonHierarchy.positions.push(
+            Cesium.Cartesian3.fromDegrees(p[0], p[1], p[2] || 0)
+          );
+        });
+
+        // 由于纹理坐标方向在创建geometry时不能被正确处理，这里手动调整
+        // 顶点坐标方向可被正确处理，外部不作操作
+        let windingOrder = Cesium.PolygonPipeline.computeWindingOrder2D(
+          textureCoordinates.positions
+        );
+        if (windingOrder === Cesium.WindingOrder.CLOCKWISE) {
+          textureCoordinates.positions.reverse();
+        }
+
+        // 添加洞
+        for (let i = 1; i < coordinates.length; i += 1) {
+          const coords = coordinates[i];
+          const holeHierarchy = new Cesium.PolygonHierarchy();
+          const holeTextureCoordinates = new Cesium.PolygonHierarchy();
+
+          coords.forEach((p) => {
+            holeTextureCoordinates.positions.push(
+              new Cesium.Cartesian2(
+                (p[0] - minX) / width,
+                (p[1] - minY) / height
+              )
+            );
+            holeHierarchy.positions.push(
+              Cesium.Cartesian3.fromDegrees(p[0], p[1], p[2] || 0)
+            );
+          });
+
+          windingOrder = Cesium.PolygonPipeline.computeWindingOrder2D(
+            holeTextureCoordinates.positions
+          );
+          if (windingOrder === Cesium.WindingOrder.CLOCKWISE) {
+            holeTextureCoordinates.positions.reverse();
+          }
+
+          textureCoordinates.holes.push(holeTextureCoordinates);
+          polygonHierarchy.holes.push(holeHierarchy);
+        }
+
+        return {
+          polygonHierarchy,
+          textureCoordinates,
+          xyRatio,
+        };
+      }
+
+      function getArrayLevel(array, level = 0) {
+        if (Array.isArray(array)) {
+          return getArrayLevel(array[0], level + 1);
+        }
+        return level;
+      }
+
+      async function main() {
+        const viewer = new Cesium.Viewer("cesiumContainer", {
+          nearGroundSkyBox: false,
+          shadows: false,
+          terrainShadows: Cesium.ShadowMode.ENABLED,
+        });
+
+        // viewer.scene.sun.show = true;
+        viewer.scene.msaaSamples = 4;
+        viewer.scene.highDynamicRange = true;
+        viewer.postProcessStages.fxaa.enabled = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        viewer.scene.debugShowFramesPerSecond = true;
+
+        Cesium.CesiumTerrainProvider.fromUrl(`${DATA_URL}/terrain`, {
+          requestWaterMask: false,
+          requestVertexNormals: false,
+        }).then((provider) => {
+          viewer.terrainProvider = provider;
+        });
+
+        fetch(`./dynamic_water.json`)
+          .then((res) => res.json())
+          .then((json) => {
+            const { features } = json;
+            const { coordinates } = features[0].geometry;
+            // const coordinates = [
+            //   [
+            //     [132.823667, 47.824889],
+            //     [132.849516, 47.824889],
+            //     [132.849516, 47.878762],
+            //     [132.823667, 47.878762],
+            //     [132.823667, 47.824889],
+            //   ],
+            // ];
+
+            let datas;
+            const extent = Cesium.Rectangle.fromDegrees(
+              132.823667,
+              47.824889,
+              132.849516,
+              47.878762
+            );
+            const arrayLevel = getArrayLevel(coordinates);
+            if (arrayLevel === 4) {
+              // 多面
+              datas = coordinates.map((coords) =>
+                generatePolygonAndUv(coords, extent)
+              );
+            } else {
+              datas = [generatePolygonAndUv(coordinates, extent)];
+            }
+
+            const test = new Water({
+              viewer,
+              polygon: datas[0].polygonHierarchy,
+              xyRatio: datas[0].xyRatio,
+              minElevation: 0,
+              maxElevation: 107,
+              heightMapUrl: "./erosion_heightmap.jpg",
+              noiseMapUrl: "../waterNormals.jpg",
+              textureCoordinates: datas[0].textureCoordinates,
+            });
+
+            viewer.scene.primitives.add(test);
+
+            const gui = new dat.GUI();
+            gui.add(test, "frequency", 1, 5000);
+            gui.add(test, "amplitude", 0, 100);
+            gui.add(test, "waterLevel", 0, 1);
+            gui.add(test, "showLines");
+            gui.add(test, "flowSpeed", 0, 10);
+          });
+
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            132.8450468,
+            47.8640525,
+            9000
+          ),
+          duration: 0,
+        });
+        window.viewer = viewer;
+      }
+
+      main();
+    </script>
+  </body>
+</html>

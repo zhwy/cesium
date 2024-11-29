@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -73,7 +73,7 @@
             1,
             {
               requestVertexNormals: true,
-            },
+            }
           ),
         });
 
@@ -108,7 +108,7 @@
             extent[3],
             extent[0],
             extent[1],
-          ]),
+          ])
         );
         const test = new Erosion({
           viewer,
@@ -127,7 +127,7 @@
         gui.add(test, "water_softlight_fact", 1, 200);
         gui.add(test, "water_glossylight_fact", 1, 200);
         gui.add(test, "particle_amount", 1, 200);
-        gui.add(test, "WATER_LEVEL", 0, 2);
+        gui.add(test, "waterLevel", 0, 1);
         gui.add(test, "showLines");
 
         viewer.scene.primitives.add(test);
