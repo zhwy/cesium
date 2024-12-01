@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>后处理云</title>
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      body {
+        padding: 0;
+        margin: 0;
+      }
+      #cesiumContainer {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto"; //设置你的ion加载Cesium资产
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        nearGroundSkyBox: false,
+        shadows: false,
+      });
+
+      const scene = viewer.scene;
+      scene.globe.depthTestAgainstTerrain = true;
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(120, 30, 100),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0,
+        },
+        duration: 0,
+      });
+
+      window.viewer = viewer;
+
+      const point = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(120, 30, 20),
+        point: {
+          pixelSize: 5,
+          color: Cesium.Color.BLUE,
+        },
+      });
+
+      // const localTransform = Cesium.Transforms.eastNorthUpToFixedFrame(
+      // point.position.getValue(),
+      // );
+      // Cesium.Matrix4.inverse(localTransform, localTransform); // 将世界坐标转到点的局部坐标
+      const localTransform = Cesium.Matrix4.IDENTITY;
+
+      let noiseMap = new Cesium.Texture({
+        context: viewer.scene.context,
+        width: 1,
+        height: 1,
+      });
+      Cesium.Resource.fetchImage({
+        url: "./noise.png",
+      }).then((image) => {
+        noiseMap = new Cesium.Texture({
+          context: viewer.scene.context,
+          width: image.width,
+          height: image.height,
+          pixelFormat: Cesium.PixelFormat.RGBA,
+          pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
+          flipY: true,
+          sampler: new Cesium.Sampler({
+            minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+            magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+            wrapS: Cesium.TextureWrap.REPEAT,
+            wrapT: Cesium.TextureWrap.REPEAT,
+          }),
+          source: image,
+        });
+      });
+
+      let stage;
+
+      const loadStage = () => {
+        setTimeout(() => {
+          stage = new Cesium.PostProcessStage({
+            id: "test",
+            uniforms: {
+              center() {
+                return point.position.getValue();
+              },
+              noiseMap() {
+                return noiseMap;
+              },
+              localTransform() {
+                return localTransform;
+              },
+            },
+            fragmentShader: /* glsl */ `
+              uniform sampler2D colorTexture;
+              uniform sampler2D depthTexture;
+              uniform sampler2D noiseMap;
+              uniform mat4 localTransform;
+
+              in vec2 v_textureCoordinates;
+
+              #define HEIGHT 10.0
+              #define RADIUS 6378137.
+              #define MIN_HEIGHT 1000.
+              #define MAX_HEIGHT 2000.
+
+              #define BASE_BRIGHT  vec3(1.26, 1.25, 1.29)    // 基础颜色 -- 亮部
+              #define BASE_DARK    vec3(0.31, 0.31, 0.32)    // 基础颜色 -- 暗部
+              #define LIGHT_BRIGHT vec3(1.29, 1.17, 1.05)  // 光照颜色 -- 亮部
+              #define LIGHT_DARK   vec3(0.7, 0.75, 0.8)      // 光照颜色 -- 暗部
+
+
+              float getDepth(vec2 uv) {
+                return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
+              }
+
+              vec3 getLocalCoordinate(vec2 fragCoord, float depth) {
+                vec4 eyeCoordinate = czm_windowToEyeCoordinates(fragCoord, depth);
+                eyeCoordinate /= eyeCoordinate.w;
+                vec4 worldCoordinate = czm_inverseView * eyeCoordinate;
+                worldCoordinate /= worldCoordinate.w;
+                vec4 localCoordinate = localTransform * worldCoordinate;
+                // localCoordinate /= localCoordinate.w;
+                return localCoordinate.xyz;
+              }
+
+              struct IntersectInfo {
+                bool intersected;
+                float minDistance;
+                float maxDistance;
+              };
+
+              IntersectInfo isIntersectSphereFromOutside(vec3 center, float radius, vec3 rayOrigin, vec3 rayDirection, vec3 point, bool inside) {
+                vec3 o2c = normalize(center - rayOrigin);
+                float o2cDistance = length(center - rayOrigin);
+                float d = o2cDistance * dot(o2c, rayDirection);
+                float h = sqrt(o2cDistance * o2cDistance - d * d);
+                float halfDis = sqrt(radius * radius - h * h);
+                float minDistance = d - halfDis;
+                float maxDistance = d + halfDis;
+
+                float distance = length(point - rayOrigin);
+
+                IntersectInfo info;
+                info.minDistance = minDistance;
+                info.maxDistance = maxDistance;
+                bool intersected;
+
+                if (!inside) intersected = distance >= minDistance;
+                else intersected = distance >= minDistance && distance <= maxDistance;
+                info.intersected = intersected;
+
+                return info;
+              }
+
+              IntersectInfo isIntersectSphereFromInside(vec3 center, float radius, vec3 rayOrigin, vec3 rayDirection, vec3 point, bool inside) {
+                vec3 o2c = normalize(center - rayOrigin);
+                float o2cDistance = length(center - rayOrigin);
+                float d = o2cDistance * dot(o2c, rayDirection);
+                float h = sqrt(o2cDistance * o2cDistance - d * d);
+                float halfDis = sqrt(radius * radius - h * h);
+                float minDistance = d - halfDis;
+                float maxDistance = d + halfDis;
+
+                float distance = length(point - rayOrigin);
+
+                IntersectInfo info;
+                info.minDistance = minDistance;
+                info.maxDistance = maxDistance;
+                bool intersected;
+
+                if (!inside) intersected = distance >= minDistance;
+                else intersected = distance >= minDistance && distance <= maxDistance;
+                info.intersected = intersected;
+
+                return info;
+              }
+
+              IntersectInfo isIntersectSphere(vec3 center, float radius, vec3 rayOrigin, vec3 rayDirection, vec3 point) {
+                IntersectInfo info;
+                info.intersected = false;
+                info.minDistance = -1.0;
+                info.maxDistance = -1.0;
+
+                float distance = length(rayOrigin - point);
+
+                vec3 oc = rayOrigin - center;
+                float b = dot(oc, rayDirection);
+                float c = dot(oc, oc) - radius * radius;
+                float h = b * b - c;
+
+                if (h > 0.0) {
+                  h = sqrt(h);
+                  float t1 = -b - h; // 进入点
+                  float t2 = -b + h; // 离开点
+
+                  // 射线原点在球外部
+                  if (t1 > 0.0) {
+                    info.intersected = distance >= t1;
+                    info.minDistance = t1;
+                    info.maxDistance = t2;
+                  }
+                  // 射线原点在球内部
+                  else if (t2 > 0.0) {
+                    info.intersected = distance >= t2;
+                    info.minDistance = 0.0;
+                    info.maxDistance = t2;
+                  }
+                }
+
+                return info;
+              }
+
+
+              float getDensity(vec3 point, vec3 center) {
+                // 高度衰减
+                float mid = (MIN_HEIGHT + MAX_HEIGHT) / 2.;
+                float height = MAX_HEIGHT - MIN_HEIGHT;
+                float p2cDistance = length(point - center);
+                // float weight = 1.0 - 2.0 * abs(p2cDistance - MIN_HEIGHT - RADIUS - mid) / height;
+                // float weight = 1.0 - abs(point.z - center.z) / RADIUS;
+                float weight = 1.0 - abs(p2cDistance - RADIUS) / RADIUS;
+
+                // vec2 uv = point.xy * 0.0025;
+                vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point - center)) * 10.;
+                // uv.x += 0.0001 * czm_frameNumber;
+                float noise = texture(noiseMap, uv).r;
+                noise += texture(noiseMap, uv * 3.5).r / 3.5;
+                noise += texture(noiseMap, uv * 12.25).r / 12.25;
+                noise += texture(noiseMap, uv * 42.87).r / 42.87;
+                noise /= 1.4472;
+                noise = noise * weight;
+                if(noise < 0.4) noise = 0.;
+
+                return noise;
+              }
+
+              vec4 getCloud(vec3 center, float radius, vec3 rayOrigin, vec3 rayDirection, vec3 start) {
+                float step = radius * 0.05; // 步长
+                vec4 colorSum = vec4(0.); // 积累的颜色
+                vec3 point = start;
+
+                // ray marching
+                for (int i = 0; i < 100; i++) {
+                  point += rayDirection * step;
+
+                  // IntersectInfo info = isIntersectSphereFromOutside(center, radius, rayOrigin, rayDirection, point, true);
+                  IntersectInfo infoLow = isIntersectSphere(center, radius, rayOrigin, rayDirection, point);
+                  IntersectInfo infoHigh = isIntersectSphere(center, RADIUS + MAX_HEIGHT, rayOrigin, rayDirection, point);
+                  if (!infoHigh.intersected) break;
+
+                  float density = getDensity(point, center) * 0.1;
+                  vec3 lightDir = normalize(localTransform * (vec4(czm_lightDirectionWC, 0.))).xyz; // 光照方向
+                  float lightDensity = getDensity(point + lightDir, center) * 0.1;
+                  float delta = clamp(density - lightDensity, 0.0, 1.0);
+
+                  vec3 base = mix(BASE_BRIGHT, BASE_DARK, density) * density; // 基础颜色
+                  vec3 light = mix(LIGHT_DARK, LIGHT_BRIGHT, delta); // 光照颜色
+                  vec4 color = vec4(base * light, density);  // 当前点的颜色
+                  colorSum += color * (1.0 - colorSum.a);   // 与累积的颜色混合
+                }
+
+                return colorSum;
+              }
+
+
+              void main() {
+                out_FragColor = texture(colorTexture, v_textureCoordinates);
+
+                float depth = getDepth(v_textureCoordinates);
+                if (depth == 0.) {
+                  // 天空
+                  depth = 1.;
+                  // out_FragColor = vec4(1., 0., 0., 1.);
+                  // return;
+                }
+
+                vec3 localCoordinate = getLocalCoordinate(gl_FragCoord.xy, depth);       
+
+                vec4 cameraLocalPositionHigh = localTransform * vec4(czm_encodedCameraPositionMCHigh, 1.);
+                vec4 camerLocalPositionLow = localTransform * vec4(czm_encodedCameraPositionMCLow, 0.);
+                vec4 cameraLocalPosition = cameraLocalPositionHigh + camerLocalPositionLow;
+
+                vec3 rayOrigin = cameraLocalPosition.xyz;
+                vec3 rayDirection = normalize(localCoordinate - rayOrigin);
+
+                vec3 center = vec3(0.);
+
+                float radius = RADIUS + MIN_HEIGHT;
+                // IntersectInfo info = isIntersectSphereFromOutside(center, radius, rayOrigin, rayDirection, localCoordinate, false);
+                IntersectInfo info = isIntersectSphere(center, radius, rayOrigin, rayDirection, localCoordinate);
+                if (info.intersected) {
+                  vec3 start = rayOrigin + info.minDistance * rayDirection;
+                  vec4 cloud = getCloud(center, radius, rayOrigin, rayDirection, start);
+                  out_FragColor.rgb = out_FragColor.rgb * (1. - cloud.a) + cloud.rgb;
+                  // out_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                  // out_FragColor += cloud;
+                }
+              }
+          `,
+          });
+
+          scene.postProcessStages.add(stage);
+        }, 5000);
+      };
+
+      // 地形变化时depthTexture会暂时取不到值
+      scene.globe.terrainProviderChanged.addEventListener(() => {
+        scene.postProcessStages.remove(stage);
+        loadStage();
+      });
+
+      loadStage();
+    </script>
+  </body>
+</html>
