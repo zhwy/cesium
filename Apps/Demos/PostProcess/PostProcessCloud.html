@@ -30,6 +30,9 @@
         nearGroundSkyBox: false,
         shadows: false,
       });
+      Cesium.createOsmBuildingsAsync().then((tileset) => {
+        viewer.scene.primitives.add(tileset);
+      });
 
       const scene = viewer.scene;
       scene.globe.depthTestAgainstTerrain = true;
@@ -113,16 +116,15 @@
             },
             fragmentShader: /* glsl */ `
               uniform sampler2D colorTexture;
-              uniform sampler2D depthTexture;
+              // uniform sampler2D depthTexture;
               uniform sampler2D noiseMap;
               uniform mat4 localTransform;
               uniform float earthRadius;
 
               in vec2 v_textureCoordinates;
 
-              #define HEIGHT 10.0
-              #define MIN_HEIGHT 1000.
-              #define MAX_HEIGHT 2000.
+              #define MIN_HEIGHT 5000.
+              #define MAX_HEIGHT 10000.
 
               #define BASE_BRIGHT  vec3(1.26, 1.25, 1.29)    // 基础颜色 -- 亮部
               #define BASE_DARK    vec3(0.31, 0.31, 0.32)    // 基础颜色 -- 暗部
@@ -189,19 +191,48 @@
                 return info;
               }
 
+              float noise(vec3 x)
+              {
+                vec3 p = floor(x);
+                vec3 f = fract(x);
+                f = smoothstep(0.0, 1.0, f);
+
+                vec2 uv = (p.xy + vec2(37.0, 17.0) * p.z) + f.xy;
+                float v1 = texture( noiseMap, (uv) / 512.0, -100.0 ).x;
+                float v2 = texture( noiseMap, (uv + vec2(37.0, 17.0)) / 512.0, -100.0 ).x;
+                return mix(v1, v2, f.z);
+              }
+
+              float getCloudNoise(vec3 worldPos, vec3 center) {
+                vec3 coord = vec3(czm_ellipsoidTextureCoordinates(normalize(worldPos - center)), (length(worldPos - center) - (earthRadius + MIN_HEIGHT)) / (MAX_HEIGHT - MIN_HEIGHT));
+                coord.x += 0.000001 * czm_frameNumber;
+                coord.xy *= 1000.;
+
+                float n = noise(coord) * 0.5;
+                coord *= 3.0;
+                n += noise(coord) * 0.25;
+                coord *= 3.01;
+                n += noise(coord) * 0.125;
+                coord *= 3.02;
+                n += noise(coord) * 0.0625;
+
+                float min = 0.5;
+                return max(n - min, 0.0) * (1.0 / (1.0 - min));
+              }
 
               float getDensity(vec3 point, vec3 center) {
                 // 高度衰减
                 float height = MAX_HEIGHT - MIN_HEIGHT;
+                float midHeight = (MAX_HEIGHT + MIN_HEIGHT) * 0.5 + earthRadius;
                 float p2cDistance = length(point - center);
-                // if (p2cDistance < (MIN_HEIGHT + earthRadius)) return 0.;
 
-                // float weight = 1.0 - (p2cDistance - MIN_HEIGHT - earthRadius) / height;
-                // weight = pow(weight, 0.5);
-                float weight = 1.;
+                float weight = clamp(1. - 2. * abs(p2cDistance - midHeight) / height, 0., 1.);
+                weight = pow(weight, 0.5);
+
+                // float weight = 1.;
 
                 vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point - center)) * 100.;
-                uv.x += 0.000001 * czm_frameNumber;
+                uv.x += 0.00001 * czm_frameNumber;
                 float noise = texture(noiseMap, uv).r;
                 noise += texture(noiseMap, uv * 3.5).r / 3.5;
                 noise += texture(noiseMap, uv * 12.25).r / 12.25;
@@ -213,8 +244,9 @@
                 return noise;
               }
 
-              vec4 getCloud(vec3 center, vec3 rayOrigin, vec3 rayDirection, vec3 start) {
-                float step = (MAX_HEIGHT - MIN_HEIGHT) * 0.02; // 步长
+              vec4 getCloud(vec3 center, vec3 rayOrigin, vec3 rayDirection, vec3 start, float marchDistance, vec2 uv) {
+                // float step = (MAX_HEIGHT - MIN_HEIGHT) * 0.02; // 步长
+                float step = marchDistance * 0.02; // 步长
                 vec4 colorSum = vec4(0.); // 积累的颜色
                 vec3 point = start;
 
@@ -226,14 +258,17 @@
                   IntersectInfo infoHigh = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, point, false);
                   if (infoLow.inside || !infoHigh.inside) break;
 
-                  float density = getDensity(point, center) * 0.1;
-                  vec3 lightDir = normalize(localTransform * (vec4(czm_lightDirectionWC, 0.))).xyz; // 光照方向
-                  float lightDensity = getDensity(point + lightDir, center) * 0.1;
+                  // float density = getDensity(point, center);
+                  float density = getCloudNoise(point, center);
+                  // vec3 lightDir = normalize(localTransform * (vec4(czm_lightDirectionWC, 0.))).xyz; // 光照方向
+                  vec3 lightDir = czm_lightDirectionWC;
+                  float lightDensity = getCloudNoise(point - lightDir * step, center);
                   float delta = clamp(density - lightDensity, 0.0, 1.0);
 
+                  density *= 0.1;
                   vec3 base = mix(BASE_BRIGHT, BASE_DARK, density) * density; // 基础颜色
                   vec3 light = mix(LIGHT_DARK, LIGHT_BRIGHT, delta); // 光照颜色
-                  vec4 color = vec4(base * light, density);  // 当前点的颜色
+                  vec4 color = vec4( base * light, density);  // 当前点的颜色
                   colorSum += color * (1.0 - colorSum.a);   // 与累积的颜色混合
                 }
 
@@ -261,21 +296,42 @@
 
                 vec3 center = vec3(0.);
                 IntersectInfo info;
+                IntersectInfo info2;
+                bool intersected = false;
                 vec3 start;
+                float marchDistance = 0.;
 
                 if (czm_eyeHeight < MIN_HEIGHT) {
                   info = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, localCoordinate, infinite);
                   start = rayOrigin + rayDirection * info.maxDistance;
+                  if (info.intersected) {
+                    info2 = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, localCoordinate, infinite);
+                    marchDistance = info2.maxDistance - info.maxDistance;
+                  }
                 } else if (czm_eyeHeight < MAX_HEIGHT) {
+                  info = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, localCoordinate, infinite);
+                  info2 = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, localCoordinate, infinite);
+                  if (info.intersected) {
+                    // 看向地面与低云层相交
+                    marchDistance = info.minDistance;
+                  } else {
+                    // 看向高云层
+                    marchDistance = info2.maxDistance;
+                  }
+
                   info.intersected = true;
                   start = rayOrigin;
                 } else {
                   info = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, localCoordinate, infinite);
                   start = rayOrigin + rayDirection * info.minDistance;
+                  if (info.intersected) {
+                    info2 = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, localCoordinate, infinite);
+                    marchDistance = info2.minDistance - info.minDistance;
+                  }
                 }
 
                 if (info.intersected) {
-                  vec4 cloud = getCloud(center, rayOrigin, rayDirection, start);
+                  vec4 cloud = getCloud(center, rayOrigin, rayDirection, start, marchDistance, v_textureCoordinates);
                   out_FragColor.rgb = out_FragColor.rgb * (1. - cloud.a) + cloud.rgb;
                   // out_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
                 }
