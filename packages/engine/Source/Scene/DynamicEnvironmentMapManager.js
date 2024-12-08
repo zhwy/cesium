@@ -12,6 +12,7 @@ import PixelFormat from "../Core/PixelFormat.js";
 import SceneMode from "./SceneMode.js";
 import Transforms from "../Core/Transforms.js";
 import ComputeCommand from "../Renderer/ComputeCommand.js";
+import ContextLimits from "../Renderer/ContextLimits.js";
 import CubeMap from "../Renderer/CubeMap.js";
 import Framebuffer from "../Renderer/Framebuffer.js";
 import Texture from "../Renderer/Texture.js";
@@ -79,7 +80,11 @@ function DynamicEnvironmentMapManager(options) {
 
   options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
-  const mipmapLevels = defaultValue(options.mipmapLevels, 10);
+  const mipmapLevels = Math.min(
+    defaultValue(options.mipmapLevels, 10),
+    Math.log2(ContextLimits.maximumCubeMapSize),
+  );
+
   this._mipmapLevels = mipmapLevels;
   this._radianceMapComputeCommands = new Array(6);
   this._convolutionComputeCommands = new Array((mipmapLevels - 1) * 6);
@@ -95,7 +100,8 @@ function DynamicEnvironmentMapManager(options) {
   this._radianceCubeMap = undefined;
   this._irradianceMapTexture = undefined;
 
-  this._sphericalHarmonicCoefficients = DynamicEnvironmentMapManager.DEFAULT_SPHERICAL_HARMONIC_COEFFICIENTS.slice();
+  this._sphericalHarmonicCoefficients =
+    DynamicEnvironmentMapManager.DEFAULT_SPHERICAL_HARMONIC_COEFFICIENTS.slice();
 
   this._lastTime = new JulianDate();
   const width = Math.pow(2, mipmapLevels - 1);
@@ -130,7 +136,7 @@ function DynamicEnvironmentMapManager(options) {
    */
   this.maximumSecondsDifference = defaultValue(
     options.maximumSecondsDifference,
-    60 * 60
+    60 * 60,
   );
 
   /**
@@ -140,7 +146,7 @@ function DynamicEnvironmentMapManager(options) {
    */
   this.maximumPositionEpsilon = defaultValue(
     options.maximumPositionEpsilon,
-    1000.0
+    1000.0,
   );
 
   /**
@@ -152,7 +158,7 @@ function DynamicEnvironmentMapManager(options) {
    */
   this.atmosphereScatteringIntensity = defaultValue(
     options.atmosphereScatteringIntensity,
-    2.0
+    2.0,
   );
 
   /**
@@ -185,7 +191,7 @@ function DynamicEnvironmentMapManager(options) {
    */
   this.groundColor = defaultValue(
     options.groundColor,
-    DynamicEnvironmentMapManager.AVERAGE_EARTH_GROUND_COLOR
+    DynamicEnvironmentMapManager.AVERAGE_EARTH_GROUND_COLOR,
   );
 
   /**
@@ -238,7 +244,7 @@ Object.defineProperties(DynamicEnvironmentMapManager.prototype, {
           value,
           this._position,
           0.0,
-          this.maximumPositionEpsilon
+          this.maximumPositionEpsilon,
         )
       ) {
         return;
@@ -294,6 +300,63 @@ Object.defineProperties(DynamicEnvironmentMapManager.prototype, {
   },
 });
 
+// Internally manage a queue of commands across all instances to prevent too many commands from being added in a single frame and using too much memory at once.
+DynamicEnvironmentMapManager._maximumComputeCommandCount = 8; // This value is updated once a context is created.
+DynamicEnvironmentMapManager._activeComputeCommandCount = 0;
+DynamicEnvironmentMapManager._nextFrameCommandQueue = [];
+/**
+ * Add a command to the queue. If possible, it will be added to the list of commands for the next frame. Otherwise, it will be added to a backlog
+ * and attempted next frame.
+ * @private
+ * @param {ComputeCommand} command The created command
+ * @param {FrameState} frameState The current frame state
+ */
+DynamicEnvironmentMapManager._queueCommand = (command, frameState) => {
+  if (
+    DynamicEnvironmentMapManager._activeComputeCommandCount >=
+    DynamicEnvironmentMapManager._maximumComputeCommandCount
+  ) {
+    // Command will instead be scheduled next frame
+    DynamicEnvironmentMapManager._nextFrameCommandQueue.push(command);
+    return;
+  }
+
+  frameState.commandList.push(command);
+  DynamicEnvironmentMapManager._activeComputeCommandCount++;
+};
+/**
+ * If there are any backlogged commands, queue up as many as possible for the next frame.
+ * @private
+ * @param {FrameState} frameState The current frame state
+ */
+DynamicEnvironmentMapManager._updateCommandQueue = (frameState) => {
+  DynamicEnvironmentMapManager._maximumComputeCommandCount = Math.log2(
+    ContextLimits.maximumCubeMapSize,
+  ); // Scale relative to GPU resources available
+
+  if (
+    DynamicEnvironmentMapManager._nextFrameCommandQueue.length > 0 &&
+    DynamicEnvironmentMapManager._activeComputeCommandCount <
+      DynamicEnvironmentMapManager._maximumComputeCommandCount
+  ) {
+    let command = DynamicEnvironmentMapManager._nextFrameCommandQueue.shift();
+    while (
+      defined(command) &&
+      DynamicEnvironmentMapManager._activeComputeCommandCount <
+        DynamicEnvironmentMapManager._maximumComputeCommandCount
+    ) {
+      if (command.canceled) {
+        command = DynamicEnvironmentMapManager._nextFrameCommandQueue.shift();
+        continue;
+      }
+
+      frameState.commandList.push(command);
+      DynamicEnvironmentMapManager._activeComputeCommandCount++;
+      command = DynamicEnvironmentMapManager._nextFrameCommandQueue.shift();
+    }
+  }
+};
+
 /**
  * Sets the owner for the input DynamicEnvironmentMapManager if there wasn't another owner.
  * Destroys the owner's previous DynamicEnvironmentMapManager if setting is successful.
@@ -305,7 +368,7 @@ Object.defineProperties(DynamicEnvironmentMapManager.prototype, {
 DynamicEnvironmentMapManager.setOwner = function (
   environmentMapManager,
   owner,
-  key
+  key,
 ) {
   // Don't destroy the DynamicEnvironmentMapManager if it's already owned by newOwner
   if (environmentMapManager === owner[key]) {
@@ -317,7 +380,7 @@ DynamicEnvironmentMapManager.setOwner = function (
     //>>includeStart('debug', pragmas.debug);
     if (defined(environmentMapManager._owner)) {
       throw new DeveloperError(
-        "DynamicEnvironmentMapManager should only be assigned to one object"
+        "DynamicEnvironmentMapManager should only be assigned to one object",
       );
     }
     //>>includeEnd('debug');
@@ -333,15 +396,25 @@ DynamicEnvironmentMapManager.setOwner = function (
 DynamicEnvironmentMapManager.prototype.reset = function () {
   let length = this._radianceMapComputeCommands.length;
   for (let i = 0; i < length; ++i) {
+    if (defined(this._radianceMapComputeCommands[i])) {
+      this._radianceMapComputeCommands[i].canceled = true;
+      DynamicEnvironmentMapManager._activeComputeCommandCount--;
+    }
     this._radianceMapComputeCommands[i] = undefined;
   }
 
   length = this._convolutionComputeCommands.length;
   for (let i = 0; i < length; ++i) {
+    if (defined(this._convolutionComputeCommands[i])) {
+      this._convolutionComputeCommands[i].canceled = true;
+      DynamicEnvironmentMapManager._activeComputeCommandCount--;
+    }
     this._convolutionComputeCommands[i] = undefined;
   }
 
   if (defined(this._irradianceComputeCommand)) {
+    this._irradianceComputeCommand.canceled = true;
+    DynamicEnvironmentMapManager._activeComputeCommandCount--;
     this._irradianceComputeCommand = undefined;
   }
 
@@ -366,7 +439,7 @@ function atmosphereNeedsUpdate(manager, frameState) {
   const ellipsoid = frameState.mapProjection.ellipsoid;
   const surfacePosition = ellipsoid.scaleToGeodeticSurface(
     position,
-    scratchSurfacePosition
+    scratchSurfacePosition,
   );
   const outerEllipsoidScale = 1.025;
 
@@ -382,14 +455,14 @@ function atmosphereNeedsUpdate(manager, frameState) {
   if (
     !Cartesian3.equalsEpsilon(
       manager._radiiAndDynamicAtmosphereColor,
-      radiiAndDynamicAtmosphereColor
+      radiiAndDynamicAtmosphereColor,
     ) ||
     frameState.environmentMap !== manager._sceneEnvironmentMap ||
     frameState.backgroundColor !== manager._backgroundColor
   ) {
     Cartesian3.clone(
       radiiAndDynamicAtmosphereColor,
-      manager._radiiAndDynamicAtmosphereColor
+      manager._radiiAndDynamicAtmosphereColor,
     );
     manager._sceneEnvironmentMap = frameState.environmentMap;
     manager._backgroundColor = frameState.backgroundColor;
@@ -445,7 +518,7 @@ function updateRadianceMap(manager, frameState) {
     const enuToFixedFrame = Transforms.eastNorthUpToFixedFrame(
       position,
       ellipsoid,
-      scratchMatrix
+      scratchMatrix,
     );
 
     const adjustments = scratchAdjustments;
@@ -493,7 +566,7 @@ function updateRadianceMap(manager, frameState) {
           u_groundColor: () => {
             return manager.groundColor.withAlpha(
               manager.groundAlbedo,
-              scratchColor
+              scratchColor,
             );
           },
         },
@@ -519,14 +592,17 @@ function updateRadianceMap(manager, frameState) {
           framebuffer._unBind();
           framebuffer.destroy();
 
+          DynamicEnvironmentMapManager._activeComputeCommandCount--;
+
           if (!commands.some(defined)) {
             manager._convolutionsCommandsDirty = true;
             manager._shouldRegenerateShaders = true;
           }
         },
       });
-      frameState.commandList.push(command);
+
       manager._radianceMapComputeCommands[i] = command;
+      DynamicEnvironmentMapManager._queueCommand(command, frameState);
       i++;
     }
     manager._radianceCommandsDirty = false;
@@ -553,7 +629,7 @@ function updateSpecularMaps(manager, frameState) {
   const getPostExecute = (index, texture, face, level) => () => {
     // Copy output texture to corresponding face and mipmap level
     const commands = manager._convolutionComputeCommands;
-    if (!defined(commands[index])) {
+    if (!defined(commands[index]) || commands[index].canceled) {
       // This command was cancelled
       return;
     }
@@ -561,6 +637,7 @@ function updateSpecularMaps(manager, frameState) {
 
     radianceCubeMap.copyFace(frameState, texture, face, level);
     facesCopied++;
+    DynamicEnvironmentMapManager._activeComputeCommandCount--;
 
     // All faces and levels have been copied
     if (facesCopied === manager._specularMapTextures.length) {
@@ -610,7 +687,7 @@ function updateSpecularMaps(manager, frameState) {
         owner: manager,
         uniformMap: {
           u_roughness: () => level / (mipmapLevels - 1),
-          u_radianceTexture: () => radianceCubeMap,
+          u_radianceTexture: () => radianceCubeMap ?? context.defaultTexture,
           u_faceDirection: () => {
             return CubeMap.getDirection(face, scratchCartesian);
           },
@@ -618,7 +695,7 @@ function updateSpecularMaps(manager, frameState) {
         postExecute: getPostExecute(index, texture, face, level),
       });
       manager._convolutionComputeCommands[index] = command;
-      frameState.commandList.push(command);
+      DynamicEnvironmentMapManager._queueCommand(command, frameState);
       ++index;
     }
 
@@ -663,7 +740,7 @@ function updateIrradianceResources(manager, frameState) {
     fragmentShaderSource: fs,
     outputTexture: texture,
     uniformMap: {
-      u_radianceMap: () => manager._radianceCubeMap,
+      u_radianceMap: () => manager._radianceCubeMap ?? context.defaultTexture,
     },
     postExecute: () => {
       if (!defined(manager._irradianceComputeCommand)) {
@@ -673,10 +750,12 @@ function updateIrradianceResources(manager, frameState) {
       manager._irradianceTextureDirty = false;
       manager._irradianceComputeCommand = undefined;
       manager._sphericalHarmonicCoefficientsDirty = true;
+
+      DynamicEnvironmentMapManager._activeComputeCommandCount--;
     },
   });
   manager._irradianceComputeCommand = command;
-  frameState.commandList.push(command);
+  DynamicEnvironmentMapManager._queueCommand(command, frameState);
   manager._irradianceTextureDirty = true;
 }
 
@@ -709,7 +788,7 @@ function updateSphericalHarmonicCoefficients(manager, frameState) {
     Cartesian3.multiplyByScalar(
       manager._sphericalHarmonicCoefficients[i],
       manager.atmosphereScatteringIntensity,
-      manager._sphericalHarmonicCoefficients[i]
+      manager._sphericalHarmonicCoefficients[i],
     );
   }
 
@@ -743,6 +822,8 @@ DynamicEnvironmentMapManager.prototype.update = function (frameState) {
     return;
   }
 
+  DynamicEnvironmentMapManager._updateCommandQueue(frameState);
+
   const dynamicLighting = frameState.atmosphere.dynamicLighting;
   const regenerateEnvironmentMap =
     atmosphereNeedsUpdate(this, frameState) ||
@@ -750,7 +831,7 @@ DynamicEnvironmentMapManager.prototype.update = function (frameState) {
       !JulianDate.equalsEpsilon(
         frameState.time,
         this._lastTime,
-        this.maximumSecondsDifference
+        this.maximumSecondsDifference,
       ));
 
   if (regenerateEnvironmentMap) {
@@ -864,7 +945,7 @@ DynamicEnvironmentMapManager.isDynamicUpdateSupported = function (scene) {
  * @readonly
  */
 DynamicEnvironmentMapManager.AVERAGE_EARTH_GROUND_COLOR = Object.freeze(
-  Color.fromCssColorString("#717145")
+  Color.fromCssColorString("#717145"),
 );
 
 /**
@@ -877,8 +958,8 @@ DynamicEnvironmentMapManager.AVERAGE_EARTH_GROUND_COLOR = Object.freeze(
  * @type {Cartesian3[]}
  * @see {@link https://graphics.stanford.edu/papers/envmap/envmap.pdf|An Efficient Representation for Irradiance Environment Maps}
  */
-DynamicEnvironmentMapManager.DEFAULT_SPHERICAL_HARMONIC_COEFFICIENTS = Object.freeze(
-  [
+DynamicEnvironmentMapManager.DEFAULT_SPHERICAL_HARMONIC_COEFFICIENTS =
+  Object.freeze([
     Object.freeze(new Cartesian3(0.35449, 0.35449, 0.35449)),
     Cartesian3.ZERO,
     Cartesian3.ZERO,
@@ -888,7 +969,6 @@ DynamicEnvironmentMapManager.DEFAULT_SPHERICAL_HARMONIC_COEFFICIENTS = Object.fr
     Cartesian3.ZERO,
     Cartesian3.ZERO,
     Cartesian3.ZERO,
-  ]
-);
+  ]);
 
 export default DynamicEnvironmentMapManager;

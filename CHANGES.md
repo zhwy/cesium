@@ -1,5 +1,48 @@
 # Change Log
 
+### 1.124 - 2024-12-02
+
+#### @cesium/engine
+
+##### Additions :tada:
+
+- Added an integration with the [iTwin Platform](https://developer.bentley.com/) to load iModels as 3D Tiles. Use `ITwinPlatform.defaultAccessToken` to set the access token. Use `ITwinData.createTilesetFromIModelId(iModelId)` to load the iModel as a `Cesium3DTileset`. [#12289](https://github.com/CesiumGS/cesium/pull/12289)
+- Added an integration with the [iTwin Platform](https://developer.bentley.com/) to load Reality Data terrain meshes and GeoJSON. Use `ITwinPlatform.defaultAccessToken` to set the access token. Then use `ITwinData.createTilesetForRealityDataId(iTwinId, dataId)` to load terrain meshes as a `Cesium3DTileset` or `ITwinData.createDataSourceForRealityDataId(iTwinId, dataId)` to load GeoJSON or KML files as data sources. [#12344](https://github.com/CesiumGS/cesium/pull/12344)
+- Added `getSample` to `SampledProperty` to get the time of samples. [#12253](https://github.com/CesiumGS/cesium/pull/12253)
+- Added `Entity.trackingReferenceFrame` property to allow tracking entities in various reference frames. [#12194](https://github.com/CesiumGS/cesium/pull/12194), [#12314](https://github.com/CesiumGS/cesium/pull/12314)
+  - `TrackingReferenceFrame.AUTODETECT` (default): uses either VVLH or ENU depending on entity's dynamic. Use `TrackingReferenceFrame.ENU` if your camera orientation flips abruptly from time to time.
+  - `TrackingReferenceFrame.ENU`: uses the entity's local East-North-Up reference frame.
+  - `TrackingReferenceFrame.INERTIAL`: uses the entity's inertial reference frame.
+  - `TrackingReferenceFrame.VELOCITY`: uses entity's `VelocityOrientationProperty` as orientation.
+- Added `GoogleGeocoderService` for standalone usage of Google geocoder. [#12299](https://github.com/CesiumGS/cesium/pull/12299)
+
+##### Breaking Changes :mega:
+
+- `PostProcessStageCollection.ambientOcclusion` has been updated with a new algorithm to provide better results at all scales, with tunable performance cost. To approximate the appearance and performance of the old algorithm, set the following values for `scene.postProcessStages.ambientOcclusion.uniforms`: `{ lengthCap: 0.02, directionCount: 6, stepCount: 8 }`. For best results at long distances, consider setting `Viewer.camera.frustum.near` to `1.0` or more, to improve precision in the depth buffer. [#12316](https://github.com/CesiumGS/cesium/pull/12316)
+- `Rectangle.validate` has been removed.
+
+##### Fixes :wrench:
+
+- Fixed bug where shared external textures from glTF files were not accounted for in resource statistics. [#12331](https://github.com/CesiumGS/cesium/pull/12331)
+- Fixed lag or crashes when loading many models in the same frame. [#12320](https://github.com/CesiumGS/cesium/pull/12320)
+- Fix point cloud filtering performance on certain hardware [#12317](https://github.com/CesiumGS/cesium/pull/12317)
+- Fix label rendering bug in WebGL1 contexts. [#12301](https://github.com/CesiumGS/cesium/pull/12301)
+- Updated WMS example URL in UrlTemplateImageryProvider documentation to use an active service. [#12323](https://github.com/CesiumGS/cesium/pull/12323)
+
+##### Deprecated :hourglass_flowing_sand:
+
+- `createGooglePhotorealistic3DTileset(key)` has been deprecated. Use `createGooglePhotorealistic3DTileset({key})` instead. It will be removed in 1.126.
+
+#### @cesium/widgets
+
+##### Additions :tada:
+
+- Added the ability to choose between Bing and Google geocoders. Updated `Viewer` constructor to also accept `IonGeocoderProvider` [#12299](https://github.com/CesiumGS/cesium/pull/12299)
+
+##### Fixes :wrench:
+
+- Added a `DeveloperError` when `globe` is set to `false` and a `baseLayer` is provided in `Viewer` options. This prevents errors caused by attempting to use a `baseLayer` without a globe. [#12274](https://github.com/CesiumGS/cesium/pull/12274)
+
 ### 1.123.1 - 2024-11-07
 
 #### @cesium/engine
@@ -23,9 +66,8 @@
   environmentMapManager.brightness = 1.4;
   environmentMapManager.gamma = 0.8;
   environmentMapManager.atmosphereScatteringIntensity = 5.0;
-  environmentMapManager.groundColor = Cesium.Color.fromCssColorString(
-    "#001850"
-  );
+  environmentMapManager.groundColor =
+    Cesium.Color.fromCssColorString("#001850");
   ```
 
 - `ImageBasedLighting.luminanceAtZenith` has been removed. Use `DynamicEnvironmentMapManager.atmosphereScatteringIntensity` instead. [#12129](https://github.com/CesiumGS/cesium/pull/12129)
@@ -47,8 +89,11 @@
 
 - Fix flickering issue caused by bounding sphere retrieval being blocked by the bounding sphere of another entity. [#12230](https://github.com/CesiumGS/cesium/pull/12230)
 - Fixed `ImageBasedLighting.imageBasedLightingFactor` not affecting lighting. [#12129](https://github.com/CesiumGS/cesium/pull/12129)
-
 - Fix error with normalization of corner points for lines and corridors with collinear points. [#12255](https://github.com/CesiumGS/cesium/pull/12255)
+
+##### Fixes :wrench:
+
+- Properly handle `offset` and `scale` properties when picking metadata from property textures. [#12237](https://github.com/CesiumGS/cesium/pull/12237)
 
 ### 1.122 - 2024-10-01
 
@@ -2205,7 +2250,7 @@ _This is an npm-only release to fix a publishing issue_.
   - This is to make clipping planes' coordinates always relative to the object they're attached to. So if you were positioning the clipping planes as in the example below, this is no longer necessary:
   ```javascript
   clippingPlanes.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
-    tileset.boundingSphere.center
+    tileset.boundingSphere.center,
   );
   ```
   - This also fixes several issues with clipping planes not using the correct transform for tilesets with children.
