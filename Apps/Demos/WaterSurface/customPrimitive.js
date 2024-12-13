@@ -37,6 +37,24 @@ class CustomPrimitive {
   createCommand(context) {
     switch (this.commandType) {
       case "Draw": {
+        const boundingSphere =
+          this.geometry?.boundingSphere ||
+          new Cesium.BoundingSphere(new Cesium.Cartesian3(), 1);
+
+        const center = Cesium.Matrix4.multiplyByPoint(
+          this.modelMatrix,
+          boundingSphere.center,
+          new Cesium.Cartesian3(),
+        );
+        const scale = Cesium.Matrix4.getScale(
+          this.modelMatrix,
+          new Cesium.Cartesian3(),
+        );
+        const radius =
+          Math.max(scale.x, scale.y, scale.z) * boundingSphere.radius;
+
+        const boundingVolume = new Cesium.BoundingSphere(center, radius);
+
         const vertexArray = Cesium.VertexArray.fromGeometry({
           context,
           geometry: this.geometry,
@@ -64,6 +82,7 @@ class CustomPrimitive {
           framebuffer: this.framebuffer,
           renderState: renderState,
           pass: this.pass,
+          boundingVolume,
         });
       }
       case "Compute": {

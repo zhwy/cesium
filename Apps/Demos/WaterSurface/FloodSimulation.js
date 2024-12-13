@@ -9,6 +9,7 @@ import {
   RENDER_SHADER_VERTEX_SOURCE,
   RENDER_SHADER_FRAGMENT_SOURCE,
 } from "./FloodSimulation.glsl.js";
+import generateHeightMap from "./GenerateHeightMap.js";
 
 window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
 Cesium.Ion.defaultAccessToken =
@@ -49,13 +50,37 @@ function generateModelMatrix(
 
 const viewer = new Cesium.Viewer("cesiumContainer");
 window._viewer = viewer;
+const context = viewer.scene.context;
+
+viewer.imageryLayers.addImageryProvider(
+  new Cesium.TileCoordinatesImageryProvider(),
+);
+
+const rectangle = Cesium.Rectangle.fromDegrees(
+  -119.66467126563256,
+  37.64805162750813,
+  -119.43723039796743,
+  37.827915948691874,
+);
+
+viewer.camera.setView({
+  destination: rectangle,
+});
+
+let heightMap = new Cesium.Texture({
+  context,
+  width: 1,
+  height: 1,
+});
+
 Cesium.createWorldTerrainAsync().then((provider) => {
   viewer.terrainProvider = provider;
+  generateHeightMap(viewer, rectangle, 11).then((texture) => {
+    heightMap = texture;
+  });
 });
 
 viewer.scene.globe.depthTestAgainstTerrain = true;
-
-const context = viewer.scene.context;
 
 const WIDTH = 2048;
 const HEIGHT = 2048;
@@ -121,33 +146,30 @@ const texD = new Cesium.Texture({
   },
 });
 
-let heightMap = new Cesium.Texture({
-  context,
-  width: 1,
-  height: 1,
-});
-Cesium.Resource.fetchImage({
-  url: "./Erosion/1724136544296.png",
-}).then((image) => {
-  resolution.x = image.width;
-  resolution.y = image.height;
-  heightMap = new Cesium.Texture({
-    context: context,
-    width: image.width,
-    height: image.height,
-    pixelFormat: Cesium.PixelFormat.RGBA,
-    pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
-    flipY: true,
-    sampler: new Cesium.Sampler({
-      minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
-      magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
-      wrapS: Cesium.TextureWrap.REPEAT,
-      wrapT: Cesium.TextureWrap.REPEAT,
-    }),
-    source: image,
-  });
-});
+// Cesium.Resource.fetchImage({
+//   url: "./Erosion/1724136544296.png",
+// }).then((image) => {
+//   resolution.x = image.width;
+//   resolution.y = image.height;
+//   heightMap = new Cesium.Texture({
+//     context: context,
+//     width: image.width,
+//     height: image.height,
+//     pixelFormat: Cesium.PixelFormat.RGBA,
+//     pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
+//     flipY: true,
+//     sampler: new Cesium.Sampler({
+//       minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+//       magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+//       wrapS: Cesium.TextureWrap.REPEAT,
+//       wrapT: Cesium.TextureWrap.REPEAT,
+//     }),
+//     source: image,
+//   });
+// });
 
+let addWater = false;
+const mousePosition = new Cesium.Cartesian2();
 const computeA = new CustomPrimitive({
   commandType: "Compute",
   uniformMap: {
@@ -168,6 +190,16 @@ const computeA = new CustomPrimitive({
     },
     heightMap: () => {
       return heightMap;
+    },
+    addWater: () => {
+      if (addWater) {
+        addWater = false; // 只添加一次水
+        return true;
+      }
+      return false;
+    },
+    mousePosition: () => {
+      return mousePosition;
     },
   },
   fragmentShaderSource: COMMON + BUFFER_A,
@@ -231,50 +263,39 @@ const computeD = new CustomPrimitive({
   },
 });
 
-let terrainMap = new Cesium.Texture({
-  context,
-  width: 1,
-  height: 1,
-});
-Cesium.Resource.fetchImage({
-  url: "https://www.shadertoy.com/media/a/8979352a182bde7c3c651ba2b2f4e0615de819585cc37b7175bcefbca15a6683.jpg",
-}).then((image) => {
-  resolution.x = image.width;
-  resolution.y = image.height;
+// let terrainMap = new Cesium.Texture({
+//   context,
+//   width: 1,
+//   height: 1,
+// });
+// Cesium.Resource.fetchImage({
+//   url: "https://www.shadertoy.com/media/a/8979352a182bde7c3c651ba2b2f4e0615de819585cc37b7175bcefbca15a6683.jpg",
+// }).then((image) => {
+//   resolution.x = image.width;
+//   resolution.y = image.height;
 
-  terrainMap = new Cesium.Texture({
-    context,
-    width: image.width,
-    height: image.height,
-    pixelFormat: Cesium.PixelFormat.RGBA,
-    pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
-    flipY: true,
-    sampler: new Cesium.Sampler({
-      minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
-      magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
-      wrapS: Cesium.TextureWrap.REPEAT,
-      wrapT: Cesium.TextureWrap.REPEAT,
-    }),
-    source: image,
-  });
-});
+//   terrainMap = new Cesium.Texture({
+//     context,
+//     width: image.width,
+//     height: image.height,
+//     pixelFormat: Cesium.PixelFormat.RGBA,
+//     pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
+//     flipY: true,
+//     sampler: new Cesium.Sampler({
+//       minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+//       magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+//       wrapS: Cesium.TextureWrap.REPEAT,
+//       wrapT: Cesium.TextureWrap.REPEAT,
+//     }),
+//     source: image,
+//   });
+// });
 
 const boxGeometry = Cesium.BoxGeometry.fromDimensions({
   vertexFormat: Cesium.VertexFormat.POSITION_AND_ST,
   dimensions: new Cesium.Cartesian3(1, 1, 1),
 });
 const geometry = Cesium.BoxGeometry.createGeometry(boxGeometry);
-
-const rectangle = Cesium.Rectangle.fromDegrees(
-  -119.66467126563256,
-  37.64805162750813,
-  -119.43723039796743,
-  37.827915948691874,
-);
-
-viewer.camera.setView({
-  destination: rectangle,
-});
 
 const minElevation = 1153;
 const maxElevation = 3158;
@@ -298,6 +319,10 @@ const modelMatrix = generateModelMatrix(
     geodesic2.surfaceDistance,
   ],
 );
+const inverseModelMatrix = Cesium.Matrix4.inverse(
+  modelMatrix,
+  new Cesium.Matrix4(),
+);
 
 const drawPrimitive = new CustomPrimitive({
   commandType: "Draw",
@@ -309,7 +334,7 @@ const drawPrimitive = new CustomPrimitive({
       return texC;
     },
     iChannel1: () => {
-      return terrainMap;
+      return heightMap;
     },
     heightRange: () => {
       return new Cesium.Cartesian2(minElevation, maxElevation);
@@ -328,6 +353,7 @@ const debugPrimitive = new Cesium.Primitive({
     geometry: boxGeometry,
     modelMatrix,
   }),
+  allowPicking: false,
   appearance: new Cesium.MaterialAppearance({
     material: new Cesium.Material({
       fabric: {
@@ -353,3 +379,19 @@ viewer.scene.postRender.addEventListener(() => {
   time = now / 1000;
   frame += 0.02;
 });
+
+const eventHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+eventHandler.setInputAction((movement) => {
+  const ray = viewer.camera.getPickRay(movement.position);
+  const intersection = viewer.scene.globe.pick(ray, viewer.scene);
+  if (intersection) {
+    const modelPosition = Cesium.Matrix4.multiplyByPoint(
+      inverseModelMatrix,
+      intersection,
+      new Cesium.Cartesian3(),
+    );
+    mousePosition.x = modelPosition.x;
+    mousePosition.y = -modelPosition.z;
+    addWater = true;
+  }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
