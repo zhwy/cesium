@@ -11,7 +11,7 @@ class CustomPrimitive {
     this.pass = Cesium.defaultValue(options.pass, Cesium.Pass.OPAQUE);
     this.vertexShaderSource = options.vertexShaderSource;
     this.fragmentShaderSource = options.fragmentShaderSource;
-    this.modelMatrix = Cesium.defaultValue(
+    this._modelMatrix = Cesium.defaultValue(
       options.modelMatrix,
       Cesium.Matrix4.IDENTITY,
     );
@@ -31,6 +31,18 @@ class CustomPrimitive {
         framebuffer: this.framebuffer,
         pass: Cesium.Pass.OPAQUE,
       });
+    }
+  }
+
+  get modelMatrix() {
+    return this._modelMatrix;
+  }
+
+  set modelMatrix(value) {
+    this._modelMatrix = value;
+    if (Cesium.defined(this.command)) {
+      this.command.modelMatrix = value;
+      this._updateBoundingVolume(value);
     }
   }
 
@@ -124,6 +136,26 @@ class CustomPrimitive {
       frameState.commandList.push(this.clearCommand);
     }
     frameState.commandList.push(this.command);
+  }
+
+  _updateBoundingVolume(modelMatrix) {
+    const boundingSphere =
+      this.geometry?.boundingSphere ||
+      new Cesium.BoundingSphere(new Cesium.Cartesian3(), 1);
+
+    const center = Cesium.Matrix4.multiplyByPoint(
+      modelMatrix,
+      boundingSphere.center,
+      new Cesium.Cartesian3(),
+    );
+    const scale = Cesium.Matrix4.getScale(modelMatrix, new Cesium.Cartesian3());
+    const radius = Math.max(scale.x, scale.y, scale.z) * boundingSphere.radius;
+
+    const boundingVolume = new Cesium.BoundingSphere(center, radius);
+    if (Cesium.defined(this.command.boundingVolume)) {
+      this.command.boundingVolume.center = boundingVolume.center;
+      this.command.boundingVolume.radius = boundingVolume.radius;
+    }
   }
 
   isDestroyed() {

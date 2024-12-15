@@ -24,6 +24,8 @@ function requestTileGeometry(
 ) {
   return new Promise((resolve) => {
     terrainProvider.requestTileGeometry(x, y, level).then((terrainData) => {
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
       if (terrainData) {
         const tileRange = terrainProvider.tilingScheme.tileXYToRectangle(
           x,
@@ -40,12 +42,14 @@ function requestTileGeometry(
             const v = Math.floor((j - rectangle.south) / latPerPixel);
             const elevation = terrainData.interpolateHeight(tileRange, i, j);
             heightMap[v * width + u] = elevation;
+            min = Math.min(min, elevation);
+            max = Math.max(max, elevation);
           }
         }
       }
       resolve({
-        maxElevation: terrainData._maximumHeight,
-        minElevation: terrainData._minimumHeight,
+        maxElevation: max,
+        minElevation: min,
       });
     });
   });
@@ -87,34 +91,38 @@ function generateHeightMap(
   }
 
   return Promise.all(promises).then((datas) => {
-    let maxHeight = Number.NEGATIVE_INFINITY;
-    let minHeight = Number.POSITIVE_INFINITY;
+    let maxElevation = Number.NEGATIVE_INFINITY;
+    let minElevation = Number.POSITIVE_INFINITY;
     datas.forEach((data) => {
-      maxHeight = Math.max(maxHeight, data.maxHeight);
-      minHeight = Math.min(minHeight, data.minHeight);
+      maxElevation = Math.max(maxElevation, data.maxElevation);
+      minElevation = Math.min(minElevation, data.minElevation);
     });
     arrayBufferView.forEach((elevation, index) => {
       arrayBufferView[index] =
-        (elevation - minHeight) / (maxHeight - minHeight);
+        (elevation - minElevation) / (maxElevation - minElevation);
     });
 
-    return new Cesium.Texture({
-      context: viewer.scene.context,
-      width,
-      height,
-      pixelFormat: Cesium.PixelFormat.RED,
-      pixelDatatype: Cesium.PixelDatatype.FLOAT,
-      // flipY: true,
-      sampler: new Cesium.Sampler({
-        minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
-        magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
-        wrapS: Cesium.TextureWrap.CLAMP_TO_EDGE,
-        wrapT: Cesium.TextureWrap.CLAMP_TO_EDGE,
+    return {
+      heightMap: new Cesium.Texture({
+        context: viewer.scene.context,
+        width,
+        height,
+        pixelFormat: Cesium.PixelFormat.RED,
+        pixelDatatype: Cesium.PixelDatatype.FLOAT,
+        flipY: true,
+        sampler: new Cesium.Sampler({
+          minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+          magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+          wrapS: Cesium.TextureWrap.CLAMP_TO_EDGE,
+          wrapT: Cesium.TextureWrap.CLAMP_TO_EDGE,
+        }),
+        source: {
+          arrayBufferView,
+        },
       }),
-      source: {
-        arrayBufferView,
-      },
-    });
+      minElevation,
+      maxElevation,
+    };
   });
 }
 

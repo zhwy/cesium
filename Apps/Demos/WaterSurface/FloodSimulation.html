@@ -41,7 +41,42 @@
   </head>
 
   <body>
-    <div id="cesiumContainer"></div>
-    <script type="module" src="./FloodSimulation.js"></script>
+    <div id="cesiumContainer">
+      <button id="button">更改范围</button>
+    </div>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import FloodSimulation from "./FloodSimulation.js";
+      window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
+
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        infoBox: false,
+      });
+      window._viewer = viewer;
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+
+      Cesium.createWorldTerrainAsync().then((provider) => {
+        viewer.terrainProvider = provider;
+        const rectangle = Cesium.Rectangle.fromDegrees(
+          -119.66467126563256,
+          37.64805162750813,
+          -119.43723039796743,
+          37.827915948691874,
+        );
+        viewer.camera.setView({
+          destination: rectangle,
+        });
+
+        const floodSimulation = new FloodSimulation(viewer);
+        floodSimulation.debug = true;
+        floodSimulation.updateExtent(rectangle);
+        document.getElementById("button").onclick = () => {
+          floodSimulation.drawExtent();
+        };
+      });
+    </script>
   </body>
 </html>

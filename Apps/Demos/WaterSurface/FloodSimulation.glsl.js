@@ -1,5 +1,5 @@
 const COMMON = /* glsl */ `
-  const ivec2 textureSize = ivec2(2048, 2048);
+  uniform ivec2 textureSize;
   // Terrain
   const float transitionTime = 5.0;
   const float transitionPercent = 0.3;
@@ -134,7 +134,8 @@ const BUFFER_A = /* glsl */ `
     // float t = iTime / transitionTime;
     // float terrainElevation = mix(Terrain(uv * 4.0, floor(t), octaves), Terrain(uv * 4.0, floor(t) + 1.0, octaves), smoothstep(1.0 - transitionPercent, 1.0, fract(t))) * 0.5;
     float pixel_x = gl_FragCoord.x * iResolution.x / float(textureSize.x);
-    float pixel_y = (float(textureSize.y) - 1. - gl_FragCoord.y) * iResolution.y / float(textureSize.y);
+    // float pixel_y = (float(textureSize.y) - 1. - gl_FragCoord.y) * iResolution.y / float(textureSize.y);
+    float pixel_y = gl_FragCoord.y * iResolution.y / float(textureSize.y);
     float terrainElevation = texelFetch(heightMap, ivec2(pixel_x, pixel_y), 0).x;
     // Water
     float waterDept = 0.;
@@ -154,8 +155,8 @@ const BUFFER_A = /* glsl */ `
     }
 
     if (addWater) {
-      vec2 center = vec2(textureSize) * (mousePosition.xy + 0.5);
-      if (length(center - vec2(pixel_x, pixel_y)) < 50. ) waterDept += initialWaterLevel;
+      vec2 center = vec2(mousePosition.x + 0.5, 0.5 - mousePosition.y) * iResolution;
+      if (length(center - vec2(pixel_x, pixel_y)) < (iResolution.x / 50.) ) waterDept += initialWaterLevel;
     }
 
     out_FragColor = vec4(terrainElevation, waterDept, 0, 1);
@@ -329,7 +330,6 @@ const RENDER_SHADER_VERTEX_SOURCE = /* glsl */ `
 const RENDER_SHADER_FRAGMENT_SOURCE = /* glsl */ `
   uniform sampler2D iChannel0;
   uniform sampler2D iChannel1;
-  uniform vec2 heightRange;
 
   in vec3 vo;
   in vec3 vd;
@@ -461,10 +461,11 @@ const RENDER_SHADER_FRAGMENT_SOURCE = /* glsl */ `
   void main()
   {
     vec3 rayDir = normalize(vd);
-    // vec4 col = render(vo, rayDir);
-    // col.xyz *= 2.;
-    out_FragColor = vec4(vec3(texture(iChannel1, (vp + 0.5).xz).r), 1);
-    // out_FragColor = col;
+    vec4 col = render(vo, rayDir);
+    col.xyz *= 2.;
+    out_FragColor = col;
+
+    // out_FragColor = vec4(vec3(texture(iChannel1, (vp + 0.5).xz).r), 1);
     // out_FragColor = vec4(vp + 0.5, 1.);
   }
 `;
