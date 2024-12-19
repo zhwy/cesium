@@ -10,7 +10,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>Web Worker</title>
+    <title>自定义Provider</title>
     <style>
       @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -34,38 +34,37 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-      // import IndexedDbCache from "../Lib/indexDbCache.js";
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      import VectorTileLayer from "./VectorTileLayer.js";
+
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
-      Cesium.Camera.DEFAULT_VIEW_RECTANGLE = Cesium.Rectangle.fromDegrees(
-        85,
-        -20.0,
-        130,
-        90.0,
-      );
 
-      /* eslint-disable */
       const viewer = new Cesium.Viewer("cesiumContainer");
-      window._viewer = viewer;
+      // viewer.imageryLayers.addImageryProvider(
+      //   new Cesium.TileCoordinatesImageryProvider({
+      //     tilingScheme: new Cesium.WebMercatorTilingScheme(),
+      //   }),
+      // );
 
-      const task = new Cesium.TaskProcessor(
-        `http://${location.host}/Apps/Demos/ForTest/worker_test.js`,
-      );
-      task
-        .scheduleTask({
-          message: "123",
-        })
-        .then(
-          (res) => {
-            console.log(res);
-          },
-          (error) => {
-            console.error(res);
-          },
-        );
+      const layer = new VectorTileLayer({
+        url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Aboundary_lines@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
+        maximumLevel: 18,
+        layer: "boundary_lines",
+      });
+      layer.addToScene(viewer.scene);
+
+      const layer2 = new VectorTileLayer({
+        url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Acountries@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
+        maximumLevel: 18,
+        layer: "countries",
+        colors: {
+          DEFAULT: "#0000ff77",
+        },
+      });
+      layer2.addToScene(viewer.scene);
     </script>
   </body>
 </html>

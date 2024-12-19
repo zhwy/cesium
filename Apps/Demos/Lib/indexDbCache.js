@@ -1,8 +1,7 @@
-/* eslint-disable */
 /**
  * Indexed Db操作帮助类
  */
-var IndexedDbCache = /** @class */ (function () {
+const IndexedDbCache = /** @class */ (function () {
   /**
    * Indexed Db 操作帮助类 构造函数
    * @param dbName 数据库名称
