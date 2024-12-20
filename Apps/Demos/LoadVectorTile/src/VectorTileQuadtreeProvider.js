@@ -73,6 +73,23 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
   if (surfaceTile === undefined) {
     surfaceTile = tile.data = new GlobeSurfaceTile();
   }
+  if (!Cesium.defined(surfaceTile.layerFeatures)) {
+    surfaceTile.layerFeatures = {};
+    surfaceTile.primitives = {};
+    surfaceTile.freeResources = function () {
+      if (this.primitives) {
+        Object.keys(this.primitives).forEach((key) => {
+          this.primitives[key].forEach((primitive) => {
+            primitive.destroy();
+          });
+          this.primitives[key] = undefined;
+          delete this.primitives[key];
+        });
+      }
+      delete this.layerFeatures;
+      delete this.freeResources;
+    };
+  }
 
   const ellipsoid = tile.tilingScheme.ellipsoid;
   if (surfaceTile.tileBoundingRegion === undefined) {
@@ -85,153 +102,15 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
     });
     surfaceTile.tileBoundingRegion.computeBoundingVolumes(ellipsoid);
   }
-  return;
-
-  // todo 根据地形瓦片更新minimumHeight、maximumHeight
-
-  // const tileBoundingRegion = surfaceTile.tileBoundingRegion;
-  // const oldMinimumHeight = tileBoundingRegion.minimumHeight;
-  // const oldMaximumHeight = tileBoundingRegion.maximumHeight;
-  // let hasBoundingVolumesFromMesh = false;
-  // let sourceTile = tile;
-
-  // // Get min and max heights from the mesh.
-  // // If the mesh is not available, get them from the terrain data.
-  // // If the terrain data is not available either, get them from an ancestor.
-  // // If none of the ancestors are available, then there are no min and max heights for this tile at this time.
-  // const mesh = surfaceTile.mesh;
-  // const terrainData = surfaceTile.terrainData;
-  // if (
-  //   mesh !== undefined &&
-  //   mesh.minimumHeight !== undefined &&
-  //   mesh.maximumHeight !== undefined
-  // ) {
-  //   tileBoundingRegion.minimumHeight = mesh.minimumHeight;
-  //   tileBoundingRegion.maximumHeight = mesh.maximumHeight;
-  //   hasBoundingVolumesFromMesh = true;
-  // } else if (
-  //   terrainData !== undefined &&
-  //   terrainData._minimumHeight !== undefined &&
-  //   terrainData._maximumHeight !== undefined
-  // ) {
-  //   tileBoundingRegion.minimumHeight = terrainData._minimumHeight;
-  //   tileBoundingRegion.maximumHeight = terrainData._maximumHeight;
-  // } else {
-  //   // No accurate min/max heights available, so we're stuck with min/max heights from an ancestor tile.
-  //   tileBoundingRegion.minimumHeight = Number.NaN;
-  //   tileBoundingRegion.maximumHeight = Number.NaN;
-
-  //   let ancestorTile = tile.parent;
-  //   while (ancestorTile !== undefined) {
-  //     const ancestorSurfaceTile = ancestorTile.data;
-  //     if (ancestorSurfaceTile !== undefined) {
-  //       const ancestorMesh = ancestorSurfaceTile.mesh;
-  //       const ancestorTerrainData = ancestorSurfaceTile.terrainData;
-  //       if (
-  //         ancestorMesh !== undefined &&
-  //         ancestorMesh.minimumHeight !== undefined &&
-  //         ancestorMesh.maximumHeight !== undefined
-  //       ) {
-  //         tileBoundingRegion.minimumHeight = ancestorMesh.minimumHeight;
-  //         tileBoundingRegion.maximumHeight = ancestorMesh.maximumHeight;
-  //         break;
-  //       } else if (
-  //         ancestorTerrainData !== undefined &&
-  //         ancestorTerrainData._minimumHeight !== undefined &&
-  //         ancestorTerrainData._maximumHeight !== undefined
-  //       ) {
-  //         tileBoundingRegion.minimumHeight = ancestorTerrainData._minimumHeight;
-  //         tileBoundingRegion.maximumHeight = ancestorTerrainData._maximumHeight;
-  //         break;
-  //       }
-  //     }
-  //     ancestorTile = ancestorTile.parent;
-  //   }
-  //   sourceTile = ancestorTile;
-  // }
-
-  // // Update bounding regions from the min and max heights
-  // if (sourceTile !== undefined) {
-  //   const exaggeration = frameState.terrainExaggeration;
-  //   const exaggerationRelativeHeight =
-  //     frameState.terrainExaggerationRelativeHeight;
-  //   const hasExaggeration = exaggeration !== 1.0;
-  //   if (hasExaggeration) {
-  //     hasBoundingVolumesFromMesh = false;
-  //     tileBoundingRegion.minimumHeight = TerrainExaggeration.getHeight(
-  //       tileBoundingRegion.minimumHeight,
-  //       exaggeration,
-  //       exaggerationRelativeHeight
-  //     );
-  //     tileBoundingRegion.maximumHeight = TerrainExaggeration.getHeight(
-  //       tileBoundingRegion.maximumHeight,
-  //       exaggeration,
-  //       exaggerationRelativeHeight
-  //     );
-  //   }
-
-  //   if (hasBoundingVolumesFromMesh) {
-  //     if (!surfaceTile.boundingVolumeIsFromMesh) {
-  //       tileBoundingRegion._orientedBoundingBox = OrientedBoundingBox.clone(
-  //         mesh.orientedBoundingBox,
-  //         tileBoundingRegion._orientedBoundingBox
-  //       );
-  //       tileBoundingRegion._boundingSphere = BoundingSphere.clone(
-  //         mesh.boundingSphere3D,
-  //         tileBoundingRegion._boundingSphere
-  //       );
-  //       surfaceTile.occludeePointInScaledSpace = Cartesian3.clone(
-  //         mesh.occludeePointInScaledSpace,
-  //         surfaceTile.occludeePointInScaledSpace
-  //       );
-
-  //       // If the occludee point is not defined, fallback to calculating it from the OBB
-  //       if (!defined(surfaceTile.occludeePointInScaledSpace)) {
-  //         surfaceTile.occludeePointInScaledSpace = computeOccludeePoint(
-  //           tileProvider,
-  //           tileBoundingRegion._orientedBoundingBox.center,
-  //           tile.rectangle,
-  //           tileBoundingRegion.minimumHeight,
-  //           tileBoundingRegion.maximumHeight,
-  //           surfaceTile.occludeePointInScaledSpace
-  //         );
-  //       }
-  //     }
-  //   } else {
-  //     const needsBounds =
-  //       tileBoundingRegion._orientedBoundingBox === undefined ||
-  //       tileBoundingRegion._boundingSphere === undefined;
-  //     const heightChanged =
-  //       tileBoundingRegion.minimumHeight !== oldMinimumHeight ||
-  //       tileBoundingRegion.maximumHeight !== oldMaximumHeight;
-  //     if (heightChanged || needsBounds) {
-  //       // Bounding volumes need to be recomputed in some circumstances
-  //       tileBoundingRegion.computeBoundingVolumes(ellipsoid);
-  //       surfaceTile.occludeePointInScaledSpace = computeOccludeePoint(
-  //         tileProvider,
-  //         tileBoundingRegion._orientedBoundingBox.center,
-  //         tile.rectangle,
-  //         tileBoundingRegion.minimumHeight,
-  //         tileBoundingRegion.maximumHeight,
-  //         surfaceTile.occludeePointInScaledSpace
-  //       );
-  //     }
-  //   }
-  //   surfaceTile.boundingVolumeSourceTile = sourceTile;
-  //   surfaceTile.boundingVolumeIsFromMesh = hasBoundingVolumesFromMesh;
-  // } else {
-  //   surfaceTile.boundingVolumeSourceTile = undefined;
-  //   surfaceTile.boundingVolumeIsFromMesh = false;
-  // }
 }
 
-export default class VectorTileProvider {
+export default class VectorTileQuadtreeProvider {
   constructor(options = {}) {
     this._quadtree = undefined;
-    this._vectorTileLayers = options.imageryLayers;
+    this._vectorTileLayers = options.vectorTileLayers;
 
     this._tilingScheme =
-      options.tilingScheme || new Cesium.GeographicTilingScheme();
+      options.tilingScheme || new Cesium.WebMercatorTilingScheme();
     this._errorEvent = new Cesium.Event();
     this._maxTileRefineLevel = 16;
     this._minimumHeight = options.minimumHeight || 0;
@@ -245,19 +124,10 @@ export default class VectorTileProvider {
     this.cartographicLimitRectangle = Cesium.Rectangle.clone(
       Cesium.Rectangle.MAX_VALUE,
     );
-    //
-    this._options = {
-      ...options,
-      styleLayer: options.layer.replace(/.*:/g, ""),
-    };
-    this._resource = new Cesium.Resource({
-      url: this._options.url,
-    });
-    this._freeTile = new Cesium.Event();
   }
 }
 
-Object.defineProperties(VectorTileProvider.prototype, {
+Object.defineProperties(VectorTileQuadtreeProvider.prototype, {
   quadtree: {
     get: function () {
       return this._quadtree;
@@ -276,43 +146,54 @@ Object.defineProperties(VectorTileProvider.prototype, {
       return this._tilingScheme;
     },
   },
+  vectorTileLayers: {
+    get: function () {
+      return this._vectorTileLayers;
+    },
+  },
   errorEvent: {
     get: function () {
       return this._errorEvent;
     },
   },
-  resource: {
-    get: function () {
-      return this._resource;
-    },
-    set: function (val) {
-      this._resource = val;
-    },
-  },
-  freeTile: {
-    get: function () {
-      return this._freeTile;
-    },
-  },
 });
 
-VectorTileProvider.prototype.update = function (frameState) {};
+VectorTileQuadtreeProvider.prototype.update = function (frameState) {};
 
-VectorTileProvider.prototype.initialize = function (e) {};
+VectorTileQuadtreeProvider.prototype.initialize = function (e) {};
 
-VectorTileProvider.prototype.beginUpdate = function (frameState) {};
+VectorTileQuadtreeProvider.prototype.beginUpdate = function (frameState) {};
 
-VectorTileProvider.prototype.endUpdate = function (frameState) {};
+VectorTileQuadtreeProvider.prototype.endUpdate = function (frameState) {};
 
-VectorTileProvider.prototype.getLevelMaximumGeometricError = function (level) {
+VectorTileQuadtreeProvider.prototype.getLevelMaximumGeometricError = function (
+  level,
+) {
   return this._levelZeroMaximumError / (1 << level);
 };
 
-VectorTileProvider.prototype.getTileResource = function (tile) {};
+VectorTileQuadtreeProvider.prototype.getTileResource = function (tile) {};
 
-VectorTileProvider.prototype.loadTile = function (frameState, tile) {
-  tile.renderable = true;
-  tile.state = Cesium.QuadtreeTileLoadState.DONE;
+VectorTileQuadtreeProvider.prototype.loadTile = function (frameState, tile) {
+  if (!tile.data) {
+    const surfaceTile = new Cesium.GlobeSurfaceTile();
+    surfaceTile.layerFeatures = {};
+    surfaceTile.primitives = {};
+    surfaceTile.freeResources = function () {
+      if (this.primitives) {
+        Object.keys(this.primitives).forEach((key) => {
+          this.primitives[key].forEach((primitive) => {
+            primitive.destroy();
+          });
+          this.primitives[key] = undefined;
+          delete this.primitives[key];
+        });
+      }
+      delete this.layerFeatures;
+      delete this.freeResources;
+    };
+    tile.data = surfaceTile;
+  }
 
   for (let i = 0; i < this._vectorTileLayers.length; i += 1) {
     const layer = this._vectorTileLayers.get(i);
@@ -320,24 +201,37 @@ VectorTileProvider.prototype.loadTile = function (frameState, tile) {
       layer.requestTile(tile);
     }
   }
+
+  tile.renderable = true;
+  tile.state = Cesium.QuadtreeTileLoadState.DONE;
+
+  // if (tile.state === Cesium.QuadtreeTileLoadState.START) {
+  //   tile.state = Cesium.QuadtreeTileLoadState.LOADING;
+
+  //   if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {
+  //     tile.renderable = true;
+  //     tile.state = Cesium.QuadtreeTileLoadState.DONE;
+  //     return;
+  //   }
+
+  //   tile.state = Cesium.QuadtreeTileLoadState.LOADING;
+  //   const promises = [];
+
+  //   for (let i = 0; i < this._vectorTileLayers.length; i += 1) {
+  //     const layer = this._vectorTileLayers.get(i);
+  //     if (layer.show) {
+  //       promises.push(layer.requestTile(tile));
+  //     }
+  //   }
+
+  //   Promise.any(promises).finally(() => {
+  //     tile.renderable = true;
+  //     tile.state = Cesium.QuadtreeTileLoadState.DONE;
+  //   });
+  // }
 };
 
-VectorTileProvider.prototype.readVectorTile = function (tile, vectorTile) {
-  const layerFeatures = {};
-  for (const layer in vectorTile.layers) {
-    if (vectorTile.layers.hasOwnProperty(layer)) {
-      const vectorTileLayer = vectorTile.layers[layer];
-      if (vectorTileLayer) {
-        layerFeatures[layer] = vectorTileLayer._features.map((f, i) =>
-          vectorTileLayer.feature(i).toGeoJSON(tile.x, tile.y, tile.level),
-        );
-      }
-    }
-  }
-  return layerFeatures;
-};
-
-VectorTileProvider.prototype.computeTileVisibility = function (
+VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
   tile,
   frameState,
   occluders,
@@ -345,7 +239,7 @@ VectorTileProvider.prototype.computeTileVisibility = function (
   const distance = this.computeDistanceToTile(tile, frameState);
   tile._distance = distance;
 
-  const undergroundVisible = this.isUndergroundVisible(this, frameState);
+  const undergroundVisible = isUndergroundVisible(this, frameState);
 
   if (frameState.fog.enabled && !undergroundVisible) {
     if (CesiumMath.fog(distance, frameState.fog.density) >= 1.0) {
@@ -357,10 +251,10 @@ VectorTileProvider.prototype.computeTileVisibility = function (
   const surfaceTile = tile.data;
   const tileBoundingRegion = surfaceTile.tileBoundingRegion;
 
-  // if (surfaceTile.boundingVolumeSourceTile === undefined) {
-  //   // We have no idea where this tile is, so let's just call it partially visible.
-  //   return Visibility.PARTIAL;
-  // }
+  if (surfaceTile.boundingVolumeSourceTile === undefined) {
+    // We have no idea where this tile is, so let's just call it partially visible.
+    return Visibility.PARTIAL;
+  }
 
   const cullingVolume = frameState.cullingVolume;
   let boundingVolume = tileBoundingRegion.boundingVolume;
@@ -429,6 +323,17 @@ VectorTileProvider.prototype.computeTileVisibility = function (
     }
   }
 
+  const clippingPolygons = this._clippingPolygons;
+  if (defined(clippingPolygons) && clippingPolygons.enabled) {
+    const polygonIntersection =
+      clippingPolygons.computeIntersectionWithBoundingVolume(
+        tileBoundingRegion,
+      );
+    tile.isClipped = polygonIntersection !== Intersect.OUTSIDE;
+    // Polygon clipping intersections are determined by outer rectangles, therefore we cannot
+    // preemptively determine if a tile is completely clipped or not here.
+  }
+
   let visibility;
   const intersection = cullingVolume.computeVisibility(boundingVolume);
 
@@ -473,11 +378,14 @@ VectorTileProvider.prototype.computeTileVisibility = function (
   return visibility;
 };
 
-VectorTileProvider.prototype.canRefine = function (tile) {
+VectorTileQuadtreeProvider.prototype.canRefine = function (tile) {
   return tile.level <= this._maxTileRefineLevel + 1;
 };
 
-VectorTileProvider.prototype.showTileThisFrame = function (tile, frameState) {
+VectorTileQuadtreeProvider.prototype.showTileThisFrame = function (
+  tile,
+  frameState,
+) {
   // this._availability && (this._state = this.isAvailable(t.time)),
   // e.data.geometryPrimitive && this._state && this._client && "function" === typeof e.data.geometryPrimitive.update && (e.data.geometryPrimitive instanceof Cesium3DTileset || e.data.geometryPrimitive.update(t, i, a))
   // if (this._availability) {
@@ -488,7 +396,7 @@ VectorTileProvider.prototype.showTileThisFrame = function (tile, frameState) {
   // }
 };
 
-VectorTileProvider.prototype.computeDistanceToTile = function (
+VectorTileQuadtreeProvider.prototype.computeDistanceToTile = function (
   tile,
   frameState,
 ) {
@@ -545,16 +453,17 @@ VectorTileProvider.prototype.computeDistanceToTile = function (
   return result;
 };
 
-VectorTileProvider.prototype.isDestroyed = function () {
+VectorTileQuadtreeProvider.prototype.isDestroyed = function () {
   return false;
 };
 
-VectorTileProvider.prototype.destroy = function () {
+VectorTileQuadtreeProvider.prototype.destroy = function () {
   return Cesium.destroyObject(this);
 };
 
-VectorTileProvider.prototype.updateForPick = function (frameState) {};
+VectorTileQuadtreeProvider.prototype.updateForPick = function (frameState) {};
 
-VectorTileProvider.prototype.cancelReprojections = function () {};
+VectorTileQuadtreeProvider.prototype.cancelReprojections = function () {};
 
-VectorTileProvider.prototype.isUndergroundVisible = isUndergroundVisible;
+VectorTileQuadtreeProvider.prototype.isUndergroundVisible =
+  isUndergroundVisible;

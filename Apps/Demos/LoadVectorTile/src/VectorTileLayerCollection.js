@@ -3,8 +3,9 @@ import {
   DeveloperError,
   defaultValue,
   destroyObject,
+  Event,
 } from "../../../../Build/CesiumUnminified/index.js";
-import VectorTileProvider from "./VectorTile/VectorTileProvider";
+import VectorTileLayer from "./VectorTileLayer.js";
 
 export default class VectorTileLayerCollection {
   get length() {
@@ -61,11 +62,11 @@ export default class VectorTileLayerCollection {
   addLayerProvider(layerProvider, index) {
     //>>includeStart('debug', pragmas.debug);
     if (!defined(layerProvider)) {
-      throw new DeveloperError("imageryProvider is required.");
+      throw new DeveloperError("vectorTileProvider is required.");
     }
     //>>includeEnd('debug');
 
-    const layer = new VectorTileProvider(layerProvider);
+    const layer = new VectorTileLayer(layerProvider, layerProvider._options);
     this.add(layer, index);
     return layer;
   }

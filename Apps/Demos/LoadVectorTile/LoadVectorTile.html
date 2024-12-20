@@ -35,7 +35,7 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      import VectorTileLayer from "./VectorTileLayer.js";
+      import VectorTileLayerManager from "./src/VectorTileLayerManager.js";
 
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
@@ -43,28 +43,36 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
-      // viewer.imageryLayers.addImageryProvider(
-      //   new Cesium.TileCoordinatesImageryProvider({
-      //     tilingScheme: new Cesium.WebMercatorTilingScheme(),
-      //   }),
-      // );
+      viewer.imageryLayers.addImageryProvider(
+        new Cesium.TileCoordinatesImageryProvider({
+          tilingScheme: new Cesium.WebMercatorTilingScheme(),
+        }),
+      );
+      window._viewer = viewer;
 
-      const layer = new VectorTileLayer({
+      const manager = new VectorTileLayerManager();
+      manager.addToScene(viewer.scene);
+
+      manager.addLayer({
         url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Aboundary_lines@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
-        maximumLevel: 18,
+        maximumLevel: 8,
         layer: "boundary_lines",
+        tileType: "XYZ",
+        colors: {
+          DEFAULT: "#ff000077",
+        },
       });
-      layer.addToScene(viewer.scene);
 
-      const layer2 = new VectorTileLayer({
-        url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Acountries@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
-        maximumLevel: 18,
-        layer: "countries",
+      manager.addLayer({
+        url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
+        minimumLevel: 8,
+        maximumLevel: 15,
+        layer: "res_org_gr",
+        tileType: "XYZ",
         colors: {
           DEFAULT: "#0000ff77",
         },
       });
-      layer2.addToScene(viewer.scene);
     </script>
   </body>
 </html>

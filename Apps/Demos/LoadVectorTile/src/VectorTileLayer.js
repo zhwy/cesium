@@ -5,8 +5,8 @@ const defaultOptions = {
   tilingScheme: "WebMercatorTilingScheme",
   dataTypeField: "type",
   dataIdField: "id",
-  minimumLevel: 0,
-  maximumLevel: 18,
+  minimumTerrainLevel: 0,
+  maximumTerrainLevel: 18,
   tileType: TileType.XYZ,
   format: "application/vnd.mapbox-vector-tile",
   url: "",
@@ -17,84 +17,59 @@ const defaultOptions = {
 };
 
 export default class VectorTileLayer {
-  get quadtreePrimitive() {
-    return this._layer.quadtreePrimitive;
-  }
-
-  get primitives() {
-    return this._layer.primitives;
-  }
-
   get show() {
     return this._show;
   }
 
   set show(value) {
     this._show = value;
-    this._layer.primitives.show = value;
   }
 
-  constructor(imageryProvider, options) {
+  get vectorTileProvider() {
+    return this._vectorTileProvider;
+  }
+
+  get readyEvent() {
+    return this._readyEvent;
+  }
+
+  get errorEvent() {
+    return this._errorEvent;
+  }
+
+  get ready() {
+    return Cesium.defined(this._vectorTileProvider);
+  }
+
+  constructor(vectorTileProvider, options) {
+    this._show = true;
     this._option = { ...defaultOptions, ...options };
     this._styleLayer = (this._option.layer || "").replace(/(.*:)/g, "");
-    this.visible = true;
-    const primitives = new Cesium.PrimitiveCollection();
-    this._layer.primitives = primitives;
-    this._imageryProvider = imageryProvider;
-  }
+    this._vectorTileProvider = vectorTileProvider;
 
-  addToScene(scene) {
-    if (!scene.primitives.contains(this.quadtreePrimitive)) {
-      scene.primitives.add(this.quadtreePrimitive);
-    }
-    scene.primitives.add(this.primitives);
-  }
-
-  removeFromScene(scene) {
-    this.primitives.removeAll();
-    scene.primitives.remove(this.primitives);
-    this.quadtreePrimitive.removeVisualizer(this);
-    if (this.quadtreePrimitive.visualizers.length === 0) {
-      scene.primitives.remove(this.quadtreePrimitive);
-    }
+    this._readyEvent = new Cesium.Event();
+    this._errorEvent = new Cesium.Event();
   }
 
   requestTile(tile) {
-    return this._imageryProvider.requestTile(tile);
+    return this._vectorTileProvider.requestTile(tile);
   }
 
-  renderTiles(quadtreePrimitive, frameState) {
-    const eachTile = (tile) => {
-      const features = this.tileFeatures(tile);
-      if (tile.data && features.length > 0) {
-        if (!tile.data.primitives[this._styleLayer]) {
-          tile.data.primitives[this._styleLayer] = this.createTilePrimitive(
-            features,
-            {
-              layerId: this.id,
-              tile,
-            },
-          );
-        }
-        tile.data.primitives[this._styleLayer].forEach((primitive) => {
-          primitive.update(frameState);
-        });
+  renderTile(tile, frameState) {
+    const features = this.tileFeatures(tile);
+    if (tile.data && features.length > 0) {
+      if (!tile.data.primitives[this._styleLayer]) {
+        tile.data.primitives[this._styleLayer] = this.createTilePrimitive(
+          features,
+          {
+            layerId: this.id,
+            tile,
+          },
+        );
       }
-    };
-    quadtreePrimitive._tilesToRender.forEach(eachTile);
-  }
-
-  destroyTile(tile) {
-    if (tile.data.primitives) {
-      Object.keys(tile.data.primitives).forEach((key) => {
-        tile.data.primitives[key].forEach((primitive) => {
-          // removeAttributes(primitive);
-          primitive.destroy();
-        });
-        tile.data.primitives[key] = undefined;
-        delete tile.data.primitives[key];
+      tile.data.primitives[this._styleLayer].forEach((primitive) => {
+        primitive.update(frameState);
       });
-      tile.data.layerFeatures[this._styleLayer] = undefined;
     }
   }
 
