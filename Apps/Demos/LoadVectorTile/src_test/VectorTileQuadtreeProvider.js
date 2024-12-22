@@ -1,4 +1,5 @@
 import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import VectorSurfaceTile from "./VectorSurfaceTile.js";
 
 const {
   defined,
@@ -8,7 +9,6 @@ const {
   Cartographic,
   SceneMode,
   Visibility,
-  GlobeSurfaceTile,
   TileBoundingRegion,
   Math: CesiumMath,
   OrthographicFrustum,
@@ -71,24 +71,7 @@ function clipRectangleAntimeridian(tileRectangle, cartographicLimitRectangle) {
 function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
   let surfaceTile = tile.data;
   if (surfaceTile === undefined) {
-    surfaceTile = tile.data = new GlobeSurfaceTile();
-  }
-  if (!Cesium.defined(surfaceTile.layerFeatures)) {
-    surfaceTile.layerFeatures = {};
-    surfaceTile.primitives = {};
-    surfaceTile.freeResources = function () {
-      if (this.primitives) {
-        Object.keys(this.primitives).forEach((key) => {
-          this.primitives[key].forEach((primitive) => {
-            primitive.destroy();
-          });
-          this.primitives[key] = undefined;
-          delete this.primitives[key];
-        });
-      }
-      delete this.layerFeatures;
-      delete this.freeResources;
-    };
+    surfaceTile = tile.data = new VectorSurfaceTile();
   }
 
   const ellipsoid = tile.tilingScheme.ellipsoid;
@@ -107,13 +90,12 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
 export default class VectorTileQuadtreeProvider {
   constructor(options = {}) {
     this._quadtree = undefined;
-    this._vectorTileProvider = options.vectorTileProvider;
+    this._vectorTileLayers = options.vectorTileLayers;
 
     this._tilingScheme =
       options.tilingScheme || new Cesium.WebMercatorTilingScheme();
     this._errorEvent = new Cesium.Event();
-    this._maxTileRefineLevel =
-      options._maxTileRefineLevel || options.maximumLevel || 20;
+    this._maxTileRefineLevel = 16;
     this._minimumHeight = options.minimumHeight || 0;
     this._maximumHeight = options.maximumHeight || 0;
     this._minimumLevel = options.minimumLevel || 0;
@@ -137,11 +119,6 @@ Object.defineProperties(VectorTileQuadtreeProvider.prototype, {
       this._quadtree = val;
     },
   },
-  vectorTileProvider: {
-    get: function () {
-      return this._vectorTileProvider;
-    },
-  },
   ready: {
     get: function () {
       return true;
@@ -150,6 +127,11 @@ Object.defineProperties(VectorTileQuadtreeProvider.prototype, {
   tilingScheme: {
     get: function () {
       return this._tilingScheme;
+    },
+  },
+  vectorTileLayers: {
+    get: function () {
+      return this._vectorTileLayers;
     },
   },
   errorEvent: {
@@ -173,44 +155,12 @@ VectorTileQuadtreeProvider.prototype.getLevelMaximumGeometricError = function (
   return this._levelZeroMaximumError / (1 << level);
 };
 
-VectorTileQuadtreeProvider.prototype.getTileResource = function (tile) {};
-
 VectorTileQuadtreeProvider.prototype.loadTile = function (frameState, tile) {
-  if (!tile.data) {
-    const surfaceTile = new Cesium.GlobeSurfaceTile();
-    surfaceTile.layerFeatures = {};
-    surfaceTile.primitives = {};
-    surfaceTile.freeResources = function () {
-      if (this.primitives) {
-        Object.keys(this.primitives).forEach((key) => {
-          this.primitives[key].forEach((primitive) => {
-            primitive.destroy();
-          });
-          this.primitives[key] = undefined;
-          delete this.primitives[key];
-        });
-      }
-      delete this.layerFeatures;
-      delete this.freeResources;
-    };
-    tile.data = surfaceTile;
-  }
-
-  if (tile.state === Cesium.QuadtreeTileLoadState.START) {
-    if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {
-      tile.renderable = true;
-      tile.state = Cesium.QuadtreeTileLoadState.DONE;
-      return;
-    }
-
-    tile.state = Cesium.QuadtreeTileLoadState.LOADING;
-
-    // TODO 请求错误处理
-    this._vectorTileProvider.requestTile(tile).finally(() => {
-      tile.renderable = true;
-      tile.state = Cesium.QuadtreeTileLoadState.DONE;
-    });
-  }
+  VectorSurfaceTile.processStateMachine(
+    tile,
+    frameState,
+    this._vectorTileLayers,
+  );
 };
 
 VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (

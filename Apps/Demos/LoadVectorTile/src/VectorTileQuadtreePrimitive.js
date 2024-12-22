@@ -29,7 +29,7 @@ export default class VectorTileQuadtreePrimitive extends Cesium.QuadtreePrimitiv
 
   renderTiles(frameState) {
     if (this._visualizer) {
-      this._visualizer.renderTiles(this, frameState);
+      this._visualizer.renderTiles(this._tilesToRender, frameState);
     }
   }
 }

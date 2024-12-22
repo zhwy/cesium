@@ -34,15 +34,16 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      // import VectorTilePrimitive from "./src/VectorTilePrimitive.js";
+      import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+      import VectorTileLayerManager from "./VectorTileLayerManager.js";
 
-      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.CESIUM_BASE_URL = "../../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
+      viewer.imageryLayers.removeAll();
       viewer.imageryLayers.addImageryProvider(
         new Cesium.TileCoordinatesImageryProvider({
           tilingScheme: new Cesium.WebMercatorTilingScheme(),
@@ -50,25 +51,37 @@
       );
       window._viewer = viewer;
 
-      // const primitive2 = new VectorTilePrimitive({
-      //   url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
-      //   maximumLevel: 8,
-      //   styles: {
-      //     countries: {
-      //       fill: true,
-      //       fillColor: "#ff000077",
-      //       fillOutline: true,
-      //       fillOutlineColor: "#ff00ff",
-      //       fillOutlineWidth: 1,
-      //     },
-      //     coastlines: {
-      //       lineColor: "#0000ff77",
-      //       lineWidth: 3,
-      //     },
-      //   },
+      const manager = new VectorTileLayerManager();
+      manager.addToScene(viewer.scene);
+
+      manager.addLayer({
+        url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
+        maximumLevel: 0,
+        styles: {
+          // countries: {
+          //   fill: true,
+          //   fillColor: "#ff000077",
+          //   fillOutline: true,
+          //   fillOutlineColor: "#ff00ff",
+          //   fillOutlineWidth: 1,
+          // },
+          coastlines: {
+            lineColor: "#0000ff77",
+            lineWidth: 3,
+          },
+        },
+      });
+
+      // manager.addLayer({
+      //   url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
+      //   minimumLevel: 8,
+      //   maximumLevel: 15,
+      //   layer: "res_org_gr",
       //   tileType: "XYZ",
+      //   colors: {
+      //     DEFAULT: "#0000ff77",
+      //   },
       // });
-      // primitive2.addToScene(viewer.scene);
     </script>
   </body>
 </html>

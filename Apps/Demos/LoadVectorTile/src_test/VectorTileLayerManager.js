@@ -5,7 +5,7 @@ import VectorTileLayerCollection from "./VectorTileLayerCollection.js";
 import createProvider from "./createProvider.js";
 import TileType from "./TileType.js";
 
-export default class VectorTileLayer {
+export default class VectorTileLayerManager {
   get quadtreePrimitive() {
     return this._quadtreePrimitive;
   }
@@ -30,13 +30,10 @@ export default class VectorTileLayer {
         tilingScheme: this._tilingScheme,
       }),
     });
-    this._quadtreePrimitive._visualizer = this;
   }
 
   addToScene(scene) {
-    if (!scene.primitives.contains(this.quadtreePrimitive)) {
-      scene.primitives.add(this.quadtreePrimitive);
-    }
+    scene.primitives.add(this.quadtreePrimitive);
   }
 
   removeFromScene(scene) {
@@ -65,16 +62,5 @@ export default class VectorTileLayer {
     });
 
     this._vectorTileLayers.addLayerProvider(provider);
-  }
-
-  renderTiles(quadtreePrimitive, frameState) {
-    const eachTile = (tile) => {
-      for (let i = 0; i < this._vectorTileLayers.length; i++) {
-        const layer = this._vectorTileLayers.get(i);
-        layer.renderTile(tile, frameState);
-      }
-    };
-
-    quadtreePrimitive._tilesToRender.forEach(eachTile);
   }
 }
