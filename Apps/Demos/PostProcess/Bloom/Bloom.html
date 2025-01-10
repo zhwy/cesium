@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -10,10 +10,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>指定Primitive泛光</title>
-    <!-- <script src="../../Build/CesiumUnminified/Cesium.js"></script> -->
+    <title>指定物体泛光</title>
     <style>
-      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      @import url(../../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
       html,
       body,
@@ -45,13 +44,26 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+      import CustomBloomStage from "./CustomBloomStage.js";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
       window._viewer = viewer;
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromRadians(
+          -1.727397,
+          0.552767,
+          1752941,
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0.0,
+        },
+      });
 
       const ins1 = new Cesium.GeometryInstance({
         id: "ins1",
@@ -60,7 +72,7 @@
             Cesium.Math.toRadians(-100),
             Cesium.Math.toRadians(30),
             Cesium.Math.toRadians(-99),
-            Cesium.Math.toRadians(31)
+            Cesium.Math.toRadians(31),
           ),
         }),
       });
@@ -71,7 +83,7 @@
             Cesium.Math.toRadians(-100),
             Cesium.Math.toRadians(32),
             Cesium.Math.toRadians(-99),
-            Cesium.Math.toRadians(33)
+            Cesium.Math.toRadians(33),
           ),
         }),
       });
@@ -84,9 +96,8 @@
               color: new Cesium.Color(1, 0, 0, 1),
             }),
           }),
-        })
+        }),
       );
-      window._p1 = p1;
 
       const p2 = viewer.scene.primitives.add(
         new Cesium.Primitive({
@@ -96,34 +107,26 @@
               color: new Cesium.Color(0, 1, 0, 1),
             }),
           }),
-        })
+        }),
       );
-      window._p2 = p2;
 
-      p1.pickIds = p1._pickIds; //需要暴露
+      // 暴露pickIds
+      p1.pickIds = p1._pickIds;
       p2.pickIds = p2._pickIds;
 
-      const bloom = viewer.scene.postProcessStages._bloom;
-      window._bloom = bloom;
-      bloom.uniforms.delta = 0;
-      bloom.enabled = true;
-
       const stages = viewer.scene.postProcessStages;
-      const test = stages.add(
-        Cesium.PostProcessStageLibrary.createSilhouetteStage()
-      );
-      test.uniforms.color = Cesium.Color.BLUE;
-      test.enabled = true;
-      window._test = test;
+
+      const bloom = new CustomBloomStage();
+      stages.add(bloom.stage);
+      bloom.brightness = 1;
+      bloom.stepSize = 5;
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       handler.setInputAction(function (movement) {
         const pickedObject = viewer.scene.pick(movement.endPosition);
         if (Cesium.defined(pickedObject)) {
-          test.selected = [pickedObject.primitive];
           bloom.selected = [pickedObject.primitive];
         } else {
-          test.selected = [];
           bloom.selected = [];
         }
       }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
