@@ -31,7 +31,6 @@ import ShadowMode from "../Scene/ShadowMode.js";
 import SkyAtmosphere from "../Scene/SkyAtmosphere.js";
 import SkyBox from "../Scene/SkyBox.js";
 import Sun from "../Scene/Sun.js";
-import buildModuleUrl from "../Core/buildModuleUrl.js";
 import TimeDynamicPointCloud from "../Scene/TimeDynamicPointCloud.js";
 import VoxelPrimitive from "../Scene/VoxelPrimitive.js";
 
@@ -149,8 +148,6 @@ function configureCameraFrustum(widget) {
  * @param {TerrainProvider} [options.terrainProvider=new EllipsoidTerrainProvider(options.ellipsoid)] The terrain provider.
  * @param {Terrain} [options.terrain] A terrain object which handles asynchronous terrain provider. Can only specify if options.terrainProvider is undefined.
  * @param {SkyBox| false} [options.skyBox] The skybox used to render the stars. When <code>undefined</code> and the WGS84 ellipsoid used, the default stars are used. If set to <code>false</code>, no skyBox, Sun, or Moon will be added.
- * @param {SkyBox| false} [options.nearGroundSkyBox] The near-ground skybox.
- * @param {Number} [options.nearGroundSkyBoxShowHeight=5000.0] The near-ground skybox show height.
  * @param {SkyAtmosphere | false} [options.skyAtmosphere] Blue sky, and the glow around the Earth's limb. Enabled when the default ellipsoid used. Set to <code>false</code> to turn it off.
  * @param {SceneMode} [options.sceneMode=SceneMode.SCENE3D] The initial scene mode.
  * @param {boolean} [options.scene3DOnly=false] When <code>true</code>, each geometry instance will only be rendered in 3D to save GPU memory.
@@ -223,7 +220,8 @@ function CesiumWidget(container, options) {
   container.appendChild(element);
 
   const canvas = document.createElement("canvas");
-  const supportsImageRenderingPixelated = FeatureDetection.supportsImageRenderingPixelated();
+  const supportsImageRenderingPixelated =
+    FeatureDetection.supportsImageRenderingPixelated();
   this._supportsImageRenderingPixelated = supportsImageRenderingPixelated;
   if (supportsImageRenderingPixelated) {
     canvas.style.imageRendering = FeatureDetection.imageRenderingValue();
@@ -252,7 +250,7 @@ function CesiumWidget(container, options) {
 
   const blurActiveElementOnCanvasFocus = defaultValue(
     options.blurActiveElementOnCanvasFocus,
-    true
+    true,
   );
 
   if (blurActiveElementOnCanvasFocus) {
@@ -278,7 +276,7 @@ function CesiumWidget(container, options) {
 
   const useBrowserRecommendedResolution = defaultValue(
     options.useBrowserRecommendedResolution,
-    true
+    true,
   );
 
   this._element = element;
@@ -349,7 +347,7 @@ function CesiumWidget(container, options) {
       scene.globe = globe;
       scene.globe.shadows = defaultValue(
         options.terrainShadows,
-        ShadowMode.RECEIVE_ONLY
+        ShadowMode.RECEIVE_ONLY,
       );
     }
 
@@ -366,31 +364,6 @@ function CesiumWidget(container, options) {
       }
     }
 
-    if (defined(options.nearGroundSkyBoxShowHeight)) {
-      scene.nearGroundSkyBoxShowHeight = options.nearGroundSkyBoxShowHeight;
-    }
-
-    let nearGroundSkyBox = options.nearGroundSkyBox;
-    if (!defined(nearGroundSkyBox)) {
-      function getNearGroundSkyBoxUrl(suffix) {
-        return buildModuleUrl(`Assets/Textures/NearGroundSkyBox/${suffix}.bmp`);
-      }
-      nearGroundSkyBox = new SkyBox({
-        nearGround: true,
-        sources: {
-          positiveX: getNearGroundSkyBoxUrl("px"),
-          negativeX: getNearGroundSkyBoxUrl("nx"),
-          positiveY: getNearGroundSkyBoxUrl("py"),
-          negativeY: getNearGroundSkyBoxUrl("ny"),
-          positiveZ: getNearGroundSkyBoxUrl("pz"),
-          negativeZ: getNearGroundSkyBoxUrl("nz"),
-        },
-      });
-    }
-    if (nearGroundSkyBox !== false) {
-      scene.nearGroundSkyBox = nearGroundSkyBox;
-    }
-
     // Blue sky, and the glow around the Earth's limb.
     let skyAtmosphere = options.skyAtmosphere;
     if (!defined(skyAtmosphere) && Ellipsoid.WGS84.equals(ellipsoid)) {
@@ -400,31 +373,6 @@ function CesiumWidget(container, options) {
     if (skyAtmosphere !== false) {
       scene.skyAtmosphere = skyAtmosphere;
     }
-
-    // Switch the skybox
-    scene.postRender.addEventListener(function () {
-      if (defined(scene.nearGroundSkyBox)) {
-        const height = scene.camera.positionCartographic.height;
-        if (
-          height < scene.nearGroundSkyBoxShowHeight &&
-          scene.skyBox !== scene.nearGroundSkyBox
-        ) {
-          // near-ground
-          scene.skyBox = scene.nearGroundSkyBox;
-          if (scene.skyAtmosphere && scene.skyAtmosphere !== false) {
-            scene.skyAtmosphere.show = false;
-          }
-        } else if (
-          height >= scene.nearGroundSkyBoxShowHeight &&
-          scene.skyBox !== skyBox
-        ) {
-          scene.skyBox = skyBox !== false ? skyBox : undefined;
-          if (scene.skyAtmosphere && scene.skyAtmosphere !== false) {
-            scene.skyAtmosphere.show = true;
-          }
-        }
-      }
-    });
 
     // Set the base imagery layer
     let baseLayer = options.baseLayer;
@@ -444,7 +392,7 @@ function CesiumWidget(container, options) {
       //>>includeStart('debug', pragmas.debug);
       if (defined(options.terrainProvider)) {
         throw new DeveloperError(
-          "Specify either options.terrainProvider or options.terrain."
+          "Specify either options.terrainProvider or options.terrain.",
         );
       }
       //>>includeEnd('debug')
@@ -466,7 +414,7 @@ function CesiumWidget(container, options) {
     this._useDefaultRenderLoop = undefined;
     this.useDefaultRenderLoop = defaultValue(
       options.useDefaultRenderLoop,
-      true
+      true,
     );
 
     this._targetFrameRate = undefined;
@@ -511,19 +459,19 @@ function CesiumWidget(container, options) {
     eventHelper.add(
       scene.morphStart,
       CesiumWidget.prototype._clearTrackedObject,
-      this
+      this,
     );
 
     //Listen to data source events in order to track clock changes.
     eventHelper.add(
       dataSourceCollection.dataSourceAdded,
       CesiumWidget.prototype._onDataSourceAdded,
-      this
+      this,
     );
     eventHelper.add(
       dataSourceCollection.dataSourceRemoved,
       CesiumWidget.prototype._onDataSourceRemoved,
-      this
+      this,
     );
 
     eventHelper.add(scene.postRender, CesiumWidget.prototype._postRender, this);
@@ -541,12 +489,12 @@ function CesiumWidget(container, options) {
     eventHelper.add(
       dataSourceCollection.dataSourceAdded,
       CesiumWidget.prototype._dataSourceAdded,
-      this
+      this,
     );
     eventHelper.add(
       dataSourceCollection.dataSourceRemoved,
       CesiumWidget.prototype._dataSourceRemoved,
-      this
+      this,
     );
   } catch (error) {
     if (showRenderLoopErrors) {
@@ -771,7 +719,7 @@ Object.defineProperties(CesiumWidget.prototype, {
       //>>includeStart('debug', pragmas.debug);
       if (value <= 0) {
         throw new DeveloperError(
-          "targetFrameRate must be greater than 0, or undefined."
+          "targetFrameRate must be greater than 0, or undefined.",
         );
       }
       //>>includeEnd('debug');
@@ -989,7 +937,7 @@ CesiumWidget.prototype.showErrorPanel = function (title, message, error) {
   function resizeCallback() {
     errorPanelScroller.style.maxHeight = `${Math.max(
       Math.round(element.clientHeight * 0.9 - 100),
-      30
+      30,
     )}px`;
   }
   resizeCallback();
@@ -1148,12 +1096,12 @@ CesiumWidget.prototype.render = function () {
  */
 CesiumWidget.prototype._dataSourceAdded = function (
   dataSourceCollection,
-  dataSource
+  dataSource,
 ) {
   const entityCollection = dataSource.entities;
   entityCollection.collectionChanged.addEventListener(
     CesiumWidget.prototype._onEntityCollectionChanged,
-    this
+    this,
   );
 };
 
@@ -1162,12 +1110,12 @@ CesiumWidget.prototype._dataSourceAdded = function (
  */
 CesiumWidget.prototype._dataSourceRemoved = function (
   dataSourceCollection,
-  dataSource
+  dataSource,
 ) {
   const entityCollection = dataSource.entities;
   entityCollection.collectionChanged.removeEventListener(
     CesiumWidget.prototype._onEntityCollectionChanged,
-    this
+    this,
   );
 
   if (defined(this.trackedEntity)) {
@@ -1186,8 +1134,6 @@ CesiumWidget.prototype._updateCanAnimate = function (isUpdated) {
   this._clock.canAnimate = isUpdated;
 };
 
-const boundingSphereScratch = new BoundingSphere();
-
 /**
  * @private
  */
@@ -1200,15 +1146,15 @@ CesiumWidget.prototype._onTick = function (clock) {
   }
 
   const entityView = this._entityView;
-  if (defined(entityView)) {
+  if (defined(entityView) && defined(entityView.boundingSphere)) {
     const trackedEntity = this._trackedEntity;
     const trackedState = this._dataSourceDisplay.getBoundingSphere(
       trackedEntity,
-      true,
-      boundingSphereScratch
+      false,
+      entityView.boundingSphere,
     );
     if (trackedState === BoundingSphereState.DONE) {
-      entityView.update(time, boundingSphereScratch);
+      entityView.update(time, entityView.boundingSphere);
     }
   }
 };
@@ -1219,7 +1165,7 @@ CesiumWidget.prototype._onTick = function (clock) {
 CesiumWidget.prototype._onEntityCollectionChanged = function (
   collection,
   added,
-  removed
+  removed,
 ) {
   const length = removed.length;
   for (let i = 0; i < length; i++) {
@@ -1251,7 +1197,7 @@ CesiumWidget.prototype._onDataSourceChanged = function (dataSource) {
  */
 CesiumWidget.prototype._onDataSourceAdded = function (
   dataSourceCollection,
-  dataSource
+  dataSource,
 ) {
   if (this._automaticallyTrackDataSourceClocks) {
     this.clockTrackedDataSource = dataSource;
@@ -1260,7 +1206,7 @@ CesiumWidget.prototype._onDataSourceAdded = function (
   const removalFunc = this._eventHelper.add(
     dataSource.changedEvent,
     CesiumWidget.prototype._onDataSourceChanged,
-    this
+    this,
   );
   this._dataSourceChangedListeners[id] = removalFunc;
 };
@@ -1270,7 +1216,7 @@ CesiumWidget.prototype._onDataSourceAdded = function (
  */
 CesiumWidget.prototype._onDataSourceRemoved = function (
   dataSourceCollection,
-  dataSource
+  dataSource,
 ) {
   const resetClock = this.clockTrackedDataSource === dataSource;
   const id = dataSource.entities.id;
@@ -1280,7 +1226,7 @@ CesiumWidget.prototype._onDataSourceRemoved = function (
     const numDataSources = dataSourceCollection.length;
     if (this._automaticallyTrackDataSourceClocks && numDataSources > 0) {
       this.clockTrackedDataSource = dataSourceCollection.get(
-        numDataSources - 1
+        numDataSources - 1,
       );
     } else {
       this.clockTrackedDataSource = undefined;
@@ -1466,6 +1412,8 @@ CesiumWidget.prototype._postRender = function () {
   updateTrackedEntity(this);
 };
 
+const zoomTargetBoundingSphereScratch = new BoundingSphere();
+
 function updateZoomTarget(widget) {
   const target = widget._zoomTarget;
   if (!defined(target) || widget.scene.mode === SceneMode.MORPHING) {
@@ -1482,7 +1430,7 @@ function updateZoomTarget(widget) {
       zoomOptions.offset = new HeadingPitchRange(
         0.0,
         -0.5,
-        boundingSphere.radius
+        boundingSphere.radius,
       );
     }
 
@@ -1518,12 +1466,12 @@ function updateZoomTarget(widget) {
     }
 
     // Otherwise, the first "frame" needs to have been rendered
-    const removeEventListener = target.frameChanged.addEventListener(function (
-      timeDynamicPointCloud
-    ) {
-      zoomToBoundingSphere(timeDynamicPointCloud.boundingSphere);
-      removeEventListener();
-    });
+    const removeEventListener = target.frameChanged.addEventListener(
+      function (timeDynamicPointCloud) {
+        zoomToBoundingSphere(timeDynamicPointCloud.boundingSphere);
+        removeEventListener();
+      },
+    );
     return;
   }
 
@@ -1563,13 +1511,15 @@ function updateZoomTarget(widget) {
     const state = widget._dataSourceDisplay.getBoundingSphere(
       entities[i],
       false,
-      boundingSphereScratch
+      zoomTargetBoundingSphereScratch,
     );
 
     if (state === BoundingSphereState.PENDING) {
       return;
     } else if (state !== BoundingSphereState.FAILED) {
-      boundingSpheres.push(BoundingSphere.clone(boundingSphereScratch));
+      boundingSpheres.push(
+        BoundingSphere.clone(zoomTargetBoundingSphereScratch),
+      );
     }
   }
 
@@ -1604,6 +1554,8 @@ function updateZoomTarget(widget) {
   }
 }
 
+const trackedEntityBoundingSphereScratch = new BoundingSphere();
+
 function updateTrackedEntity(widget) {
   if (!widget._needTrackedEntityUpdate) {
     return;
@@ -1617,7 +1569,7 @@ function updateTrackedEntity(widget) {
   //computed. In this case, we will track the entity once it comes back into existence.
   const currentPosition = Property.getValueOrUndefined(
     trackedEntity.position,
-    currentTime
+    currentTime,
   );
 
   if (!defined(currentPosition)) {
@@ -1629,7 +1581,7 @@ function updateTrackedEntity(widget) {
   const state = widget._dataSourceDisplay.getBoundingSphere(
     trackedEntity,
     false,
-    boundingSphereScratch
+    trackedEntityBoundingSphereScratch,
   );
   if (state === BoundingSphereState.PENDING) {
     return;
@@ -1651,7 +1603,9 @@ function updateTrackedEntity(widget) {
   }
 
   const bs =
-    state !== BoundingSphereState.FAILED ? boundingSphereScratch : undefined;
+    state !== BoundingSphereState.FAILED
+      ? trackedEntityBoundingSphereScratch
+      : undefined;
   widget._entityView = new EntityView(trackedEntity, scene, scene.ellipsoid);
   widget._entityView.update(currentTime, bs);
   widget._needTrackedEntityUpdate = false;
