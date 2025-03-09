@@ -1,5 +1,5 @@
 import * as Cesium from "../../../Build/CesiumUnminified/index.js";
-import CustomPrimitive from "./CustomPrimitive.js";
+import CustomPrimitive from "../Lib/customPrimitive.js";
 import {
   COMMON,
   BUFFER_A,

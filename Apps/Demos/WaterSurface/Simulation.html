@@ -48,7 +48,7 @@
       /* eslint-disable */
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       import { SimplexNoise } from "./SimplexNoise.js";
-      import CustomPrimitive from "./CustomPrimitive.js";
+      import CustomPrimitive from "../Lib/customPrimitive.js";
       window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
@@ -337,7 +337,7 @@
               float height = texture( heightMap, st ).x * ${waterMaxHeight}.;
               vec3 positionMC = position3DHigh + position3DLow;
               vec3 positionEC = (czm_translateRelativeToEye(position3DHigh, position3DLow)).xyz;
-              vec3 dir = normalize(positionMC);              
+              vec3 dir = normalize(positionMC);
 
               v_positionMC = positionMC + dir * height;
               v_positionEC = positionEC + dir * height;
