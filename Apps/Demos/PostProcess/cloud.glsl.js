@@ -131,9 +131,26 @@ export default /* glsl */ `
     vec3 u = f * f * (3. - 2. * f);
 
     vec2 uv = (p.xy + vec2(37.0, 239.0) * p.z) + u.xy;
-    vec2 tex = texture(noiseMap,(uv + 0.5) / 256.0, 0.0).yx;
+    vec2 tex = texture(noiseMap,(uv + 0.5) / 512.0, 0.0).yx;
 
     return mix( tex.x, tex.y, u.z ) * 2.0 - 1.0;
+  }
+
+  float fbm(vec3 p) {
+    vec3 q = p + czm_frameNumber * 0.005 * vec3(1.0, -0.2, -0.0);
+
+    float f = 0.0;
+    float scale = 0.5;
+    float factor = 2.02;
+
+    for (int i = 0; i < 6; i++) {
+        f += scale * noise(q);
+        q *= factor;
+        factor += 0.21;
+        scale *= 0.5;
+    }
+
+    return f;
   }
 
   float getCloudNoise(vec3 point) {
@@ -160,10 +177,10 @@ export default /* glsl */ `
     float factor = 2.02;
 
     for (int i = 0; i < 6; i++) {
-        f += scale * noise(p);
-        p *= factor;
-        factor += 0.21;
-        scale *= 0.5;
+      f += scale * noise(p);
+      p *= factor;
+      factor += 0.21;
+      scale *= 0.5;
     }
 
     return f;
@@ -182,6 +199,8 @@ export default /* glsl */ `
   }
 
   float getDensity(AABB box, vec3 point) {
+    return fbm(point * 0.05);
+
     // 计算归一化高度
     float normalizedHeight = (point.z - box.min.z) / (box.max.z - box.min.z);
 
@@ -191,9 +210,9 @@ export default /* glsl */ `
     float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
 
     vec2 uv = ((point - box.min) / (box.max - box.min)).xy * 0.1;
-    vec3 normalizedPoint = (point - box.min) / (box.max - box.min) * 2. - 1.;
+    vec3 normalizedPoint = (point - box.min) / (box.max - box.min) * 2.0 - 1.0;
 
-    float noise = getNoiseSimple(uv);
+    float noise = fbm(point * 0.05);
 
     noise *= heightFactor;
 
@@ -202,20 +221,13 @@ export default /* glsl */ `
   }
 
   vec4 getCloud(AABB box, vec3 rayOrigin, vec3 rayDirection, IntersectInfo intersectInfo, vec3 lightDir, float offset) {
-    // 基本步数
-    int baseStepCount = 64;
-    // 计算射线与垂直方向的夹角
-    float cosAngle = abs(dot(normalize(rayDirection), vec3(0.0, 0.0, 1.0)));
-    // 垂直视角时增加采样数
-    int count = int(float(baseStepCount) * (1.0 + (1.0 - cosAngle) * 0.5));
-    // // 计算步长
-    // int count = 25;
-    float stepLength = 1. / float(count);
-    // float stepLength = (intersectInfo.tFar - intersectInfo.tNear) / float(count);
-
+    
     vec4 colorSum = vec4(0.); // 积累的颜色
 
     vec3 point = rayOrigin + rayDirection * intersectInfo.tNear;
+    float stepLength = max(max(box.max.x, box.max.y), box.max.z) * 0.01;
+    int count = min(int(length(intersectInfo.tFar - intersectInfo.tNear) / stepLength), 64);
+    stepLength = length(intersectInfo.tFar - intersectInfo.tNear) / float(count);
 
     // ray marching
     for (int i = 0; i < count; i++) {
@@ -226,47 +238,45 @@ export default /* glsl */ `
       }
 
       float density = getDensity(box, point);
+      density *= 0.2;
 
       if (density < 0.01) continue;
 
       vec3 baseColor = mix(BASE_BRIGHT, BASE_DARK, density) * density; // 密度大的地方更暗
 
-      // 计算光照衰减
-      float lightTransmittance = 1.0;
-      vec3 lightSamplePoint = point;
-      const int lightSteps = 4; // 光线步数
+      // // 计算光照衰减
+      // float lightTransmittance = 1.0;
+      // vec3 lightSamplePoint = point;
+      // const int lightSteps = 4; // 光线步数
 
-      // 计算视线方向与光线方向的夹角余弦值
-      float cosAngle = dot(rayDirection, lightDir);
+      // // 计算视线方向与光线方向的夹角余弦值
+      // float cosAngle = dot(rayDirection, lightDir);
 
-      // 正向散射系数 (Henyey-Greenstein相位函数简化版)
-      float g = 0.2; // 散射非对称参数 (0.0-0.9)
-      float phase = 0.5 * (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosAngle, 1.5);
+      // // 正向散射系数 (Henyey-Greenstein相位函数简化版)
+      // float g = 0.2; // 散射非对称参数 (0.0-0.9)
+      // float phase = 0.5 * (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosAngle, 1.5);
 
-      // 强化前向散射 (当视线方向接近光线方向时)
-      float forwardScatter = pow(max(0.0, cosAngle), 8.0);
+      // // 强化前向散射 (当视线方向接近光线方向时)
+      // float forwardScatter = pow(max(0.0, cosAngle), 50.0); // 后面的数值越大，透过云层的阳光越聚焦
 
-      for (int j = 0; j < lightSteps; j++) {
-        lightSamplePoint += lightDir * 2.0; // 较大的光步长
-        float lightSampleDensity = getDensity(box, lightSamplePoint);
-        lightTransmittance *= exp(-lightSampleDensity * 0.1);
-      }
+      // for (int j = 0; j < lightSteps; j++) {
+      //   lightSamplePoint += lightDir;
+      //   float lightSampleDensity = getDensity(box, lightSamplePoint);
+      //   lightTransmittance *= exp(-lightSampleDensity * 0.1);
+      // }
 
-      // 应用光照 - 结合直射光和散射光，保持20%环境光
-      vec3 scatteredLight = LIGHT_BRIGHT * (phase + forwardScatter) * lightTransmittance;
-      vec3 finalColor = baseColor * (0.2 + 0.8 * lightTransmittance) + scatteredLight * 0.05;
+      // // 应用光照 - 结合直射光和散射光，保持20%环境光
+      // vec3 scatteredLight = LIGHT_BRIGHT * (phase + forwardScatter) * lightTransmittance;
+      // vec3 finalColor = baseColor * (0.2 + 0.8 * lightTransmittance) + scatteredLight * 0.05;
 
-      // 添加银边效果 - 在云边缘添加明亮效果
-      if (density < 0.3 && density > 0.05) {
-        float edgeFactor = 1.0 - density / 0.25;
-        finalColor += LIGHT_BRIGHT * edgeFactor * lightTransmittance * forwardScatter;
-      }
+      // // 添加银边效果 - 在云边缘添加明亮效果
+      // if (density < 0.3 && density > 0.05) {
+      //   float edgeFactor = 1.0 - density / 0.25;
+      //   finalColor += LIGHT_BRIGHT * edgeFactor * lightTransmittance * forwardScatter;
+      // }
 
-      vec4 color = vec4(finalColor, density);
+      vec4 color = vec4(baseColor, density);
       colorSum += color * (1.0 - colorSum.a);
-
-      // 提前退出 - 当累积足够不透明时
-      if (colorSum.a > 0.95) break;
     }
 
     return colorSum;
@@ -337,7 +347,7 @@ export default /* glsl */ `
 
     // 使用屏幕坐标和噪声纹理生成随机偏移
     vec2 screenPos = gl_FragCoord.xy / czm_viewport.zw; // 使用实际分辨率
-    float blueNoise = texture(noiseMap, screenPos).r;
+    float blueNoise = texture(noiseMap, screenPos + czm_frameNumber * 0.0001).r;
 
     // 使用蓝噪声偏移
     // float offset = fract(blueNoise);
