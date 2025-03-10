@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>后处理云</title>
+    <title>后处理噪声测试</title>
     <style>
       @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
       body {
@@ -21,7 +21,7 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
-      import fs from "./cloud.glsl.js";
+      import fs from "./noise.glsl.js";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto"; //设置你的ion加载Cesium资产
 
@@ -35,10 +35,9 @@
       // scene.globe.show = false;
 
       window.viewer = viewer;
-      viewer.clock.currentTime = new Cesium.JulianDate(2460740, 41549);
 
       const point1 = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(120, 30, 3000),
+        position: Cesium.Cartesian3.fromDegrees(0, 0, 0),
         point: {
           pixelSize: 5,
           color: Cesium.Color.BLUE,
@@ -46,7 +45,7 @@
       });
 
       const point2 = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(120.1, 30.1, 4000),
+        position: Cesium.Cartesian3.fromDegrees(0.0001, 0.0001, 10),
         point: {
           pixelSize: 5,
           color: Cesium.Color.BLUE,
