@@ -1,8 +1,8 @@
 export default /* glsl */ `
-  #define BASE_BRIGHT  vec3(1.20, 1.20, 1.20)    // 基础颜色 -- 亮部
-  #define BASE_DARK    vec3(0.95, 0.95, 0.95)    // 基础颜色 -- 暗部
-  #define LIGHT_BRIGHT vec3(1.40, 1.40, 1.40)    // 光照颜色 -- 亮部
-  #define LIGHT_DARK   vec3(0.70, 0.75, 0.80)    // 光照颜色 -- 暗部
+  #define BASE_BRIGHT  vec3(1.40, 1.40, 1.40)    // 基础颜色 -- 亮部
+  #define BASE_DARK    vec3(0.00, 0.00, 0.00)    // 基础颜色 -- 暗部
+  #define LIGHT_BRIGHT vec3(1.80, 1.80, 1.80)    // 光照颜色 -- 亮部
+  #define LIGHT_DARK   vec3(0.60, 0.60, 0.61)    // 光照颜色 -- 暗部
 
   uniform sampler2D colorTexture;
   uniform sampler2D depthTexture;
@@ -273,11 +273,16 @@ export default /* glsl */ `
       }
 
       float density = getDensity(box, point);
-      density *= 0.2;
+      float scale = 0.2;
+      density *= scale;
 
       if (density < 0.01) continue;
 
       vec3 baseColor = mix(BASE_BRIGHT, BASE_DARK, density) * density;
+      // For fast diffuse lighting 朝向光源的更亮，背向光源的更暗
+      float diffuse = clamp((density - getDensity(box, point + 0.3 * lightDir) * scale), 0.0, 1.0 );
+      vec3 lin = LIGHT_DARK * 1.1 + 0.8 * LIGHT_BRIGHT * diffuse;
+      baseColor *= lin;
 
       // 计算光照衰减
       float lightTransmittance = 1.0;
@@ -297,19 +302,13 @@ export default /* glsl */ `
       for (int j = 0; j < lightSteps; j++) {
         lightSamplePoint += lightDir;
         float lightSampleDensity = getDensity(box, lightSamplePoint);
-        lightTransmittance *= exp(-lightSampleDensity * 0.1);
+        lightSampleDensity *= scale;
+        lightTransmittance *= exp(-lightSampleDensity);
       }
 
       // 应用光照 - 结合直射光和散射光，环境光
       vec3 scatteredLight = LIGHT_BRIGHT * (phase + forwardScatter) * lightTransmittance;
-
       vec3 finalColor = baseColor * (0.2 + 0.8 * lightTransmittance) + scatteredLight * 0.01;
-
-      // 添加银边效果 - 在云边缘添加明亮效果
-      if (density < 0.3 && density > 0.05) {
-        float edgeFactor = 1.0 - density / 0.25;
-        finalColor += LIGHT_BRIGHT * edgeFactor * lightTransmittance * forwardScatter;
-      }
 
       vec4 color = vec4(finalColor, density);
       colorSum += color * (1.0 - colorSum.a);
@@ -386,8 +385,8 @@ export default /* glsl */ `
     float blueNoise = texture(noiseMap, screenPos + czm_frameNumber * 0.0001).r;
 
     // 使用蓝噪声偏移
-    // float offset = fract(blueNoise);
-    float offset = 0.;
+    float offset = fract(blueNoise);
+    // float offset = 0.;
 
     IntersectInfo intersectInfo = isIntersect(box, rayOrigin, rayDirection);
 
