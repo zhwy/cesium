@@ -69,7 +69,8 @@
             }
 
             void main() {
-              out_FragColor = texture(colorTexture, v_textureCoordinates);
+              // out_FragColor = texture(colorTexture, v_textureCoordinates);
+              out_FragColor = vec4(1.);
 
               float depth = getDepth(v_textureCoordinates);
 
@@ -78,7 +79,7 @@
                 return;
               }
 
-              if (depth == 0.) depth = 1.; // 天空深度调整
+              // if (depth == 0.) depth = 1.; // 天空深度调整
 
               // vec3 pointEC = getEyeCoordinate(gl_FragCoord.xy, depth);
             }
@@ -87,37 +88,65 @@
 
         const blurStage = new Cesium.PostProcessStage({
           id: "blur",
-          uniforms: {},
+          uniforms: {
+            exposure() {
+              return 1.2;
+            },
+            decay() {
+              return 0.98;
+            },
+            weight() {
+              return 0.02;
+            },
+            radius() {
+              return 0.2;
+            },
+          },
           fragmentShader: /* glsl */ `
+            // https://developer.nvidia.com/gpugems/gpugems3/part-ii-light-and-shadows/chapter-13-volumetric-light-scattering-post-process
+
             uniform sampler2D colorTexture;
+            // 控制亮度
+            uniform float exposure;
+            // 0-1，远离光源时的消散系数
+            uniform float decay;
+            // 采样权重
+            uniform float weight;
+            // 模糊半径
+            uniform float radius;
 
             in vec2 v_textureCoordinates;
 
             void main() {
 
               vec3 lightDirEC = czm_lightDirectionEC;
+
               vec3 lightPosEC = lightDirEC * 10.;
               vec4 lightPosClip = czm_projection * vec4(lightPosEC, 1.0);
               vec3 lightPosNDC = lightPosClip.xyz / lightPosClip.w;
               vec2 lightPosScreen = lightPosNDC.xy * 0.5 + 0.5;
 
               // 计算当前片段与光源位置的向量
-              vec2 dirToLight = lightPosScreen - v_textureCoordinates;
+              vec2 deltaTexCoord = v_textureCoordinates - lightPosScreen;
 
-              // 径向模糊的实现
               vec3 color = texture(colorTexture, v_textureCoordinates).rgb;
-              int samples = 100; // 模糊采样次数
-              float blurRadius = 0.2; // 模糊半径
+              int samples = 50; // 采样次数
+              float illuminationDecay = 1.;
+
+              deltaTexCoord *= 1. / float(samples) * radius;
+              vec2 sampleCoord = v_textureCoordinates;
+
+              float cosA = abs(dot(czm_lightDirectionEC, vec3(1., 0., 0.)));
 
               for (int i = 0; i < samples; i++) {
-                float t = float(i) / float(samples - 1);
-                vec2 sampleCoord = v_textureCoordinates + dirToLight * t * blurRadius;
-                color += texture(colorTexture, sampleCoord).rgb;
+                sampleCoord -= deltaTexCoord;
+                vec3 sampleColor = texture(colorTexture, sampleCoord).rgb;
+                sampleColor *= illuminationDecay * weight * (1. - cosA) * clamp(-lightDirEC.z, 0., 1.); // 当光源靠近x轴时，以及位于z轴正向时会过亮，这里做调整
+                color += sampleColor;
+                illuminationDecay *= decay;
               }
 
-              color /= float(samples);
-
-              out_FragColor = vec4(color, 1.0);
+              out_FragColor = vec4(color * exposure, 1.0);
             }
           `,
         });
@@ -133,7 +162,16 @@
               vec3 blur = texture(colorTexture, v_textureCoordinates).rgb;
               vec3 baseColor = texture(baseTexture, v_textureCoordinates).rgb;
 
-              out_FragColor = vec4(blur * 0.3 + baseColor * 0.9, 1.);
+              // if (v_textureCoordinates.x > 0.5) {
+              //   out_FragColor = vec4(blur, 1.);
+              //   return;
+              // }
+
+              if (blur.r == 1.) {
+                blur = vec3(0.2);
+              }
+
+              out_FragColor = vec4(baseColor + blur, 1.);
             }
           `,
           uniforms: {
