@@ -8,6 +8,8 @@ export default /* glsl */ `
   #define MIN_HEIGHT 10000.
   #define MAX_HEIGHT 20000.
 
+  #define CENTER vec3(0.) // 地心
+
   #define BASE_BRIGHT  vec3(1.26, 1.25, 1.29)    // 基础颜色 -- 亮部
   #define BASE_DARK    vec3(0.31, 0.31, 0.32)    // 基础颜色 -- 暗部
   #define LIGHT_BRIGHT vec3(1.29, 1.17, 1.05)  // 光照颜色 -- 亮部
@@ -30,9 +32,9 @@ export default /* glsl */ `
     float maxDistance;
   };
 
-  IntersectInfo isIntersectSphere(vec3 center, float radius, vec3 rayOrigin, vec3 rayDirection, vec3 point, bool infinite) {
-    vec3 o2c = normalize(center - rayOrigin);
-    float o2cDistance = length(center - rayOrigin);
+  IntersectInfo isIntersectSphere(float radius, vec3 rayOrigin, vec3 rayDirection, vec3 point, bool infinite) {
+    vec3 o2c = normalize(CENTER - rayOrigin);
+    float o2cDistance = length(CENTER - rayOrigin);
     float d = o2cDistance * dot(o2c, rayDirection);
     float h = sqrt(o2cDistance * o2cDistance - d * d);
     float halfDis = sqrt(radius * radius - h * h);
@@ -123,17 +125,17 @@ export default /* glsl */ `
     return f;
   }
 
-  float getDensity(vec3 point, vec3 center) {
+  float getDensity(vec3 point) {
     float noise = fbm(point * 1e-5);
 
     // // 高度衰减
-    // float normalizedHeight = (length(point - center) - MIN_HEIGHT - earthRadius) / (MAX_HEIGHT - MIN_HEIGHT);
+    // float normalizedHeight = (length(point - CENTER) - MIN_HEIGHT - earthRadius) / (MAX_HEIGHT - MIN_HEIGHT);
     // // 使用更自然的高度分布曲线（类似高斯分布）
     // float baseHeight = 0.5; // 云层最浓密的相对高度
     // float spread = 0.4;     // 云层垂直分布范围
     // float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
 
-    // vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point - center)) * 100.;
+    // vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point - CENTER)) * 100.;
     // uv.x += 0.00001 * czm_frameNumber;
     // float noise = texture(noiseMap, uv).r;
     // noise += texture(noiseMap, uv * 3.5).r / 3.5;
@@ -147,7 +149,7 @@ export default /* glsl */ `
     return noise;
   }
 
-  vec4 getCloud(vec3 center, vec3 rayOrigin, vec3 rayDirection, vec3 start, float marchDistance, vec3 lightDir) {
+  vec4 getCloud(vec3 rayOrigin, vec3 rayDirection, vec3 start, float marchDistance, vec3 lightDir) {
     int count = 64;
     float stepLength = marchDistance / float(count); // 步长
     vec4 colorSum = vec4(0.); // 积累的颜色
@@ -157,11 +159,11 @@ export default /* glsl */ `
     for (int i = 0; i < count; i++) {
       point += rayDirection * stepLength;
 
-      IntersectInfo infoLow = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, point, false);
-      IntersectInfo infoHigh = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, point, false);
+      IntersectInfo infoLow = isIntersectSphere(earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, point, false);
+      IntersectInfo infoHigh = isIntersectSphere(earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, point, false);
       if (infoLow.inside || !infoHigh.inside) break;
 
-      float density = getDensity(point, center);
+      float density = getDensity(point);
       float scale = 0.1;
       density *= scale;
 
@@ -185,7 +187,7 @@ export default /* glsl */ `
 
       for (int j = 0; j < lightSteps; j++) {
         lightSamplePoint += lightDir;
-        float lightSampleDensity = getDensity(lightSamplePoint, center);
+        float lightSampleDensity = getDensity(lightSamplePoint);
         lightSampleDensity *= scale;
         if (j == 0) {
           // 朝向光源的更亮，背向光源的更暗
@@ -203,8 +205,15 @@ export default /* glsl */ `
       vec4 color = vec4(finalColor, density);
       colorSum += color * (1.0 - colorSum.a);
 
-      // if (colorSum.a > 0.95) break;
+      if (colorSum.a > 0.95) break;
     }
+
+    // 计算视线方向与地平线方向的夹角
+    vec3 upDirection = normalize(rayOrigin - CENTER);
+    // 地平线因子，越接近地平线越接近0
+    float horizonFactor = abs(dot(rayDirection, upDirection));
+    // 在地平线附近减少云层，增加模糊感
+    colorSum = mix(vec4(0.), colorSum, smoothstep(0.0, 0.1, horizonFactor));
 
     return colorSum;
   }
@@ -224,7 +233,6 @@ export default /* glsl */ `
     vec3 rayOrigin = czm_viewerPositionWC;
     vec3 rayDirection = normalize(worldCoordinate - rayOrigin);
 
-    vec3 center = vec3(0.);
     IntersectInfo info;
     IntersectInfo info2;
     bool intersected = false;
@@ -232,15 +240,15 @@ export default /* glsl */ `
     float marchDistance = 0.;
 
     if (czm_eyeHeight < MIN_HEIGHT) {
-      info = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
+      info = isIntersectSphere(earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
       start = rayOrigin + rayDirection * info.maxDistance;
       if (info.intersected) {
-        info2 = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
+        info2 = isIntersectSphere(earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
         marchDistance = info2.maxDistance - info.maxDistance;
       }
     } else if (czm_eyeHeight < MAX_HEIGHT) {
-      info = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
-      info2 = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
+      info = isIntersectSphere(earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
+      info2 = isIntersectSphere(earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
       if (info.intersected) {
         // 看向地面与低云层相交
         marchDistance = info.minDistance;
@@ -252,16 +260,20 @@ export default /* glsl */ `
       info.intersected = true;
       start = rayOrigin;
     } else {
-      info = isIntersectSphere(center, earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
+      if (czm_eyeHeight > 5. * MAX_HEIGHT) {
+        return;
+      }
+
+      info = isIntersectSphere(earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
       start = rayOrigin + rayDirection * info.minDistance;
       if (info.intersected) {
-        info2 = isIntersectSphere(center, earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
+        info2 = isIntersectSphere(earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, worldCoordinate, infinite);
         marchDistance = info2.minDistance - info.minDistance;
       }
     }
 
     if (info.intersected) {
-      vec4 color = getCloud(center, rayOrigin, rayDirection, start, marchDistance, czm_lightDirectionWC);
+      vec4 color = getCloud(rayOrigin, rayDirection, start, marchDistance, czm_lightDirectionWC);
       out_FragColor = mix(out_FragColor, color, color.a);
     }
   }
