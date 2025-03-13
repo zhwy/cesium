@@ -39,7 +39,7 @@
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       let modifiedProjection;
 
@@ -56,16 +56,20 @@
           this._inverseViewProjectionDirty = true;
           this._modelViewProjectionDirty = true;
           this._modelViewProjectionRelativeToEyeDirty = true;
+
+          Cesium.Matrix4.clone(modifiedProjection, this._infiniteProjection);
+          this._modelViewInfiniteProjectionDirty = true;
         }
       };
 
       class Reflector {
-        constructor(viewer, polygon, planeHeight) {
+        constructor(viewer, polygon, planeHeight, center) {
           this.viewer = viewer;
           this.scene = viewer.scene;
           this.camera = viewer.camera;
           this.polygon = polygon;
           this.planeHeight = planeHeight;
+          this.center = center;
 
           this.camera2 = new Cesium.Camera(viewer.scene);
           this.camera2.name = "offscreen";
@@ -114,13 +118,24 @@
         isDestroyed() {
           return false;
         }
-        showReflectorCamera() {
-          drawAxes(
-            this.camera2.position,
-            this.camera2.direction,
-            this.camera2.up,
+        debugCameras() {
+          if (this._debugCamera1) {
+            this.viewer.scene.primitives.remove(this._debugCamera1);
+            this.viewer.scene.primitives.remove(this._debugCamera2);
+          }
+
+          this._debugCamera1 = this.viewer.scene.primitives.add(
+            new Cesium.DebugCameraPrimitive({
+              camera: Cesium.Camera.clone(this.camera),
+              color: Cesium.Color.RED,
+            }),
           );
-          drawAxes(this.camera.position, this.camera.direction, this.camera.up);
+          this._debugCamera2 = this.viewer.scene.primitives.add(
+            new Cesium.DebugCameraPrimitive({
+              camera: Cesium.Camera.clone(this.camera2),
+              color: Cesium.Color.BLUE,
+            }),
+          );
         }
         _initialize(context) {
           this.textureMatrix = Cesium.Matrix4.IDENTITY;
@@ -160,7 +175,7 @@
 
           this.scene.preRender.addEventListener((scene, time) => {
             const planeNormal = Cesium.Cartesian3.normalize(
-              this.camera.position,
+              this.center,
               new Cesium.Cartesian3(),
             );
             const cameraToPlaneDistance =
@@ -181,6 +196,7 @@
               new Cesium.Cartesian3(),
             );
 
+            // 反射相机位置
             const reflectorPosition = Cesium.Cartesian3.subtract(
               this.camera.position,
               Cesium.Cartesian3.multiplyByScalar(
@@ -216,7 +232,7 @@
             // this.camera2.direction = this.camera.direction.clone();
             // this.camera2.position = this.camera.position.clone();
 
-            modifiedProjection = this.camera.frustum.projectionMatrix.clone();
+            modifiedProjection = this.camera2.frustum.projectionMatrix.clone();
 
             // 计算纹理矩阵
             const textureMatrix = Cesium.Matrix4.fromArray([
@@ -242,52 +258,65 @@
             );
             this.textureMatrix = textureMatrix;
 
-            // 优化投影矩阵，仅渲染反射平面之上的物体
-            // const reflectorPlane = Cesium.Plane.fromPointNormal(
-            //   Cesium.Cartographic.toCartesian(
-            //     new Cesium.Cartographic(
-            //       this.camera.positionCartographic.lon,
-            //       this.camera.positionCartographic.lat,
-            //       this.planeHeight,
-            //     ),
-            //   ),
-            //   planeNormal,
+            /** 优化投影矩阵，仅渲染反射平面之上的物体 */
+            // // 平面上某点
+            // // const pointOnPlane = Cesium.Cartesian3.fromRadians(
+            // //   this.camera.positionCartographic.longitude,
+            // //   this.camera.positionCartographic.latitude,
+            // //   this.planeHeight,
+            // // );
+            // // 反射平面
+            // const reflectorPlane = new Cesium.Plane(
+            //   new Cesium.Cartesian3(0, 0, 1),
+            //   0,
             // );
+            // Cesium.Plane.transform(
+            //   reflectorPlane,
+            //   Cesium.Transforms.eastNorthUpToFixedFrame(this.center),
+            //   reflectorPlane,
+            // );
+
+            // // 反射平面转换到相机坐标系
             // Cesium.Plane.transform(
             //   reflectorPlane,
             //   this.camera2.viewMatrix,
             //   reflectorPlane,
             // );
 
-            // const clipPlane = new Cesium.Cartesian4(
+            // const plane = new Cesium.Cartesian4(
             //   reflectorPlane.normal.x,
             //   reflectorPlane.normal.y,
             //   reflectorPlane.normal.z,
             //   reflectorPlane.distance,
             // );
+
+            // // 求投影矩阵逆
+            // const invProjection = Cesium.Matrix4.inverse(
+            //   modifiedProjection,
+            //   new Cesium.Matrix4(),
+            // );
+            // // 裁剪空间q
             // const q = new Cesium.Cartesian4();
-            // q.x =
-            //   (Math.sign(clipPlane.x) + modifiedProjection[8]) /
-            //   modifiedProjection[0];
-            // q.y =
-            //   (Math.sign(clipPlane.y) + modifiedProjection[9]) /
-            //   modifiedProjection[5];
-            // q.z = -1.0;
-            // q.w = (1.0 + modifiedProjection[10]) / modifiedProjection[14];
+            // q.x = Math.sign(plane.x);
+            // q.y = 1;
+            // q.z = Math.sign(plane.z);
+            // q.w = 1;
+            // // 转到相机坐标系
+            // Cesium.Matrix4.multiplyByVector(invProjection, q, q);
 
             // // Calculate the scaled plane vector
             // Cesium.Cartesian4.multiplyByScalar(
-            //   clipPlane,
-            //   2.0 / Cesium.Cartesian4.dot(clipPlane, q),
-            //   clipPlane,
+            //   plane,
+            //   (-2.0 * q.z) / Cesium.Cartesian4.dot(plane, q),
+            //   plane,
             // );
 
             // // Replacing the third row of the projection matrix
-            // const clipBias = 0;
-            // modifiedProjection[2] = clipPlane.x;
-            // modifiedProjection[6] = clipPlane.y;
-            // modifiedProjection[10] = clipPlane.z + 1.0 - clipBias;
-            // modifiedProjection[14] = clipPlane.w;
+            // modifiedProjection[1] = plane.x;
+            // modifiedProjection[5] = plane.y;
+            // modifiedProjection[9] = plane.z + 1.0;
+            // modifiedProjection[13] = plane.w;
+            /** 优化投影矩阵，仅渲染反射平面之上的物体 - end */
 
             scene._defaultView = this.view2;
             scene.camera = this.camera2;
@@ -295,6 +324,7 @@
             const frameState = scene.frameState;
             frameState.passes.offscreen = true;
             frameState.camera = this.camera2;
+            const globeVisible = scene.globe.show;
             scene.globe.show = false;
 
             const passState = this.view2.passState;
@@ -344,8 +374,8 @@
 
             scene._defaultView = this.originView;
             scene.camera = this.camera;
-            modifiedProjection = undefined;
-            scene.globe.show = true;
+            // modifiedProjection = undefined;
+            scene.globe.show = globeVisible;
           });
 
           this.initialized = true;
@@ -396,6 +426,7 @@
                 vec2 st = v_st.xy;
 
                 out_FragColor = textureProj(u_reflectorTexture, v_st);
+                out_FragColor.a = 0.8;
               }
             `,
           });
@@ -429,8 +460,9 @@
         neargroundSkyBox: false,
       });
       window._viewer = viewer;
-      // viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
+      viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
       viewer.scene.globe.depthTestAgainstTerrain = true;
+      // viewer.scene.globe.show = false;
 
       viewer.camera.setView({
         destination: Cesium.Cartesian3.fromDegrees(120.25, 30.25, 1000),
@@ -459,53 +491,15 @@
           ]),
         ),
       });
+      const center = Cesium.Cartesian3.fromDegrees(120.25, 30.25, height);
 
-      const reflector = new Reflector(viewer, polygon, height);
+      const reflector = new Reflector(viewer, polygon, height, center);
       window._reflector = reflector;
       viewer.scene.primitives.add(reflector);
 
       Cesium.createOsmBuildingsAsync().then((tileset) => {
         viewer.scene.primitives.add(tileset);
       });
-
-      function drawAxes(position, direction, up) {
-        viewer.entities.add({
-          polyline: {
-            positions: [
-              position.clone(),
-              Cesium.Cartesian3.add(
-                position,
-                Cesium.Cartesian3.multiplyByScalar(
-                  direction,
-                  100,
-                  new Cesium.Cartesian3(),
-                ),
-                new Cesium.Cartesian3(),
-              ),
-            ],
-            width: 2,
-            material: Cesium.Color.RED,
-          },
-        });
-        viewer.entities.add({
-          polyline: {
-            positions: [
-              position.clone(),
-              Cesium.Cartesian3.add(
-                position,
-                Cesium.Cartesian3.multiplyByScalar(
-                  up,
-                  100,
-                  new Cesium.Cartesian3(),
-                ),
-                new Cesium.Cartesian3(),
-              ),
-            ],
-            width: 2,
-            material: Cesium.Color.BLUE,
-          },
-        });
-      }
     </script>
   </body>
 </html>

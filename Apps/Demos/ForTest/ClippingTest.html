@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>裁剪测试</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      button {
+        position: absolute;
+        z-index: 99;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      // import IndexedDbCache from "../Lib/indexDbCache.js";
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.Cesium = Cesium;
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
+
+      let modifiedProjection;
+
+      // 强制更改投影矩阵
+      const originalUniformStateUpdateFrustum =
+        Cesium.UniformState.prototype.updateFrustum;
+      Cesium.UniformState.prototype.updateFrustum = function (frustum) {
+        originalUniformStateUpdateFrustum.call(this, frustum);
+        if (modifiedProjection) {
+          Cesium.Matrix4.clone(modifiedProjection, this._projection);
+
+          this._inverseProjectionDirty = true;
+          this._viewProjectionDirty = true;
+          this._inverseViewProjectionDirty = true;
+          this._modelViewProjectionDirty = true;
+          this._modelViewProjectionRelativeToEyeDirty = true;
+
+          Cesium.Matrix4.clone(modifiedProjection, this._infiniteProjection);
+          this._modelViewInfiniteProjectionDirty = true;
+        }
+      };
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        neargroundSkyBox: false,
+      });
+      window._viewer = viewer;
+      viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+      // viewer.scene.globe.show = false;
+
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(120.25, 30.25, 1000),
+        orientation: {
+          heading: 0,
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0,
+        },
+      });
+      viewer.entities.add({
+        name: "Blue box",
+        position: Cesium.Cartesian3.fromDegrees(120.25, 30.25, 0),
+        box: {
+          dimensions: new Cesium.Cartesian3(400.0, 300.0, 500.0),
+          material: Cesium.Color.BLUE,
+        },
+      });
+
+      const height = 50;
+      const center = Cesium.Cartesian3.fromDegrees(120.25, 30.25, height);
+
+      viewer.scene.preRender.addEventListener((scene, time) => {
+        modifiedProjection = scene.camera.frustum.projectionMatrix.clone();
+
+        /** 修改投影矩阵，裁剪平面下的物体 */
+        // 平面
+        const reflectorPlane = new Cesium.Plane(
+          new Cesium.Cartesian3(0, 0, 1),
+          0,
+        );
+        Cesium.Plane.transform(
+          reflectorPlane,
+          Cesium.Transforms.eastNorthUpToFixedFrame(center),
+          reflectorPlane,
+        );
+
+        // 平面转换到相机坐标系
+        Cesium.Plane.transform(
+          reflectorPlane,
+          scene.camera.viewMatrix,
+          reflectorPlane,
+        );
+
+        const plane = new Cesium.Cartesian4(
+          reflectorPlane.normal.x,
+          reflectorPlane.normal.y,
+          reflectorPlane.normal.z,
+          reflectorPlane.distance,
+        );
+
+        // 求投影矩阵逆
+        const invProjection = Cesium.Matrix4.inverse(
+          modifiedProjection,
+          new Cesium.Matrix4(),
+        );
+        // 裁剪空间q
+        const q = new Cesium.Cartesian4();
+        q.x = Math.sign(plane.x);
+        q.y = 1;
+        q.z = Math.sign(plane.z);
+        q.w = 1;
+        // 转到相机坐标系
+        Cesium.Matrix4.multiplyByVector(invProjection, q, q);
+
+        // Calculate the scaled plane vector
+        Cesium.Cartesian4.multiplyByScalar(
+          plane,
+          (-2.0 * q.z) / Cesium.Cartesian4.dot(plane, q),
+          plane,
+        );
+
+        // 替换投影矩阵第二行
+        modifiedProjection[2] = plane.x;
+        modifiedProjection[6] = plane.y;
+        modifiedProjection[10] = plane.z + 1.0;
+        modifiedProjection[14] = plane.w;
+      });
+
+      Cesium.createOsmBuildingsAsync().then((tileset) => {
+        viewer.scene.primitives.add(tileset);
+      });
+    </script>
+  </body>
+</html>
