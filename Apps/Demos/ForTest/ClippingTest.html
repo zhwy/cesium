@@ -127,8 +127,8 @@
         // 裁剪空间q
         const q = new Cesium.Cartesian4();
         q.x = Math.sign(plane.x);
-        q.y = 1;
-        q.z = Math.sign(plane.z);
+        q.y = Math.sign(plane.y);
+        q.z = 1;
         q.w = 1;
         // 转到相机坐标系
         Cesium.Matrix4.multiplyByVector(invProjection, q, q);
@@ -140,7 +140,7 @@
           plane,
         );
 
-        // 替换投影矩阵第二行
+        // 替换投影矩阵第三行
         modifiedProjection[2] = plane.x;
         modifiedProjection[6] = plane.y;
         modifiedProjection[10] = plane.z + 1.0;
