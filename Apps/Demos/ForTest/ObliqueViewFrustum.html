@@ -10,7 +10,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>裁剪测试</title>
+    <title>不对称视锥-修改近平面</title>
     <style>
       @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -41,27 +41,6 @@
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
-      let modifiedProjection;
-
-      // 强制更改投影矩阵
-      const originalUniformStateUpdateFrustum =
-        Cesium.UniformState.prototype.updateFrustum;
-      Cesium.UniformState.prototype.updateFrustum = function (frustum) {
-        originalUniformStateUpdateFrustum.call(this, frustum);
-        if (modifiedProjection) {
-          Cesium.Matrix4.clone(modifiedProjection, this._projection);
-
-          this._inverseProjectionDirty = true;
-          this._viewProjectionDirty = true;
-          this._inverseViewProjectionDirty = true;
-          this._modelViewProjectionDirty = true;
-          this._modelViewProjectionRelativeToEyeDirty = true;
-
-          Cesium.Matrix4.clone(modifiedProjection, this._infiniteProjection);
-          this._modelViewInfiniteProjectionDirty = true;
-        }
-      };
-
       const viewer = new Cesium.Viewer("cesiumContainer", {
         neargroundSkyBox: false,
       });
@@ -69,6 +48,7 @@
       viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
       viewer.scene.globe.depthTestAgainstTerrain = true;
       // viewer.scene.globe.show = false;
+      viewer.scene.logarithmicDepthBuffer = false; // 需要禁用对数深度缓冲区，修改投影矩阵才能生效
 
       viewer.camera.setView({
         destination: Cesium.Cartesian3.fromDegrees(120.25, 30.25, 1000),
@@ -89,11 +69,56 @@
 
       const height = 50;
       const center = Cesium.Cartesian3.fromDegrees(120.25, 30.25, height);
+      viewer.entities.add({
+        position: center,
+        plane: {
+          dimensions: new Cesium.Cartesian2(1000, 1000),
+          material: new Cesium.GridMaterialProperty({
+            color: Cesium.Color.WHITE,
+            cellAlpha: 0.1,
+            lineCount: new Cesium.Cartesian2(8, 8),
+          }),
+          plane: new Cesium.CallbackProperty(() => {
+            return new Cesium.Plane(new Cesium.Cartesian3(0, 0, 1), 0);
+          }, false),
+        },
+      });
+
+      let modifiedProjection;
+      // 强制更改投影矩阵
+      const originalUniformStateUpdateFrustum =
+        viewer.scene.context.uniformState.updateFrustum;
+      viewer.scene.context.uniformState.updateFrustum = function (frustum) {
+        Cesium.Matrix4.clone(modifiedProjection, frustum.projectionMatrix);
+
+        originalUniformStateUpdateFrustum.call(this, frustum);
+      };
 
       viewer.scene.preRender.addEventListener((scene, time) => {
-        modifiedProjection = scene.camera.frustum.projectionMatrix.clone();
+        const { top, bottom, right, left, near, far } =
+          scene.camera.frustum._offCenterFrustum;
+        if (
+          !Cesium.defined(top) ||
+          !Cesium.defined(bottom) ||
+          !Cesium.defined(right) ||
+          !Cesium.defined(left) ||
+          !Cesium.defined(near) ||
+          !Cesium.defined(far)
+        ) {
+          return;
+        }
 
-        /** 修改投影矩阵，裁剪平面下的物体 */
+        modifiedProjection = Cesium.Matrix4.computePerspectiveOffCenter(
+          left,
+          right,
+          bottom,
+          top,
+          near,
+          far,
+          new Cesium.Matrix4(),
+        );
+
+        /** 修改投影矩阵，裁剪平面下的物体 http://www.terathon.com/lengyel/Lengyel-Oblique.pdf */
         // 平面
         const reflectorPlane = new Cesium.Plane(
           new Cesium.Cartesian3(0, 0, 1),
@@ -118,6 +143,7 @@
           reflectorPlane.normal.z,
           reflectorPlane.distance,
         );
+        // const plane = new Cesium.Cartesian4(0, 0, 1, 1000);
 
         // 求投影矩阵逆
         const invProjection = Cesium.Matrix4.inverse(

@@ -43,33 +43,13 @@
 
       let modifiedProjection;
 
-      // 强制更改投影矩阵
-      const originalUniformStateUpdateFrustum =
-        Cesium.UniformState.prototype.updateFrustum;
-      Cesium.UniformState.prototype.updateFrustum = function (frustum) {
-        originalUniformStateUpdateFrustum.call(this, frustum);
-        if (modifiedProjection) {
-          Cesium.Matrix4.clone(modifiedProjection, this._projection);
-
-          this._inverseProjectionDirty = true;
-          this._viewProjectionDirty = true;
-          this._inverseViewProjectionDirty = true;
-          this._modelViewProjectionDirty = true;
-          this._modelViewProjectionRelativeToEyeDirty = true;
-
-          Cesium.Matrix4.clone(modifiedProjection, this._infiniteProjection);
-          this._modelViewInfiniteProjectionDirty = true;
-        }
-      };
-
       class Reflector {
-        constructor(viewer, polygon, planeHeight, center) {
+        constructor(viewer, polygon, planeHeight) {
           this.viewer = viewer;
           this.scene = viewer.scene;
           this.camera = viewer.camera;
           this.polygon = polygon;
           this.planeHeight = planeHeight;
-          this.center = center;
 
           this.camera2 = new Cesium.Camera(viewer.scene);
           this.camera2.name = "offscreen";
@@ -172,10 +152,23 @@
           this.drawCommand = this._createDrawCommands(context);
 
           // this.scene.postUpdate.addEventListener((scene, time) => {});
+          // 强制更改投影矩阵
+          const originalUniformStateUpdateFrustum =
+            context.uniformState.updateFrustum;
+          context.uniformState.updateFrustum = function (frustum) {
+            if (modifiedProjection) {
+              Cesium.Matrix4.clone(
+                modifiedProjection,
+                frustum.projectionMatrix,
+              );
+            }
+
+            originalUniformStateUpdateFrustum.call(this, frustum);
+          };
 
           this.scene.preRender.addEventListener((scene, time) => {
             const planeNormal = Cesium.Cartesian3.normalize(
-              this.center,
+              this.camera.positionWC,
               new Cesium.Cartesian3(),
             );
             const cameraToPlaneDistance =
@@ -207,7 +200,7 @@
               new Cesium.Cartesian3(),
             );
 
-            const right = Cesium.Cartesian3.cross(
+            const rightDir = Cesium.Cartesian3.cross(
               reflection,
               Cesium.Cartesian3.normalize(
                 reflectorPosition,
@@ -215,10 +208,10 @@
               ),
               new Cesium.Cartesian3(),
             );
-            Cesium.Cartesian3.normalize(right, right);
+            Cesium.Cartesian3.normalize(rightDir, rightDir);
 
             const up = Cesium.Cartesian3.cross(
-              right,
+              rightDir,
               reflection,
               new Cesium.Cartesian3(),
             );
@@ -227,12 +220,6 @@
             this.camera2.position = reflectorPosition;
             this.camera2.direction = reflection;
             this.camera2.up = up;
-
-            // this.camera2.up = this.camera.up.clone();
-            // this.camera2.direction = this.camera.direction.clone();
-            // this.camera2.position = this.camera.position.clone();
-
-            modifiedProjection = this.camera2.frustum.projectionMatrix.clone();
 
             // 计算纹理矩阵
             const textureMatrix = Cesium.Matrix4.fromArray([
@@ -245,10 +232,9 @@
               //
               0.5, 0.5, 0.5, 1.0,
             ]);
-            // const textureMatrix = Cesium.Matrix4.IDENTITY.clone();
             Cesium.Matrix4.multiply(
               textureMatrix,
-              modifiedProjection,
+              this.camera2.frustum.projectionMatrix,
               textureMatrix,
             );
             Cesium.Matrix4.multiply(
@@ -258,66 +244,78 @@
             );
             this.textureMatrix = textureMatrix;
 
-            /** 优化投影矩阵，仅渲染反射平面之上的物体 */
-            // // 平面上某点
-            // // const pointOnPlane = Cesium.Cartesian3.fromRadians(
-            // //   this.camera.positionCartographic.longitude,
-            // //   this.camera.positionCartographic.latitude,
-            // //   this.planeHeight,
-            // // );
-            // // 反射平面
-            // const reflectorPlane = new Cesium.Plane(
-            //   new Cesium.Cartesian3(0, 0, 1),
-            //   0,
-            // );
-            // Cesium.Plane.transform(
-            //   reflectorPlane,
-            //   Cesium.Transforms.eastNorthUpToFixedFrame(this.center),
-            //   reflectorPlane,
-            // );
+            /** 优化投影矩阵，仅渲染反射平面之上的物体 http://www.terathon.com/lengyel/Lengyel-Oblique.pdf */
+            // 原始投影矩阵
+            const { top, bottom, right, left, near, far } =
+              scene.camera.frustum._offCenterFrustum;
+            modifiedProjection = Cesium.Matrix4.computePerspectiveOffCenter(
+              left,
+              right,
+              bottom,
+              top,
+              near,
+              far,
+              new Cesium.Matrix4(),
+            );
 
-            // // 反射平面转换到相机坐标系
-            // Cesium.Plane.transform(
-            //   reflectorPlane,
-            //   this.camera2.viewMatrix,
-            //   reflectorPlane,
-            // );
+            // 平面上某点
+            const pointOnPlane = Cesium.Cartesian3.fromRadians(
+              this.camera.positionCartographic.longitude,
+              this.camera.positionCartographic.latitude,
+              this.planeHeight,
+            );
+            // 反射平面
+            const reflectorPlane = new Cesium.Plane(
+              new Cesium.Cartesian3(0, 0, 1),
+              0,
+            );
+            Cesium.Plane.transform(
+              reflectorPlane,
+              Cesium.Transforms.eastNorthUpToFixedFrame(pointOnPlane),
+              reflectorPlane,
+            );
 
-            // const plane = new Cesium.Cartesian4(
-            //   reflectorPlane.normal.x,
-            //   reflectorPlane.normal.y,
-            //   reflectorPlane.normal.z,
-            //   reflectorPlane.distance,
-            // );
+            // 反射平面转换到相机坐标系
+            Cesium.Plane.transform(
+              reflectorPlane,
+              this.camera2.viewMatrix,
+              reflectorPlane,
+            );
 
-            // // 求投影矩阵逆
-            // const invProjection = Cesium.Matrix4.inverse(
-            //   modifiedProjection,
-            //   new Cesium.Matrix4(),
-            // );
-            // // 裁剪空间q
-            // const q = new Cesium.Cartesian4();
-            // q.x = Math.sign(plane.x);
-            // q.y = 1;
-            // q.z = Math.sign(plane.z);
-            // q.w = 1;
-            // // 转到相机坐标系
-            // Cesium.Matrix4.multiplyByVector(invProjection, q, q);
+            const plane = new Cesium.Cartesian4(
+              reflectorPlane.normal.x,
+              reflectorPlane.normal.y,
+              reflectorPlane.normal.z,
+              reflectorPlane.distance,
+            );
 
-            // // Calculate the scaled plane vector
-            // Cesium.Cartesian4.multiplyByScalar(
-            //   plane,
-            //   (-2.0 * q.z) / Cesium.Cartesian4.dot(plane, q),
-            //   plane,
-            // );
+            // 这里参考threejs中的反射，减少逆矩阵运算
+            // 裁剪空间q
+            const q = new Cesium.Cartesian4();
+            q.x =
+              (Math.sign(plane.x) + modifiedProjection[8]) /
+              modifiedProjection[0];
+            q.y =
+              (Math.sign(plane.y) + modifiedProjection[9]) /
+              modifiedProjection[5];
+            q.z = -1;
+            q.w = (1 + modifiedProjection[10]) / modifiedProjection[14];
 
-            // // Replacing the third row of the projection matrix
-            // modifiedProjection[1] = plane.x;
-            // modifiedProjection[5] = plane.y;
-            // modifiedProjection[9] = plane.z + 1.0;
-            // modifiedProjection[13] = plane.w;
+            // Calculate the scaled plane vector
+            Cesium.Cartesian4.multiplyByScalar(
+              plane,
+              2 / Cesium.Cartesian4.dot(plane, q),
+              plane,
+            );
+
+            // 替换矩阵第三行
+            modifiedProjection[2] = plane.x;
+            modifiedProjection[6] = plane.y;
+            modifiedProjection[10] = plane.z + 1.0;
+            modifiedProjection[14] = plane.w;
             /** 优化投影矩阵，仅渲染反射平面之上的物体 - end */
 
+            scene.logarithmicDepthBuffer = false; // 需要禁用对数深度缓冲区，修改投影矩阵才能生效
             scene._defaultView = this.view2;
             scene.camera = this.camera2;
 
@@ -330,7 +328,7 @@
             const passState = this.view2.passState;
 
             scene.updateFrameState();
-            frameState.passes.offscreen = true;
+            frameState.passes.offscreen = true; // updateFrameState会重置passes，这里需要再设置一次
             frameState.passes.render = true;
             frameState.passes.postProcess = scene.postProcessStages.hasSelected;
             frameState.tilesetPassState = new Cesium.Cesium3DTilePassState({
@@ -347,9 +345,9 @@
             scene._computeCommandList.length = 0;
             scene._overlayCommandList.length = 0;
 
-            if (scene.globe) {
-              scene.globe.beginFrame(scene._frameState);
-            }
+            // if (scene.globe) {
+            //   scene.globe.beginFrame(scene._frameState);
+            // }
             scene.updateEnvironment();
             scene.updateAndExecuteCommands(
               passState,
@@ -362,20 +360,21 @@
             for (let i = 0; i < commandList.length; ++i) {
               commandList[i].execute(scene.context, passState);
             }
-            if (scene.globe) {
-              scene.globe.endFrame(scene._frameState);
+            // if (scene.globe) {
+            //   scene.globe.endFrame(scene._frameState);
 
-              if (!scene.globe.tilesLoaded) {
-                scene._renderRequested = true;
-              }
-            }
+            //   if (!scene.globe.tilesLoaded) {
+            //     scene._renderRequested = true;
+            //   }
+            // }
 
             scene.context.endFrame();
 
             scene._defaultView = this.originView;
             scene.camera = this.camera;
-            // modifiedProjection = undefined;
+            modifiedProjection = undefined;
             scene.globe.show = globeVisible;
+            scene.logarithmicDepthBuffer = true;
           });
 
           this.initialized = true;
@@ -426,7 +425,7 @@
                 vec2 st = v_st.xy;
 
                 out_FragColor = textureProj(u_reflectorTexture, v_st);
-                out_FragColor.a = 0.8;
+                // out_FragColor.a = 0.8;
               }
             `,
           });
@@ -491,9 +490,8 @@
           ]),
         ),
       });
-      const center = Cesium.Cartesian3.fromDegrees(120.25, 30.25, height);
 
-      const reflector = new Reflector(viewer, polygon, height, center);
+      const reflector = new Reflector(viewer, polygon, height);
       window._reflector = reflector;
       viewer.scene.primitives.add(reflector);
 
