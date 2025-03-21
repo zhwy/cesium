@@ -203,22 +203,25 @@ class SimplexNoise {
     const gi2 = this.perm[ii + 1 + this.perm[jj + 1]] % 12;
     // Calculate the contribution from the three corners
     let t0 = 0.5 - x0 * x0 - y0 * y0;
-    if (t0 < 0) n0 = 0.0;
-    else {
+    if (t0 < 0) {
+      n0 = 0.0;
+    } else {
       t0 *= t0;
       n0 = t0 * t0 * this.dot(this.grad3[gi0], x0, y0); // (x,y) of grad3 used for 2D gradient
     }
 
     let t1 = 0.5 - x1 * x1 - y1 * y1;
-    if (t1 < 0) n1 = 0.0;
-    else {
+    if (t1 < 0) {
+      n1 = 0.0;
+    } else {
       t1 *= t1;
       n1 = t1 * t1 * this.dot(this.grad3[gi1], x1, y1);
     }
 
     let t2 = 0.5 - x2 * x2 - y2 * y2;
-    if (t2 < 0) n2 = 0.0;
-    else {
+    if (t2 < 0) {
+      n2 = 0.0;
+    } else {
       t2 *= t2;
       n2 = t2 * t2 * this.dot(this.grad3[gi2], x2, y2);
     }
@@ -260,60 +263,55 @@ class SimplexNoise {
     let k2;
     if (x0 >= y0) {
       if (y0 >= z0) {
-        i1 = 1;
-        j1 = 0;
-        k1 = 0;
-        i2 = 1;
-        j2 = 1;
-        k2 = 0;
-
         // X Y Z order
+        i1 = 1;
+        j1 = 0;
+        k1 = 0;
+        i2 = 1;
+        j2 = 1;
+        k2 = 0;
       } else if (x0 >= z0) {
+        // X Z Y order
         i1 = 1;
         j1 = 0;
         k1 = 0;
         i2 = 1;
         j2 = 0;
         k2 = 1;
-
-        // X Z Y order
       } else {
+        // Z X Y order
         i1 = 0;
         j1 = 0;
         k1 = 1;
         i2 = 1;
         j2 = 0;
         k2 = 1;
-      } // Z X Y order
-    } else {
+      }
       // x0<y0
-
-      if (y0 < z0) {
-        i1 = 0;
-        j1 = 0;
-        k1 = 1;
-        i2 = 0;
-        j2 = 1;
-        k2 = 1;
-
-        // Z Y X order
-      } else if (x0 < z0) {
-        i1 = 0;
-        j1 = 1;
-        k1 = 0;
-        i2 = 0;
-        j2 = 1;
-        k2 = 1;
-
-        // Y Z X order
-      } else {
-        i1 = 0;
-        j1 = 1;
-        k1 = 0;
-        i2 = 1;
-        j2 = 1;
-        k2 = 0;
-      } // Y X Z order
+    } else if (y0 < z0) {
+      // Z Y X order
+      i1 = 0;
+      j1 = 0;
+      k1 = 1;
+      i2 = 0;
+      j2 = 1;
+      k2 = 1;
+    } else if (x0 < z0) {
+      // Y Z X order
+      i1 = 0;
+      j1 = 1;
+      k1 = 0;
+      i2 = 0;
+      j2 = 1;
+      k2 = 1;
+    } else {
+      // Y X Z order
+      i1 = 0;
+      j1 = 1;
+      k1 = 0;
+      i2 = 1;
+      j2 = 1;
+      k2 = 0;
     }
 
     // A step of (1,0,0) in (i,j,k) means a step of (1-c,-c,-c) in (x,y,z),
@@ -341,29 +339,33 @@ class SimplexNoise {
     const gi3 = this.perm[ii + 1 + this.perm[jj + 1 + this.perm[kk + 1]]] % 12;
     // Calculate the contribution from the four corners
     let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
-    if (t0 < 0) n0 = 0.0;
-    else {
+    if (t0 < 0) {
+      n0 = 0.0;
+    } else {
       t0 *= t0;
       n0 = t0 * t0 * this.dot3(this.grad3[gi0], x0, y0, z0);
     }
 
     let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
-    if (t1 < 0) n1 = 0.0;
-    else {
+    if (t1 < 0) {
+      n1 = 0.0;
+    } else {
       t1 *= t1;
       n1 = t1 * t1 * this.dot3(this.grad3[gi1], x1, y1, z1);
     }
 
     let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
-    if (t2 < 0) n2 = 0.0;
-    else {
+    if (t2 < 0) {
+      n2 = 0.0;
+    } else {
       t2 *= t2;
       n2 = t2 * t2 * this.dot3(this.grad3[gi2], x2, y2, z2);
     }
 
     let t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
-    if (t3 < 0) n3 = 0.0;
-    else {
+    if (t3 < 0) {
+      n3 = 0.0;
+    } else {
       t3 *= t3;
       n3 = t3 * t3 * this.dot3(this.grad3[gi3], x3, y3, z3);
     }
@@ -471,36 +473,41 @@ class SimplexNoise {
     const gi4 = perm[ii + 1 + perm[jj + 1 + perm[kk + 1 + perm[ll + 1]]]] % 32;
     // Calculate the contribution from the five corners
     let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0 - w0 * w0;
-    if (t0 < 0) n0 = 0.0;
-    else {
+    if (t0 < 0) {
+      n0 = 0.0;
+    } else {
       t0 *= t0;
       n0 = t0 * t0 * this.dot4(grad4[gi0], x0, y0, z0, w0);
     }
 
     let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1 - w1 * w1;
-    if (t1 < 0) n1 = 0.0;
-    else {
+    if (t1 < 0) {
+      n1 = 0.0;
+    } else {
       t1 *= t1;
       n1 = t1 * t1 * this.dot4(grad4[gi1], x1, y1, z1, w1);
     }
 
     let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2 - w2 * w2;
-    if (t2 < 0) n2 = 0.0;
-    else {
+    if (t2 < 0) {
+      n2 = 0.0;
+    } else {
       t2 *= t2;
       n2 = t2 * t2 * this.dot4(grad4[gi2], x2, y2, z2, w2);
     }
 
     let t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3 - w3 * w3;
-    if (t3 < 0) n3 = 0.0;
-    else {
+    if (t3 < 0) {
+      n3 = 0.0;
+    } else {
       t3 *= t3;
       n3 = t3 * t3 * this.dot4(grad4[gi3], x3, y3, z3, w3);
     }
 
     let t4 = 0.6 - x4 * x4 - y4 * y4 - z4 * z4 - w4 * w4;
-    if (t4 < 0) n4 = 0.0;
-    else {
+    if (t4 < 0) {
+      n4 = 0.0;
+    } else {
       t4 *= t4;
       n4 = t4 * t4 * this.dot4(grad4[gi4], x4, y4, z4, w4);
     }
