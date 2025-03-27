@@ -3,16 +3,15 @@ import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 let modifiedProjection; // 会在多个实例中共享，因此场景中只能有一个反射平面
 
 export default class Reflector {
-  constructor(viewer, polygon, planeHeight) {
+  constructor({ viewer, height }) {
     this.viewer = viewer;
     this.scene = viewer.scene;
     this.camera = viewer.camera;
-    this.polygon = polygon;
-    this.planeHeight = planeHeight;
+    this.height = height;
 
     this.camera2 = new Cesium.Camera(viewer.scene);
-    this.encodedCamera2Position = new Cesium.EncodedCartesian3();
-    this.camera2.name = "offscreen";
+    this.encodedReflectorCameraPosition = new Cesium.EncodedCartesian3();
+    this.camera2.name = "reflector-camera";
     this.view2 = new Cesium.View(
       viewer.scene,
       this.camera2,
@@ -21,40 +20,17 @@ export default class Reflector {
 
     this.originView = viewer.scene._defaultView;
 
-    this.drawRenderState = Cesium.RenderState.fromCache({
-      depthTest: {
-        enabled: true,
-        // func: Cesium.DepthFunction.LESS,
-      },
-      depthMask: true,
-    });
-    this.texureRenderState = Cesium.RenderState.fromCache({
-      // depthTest: {
-      //   enabled: false,
-      // },
-      // viewport: {
-      //   x: 0,
-      //   y: 0,
-      //   width: WIDTH,
-      //   height: HEIGHT,
-      // },
-    });
+    this.texureRenderState = Cesium.RenderState.fromCache({});
 
+    this.textureMatrix = Cesium.Matrix4.IDENTITY;
     this.reflectorTexture = undefined;
     this.framebuffer = undefined;
     this.drawCommand = undefined;
-    this.textureCommand = undefined;
     this.initialized = false;
 
     this._initialize(viewer.scene.context);
   }
-  update(frameState) {
-    if (!this.initialized || frameState.passes.offscreen) {
-      return;
-    }
-
-    frameState.commandList.push(this.drawCommand);
-  }
+  update(frameState) {}
   isDestroyed() {
     return false;
   }
@@ -78,8 +54,6 @@ export default class Reflector {
     );
   }
   _initialize(context) {
-    this.textureMatrix = Cesium.Matrix4.IDENTITY;
-
     this.reflectorTexture = new Cesium.Texture({
       width: context.drawingBufferWidth,
       height: context.drawingBufferHeight,
@@ -88,11 +62,6 @@ export default class Reflector {
       pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
       flipX: false,
       flipY: false,
-      // source: {
-      //   width: 2,
-      //   height: 1,
-      //   arrayBufferView: textureTypedArray,
-      // },
     });
 
     this.framebuffer = new Cesium.Framebuffer({
@@ -109,8 +78,6 @@ export default class Reflector {
 
     this.view2.passState.framebuffer = this.framebuffer;
 
-    this.drawCommand = this._createDrawCommands(context);
-
     // 强制更改投影矩阵
     const originalUniformStateUpdateFrustum =
       context.uniformState.updateFrustum;
@@ -122,111 +89,20 @@ export default class Reflector {
       originalUniformStateUpdateFrustum.call(this, frustum);
     };
 
-    this.scene.preRender.addEventListener(() => {
-      this._preRender();
+    /** 由于Cesium的scene渲染流程特性，_overlayCommandList绑在了scene上，在渲染流程中共享，开始渲染时需清空数组，所以目前只能将反射面渲染放在场景渲染之前。 */
+    this.scene.preUpdate.addEventListener(() => {
+      this.renderTexture();
     });
 
     this.initialized = true;
   }
-  _createDrawCommands(context) {
-    const geometry = Cesium.PolygonGeometry.createGeometry(this.polygon);
-    Cesium.GeometryPipeline.encodeAttribute(
-      geometry,
-      "position",
-      "positionHigh",
-      "positionLow",
-    );
-
-    const attributeLocations =
-      Cesium.GeometryPipeline.createAttributeLocations(geometry);
-
-    const vertexArray = Cesium.VertexArray.fromGeometry({
-      context,
-      geometry,
-      attributeLocations,
-      bufferUsage: Cesium.BufferUsage.STATIC_DRAW,
-    });
-
-    const shaderProgram = Cesium.ShaderProgram.fromCache({
-      context,
-      attributeLocations,
-      vertexShaderSource: /*glsl*/ `
-        in vec3 positionHigh;
-        in vec3 positionLow;
-
-        uniform mat4 u_textureMatrix;
-        uniform vec3 u_camera2PositionHigh;
-        uniform vec3 u_camera2PositionLow;
-
-        out vec4 v_st;
-
-        // 计算反射纹理坐标，需要转到反射相机坐标系计算
-        vec4 getUV(vec3 high, vec3 low)
-        {
-            vec3 highDifference = high - u_camera2PositionHigh;
-            if (length(highDifference) == 0.0) {
-                highDifference = vec3(0);
-            }
-            vec3 lowDifference = low - u_camera2PositionLow;
-
-            return u_textureMatrix * vec4(highDifference + lowDifference, 1.0);
-        }
-
-        void main() {
-
-          vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
-          gl_Position = czm_modelViewProjectionRelativeToEye * p;
-
-          v_st = getUV(positionHigh, positionLow);
-        }
-      `,
-      fragmentShaderSource: /*glsl*/ `
-        uniform sampler2D u_reflectorTexture;
-        in vec4 v_st;
-
-        void main() {
-          out_FragColor = textureProj(u_reflectorTexture, v_st);
-          // out_FragColor.a = 0.8;
-        }
-      `,
-    });
-
-    const scope = this;
-
-    const drawCommand = new Cesium.DrawCommand({
-      modelMatrix: Cesium.Matrix4.IDENTITY,
-      pass: Cesium.Pass.TRANSLUCENT,
-      shaderProgram: shaderProgram,
-      renderState: this.drawRenderState,
-      vertexArray,
-      primitiveType: Cesium.PrimitiveType.TRIANGLES,
-      uniformMap: {
-        u_reflectorTexture() {
-          return scope.reflectorTexture;
-        },
-        u_textureMatrix() {
-          return scope.textureMatrix;
-        },
-        u_camera2PositionHigh() {
-          return scope.encodedCamera2Position.high;
-        },
-        u_camera2PositionLow() {
-          return scope.encodedCamera2Position.low;
-        },
-      },
-    });
-
-    drawCommand.name = "draw";
-
-    return drawCommand;
-  }
-  _preRender() {
+  renderTexture() {
     const planeNormal = Cesium.Cartesian3.normalize(
       this.camera.positionWC,
       new Cesium.Cartesian3(),
     );
     const cameraToPlaneDistance =
-      this.camera.positionCartographic.height - this.planeHeight;
+      this.camera.positionCartographic.height - this.height;
 
     const dotProduct = Cesium.Cartesian3.dot(
       this.camera.direction,
@@ -271,7 +147,11 @@ export default class Reflector {
     this.camera2.position = reflectorPosition;
     this.camera2.direction = reflection;
     this.camera2.up = up;
-    this.encodedCamera2Position =
+    this.camera2.right = Cesium.Cartesian3.normalize(
+      Cesium.Cartesian3.cross(reflection, up, new Cesium.Cartesian3()),
+      new Cesium.Cartesian3(),
+    );
+    this.encodedReflectorCameraPosition =
       Cesium.EncodedCartesian3.fromCartesian(reflectorPosition);
 
     // 计算纹理矩阵
@@ -319,7 +199,7 @@ export default class Reflector {
     const pointOnPlane = Cesium.Cartesian3.fromRadians(
       this.camera.positionCartographic.longitude,
       this.camera.positionCartographic.latitude,
-      this.planeHeight,
+      this.height,
     );
     // 反射平面
     const reflectorPlane = new Cesium.Plane(new Cesium.Cartesian3(0, 0, 1), 0);
@@ -368,6 +248,7 @@ export default class Reflector {
     const { scene } = this;
     scene.logarithmicDepthBuffer = false; // 需要禁用对数深度缓冲区，修改投影矩阵才能生效
     scene._defaultView = this.view2;
+    scene._view = this.view2;
     scene.camera = this.camera2;
 
     const frameState = scene.frameState;
@@ -378,6 +259,7 @@ export default class Reflector {
 
     const passState = this.view2.passState;
 
+    /** 渲染scene */
     scene.updateFrameState();
     frameState.passes.offscreen = true; // updateFrameState会重置passes，这里需要再设置一次
     frameState.passes.render = true;
@@ -399,6 +281,7 @@ export default class Reflector {
     // if (scene.globe) {
     //   scene.globe.beginFrame(scene._frameState);
     // }
+
     scene.updateEnvironment();
     scene.updateAndExecuteCommands(
       passState,
@@ -411,6 +294,7 @@ export default class Reflector {
     for (let i = 0; i < commandList.length; ++i) {
       commandList[i].execute(scene.context, passState);
     }
+
     // if (scene.globe) {
     //   scene.globe.endFrame(scene._frameState);
 
@@ -420,6 +304,7 @@ export default class Reflector {
     // }
 
     scene.context.endFrame();
+    /** 渲染scene - end */
 
     scene._defaultView = this.originView;
     scene.camera = this.camera;

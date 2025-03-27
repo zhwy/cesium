@@ -23,11 +23,6 @@
         padding: 0;
         overflow: hidden;
       }
-
-      button {
-        position: absolute;
-        z-index: 99;
-      }
     </style>
   </head>
 
@@ -35,7 +30,8 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      import Reflector from "./Reflector.js";
+      import Reflector from "../Lib/Reflector.js";
+      import CustomPrimitive from "../Lib/customPrimitive.js";
 
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
@@ -77,10 +73,82 @@
           ]),
         ),
       });
+      const geometry = Cesium.PolygonGeometry.createGeometry(polygon);
+      Cesium.GeometryPipeline.encodeAttribute(
+        geometry,
+        "position",
+        "positionHigh",
+        "positionLow",
+      );
 
-      const reflector = new Reflector(viewer, polygon, height);
+      const reflector = new Reflector({ viewer, height });
       window._reflector = reflector;
-      viewer.scene.primitives.add(reflector);
+
+      const customPrimitive = new CustomPrimitive({
+        geometry,
+        commandType: "Draw",
+        primitiveType: Cesium.PrimitiveType.TRIANGLES,
+        uniformMap: {
+          u_textureMatrix() {
+            return reflector.textureMatrix;
+          },
+          u_camera2PositionHigh() {
+            return reflector.encodedReflectorCameraPosition.high;
+          },
+          u_camera2PositionLow() {
+            return reflector.encodedReflectorCameraPosition.low;
+          },
+          u_reflectorTexture() {
+            return reflector.reflectorTexture;
+          },
+        },
+        rawRenderState: {
+          depthTest: {
+            enabled: true,
+          },
+          depthMask: true,
+        },
+        vertexShaderSource: /*glsl*/ `
+          in vec3 positionHigh;
+          in vec3 positionLow;
+
+          uniform mat4 u_textureMatrix;
+          uniform vec3 u_camera2PositionHigh;
+          uniform vec3 u_camera2PositionLow;
+
+          out vec4 v_st;
+
+          // 计算反射纹理坐标，需要转到反射相机坐标系计算
+          vec4 getUV(vec3 high, vec3 low)
+          {
+              vec3 highDifference = high - u_camera2PositionHigh;
+              if (length(highDifference) == 0.0) {
+                  highDifference = vec3(0);
+              }
+              vec3 lowDifference = low - u_camera2PositionLow;
+
+              return u_textureMatrix * vec4(highDifference + lowDifference, 1.0);
+          }
+
+          void main() {
+
+            vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
+            gl_Position = czm_modelViewProjectionRelativeToEye * p;
+
+            v_st = getUV(positionHigh, positionLow);
+          }
+        `,
+        fragmentShaderSource: /*glsl*/ `
+          uniform sampler2D u_reflectorTexture;
+          in vec4 v_st;
+
+          void main() {
+            out_FragColor = textureProj(u_reflectorTexture, v_st);
+          }
+        `,
+      });
+
+      viewer.scene.primitives.add(customPrimitive);
 
       Cesium.createOsmBuildingsAsync().then((tileset) => {
         viewer.scene.primitives.add(tileset);

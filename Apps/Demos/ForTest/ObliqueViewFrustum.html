@@ -94,7 +94,7 @@
         originalUniformStateUpdateFrustum.call(this, frustum);
       };
 
-      viewer.scene.preRender.addEventListener((scene, time) => {
+      viewer.scene.preUpdate.addEventListener((scene, time) => {
         const { top, bottom, right, left, near, far } =
           scene.camera.frustum._offCenterFrustum;
         if (
