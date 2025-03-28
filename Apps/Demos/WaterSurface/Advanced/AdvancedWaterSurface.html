@@ -128,6 +128,9 @@
               u_refractorTexture() {
                 return refractor.refractorTexture;
               },
+              u_refractorDepthTexture() {
+                return refractor.refractorDepthTexture;
+              },
             },
             rawRenderState: {
               depthTest: {
@@ -193,9 +196,11 @@
               }
             `,
             fragmentShaderSource: /*glsl*/ `
+              precision highp float;
               uniform sampler2D u_reflectorTexture;
               uniform sampler2D u_refractorTexture;
               uniform sampler2D u_normalMap;
+              uniform sampler2D u_refractorDepthTexture;
               uniform vec3 u_eyeToPoint;
 
               in vec4 v_reflectionSt;
@@ -226,6 +231,11 @@
                 diffuseColor += max(dot(czm_lightDirectionEC, surfaceNormal), 0.2) * sunColor * diffuse;
               }
 
+              float getDepth(vec4 uv) {
+                float depth = czm_unpackDepth(textureProj(u_refractorDepthTexture, uv));
+                return depth;
+              }
+
               void main() {
                 vec3 surfaceNormal = getNormal(v_uv * 200.);
                 // vec3 surfaceNormal = vec3(0., 0., 1.);
@@ -239,28 +249,32 @@
                 float spec = 2.;
                 float diffuse = 0.5;
                 sunLight(normalEC, eyeToPoint, vec3(1.), shiny, spec, diffuse, diffuseColor, specularColor);
-                vec3 waterColor = vec3(0.3, 0.5, 0.9);
+                vec3 waterColor =  vec3(1.); // vec3(0.3, 0.5, 0.9);
                 vec3 ambient = vec3(0.1);
 
                 // 反射纹理采样
                 float dist = length(v_eyePos);
                 float distortionFactor = max(dist / 100., 5.);
                 vec3 distortion = normalEC.xyz * distortionFactor;
-                vec3 reflectionSample = textureProj(u_reflectorTexture, v_reflectionSt + vec4(distortion, 0.)).xyz;
+                vec3 reflectionSample = textureProj(u_reflectorTexture, v_reflectionSt + vec4(distortion, 0.)).rgb;
                 // 反射率计算
                 float theta1 = max(dot(eyeToPoint, normalEC), 0.01);
                 float rf0 = 0.02;
                 float reflectance = rf0 + (1.0 - rf0) * pow((1.0 - theta1), 5.0);
 
                 // 折射纹理采样
-                vec3 refractionSample = textureProj(u_refractorTexture, v_refractionSt + vec4(distortion, 0.)).xyz;
+                vec3 refractionSample = textureProj(u_refractorTexture, v_refractionSt + vec4(distortion, 0.)).rgb;
+                float depth = getDepth(v_refractionSt + vec4(distortion, 0.));
+                if(depth >= 1.) depth = 0.;
+                float waterDepth = depth;
+                vec3 refractionColor = mix(refractionSample, waterColor * 0.2, waterDepth);
 
                 // 近似散射
                 vec3 scatter = theta1 * vec3(0.0, 0.1, 0.07);
 
-                vec3 finalColor = mix(waterColor * (diffuseColor + ambient + scatter) + specularColor + refractionSample, reflectionSample, clamp(reflectance, 0.01, 0.99));
+                vec3 finalColor = mix(waterColor * (diffuseColor + ambient + scatter + refractionColor) + specularColor, reflectionSample, clamp(reflectance, 0.01, 0.99));
 
-                out_FragColor = vec4(finalColor, 1.);
+                out_FragColor = vec4(vec3(refractionSample + waterDepth), 1.);
               }
             `,
           });

@@ -150,6 +150,9 @@ export default class Refractor {
   get refractorTexture() {
     return this.fbManager?.framebuffer?.getColorTexture(0);
   }
+  get refractorDepthTexture() {
+    return this.view2.globeDepth.depthStencilTexture;
+  }
   constructor({ viewer, height }) {
     this.viewer = viewer;
     this.scene = viewer.scene;
@@ -178,10 +181,11 @@ export default class Refractor {
     return false;
   }
   _initialize(context) {
+    // 不需要创建深度纹理，在Scene渲染时实际的frambuffer会由view.globeDepth.framebuffer替代
     this.fbManager = new Cesium.FramebufferManager({
-      depthStencil: true,
-      supportsDepthTexture: true,
+      createDepthAttachments: false,
     });
+    // 需要先更新一下，创建纹理
     this.fbManager.update(
       context,
       context.drawingBufferWidth,
@@ -205,6 +209,7 @@ export default class Refractor {
         scene.context.drawingBufferWidth,
         scene.context.drawingBufferHeight,
       );
+      // this.view2.sceneFramebuffer.update();
       this.renderTexture();
     });
 
@@ -324,8 +329,9 @@ export default class Refractor {
     // scene.globe.show = false;
 
     const passState = this.view2.passState;
-    passState.framebuffer = this.fbManager.framebuffer;
+    passState.framebuffer = this.fbManager.framebuffer; // 在Scene渲染时实际的frambuffer会由view.globeDepth.framebuffer替代，并最终拷贝到fbManager.framebuffer中
 
+    debugger;
     frameState.newFrame = false;
     prePassesUpdate(scene);
     updatePreloadPass(scene);
