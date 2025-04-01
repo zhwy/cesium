@@ -37,9 +37,10 @@
 
       const scene = viewer.scene;
       scene.globe.depthTestAgainstTerrain = true;
+      scene.debugShowFramesPerSecond = true;
 
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(120, 30, 100),
+        destination: Cesium.Cartesian3.fromDegrees(120, 30, 1e7),
         orientation: {
           heading: Cesium.Math.toRadians(0),
           pitch: Cesium.Math.toRadians(-90),

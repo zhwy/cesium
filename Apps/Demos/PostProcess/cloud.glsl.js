@@ -1,8 +1,8 @@
 export default /* glsl */ `
-  #define BASE_BRIGHT  vec3(1.40, 1.40, 1.40)    // 基础颜色 -- 亮部
-  #define BASE_DARK    vec3(0.00, 0.00, 0.00)    // 基础颜色 -- 暗部
-  #define LIGHT_BRIGHT vec3(1.80, 1.80, 1.80)    // 光照颜色 -- 亮部
-  #define LIGHT_DARK   vec3(0.60, 0.60, 0.61)    // 光照颜色 -- 暗部
+  #define BASE_BRIGHT  vec3(1.00, 0.93, 0.84)    // 基础颜色 -- 亮部
+  #define BASE_DARK    vec3(0.80, 0.80, 0.80)    // 基础颜色 -- 暗部
+  #define LIGHT_BRIGHT vec3(1.00, 0.60, 0.30)    // 光照颜色 -- 亮部
+  #define LIGHT_DARK   vec3(0.65, 0.65, 0.75)    // 光照颜色 -- 暗部
 
   uniform sampler2D colorTexture;
   uniform sampler2D depthTexture;
@@ -234,24 +234,36 @@ export default /* glsl */ `
   }
 
   float getDensity(AABB box, vec3 point) {
-    return fbm(point * 0.0005);
 
-    // 计算归一化高度
-    float normalizedHeight = (point.z - box.min.z) / (box.max.z - box.min.z);
+    // 计算点在box中的归一化坐标 (0,0,0)是中心，(-1,-1,-1)到(1,1,1)是边界
+    vec3 normalizedPos = 2.0 * (point - box.min) / (box.max - box.min) - 1.0;
 
-    // 使用更自然的高度分布曲线（类似高斯分布）
-    float baseHeight = 0.5; // 云层最浓密的相对高度
-    float spread = 0.4;     // 云层垂直分布范围
-    float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
+    // 计算到边界的距离因子 (值越接近1表示越靠近边界)
+    // 使用向量分量的最大绝对值作为距离指标
+    float edgeDist = max(max(abs(normalizedPos.x), abs(normalizedPos.y)), abs(normalizedPos.z));
 
-    vec2 uv = ((point - box.min) / (box.max - box.min)).xy * 0.1;
-    vec3 normalizedPoint = (point - box.min) / (box.max - box.min) * 2.0 - 1.0;
+    // 创建平滑的边缘过渡
+    // 边缘厚度参数 - 调整这个值以改变过渡带的宽度
+    float edgeThickness = 0.2;
 
-    float noise = fbm(point * 0.05);
+    // 边缘渐变因子 - 在边缘处平滑过渡到0
+    float edgeFactor = smoothstep(1.0, 1.0 - edgeThickness, edgeDist);
 
-    noise *= heightFactor;
+    // 基本噪声密度
+    float noise = fbm(point * 0.001);
 
-    if (noise < 0.2) noise = 0.;
+    // 可选：为了更自然的体积感，可以添加高度渐变
+    float heightGradient = 1.0;
+    if (true) { // 如果需要垂直分层效果，改为true
+      float normalizedHeight = (point.z - box.min.z) / (box.max.z - box.min.z);
+      float baseHeight = 0.5; // 云层最浓密的相对高度
+      float spread = 0.4;     // 云层垂直分布范围
+      heightGradient = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (1. * spread * spread));
+    }
+
+    // 应用边缘因子和高度梯度
+    noise *= edgeFactor * heightGradient;
+
     return noise;
   }
 
@@ -261,8 +273,10 @@ export default /* glsl */ `
 
     vec3 point = rayOrigin + rayDirection * intersectInfo.tNear;
     float stepLength = max(max(max(box.max.x, box.max.y), box.max.z) * 0.01, 0.01);
-    int count = min(int(length(intersectInfo.tFar - intersectInfo.tNear) / stepLength), 64);
-    stepLength = length(intersectInfo.tFar - intersectInfo.tNear) / float(count);
+    // int count = min(int(length(intersectInfo.tFar - intersectInfo.tNear) / stepLength), 64);
+    int count = 64;
+    float marchDistance = length(intersectInfo.tFar - intersectInfo.tNear);
+    stepLength = marchDistance / float(count);
 
     // ray marching
     for (int i = 0; i < count; i++) {
@@ -273,14 +287,14 @@ export default /* glsl */ `
       }
 
       float density = getDensity(box, point);
-      float scale = 0.2;
+      float scale = 1.;
       density *= scale;
 
       if (density < 0.01) continue;
 
       vec3 baseColor = mix(BASE_BRIGHT, BASE_DARK, density) * density;
       // For fast diffuse lighting 朝向光源的更亮，背向光源的更暗
-      float diffuse = clamp((density - getDensity(box, point + 0.3 * lightDir) * scale), 0.0, 1.0 );
+      float diffuse = clamp((density - getDensity(box, point + marchDistance * 0.5 * lightDir) * scale) * 0.5, 0.0, 1.0 );
       vec3 lin = LIGHT_DARK * 1.1 + 0.8 * LIGHT_BRIGHT * diffuse;
       baseColor *= lin;
 
@@ -297,21 +311,24 @@ export default /* glsl */ `
       float phase = 0.5 * (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosAngle, 1.5);
 
       // 强化前向散射 (当视线方向接近光线方向时)
-      float forwardScatter = pow(max(0.0, cosAngle), 50.0); // 后面的数值越大，透过云层的阳光越聚焦
+      float forwardScatter = pow(max(0.0, cosAngle), 150.0); // 后面的数值越大，透过云层的阳光越聚焦
 
       for (int j = 0; j < lightSteps; j++) {
-        lightSamplePoint += lightDir;
+        lightSamplePoint += lightDir * marchDistance / float(lightSteps);
         float lightSampleDensity = getDensity(box, lightSamplePoint);
         lightSampleDensity *= scale;
         lightTransmittance *= exp(-lightSampleDensity);
       }
 
-      // 应用光照 - 结合直射光和散射光，环境光
+      // 应用光照
       vec3 scatteredLight = LIGHT_BRIGHT * (phase + forwardScatter) * lightTransmittance;
-      vec3 finalColor = baseColor * (0.2 + 0.8 * lightTransmittance) + scatteredLight * 0.01;
+      vec3 finalColor = baseColor + scatteredLight * 0.02;
 
       vec4 color = vec4(finalColor, density);
       colorSum += color * (1.0 - colorSum.a);
+      if(colorSum.a >= 0.95) {
+        break;
+      }
     }
 
     return colorSum;
@@ -394,7 +411,7 @@ export default /* glsl */ `
       vec3 lightDir = czm_lightDirectionEC;
       vec4 color = getCloud(box, rayOrigin, rayDirection, intersectInfo, lightDir, offset);
 
-      out_FragColor = mix(out_FragColor, color, color.a);
+      out_FragColor = vec4(out_FragColor.xyz * (1. - color.a) + color.xyz, 1.);
     }
   }
 
