@@ -43,6 +43,9 @@
         constructor({ viewer, polygon, height }) {
           this.viewer = viewer;
           this.height = height;
+          this.frequency = 200;
+          this.amplitude = 1;
+          this.speed = 0.005;
 
           const geometry = Cesium.PolygonGeometry.createGeometry(polygon);
           Cesium.GeometryPipeline.encodeAttribute(
@@ -72,7 +75,7 @@
           });
 
           Cesium.Resource.fetchImage({
-            url: "../waterNormals.jpg",
+            url: "../waterNormals1024.jpg",
           }).then((image) => {
             this.normalMap = new Cesium.Texture({
               context: this.viewer.scene.context,
@@ -113,9 +116,6 @@
               u_normalMap() {
                 return scope.normalMap;
               },
-              u_eyeToPoint() {
-                return scope.viewer.camera.directionWC;
-              },
               u_refractorCameraPositionHigh() {
                 return refractor.encodedRefractorCameraPosition.high;
               },
@@ -130,6 +130,15 @@
               },
               u_refractorDepthTexture() {
                 return refractor.refractorDepthTexture;
+              },
+              u_frequency() {
+                return scope.frequency;
+              },
+              u_amplitude() {
+                return scope.amplitude;
+              },
+              u_speed() {
+                return scope.speed;
               },
             },
             rawRenderState: {
@@ -186,12 +195,13 @@
 
                 vec3 normal = normalize(positionHigh + positionLow); // 模型坐标中的法线
                 vec3 normalEC = normalize(czm_normal * normal); // 眼睛坐标中的法线
-                mat3 enuToEye = czm_eastNorthUpToEyeCoordinates(positionHigh, normalEC);
+                mat3 enuToEye = czm_eastNorthUpToEyeCoordinates(positionHigh + positionLow, normalEC);
 
                 v_reflectionSt = getReflectionUV(positionHigh, positionLow);
                 v_refractionSt = getRefractionUV(positionHigh, positionLow);
                 v_uv = st;
-                v_eyePos = p.xyz;
+                v_eyePos = (czm_modelViewRelativeToEye * p).xyz;
+
                 v_TBN = enuToEye;
               }
             `,
@@ -201,7 +211,10 @@
               uniform sampler2D u_refractorTexture;
               uniform sampler2D u_normalMap;
               uniform sampler2D u_refractorDepthTexture;
-              uniform vec3 u_eyeToPoint;
+
+              uniform float u_amplitude;
+              uniform float u_frequency;
+              uniform float u_speed;
 
               in vec4 v_reflectionSt;
               in vec4 v_refractionSt;
@@ -210,7 +223,8 @@
               in mat3 v_TBN;
 
               vec3 getNormal(vec2 uv) {
-                float time = czm_frameNumber * 0.005;
+                float time = czm_frameNumber * u_speed;
+                // time = 1.;
                 vec2 uv0 = (uv / 103.0) + vec2(time / 17.0, time / 29.0);
                 vec2 uv1 = uv / 107.0 - vec2(time / -19.0, time / 31.0);
                 vec2 uv2 = uv / vec2(897.0, 983.0) + vec2(time / 101.0, time / 97.0);
@@ -219,16 +233,128 @@
                   (texture(u_normalMap, uv1)) +
                   (texture(u_normalMap, uv2)) +
                   (texture(u_normalMap, uv3));
-                noise = noise * 0.5 - 1.0;
+                noise = noise * 0.5 - 1.0; // 归一化到[-1, 1]
+                noise.z = (noise.z + 1.) * 0.5; // 归一化到[0, 1]
 
-                return normalize(noise.xyz * vec3(10.0, 10.0, 1.0));
+                return normalize(noise.xyz * vec3(1., 1., 1. / u_amplitude));
               }
 
-              void sunLight(const vec3 surfaceNormal, const vec3 eyeToPoint, const vec3 sunColor, float shiny, float spec, float diffuse, inout vec3 diffuseColor, inout vec3 specularColor) {
-                vec3 reflection = normalize(reflect(-czm_lightDirectionEC, surfaceNormal));
-                float direction = max(0.0, dot(eyeToPoint, reflection));
-                specularColor += pow(direction, shiny) * sunColor * spec;
-                diffuseColor += max(dot(czm_lightDirectionEC, surfaceNormal), 0.2) * sunColor * diffuse;
+              // 添加哈希函数，用于生成伪随机数
+              float hash(vec2 p) {
+                p = 50.0 * fract(p * 0.3183099);
+                return fract(p.x * p.y * (p.x + p.y));
+              }
+
+              // 噪声函数
+              float noise(vec2 x) {
+                vec2 p = floor(x);
+                vec2 f = fract(x);
+                f = f * f * (3.0 - 2.0 * f); // 平滑插值
+
+                float n = p.x + p.y * 57.0;
+                return mix(
+                  mix(hash(p), hash(p + vec2(1.0, 0.0)), f.x),
+                  mix(hash(p + vec2(0.0, 1.0)), hash(p + vec2(1.0, 1.0)), f.x),
+                  f.y
+                );
+              }
+
+              // FBM函数
+              float fbm(vec2 p, int octaves) {
+                float value = 0.0;
+                float amplitude = 0.5;
+                float frequency = 1.0;
+                // 循环叠加多个不同频率的噪声
+                for (int i = 0; i < octaves; i++) {
+                  value += amplitude * noise(p * frequency);
+                  amplitude *= 0.5; // 振幅衰减
+                  frequency *= 2.0; // 频率增加
+                }
+                return value;
+              }
+
+              // 计算FBM的偏导数，用于法线计算
+              vec2 fbmDerivative(vec2 p, int octaves) {
+                // 使用有限差分法计算偏导数
+                float eps = 0.01;
+                float center = fbm(p, octaves);
+                float dx = fbm(p + vec2(eps, 0.0), octaves) - center;
+                float dy = fbm(p + vec2(0.0, eps), octaves) - center;
+                return vec2(dx, dy) / eps;
+              }
+
+              vec3 getNormal2(vec2 uv) {
+                // 使用程序化噪声代替纹理采样
+                float time = czm_frameNumber * 0.05;
+
+                // 定义多个波浪参数
+                const int WAVE_COUNT = 4;
+                vec2 directions[WAVE_COUNT];
+                float frequencies[WAVE_COUNT];
+                float speeds[WAVE_COUNT];
+                float amplitudes[WAVE_COUNT];
+
+                // 设置不同方向、频率和速度的波浪
+                directions[0] = vec2(1.0, 0.6);
+                directions[1] = vec2(-0.7, 0.3);
+                directions[2] = vec2(0.5, 0.8);
+                directions[3] = vec2(0.2, -0.9);
+
+                frequencies[0] = 13.0;
+                frequencies[1] = 17.0;
+                frequencies[2] = 23.0;
+                frequencies[3] = 31.0;
+
+                speeds[0] = 1.0;
+                speeds[1] = 1.3;
+                speeds[2] = 0.7;
+                speeds[3] = 1.1;
+
+                amplitudes[0] = 0.05;
+                amplitudes[1] = 0.03;
+                amplitudes[2] = 0.04;
+                amplitudes[3] = 0.02;
+
+                // 计算波形高度和偏导数
+                float height = 0.0;
+                vec2 derivative = vec2(0.0);
+
+                for(int i = 0; i < WAVE_COUNT; i++) {
+                  vec2 dir = normalize(directions[i]);
+                  float freq = frequencies[i];
+                  float speed = speeds[i];
+                  float amp = amplitudes[i];
+
+                  float phase = dot(dir, uv * freq) + time * speed;
+                  float sinVal = sin(phase);
+
+                  // 累加高度
+                  height += sinVal * amp;
+
+                  // 计算偏导数 (用于法向量)
+                  derivative += dir * freq * cos(phase) * amp;
+                }
+
+                // 添加FBM细节
+                vec2 fbmUV = uv * 40. + time;
+                vec2 fbmDeriv = fbmDerivative(fbmUV, 4) * 0.15; // 4个八度，缩放因子0.15
+
+                // 合并基础波浪和FBM细节的偏导数
+                derivative += fbmDeriv;
+
+                // 通过偏导数计算法向量
+                vec3 normal = vec3(-derivative.x, -derivative.y, 1.0);
+                return normalize(normal);
+              }
+
+              void sunLight(const vec3 surfaceNormal, const vec3 pointToEye, const vec3 sunColor, float shiny, float spec, float diffuse, inout vec3 diffuseColor, inout vec3 specularColor) {
+                vec3 lightDirection = normalize(czm_lightDirectionEC);
+                vec3 halfVector = normalize(lightDirection + pointToEye);
+                float light = dot(lightDirection, surfaceNormal);
+                diffuseColor += max(light, 0.) * sunColor * diffuse;
+                if (light > 0.) {
+                  specularColor += pow(max(0.0, dot(halfVector, surfaceNormal)), shiny) * sunColor * spec;
+                }
               }
 
               float getDepth(vec4 uv) {
@@ -237,20 +363,22 @@
               }
 
               void main() {
-                vec3 surfaceNormal = getNormal(v_uv * 200.);
-                // vec3 surfaceNormal = vec3(0., 0., 1.);
+                // TODO 优化TBN，经过差值后各分量可能不再正交
+
+                vec3 surfaceNormal = getNormal(v_uv * u_frequency);
+                // surfaceNormal = vec3(0., 0., 1.);
                 vec3 normalEC = normalize(v_TBN * surfaceNormal);
-                vec3 eyeToPoint = -normalize(v_eyePos);
+                vec3 pointToEye = -normalize(v_eyePos);
 
                 // phong lighting 参数
                 vec3 diffuseColor = vec3(0.0);
                 vec3 specularColor = vec3(0.0);
-                float shiny = 15.;
-                float spec = 2.;
+                float shiny = 20.;
+                float spec = 0.5;
                 float diffuse = 0.5;
-                sunLight(normalEC, eyeToPoint, vec3(1.), shiny, spec, diffuse, diffuseColor, specularColor);
-                vec3 waterColor =  vec3(1.); // vec3(0.3, 0.5, 0.9);
-                vec3 ambient = vec3(0.1);
+                sunLight(normalEC, pointToEye, vec3(1.), shiny, spec, diffuse, diffuseColor, specularColor);
+                vec3 waterColor = vec3(0.3, 0.5, 0.9);
+                vec3 ambient = vec3(0.3);
 
                 // 反射纹理采样
                 float dist = length(v_eyePos);
@@ -258,23 +386,29 @@
                 vec3 distortion = normalEC.xyz * distortionFactor;
                 vec3 reflectionSample = textureProj(u_reflectorTexture, v_reflectionSt + vec4(distortion, 0.)).rgb;
                 // 反射率计算
-                float theta1 = max(dot(eyeToPoint, normalEC), 0.01);
+                float theta1 = max(dot(pointToEye, normalEC), 0.01);
                 float rf0 = 0.02;
                 float reflectance = rf0 + (1.0 - rf0) * pow((1.0 - theta1), 5.0);
 
                 // 折射纹理采样
                 vec3 refractionSample = textureProj(u_refractorTexture, v_refractionSt + vec4(distortion, 0.)).rgb;
-                float depth = getDepth(v_refractionSt + vec4(distortion, 0.));
-                if(depth >= 1.) depth = 0.;
-                float waterDepth = depth;
-                vec3 refractionColor = mix(refractionSample, waterColor * 0.2, waterDepth);
+                // TODO 因为修改了近平面，深度信息不准确，获取深度需改进
+                // float depth = getDepth(v_refractionSt + vec4(distortion, 0.));
+                // float waterDepth = depth;
+                // vec3 absorbtion = min(waterDepth * vec3(2.0, 1.05, 1.0), vec3(1.));
+                // vec3 refractionColor = mix(refractionSample, waterColor * 0.2, absorbtion);
+                vec3 refractionColor = refractionSample;
 
                 // 近似散射
-                vec3 scatter = theta1 * vec3(0.0, 0.1, 0.07);
+                vec3 scatter = theta1 * vec3(0.0, 0.07, 0.1);
 
-                vec3 finalColor = mix(waterColor * (diffuseColor + ambient + scatter + refractionColor) + specularColor, reflectionSample, clamp(reflectance, 0.01, 0.99));
+                vec3 finalColor = mix(waterColor * (diffuseColor + ambient) + specularColor + scatter + refractionColor * 0.7, reflectionSample, clamp(reflectance, 0.1, 0.9));
 
-                out_FragColor = vec4(vec3(refractionSample + waterDepth), 1.);
+                out_FragColor = vec4(finalColor, 1.);
+
+                // if (out_FragColor.x == 0. && out_FragColor.y == 0. && out_FragColor.z == 0.) {
+                //   discard;
+                // }
               }
             `,
           });
@@ -307,12 +441,20 @@
       window._viewer = viewer;
       viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
       viewer.scene.globe.depthTestAgainstTerrain = true;
+      // viewer.scene.light = new Cesium.DirectionalLight({
+      //   direction: Cesium.Cartesian3.negate(
+      //     Cesium.Cartesian3.fromDegrees(120.25, 30.25, 0),
+      //     new Cesium.Cartesian3(),
+      //   ),
+      //   color: Cesium.Color.WHITE,
+      //   intensity: 1.0,
+      // });
       // viewer.scene.globe.show = false;
 
       viewer.camera.setView({
         destination: Cesium.Cartesian3.fromDegrees(120.25, 30.25, 1000),
         orientation: {
-          heading: 0,
+          heading: Math.PI,
           pitch: Cesium.Math.toRadians(-90),
           roll: 0,
         },
@@ -337,6 +479,37 @@
         ),
       });
 
+      const center = Cesium.Cartesian3.fromDegrees(120.25, 30.25, height);
+      const lightEnd = Cesium.Cartesian3.fromDegrees(
+        120.25,
+        30.25,
+        height + 500,
+      );
+      viewer.entities.add({
+        name: "light direction",
+        polyline: {
+          positions: new Cesium.CallbackProperty(() => {
+            return [center, lightEnd];
+          }, false),
+          material: Cesium.Color.RED,
+          width: 3,
+        },
+      });
+
+      // 更新光源方向
+      viewer.scene.preRender.addEventListener((scene) => {
+        const lightDirection = scene.context.uniformState.lightDirectionWC;
+        Cesium.Cartesian3.add(
+          center,
+          Cesium.Cartesian3.multiplyByScalar(
+            lightDirection,
+            500,
+            new Cesium.Cartesian3(),
+          ),
+          lightEnd,
+        );
+      });
+
       const water = new Water({
         viewer,
         height,
@@ -346,7 +519,7 @@
       viewer.scene.primitives.add(water);
 
       Cesium.createOsmBuildingsAsync().then((tileset) => {
-        // viewer.scene.primitives.add(tileset);
+        viewer.scene.primitives.add(tileset);
       });
     </script>
   </body>

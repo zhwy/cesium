@@ -69,20 +69,18 @@
 
       const height = 50;
       const center = Cesium.Cartesian3.fromDegrees(120.25, 30.25, height);
-      viewer.entities.add({
-        position: center,
-        plane: {
-          dimensions: new Cesium.Cartesian2(1000, 1000),
-          material: new Cesium.GridMaterialProperty({
-            color: Cesium.Color.WHITE,
-            cellAlpha: 0.1,
-            lineCount: new Cesium.Cartesian2(8, 8),
-          }),
-          plane: new Cesium.CallbackProperty(() => {
-            return new Cesium.Plane(new Cesium.Cartesian3(0, 0, 1), 0);
-          }, false),
-        },
-      });
+      // viewer.entities.add({
+      //   position: center,
+      //   plane: {
+      //     dimensions: new Cesium.Cartesian2(1000, 1000),
+      //     material: new Cesium.GridMaterialProperty({
+      //       color: Cesium.Color.WHITE,
+      //       cellAlpha: 0.1,
+      //       lineCount: new Cesium.Cartesian2(8, 8),
+      //     }),
+      //     plane: new Cesium.Plane(new Cesium.Cartesian3(0, 0, 1), 0),
+      //   },
+      // });
 
       let modifiedProjection;
       // 强制更改投影矩阵

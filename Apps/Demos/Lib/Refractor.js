@@ -255,13 +255,13 @@ export default class Refractor {
     // 原始投影矩阵
     const { top, bottom, right, left, near, far } =
       this.camera.frustum._offCenterFrustum;
-    modifiedProjection = Cesium.Matrix4.computePerspectiveOffCenter(
+    modifiedProjection = Cesium.Matrix4.computeInfinitePerspectiveOffCenter(
       left,
       right,
       bottom,
       top,
       near,
-      far,
+      // far,
       new Cesium.Matrix4(),
     );
 
@@ -329,9 +329,8 @@ export default class Refractor {
     // scene.globe.show = false;
 
     const passState = this.view2.passState;
-    passState.framebuffer = this.fbManager.framebuffer; // 在Scene渲染时实际的frambuffer会由view.globeDepth.framebuffer替代，并最终拷贝到fbManager.framebuffer中
+    passState.framebuffer = this.fbManager.framebuffer; // 在Scene渲染时实际的frambuffer会由view.globeDepth.framebuffer替代，并将结果拷贝到fbManager.framebuffer中
 
-    debugger;
     frameState.newFrame = false;
     prePassesUpdate(scene);
     updatePreloadPass(scene);
