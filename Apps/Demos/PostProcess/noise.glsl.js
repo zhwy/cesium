@@ -201,14 +201,26 @@ export default /* glsl */ `
   }
 
   float fbm(vec3 p) {
-    vec3 q = p + czm_frameNumber * 0.01 * vec3(1.0, 0., 0.);
+    vec3 q = p + czm_frameNumber * 0.005 * vec3(1.0, 0., 0.);
 
     float f = 0.0;
     float scale = 0.5;
     float factor = 2.02;
 
     for (int i = 0; i < 6; i++) {
-      f += scale * noise(q);
+      // 每个噪声层使用不同频率的时间变化
+      // 较高频率的噪声层变化更快，模拟小尺度细节的消散与形成
+      float phase = czm_frameNumber * 0.005 * (0.3 + float(i) * 0.15);
+
+      // 创建基于正弦和余弦的随时间变化的偏移
+      // 这样噪声采样位置会在原始位置周围微小变化
+      vec3 timeOffset = vec3(
+          sin(phase),
+          cos(phase * 1.3 + 0.5),
+          sin(phase * 0.7 + 1.2)
+      ) * 0.25;
+
+      f += scale * noise(q + timeOffset);
       q *= factor;
       factor += 0.21;
       scale *= 0.5;
@@ -230,7 +242,8 @@ export default /* glsl */ `
   }
 
   float getDensity(AABB box, vec3 point) {
-    // return fbm(point * 0.5);
+    return fbm(point * 0.5);
+    return noiseFromMap(point * 0.1);
 
     vec2 uv = ((point - box.min) / (box.max - box.min)).xy;
     return getNoiseSimple(uv * 0.1) * 2. - 1.;
@@ -241,9 +254,8 @@ export default /* glsl */ `
     vec4 colorSum = vec4(0.); // 积累的颜色
 
     vec3 point = rayOrigin + rayDirection * intersectInfo.tNear;
-    float stepLength = max(max(max(box.max.x, box.max.y), box.max.z) * 0.01, 0.01);
-    int count = min(int(length(intersectInfo.tFar - intersectInfo.tNear) / stepLength), 64);
-    stepLength = length(intersectInfo.tFar - intersectInfo.tNear) / float(count);
+    int count = 64;
+    float stepLength = length(intersectInfo.tFar - intersectInfo.tNear) / float(count);
 
     // ray marching
     for (int i = 0; i < count; i++) {
@@ -254,7 +266,7 @@ export default /* glsl */ `
       }
 
       float density = getDensity(box, point);
-      // density *= 0.2;
+      density *= 0.5;
 
       if (density < 0.01) continue;
 
@@ -344,7 +356,7 @@ export default /* glsl */ `
       vec3 lightDir = czm_lightDirectionEC;
       vec4 color = getColor(box, rayOrigin, rayDirection, intersectInfo, lightDir, offset);
 
-      out_FragColor = mix(out_FragColor, color, color.a);
+      out_FragColor = vec4(out_FragColor.rgb * (1.0 - color.a) + color.rgb, 1.);
     }
   }
 
