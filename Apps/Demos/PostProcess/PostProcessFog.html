@@ -123,10 +123,10 @@
                   float densitySum = 0.;
                   for(int i = 0; i < marchCount; i++) {
                     vec3 pointWC = getWorldCoordinateFromEye(point);
-                    point += dir * marchStep;
-                    float pixelHeight = length(pointWC - earthRadius);
+                    float pixelHeight = length(pointWC) - earthRadius;
+                    densitySum += getDensity(pixelHeight) * 0.01;
 
-                    densitySum += getDensity(pixelHeight) * 0.5;
+                    point += dir * marchStep;
 
                     if (densitySum > 0.95) {
                       break;
