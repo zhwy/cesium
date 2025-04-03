@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -32,7 +32,7 @@
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
 
@@ -54,15 +54,8 @@
         polygon: {
           hierarchy: new Cesium.PolygonHierarchy(
             Cesium.Cartesian3.fromDegreesArray([
-              120,
-              30,
-              120.1,
-              30,
-              120.1,
-              30.1,
-              120,
-              30.1,
-            ])
+              120, 30, 120.1, 30, 120.1, 30.1, 120, 30.1,
+            ]),
           ),
           perPositionHeight: false,
           height: 5000,
@@ -84,13 +77,8 @@
       const geometry = new Cesium.PolygonGeometry({
         polygonHierarchy: new Cesium.PolygonHierarchy(
           Cesium.Cartesian3.fromDegreesArray([
-            120.1,
-            30,
-            120.2,
-            30.05,
-            120.1,
-            30.1,
-          ])
+            120.1, 30, 120.2, 30.05, 120.1, 30.1,
+          ]),
         ),
         vertexFormat: Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
         perPositionHeight: false,

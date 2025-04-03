@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -31,7 +31,7 @@
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer", {});
       window._viewer = viewer;
@@ -67,7 +67,7 @@
           // 添加外环
           coordinates[0].forEach((p) => {
             textureCoordinates.positions.push(
-              new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max)
+              new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max),
             );
             hierarchy.positions.push(Cesium.Cartesian3.fromDegrees(p[0], p[1]));
           });
@@ -80,10 +80,10 @@
 
             coords.forEach((p) => {
               textureHole.positions.push(
-                new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max)
+                new Cesium.Cartesian2((p[0] - minX) / max, (p[1] - minY) / max),
               );
               tmpHierarchy.positions.push(
-                Cesium.Cartesian3.fromDegrees(p[0], p[1])
+                Cesium.Cartesian3.fromDegrees(p[0], p[1]),
               );
             });
 
@@ -103,7 +103,7 @@
                   76 / 255,
                   130 / 255,
                   150 / 255,
-                  1
+                  1,
                 ), // 67, 130, 150
                 specularIntensity: 0.5,
                 fadeFactor: 1.0,
@@ -135,7 +135,7 @@
               //   glslDatatype: "vec2",
               // }),
               asynchronous: false,
-            })
+            }),
           );
 
           // viewer.entities.add({

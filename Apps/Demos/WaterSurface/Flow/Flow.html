@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -30,7 +30,7 @@
       const dat = window.dat;
 
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto"; //设置你的ion加载Cesium资产
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
 
       function generatePolygonAndUv(coordinates, extent) {
         let west = 180;
@@ -70,17 +70,20 @@
         // 添加外环
         coordinates[0].forEach((p) => {
           textureCoordinates.positions.push(
-            new Cesium.Cartesian2((p[0] - minX) / width, (p[1] - minY) / height)
+            new Cesium.Cartesian2(
+              (p[0] - minX) / width,
+              (p[1] - minY) / height,
+            ),
           );
           polygonHierarchy.positions.push(
-            Cesium.Cartesian3.fromDegrees(p[0], p[1], p[2] || 0)
+            Cesium.Cartesian3.fromDegrees(p[0], p[1], p[2] || 0),
           );
         });
 
         // 由于纹理坐标方向在创建geometry时不能被正确处理，这里手动调整
         // 顶点坐标方向可被正确处理，外部不作操作
         let windingOrder = Cesium.PolygonPipeline.computeWindingOrder2D(
-          textureCoordinates.positions
+          textureCoordinates.positions,
         );
         if (windingOrder === Cesium.WindingOrder.CLOCKWISE) {
           textureCoordinates.positions.reverse();
@@ -96,16 +99,16 @@
             holeTextureCoordinates.positions.push(
               new Cesium.Cartesian2(
                 (p[0] - minX) / width,
-                (p[1] - minY) / height
-              )
+                (p[1] - minY) / height,
+              ),
             );
             holeHierarchy.positions.push(
-              Cesium.Cartesian3.fromDegrees(p[0], p[1], p[2] || 0)
+              Cesium.Cartesian3.fromDegrees(p[0], p[1], p[2] || 0),
             );
           });
 
           windingOrder = Cesium.PolygonPipeline.computeWindingOrder2D(
-            holeTextureCoordinates.positions
+            holeTextureCoordinates.positions,
           );
           if (windingOrder === Cesium.WindingOrder.CLOCKWISE) {
             holeTextureCoordinates.positions.reverse();
@@ -170,13 +173,13 @@
               132.823667,
               47.824889,
               132.849516,
-              47.878762
+              47.878762,
             );
             const arrayLevel = getArrayLevel(coordinates);
             if (arrayLevel === 4) {
               // 多面
               datas = coordinates.map((coords) =>
-                generatePolygonAndUv(coords, extent)
+                generatePolygonAndUv(coords, extent),
               );
             } else {
               datas = [generatePolygonAndUv(coordinates, extent)];
@@ -207,7 +210,7 @@
           destination: Cesium.Cartesian3.fromDegrees(
             132.8450468,
             47.8640525,
-            9000
+            9000,
           ),
           duration: 0,
         });
