@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>后处理高度雾</title>
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      body {
+        padding: 0;
+        margin: 0;
+      }
+      #cesiumContainer {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        nearGroundSkyBox: false,
+        shadows: false,
+      });
+
+      const scene = viewer.scene;
+      scene.globe.depthTestAgainstTerrain = true;
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(120, 30, 1500),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-45),
+          roll: 0,
+        },
+        duration: 0,
+      });
+
+      window.viewer = viewer;
+
+      let stage;
+      const processTerrainProvider = () => {
+        if (stage) {
+          scene.postProcessStages.remove(stage);
+        }
+
+        const originRequest = viewer.terrainProvider.requestTileGeometry;
+
+        let stageLoading = false;
+        const loadStage = () => {
+          if (stageLoading) {
+            return;
+          }
+          stageLoading = true;
+          setTimeout(() => {
+            stage = new Cesium.PostProcessStage({
+              id: "test",
+              uniforms: {
+                earthRadius() {
+                  const carto = viewer.camera.positionCartographic;
+                  const surfacePoint = Cesium.Cartesian3.fromRadians(
+                    carto.longitude,
+                    carto.latitude,
+                    0,
+                  );
+                  return Cesium.Cartesian3.magnitude(surfacePoint);
+                },
+                fogHeight() {
+                  return 100;
+                },
+                maxAlpha() {
+                  return 0.8;
+                },
+              },
+              fragmentShader: /* glsl */ `
+                uniform sampler2D colorTexture;
+                uniform sampler2D depthTexture;
+                uniform float earthRadius;
+                uniform float fogHeight;
+                uniform float maxAlpha;
+
+                in vec2 v_textureCoordinates;
+
+                float getDepth(vec2 uv) {
+                  return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
+                }
+
+                vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
+                  vec4 eyeCoordinate4 = czm_windowToEyeCoordinates(fragCoord, depth);
+                  return eyeCoordinate4.xyz / eyeCoordinate4.w;
+                }
+
+                vec3 getWorldCoordinateFromEye(vec3 eyeCoord) {
+                  vec4 worldCoordinate4 = czm_inverseView * vec4(eyeCoord, 1.);
+                  return worldCoordinate4.xyz / worldCoordinate4.w;
+                }
+
+                float getDensity(float pixelHeight) {
+                  float fog = clamp(1.0 - pixelHeight / fogHeight, 0.0, maxAlpha);
+                  return fog;
+                }
+
+                void main() {
+                  out_FragColor = texture(colorTexture, v_textureCoordinates);
+
+                  float depth = getDepth(v_textureCoordinates);
+                  if (depth == 0.) depth = 1.; // 天空深度调整
+
+                  vec3 pointEC = getEyeCoordinate(gl_FragCoord.xy, depth);
+                  vec3 dir = normalize(pointEC);
+
+                  float marchDistance = length(pointEC);
+                  int marchCount = 32;
+                  float marchStep = marchDistance / float(marchCount);
+                  vec3 point = pointEC;
+
+                  float densitySum = 0.;
+                  for(int i = 0; i < marchCount; i++) {
+                    vec3 pointWC = getWorldCoordinateFromEye(point);
+                    point += dir * marchStep;
+                    float pixelHeight = length(pointWC - earthRadius);
+
+                    densitySum += getDensity(pixelHeight) * 0.5;
+
+                    if (densitySum > 0.95) {
+                      break;
+                    }
+                  }
+
+                  out_FragColor.rgb = vec3(out_FragColor.rgb * (1.0 - densitySum) + vec3(densitySum));
+
+                }
+          `,
+            });
+            scene.postProcessStages.add(stage);
+          }, 3000);
+        };
+
+        viewer.terrainProvider.requestTileGeometry = (x, y, level, request) =>
+          new Promise((resolve, reject) => {
+            loadStage();
+            originRequest(x, y, level, request).then((geometry) => {
+              resolve(geometry);
+            }, reject);
+          });
+      };
+
+      processTerrainProvider();
+
+      // 地形变化时depthTexture会暂时取不到值
+      scene.globe.terrainProviderChanged.addEventListener(() => {
+        processTerrainProvider();
+      });
+    </script>
+  </body>
+</html>
