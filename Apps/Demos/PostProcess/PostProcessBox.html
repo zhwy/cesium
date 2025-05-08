@@ -95,245 +95,209 @@
         }),
       );
 
-      let stage;
-      const processTerrainProvider = () => {
-        if (stage) {
-          scene.postProcessStages.remove(stage);
-        }
+      const stage = new Cesium.PostProcessStage({
+        id: "test",
+        uniforms: {
+          point1High() {
+            return encodedPoint1.high;
+          },
+          point1Low() {
+            return encodedPoint1.low;
+          },
+          point2High() {
+            return encodedPoint2.high;
+          },
+          point2Low() {
+            return encodedPoint2.low;
+          },
+          transform() {
+            return transform;
+          },
+          inverseTransform() {
+            return Cesium.Matrix4.inverse(transform, new Cesium.Matrix4());
+          },
+        },
+        fragmentShader: /* glsl */ `
+          uniform sampler2D colorTexture;
+          uniform sampler2D depthTexture;
+          uniform vec3 point1High;
+          uniform vec3 point1Low;
+          uniform vec3 point2High;
+          uniform vec3 point2Low;
+          uniform mat4 transform;
+          uniform mat4 inverseTransform;
 
-        const originRequest = viewer.terrainProvider.requestTileGeometry;
+          in vec2 v_textureCoordinates;
 
-        let stageLoading = false;
-        const loadStage = () => {
-          if (stageLoading) {
-            return;
+          float getDepth(vec2 uv) {
+            return czm_unpackDepth(texture(depthTexture, uv));
           }
-          stageLoading = true;
-          setTimeout(() => {
-            stage = new Cesium.PostProcessStage({
-              id: "test",
-              uniforms: {
-                point1High() {
-                  return encodedPoint1.high;
-                },
-                point1Low() {
-                  return encodedPoint1.low;
-                },
-                point2High() {
-                  return encodedPoint2.high;
-                },
-                point2Low() {
-                  return encodedPoint2.low;
-                },
-                transform() {
-                  return transform;
-                },
-                inverseTransform() {
-                  return Cesium.Matrix4.inverse(
-                    transform,
-                    new Cesium.Matrix4(),
-                  );
-                },
-              },
-              fragmentShader: /* glsl */ `
-                uniform sampler2D colorTexture;
-                uniform sampler2D depthTexture;
-                uniform vec3 point1High;
-                uniform vec3 point1Low;
-                uniform vec3 point2High;
-                uniform vec3 point2Low;
-                uniform mat4 transform;
-                uniform mat4 inverseTransform;
 
-                in vec2 v_textureCoordinates;
+          vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
+            vec4 eyeCoordinate4 = czm_windowToEyeCoordinates(fragCoord, depth);
+            return eyeCoordinate4.xyz / eyeCoordinate4.w;
+          }
 
-                float getDepth(vec2 uv) {
-                  return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
-                }
+          struct OBB {
+            vec3 center;      // 中心点
+            vec3 halfExtents; // 半长度
+            mat3 rotation;    // 旋转矩阵
+          };
 
-                vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
-                  vec4 eyeCoordinate4 = czm_windowToEyeCoordinates(fragCoord, depth);
-                  return eyeCoordinate4.xyz / eyeCoordinate4.w;
-                }
+          struct AABB {
+            vec3 min;
+            vec3 max;
+          };
 
-                struct OBB {
-                  vec3 center;      // 中心点
-                  vec3 halfExtents; // 半长度
-                  mat3 rotation;    // 旋转矩阵
-                };
+          // 从两个对角顶点计算OBB
+          OBB createOBBFromPoints(vec3 p1, vec3 p2, mat4 toEye) {
+            OBB obb;
+            obb.center = (p1 + p2) * 0.5;
 
-                struct AABB {
-                  vec3 min;
-                  vec3 max;
-                };
+            vec4 xAxis4 = toEye * vec4(1.0, 0.0, 0.0, 0.0);
+            vec4 yAxis4 = toEye * vec4(0.0, 1.0, 0.0, 0.0);
+            vec4 zAxis4 = toEye * vec4(0.0, 0.0, 1.0, 0.0);
 
-                // 从两个对角顶点计算OBB
-                OBB createOBBFromPoints(vec3 p1, vec3 p2, mat4 toEye) {
-                  OBB obb;
-                  obb.center = (p1 + p2) * 0.5;
+            vec3 xAxis = normalize(xAxis4.xyz);
+            vec3 yAxis = normalize(yAxis4.xyz);
+            vec3 zAxis = normalize(zAxis4.xyz);
 
-                  vec4 xAxis4 = toEye * vec4(1.0, 0.0, 0.0, 0.0);
-                  vec4 yAxis4 = toEye * vec4(0.0, 1.0, 0.0, 0.0);
-                  vec4 zAxis4 = toEye * vec4(0.0, 0.0, 1.0, 0.0);
+            // 计算旋转矩阵，按列填充
+            // 最终矩阵的第一列：xAxis.x, xAxis.y, xAxis.z
+            // obb.rotation = mat3(
+            //   xAxis.x, xAxis.y, xAxis.z,
+            //   yAxis.x, yAxis.y, yAxis.z,
+            //   zAxis.x, zAxis.y, zAxis.z
+            // );
+            obb.rotation = mat3(xAxis, yAxis, zAxis);
 
-                  vec3 xAxis = normalize(xAxis4.xyz);
-                  vec3 yAxis = normalize(yAxis4.xyz);
-                  vec3 zAxis = normalize(zAxis4.xyz);
+            // 将点转换到OBB的局部坐标系
+            vec3 localP1 = transpose(obb.rotation) * (p1 - obb.center);
+            vec3 localP2 = transpose(obb.rotation) * (p2 - obb.center);
 
-                  // 计算旋转矩阵，按列填充
-                  // 最终矩阵的第一列：xAxis.x, xAxis.y, xAxis.z
-                  // obb.rotation = mat3(
-                  //   xAxis.x, xAxis.y, xAxis.z,
-                  //   yAxis.x, yAxis.y, yAxis.z,
-                  //   zAxis.x, zAxis.y, zAxis.z
-                  // );
-                  obb.rotation = mat3(xAxis, yAxis, zAxis);
+            // 计算局部空间中的半长度
+            obb.halfExtents = max(abs(localP1), abs(localP2));
 
-                  // 将点转换到OBB的局部坐标系
-                  vec3 localP1 = transpose(obb.rotation) * (p1 - obb.center);
-                  vec3 localP2 = transpose(obb.rotation) * (p2 - obb.center);
+            return obb;
+          }
 
-                  // 计算局部空间中的半长度
-                  obb.halfExtents = max(abs(localP1), abs(localP2));
+          struct IntersectInfo {
+            bool hit;
+            float tNear;
+            float tFar;
+          };
 
-                  return obb;
-                }
+          IntersectInfo isIntersect(AABB box, vec3 rayOrigin, vec3 rayDirection) {
+            IntersectInfo result;
+            result.hit = false;
 
-                struct IntersectInfo {
-                  bool hit;
-                  float tNear;
-                  float tFar;
-                };
+            vec3 dirInv;
+            // 检查每个分量是否平行
+            for (int i = 0; i < 3; i++) {
+              bool parallel = abs(rayDirection[i]) < 1e-6;
 
-                IntersectInfo isIntersect(AABB box, vec3 rayOrigin, vec3 rayDirection) {
-                  IntersectInfo result;
-                  result.hit = false;
+              // 如果平行且射线起点在边界外，立即返回不相交
+              if (parallel && (rayOrigin[i] < box.min[i] || rayOrigin[i] > box.max[i])) {
+                return result;
+              }
 
-                  vec3 dirInv;
-                  // 检查每个分量是否平行
-                  for (int i = 0; i < 3; i++) {
-                    bool parallel = abs(rayDirection[i]) < 1e-6;
+              // 安全计算倒数
+              dirInv[i] = parallel ? 1e6 : 1.0 / rayDirection[i];
+            }
 
-                    // 如果平行且射线起点在边界外，立即返回不相交
-                    if (parallel && (rayOrigin[i] < box.min[i] || rayOrigin[i] > box.max[i])) {
-                      return result;
-                    }
+            // 计算与各轴对齐平面的交点
+            vec3 t1 = (box.min - rayOrigin) * dirInv;
+            vec3 t2 = (box.max - rayOrigin) * dirInv;
 
-                    // 安全计算倒数
-                    dirInv[i] = parallel ? 1e6 : 1.0 / rayDirection[i];
-                  }
+            // 获取进入点和离开点的t值
+            vec3 tMin = min(t1, t2);
+            vec3 tMax = max(t1, t2);
 
-                  // 计算与各轴对齐平面的交点
-                  vec3 t1 = (box.min - rayOrigin) * dirInv;
-                  vec3 t2 = (box.max - rayOrigin) * dirInv;
+            // 找到最大的进入t和最小的离开t
+            float tNear = max(max(tMin.x, tMin.y), tMin.z);
+            float tFar = min(min(tMax.x, tMax.y), tMax.z);
 
-                  // 获取进入点和离开点的t值
-                  vec3 tMin = min(t1, t2);
-                  vec3 tMax = max(t1, t2);
+            // 判断是否相交
+            if (tNear <= tFar && tFar > 0.0) {
+              result.hit = true;
+              result.tNear = tNear;
+              result.tFar = tFar;
+            }
 
-                  // 找到最大的进入t和最小的离开t
-                  float tNear = max(max(tMin.x, tMin.y), tMin.z);
-                  float tFar = min(min(tMax.x, tMax.y), tMax.z);
+            return result;
+          }
 
-                  // 判断是否相交
-                  if (tNear <= tFar && tFar > 0.0) {
-                    result.hit = true;
-                    result.tNear = tNear;
-                    result.tFar = tFar;
-                  }
+          IntersectInfo isIntersect(OBB box, vec3 rayOrigin, vec3 rayDirection) {
+            // 将射线从眼睛坐标转换到OBB box的局部空间
+            vec3 localRayOrigin = transpose(box.rotation) * (rayOrigin - box.center);
+            vec3 localRayDirection = transpose(box.rotation) * normalize(rayDirection);
 
-                  return result;
-                }
+            AABB aabb = AABB(-box.halfExtents, box.halfExtents);
+            return isIntersect(aabb, localRayOrigin, localRayDirection);
+          }
 
-                IntersectInfo isIntersect(OBB box, vec3 rayOrigin, vec3 rayDirection) {
-                  // 将射线从眼睛坐标转换到OBB box的局部空间
-                  vec3 localRayOrigin = transpose(box.rotation) * (rayOrigin - box.center);
-                  vec3 localRayDirection = transpose(box.rotation) * normalize(rayDirection);
+          void main() {
+            out_FragColor = texture(colorTexture, v_textureCoordinates);
 
-                  AABB aabb = AABB(-box.halfExtents, box.halfExtents);
-                  return isIntersect(aabb, localRayOrigin, localRayDirection);
-                }
+            // 计算像素点的视口坐标
+            float depth = getDepth(v_textureCoordinates);
+            if (depth == 0.) depth = 1.; // 天空深度调整
+            vec3 pointEC = getEyeCoordinate(gl_FragCoord.xy, depth);
 
-                void main() {
-                  out_FragColor = texture(colorTexture, v_textureCoordinates);
+            // 在box的局部坐标系中计算
+            // vec4 pointWC4 = (czm_inverseView * vec4(pointEC, 1.)); // 转到世界坐标系
+            // vec3 pointWC = pointWC4.xyz / pointWC4.w;
+            // vec4 pointLocal4 = inverseTransform * vec4(pointWC, 1.);
+            // vec3 pointLocal = pointLocal4.xyz / pointLocal4.w;
 
-                  // 计算像素点的视口坐标
-                  float depth = getDepth(v_textureCoordinates);
-                  if (depth == 0.) depth = 1.; // 天空深度调整
-                  vec3 pointEC = getEyeCoordinate(gl_FragCoord.xy, depth);
+            // vec4 rayOriginLocal4 = inverseTransform * vec4(czm_viewerPositionWC, 1.);
+            // vec3 rayOrigin = rayOriginLocal4.xyz / rayOriginLocal4.w;
 
-                  // 在box的局部坐标系中计算
-                  // vec4 pointWC4 = (czm_inverseView * vec4(pointEC, 1.)); // 转到世界坐标系
-                  // vec3 pointWC = pointWC4.xyz / pointWC4.w;
-                  // vec4 pointLocal4 = inverseTransform * vec4(pointWC, 1.);
-                  // vec3 pointLocal = pointLocal4.xyz / pointLocal4.w;
+            // vec3 rayDirection = normalize(pointLocal - rayOrigin);
 
-                  // vec4 rayOriginLocal4 = inverseTransform * vec4(czm_viewerPositionWC, 1.);
-                  // vec3 rayOrigin = rayOriginLocal4.xyz / rayOriginLocal4.w;
+            // vec3 center = (point1 + point2) * 0.5;
+            // vec4 rotationCol1 = transform * vec4(1.0, 0.0, 0.0, 0.0);
+            // vec4 rotationCol2 = transform * vec4(0.0, 1.0, 0.0, 0.0);
+            // vec4 rotationCol3 = transform * vec4(0.0, 0.0, 1.0, 0.0);
 
-                  // vec3 rayDirection = normalize(pointLocal - rayOrigin);
+            // // obb坐标轴不与世界坐标轴平行，需要计算旋转矩阵
+            // mat3 rotation = mat3(
+            //   normalize(rotationCol1.xyz),
+            //   normalize(rotationCol2.xyz),
+            //   normalize(rotationCol3.xyz)
+            // );
 
-                  // vec3 center = (point1 + point2) * 0.5;
-                  // vec4 rotationCol1 = transform * vec4(1.0, 0.0, 0.0, 0.0);
-                  // vec4 rotationCol2 = transform * vec4(0.0, 1.0, 0.0, 0.0);
-                  // vec4 rotationCol3 = transform * vec4(0.0, 0.0, 1.0, 0.0);
+            // vec3 localP1 = transpose(rotation) * (point1 - center);
+            // vec3 localP2 = transpose(rotation) * (point2 - center);
 
-                  // // obb坐标轴不与世界坐标轴平行，需要计算旋转矩阵
-                  // mat3 rotation = mat3(
-                  //   normalize(rotationCol1.xyz),
-                  //   normalize(rotationCol2.xyz),
-                  //   normalize(rotationCol3.xyz)
-                  // );
+            // vec3 halfExtents = max(abs(localP1), abs(localP2));
 
-                  // vec3 localP1 = transpose(rotation) * (point1 - center);
-                  // vec3 localP2 = transpose(rotation) * (point2 - center);
+            // AABB box = AABB(-halfExtents, halfExtents);
 
-                  // vec3 halfExtents = max(abs(localP1), abs(localP2));
+            // 眼睛坐标系计算
+            // vec4 point1EC = czm_view * vec4(point1High + point1Low, 1.);
+            // vec4 point2EC = czm_view * vec4(point2High + point2Low, 1.);
+            vec4 point1EC = czm_translateRelativeToEye(point1High, point1Low);
+            vec4 point2EC = czm_translateRelativeToEye(point2High, point2Low);
+            point1EC = czm_modelViewRelativeToEye * point1EC;
+            point2EC = czm_modelViewRelativeToEye * point2EC;
 
-                  // AABB box = AABB(-halfExtents, halfExtents);
+            OBB box = createOBBFromPoints(point1EC.xyz / point1EC.w, point2EC.xyz / point2EC.w, czm_view * transform);
 
-                  // 眼睛坐标系计算
-                  // vec4 point1EC = czm_view * vec4(point1High + point1Low, 1.);
-                  // vec4 point2EC = czm_view * vec4(point2High + point2Low, 1.);
-                  vec4 point1EC = czm_translateRelativeToEye(point1High, point1Low);
-                  vec4 point2EC = czm_translateRelativeToEye(point2High, point2Low);
-                  point1EC = czm_modelViewRelativeToEye * point1EC;
-                  point2EC = czm_modelViewRelativeToEye * point2EC;
+            // 射线原点即眼睛位置
+            vec3 rayOrigin = vec3(0.);
+            vec3 rayDirection = normalize(pointEC - rayOrigin);
 
-                  OBB box = createOBBFromPoints(point1EC.xyz / point1EC.w, point2EC.xyz / point2EC.w, czm_view * transform);
+            IntersectInfo intersectInfo = isIntersect(box, rayOrigin, rayDirection);
 
-                  // 射线原点即眼睛位置
-                  vec3 rayOrigin = vec3(0.);
-                  vec3 rayDirection = normalize(pointEC - rayOrigin);
+            if (intersectInfo.hit && length(pointEC - rayOrigin) >= intersectInfo.tNear) {
+              out_FragColor = mix(out_FragColor, vec4(1., 0., 0., 1.), 0.5);
+            }
 
-                  IntersectInfo intersectInfo = isIntersect(box, rayOrigin, rayDirection);
-
-                  if (intersectInfo.hit && length(pointEC - rayOrigin) >= intersectInfo.tNear) {
-                    out_FragColor = mix(out_FragColor, vec4(1., 0., 0., 1.), 0.5);
-                  }
-
-                }
+          }
           `,
-            });
-            scene.postProcessStages.add(stage);
-          }, 1000);
-        };
-
-        viewer.terrainProvider.requestTileGeometry = (x, y, level, request) =>
-          new Promise((resolve, reject) => {
-            loadStage();
-            originRequest(x, y, level, request).then((geometry) => {
-              resolve(geometry);
-            }, reject);
-          });
-      };
-
-      processTerrainProvider();
-
-      // 地形变化时depthTexture会暂时取不到值
-      scene.globe.terrainProviderChanged.addEventListener(() => {
-        processTerrainProvider();
       });
+      scene.postProcessStages.add(stage);
     </script>
   </body>
 </html>

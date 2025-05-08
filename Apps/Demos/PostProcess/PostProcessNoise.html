@@ -22,6 +22,7 @@
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       import fs from "./noise.glsl.js";
+      import cellular2x2x2 from "./cellular2x2x2.glsl.js";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
 
@@ -37,7 +38,7 @@
       window.viewer = viewer;
 
       const point1 = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(0, 0, 0),
+        position: Cesium.Cartesian3.fromDegrees(120, 30, 10),
         point: {
           pixelSize: 5,
           color: Cesium.Color.BLUE,
@@ -45,7 +46,7 @@
       });
 
       const point2 = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(0.0001, 0.0001, 10),
+        position: Cesium.Cartesian3.fromDegrees(120.001, 30.001, 100),
         point: {
           pixelSize: 5,
           color: Cesium.Color.BLUE,
@@ -95,79 +96,6 @@
         }),
       );
 
-      let noiseMap = new Cesium.Texture({
-        context: viewer.scene.context,
-        width: 1,
-        height: 1,
-      });
-
-      let blueNoiseMap = new Cesium.Texture({
-        context: viewer.scene.context,
-        width: 1,
-        height: 1,
-      });
-
-      let stage;
-      const processTerrainProvider = () => {
-        if (stage) {
-          scene.postProcessStages.remove(stage);
-        }
-
-        const originRequest = viewer.terrainProvider.requestTileGeometry;
-
-        let stageLoading = false;
-        const loadStage = () => {
-          if (stageLoading) {
-            return;
-          }
-          stageLoading = true;
-          setTimeout(() => {
-            stage = new Cesium.PostProcessStage({
-              id: "test",
-              uniforms: {
-                point1High() {
-                  return encodedPoint1.high;
-                },
-                point1Low() {
-                  return encodedPoint1.low;
-                },
-                point2High() {
-                  return encodedPoint2.high;
-                },
-                point2Low() {
-                  return encodedPoint2.low;
-                },
-                transform() {
-                  return transform;
-                },
-                inverseTransform() {
-                  return Cesium.Matrix4.inverse(
-                    transform,
-                    new Cesium.Matrix4(),
-                  );
-                },
-                noiseMap() {
-                  return noiseMap;
-                },
-                blueNoiseMap() {
-                  return blueNoiseMap;
-                },
-              },
-              fragmentShader: fs,
-            });
-            scene.postProcessStages.add(stage);
-          }, 1000);
-        };
-
-        viewer.terrainProvider.requestTileGeometry = (x, y, level, request) =>
-          new Promise((resolve, reject) => {
-            loadStage();
-            originRequest(x, y, level, request).then((geometry) => {
-              resolve(geometry);
-            }, reject);
-          });
-      };
-
       const promises = [];
       promises.push(
         Cesium.Resource.fetchImage({
@@ -179,7 +107,7 @@
       );
 
       Promise.all(promises).then((results) => {
-        noiseMap = new Cesium.Texture({
+        const noiseMap = new Cesium.Texture({
           context: viewer.scene.context,
           width: results[0].width,
           height: results[0].height,
@@ -195,7 +123,7 @@
           source: results[0],
         });
 
-        blueNoiseMap = new Cesium.Texture({
+        const blueNoiseMap = new Cesium.Texture({
           context: viewer.scene.context,
           width: results[1].width,
           height: results[1].height,
@@ -211,12 +139,41 @@
           source: results[1],
         });
 
-        processTerrainProvider();
-      });
-
-      // 地形变化时depthTexture会暂时取不到值
-      scene.globe.terrainProviderChanged.addEventListener(() => {
-        processTerrainProvider();
+        const stage = new Cesium.PostProcessStage({
+          id: "noise",
+          uniforms: {
+            point1High() {
+              return encodedPoint1.high;
+            },
+            point1Low() {
+              return encodedPoint1.low;
+            },
+            point2High() {
+              return encodedPoint2.high;
+            },
+            point2Low() {
+              return encodedPoint2.low;
+            },
+            transform() {
+              return transform;
+            },
+            inverseTransform() {
+              return Cesium.Matrix4.inverse(transform, new Cesium.Matrix4());
+            },
+            noiseMap() {
+              return noiseMap;
+            },
+            blueNoiseMap() {
+              return blueNoiseMap;
+            },
+            uvScale() {
+              return stage.uvScale || 1;
+            },
+          },
+          fragmentShader: cellular2x2x2 + fs,
+        });
+        scene.postProcessStages.add(stage);
+        window.stage = stage;
       });
     </script>
   </body>

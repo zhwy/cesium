@@ -14,11 +14,12 @@ export default /* glsl */ `
   uniform mat4 inverseTransform;
   uniform sampler2D noiseMap;
   uniform sampler2D blueNoiseMap;
+  uniform float uvScale;
 
   in vec2 v_textureCoordinates;
 
   float getDepth(vec2 uv) {
-    return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
+    return czm_unpackDepth(texture(depthTexture, uv));
   }
 
   vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
@@ -124,6 +125,10 @@ export default /* glsl */ `
     return isIntersect(aabb, localRayOrigin, localRayDirection);
   }
 
+  float remap(float value, float min1, float max1, float min2, float max2) {
+    return min2 + (max2 - min2) * ((value - min1) / (max1 - min1));
+  }
+
   float noiseFromMap(vec3 x)
   {
     vec3 p = floor(x);
@@ -136,31 +141,29 @@ export default /* glsl */ `
     return mix( tex.x, tex.y, u.z ) * 2.0 - 1.0;
   }
 
-  // 计算梯度
-  vec3 grad(vec3 p) {
-    // 一个简单的哈希函数
+  // 3d随机数
+  vec3 rand3D(vec3 p) {
     float h = fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
-    // 生成随机梯度向量
     return -1.0 + 2.0 * fract(vec3(h * 43758.5453, h * 38746.9213, h * 19283.2371));
   }
 
   // Perlin噪声实现
-  float perlinNoise(vec3 x) {
-    vec3 p = floor(x);
-    vec3 f = fract(x);
+  float perlinNoise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
 
     // 平滑插值
     vec3 u = f * f * (3.0 - 2.0 * f);
 
     // 八个角的贡献
-    float n000 = dot(grad(p), f);
-    float n100 = dot(grad(p + vec3(1.0, 0.0, 0.0)), f - vec3(1.0, 0.0, 0.0));
-    float n010 = dot(grad(p + vec3(0.0, 1.0, 0.0)), f - vec3(0.0, 1.0, 0.0));
-    float n110 = dot(grad(p + vec3(1.0, 1.0, 0.0)), f - vec3(1.0, 1.0, 0.0));
-    float n001 = dot(grad(p + vec3(0.0, 0.0, 1.0)), f - vec3(0.0, 0.0, 1.0));
-    float n101 = dot(grad(p + vec3(1.0, 0.0, 1.0)), f - vec3(1.0, 0.0, 1.0));
-    float n011 = dot(grad(p + vec3(0.0, 1.0, 1.0)), f - vec3(0.0, 1.0, 1.0));
-    float n111 = dot(grad(p + vec3(1.0, 1.0, 1.0)), f - vec3(1.0, 1.0, 1.0));
+    float n000 = dot(rand3D(i), f);
+    float n100 = dot(rand3D(i + vec3(1.0, 0.0, 0.0)), f - vec3(1.0, 0.0, 0.0));
+    float n010 = dot(rand3D(i + vec3(0.0, 1.0, 0.0)), f - vec3(0.0, 1.0, 0.0));
+    float n110 = dot(rand3D(i + vec3(1.0, 1.0, 0.0)), f - vec3(1.0, 1.0, 0.0));
+    float n001 = dot(rand3D(i + vec3(0.0, 0.0, 1.0)), f - vec3(0.0, 0.0, 1.0));
+    float n101 = dot(rand3D(i + vec3(1.0, 0.0, 1.0)), f - vec3(1.0, 0.0, 1.0));
+    float n011 = dot(rand3D(i + vec3(0.0, 1.0, 1.0)), f - vec3(0.0, 1.0, 1.0));
+    float n111 = dot(rand3D(i + vec3(1.0, 1.0, 1.0)), f - vec3(1.0, 1.0, 1.0));
 
     // 插值混合
     return mix(
@@ -171,9 +174,9 @@ export default /* glsl */ `
   }
 
   // 简单高效的3D噪声
-  float noise(vec3 x) {
-    vec3 i = floor(x);
-    vec3 f = fract(x);
+  float noise3D(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
 
     // 平滑插值
     vec3 u = f * f * (3.0 - 2.0 * f);
@@ -200,17 +203,79 @@ export default /* glsl */ `
     ) * 2.0 - 1.0; // 映射回[-1,1]范围
   }
 
-  float fbm(vec3 p) {
-    vec3 q = p + czm_frameNumber * 0.005 * vec3(1.0, 0., 0.);
+  // Worley噪声
+  float worleyNoise(vec3 p) {
+    // 当前体素（整数坐标）
+    vec3 i = floor(p);
+    vec3 f = fract(p);
 
-    float f = 0.0;
-    float scale = 0.5;
-    float factor = 2.02;
+    float minDist = 1e10; // 最小距离初始化为最大值
+
+    // 遍历当前体素及其相邻26个体素（3x3x3）
+    for (int x = -1; x <= 1; x++) {
+      for (int y = -1; y <= 1; y++) {
+        for (int z = -1; z <= 1; z++) {
+          // 相邻体素坐标
+          vec3 neighbor = vec3(x, y, z);
+          vec3 cell = i + neighbor;
+
+          // 为该体素生成一个随机特征点
+          vec3 point = rand3D(cell) * 0.5 + 0.5;
+
+          // 计算当前片段到特征点的距离（欧几里得距离）
+          float dist = length(neighbor + point - f);
+
+          // 更新最小距离
+          minDist = min(minDist, dist);
+        }
+      }
+    }
+
+    return 1. - smoothstep(0.0, 1.0, minDist);
+  }
+
+  float worleyNoise2x2x2(vec3 p) {
+    float value = cellular2x2x2(p).x;
+    return 1. - smoothstep(0.0, 1.0, value);
+  }
+
+  #define NOISE 4
+
+  float noise(vec3 x) {
+    #if NOISE == 0
+    return noiseFromMap(x);
+    #endif
+
+    #if NOISE == 1
+    return perlinNoise(x);
+    #endif
+
+    #if NOISE == 2
+    return noise3D(x);
+    #endif
+
+    #if NOISE == 3
+    return worleyNoise(x);
+    #endif
+
+    #if NOISE == 4
+    return worleyNoise2x2x2(x);
+    #endif
+  }
+
+  float fbm(vec3 p) {
+    vec3 q = p + czm_frameNumber * 0.001 * vec3(1.0, 0., 0.);
+
+    float value = 0.0;
+    float amplitude = 0.5;
+    float lacunarity = 2.02;
+    float gain = 0.5;
+    float maxSum = 0.;
 
     for (int i = 0; i < 6; i++) {
       // 每个噪声层使用不同频率的时间变化
       // 较高频率的噪声层变化更快，模拟小尺度细节的消散与形成
-      float phase = czm_frameNumber * 0.005 * (0.3 + float(i) * 0.15);
+      float phase = czm_frameNumber * 0.01 * (0.3 + float(i) * 0.15);
 
       // 创建基于正弦和余弦的随时间变化的偏移
       // 这样噪声采样位置会在原始位置周围微小变化
@@ -220,33 +285,19 @@ export default /* glsl */ `
           sin(phase * 0.7 + 1.2)
       ) * 0.25;
 
-      f += scale * noise(q + timeOffset);
-      q *= factor;
-      factor += 0.21;
-      scale *= 0.5;
+      value += amplitude * noise(q + timeOffset);
+      q *= lacunarity;
+      lacunarity += 0.21;
+      maxSum += amplitude;
+      amplitude *= gain;
     }
 
-    return f;
-  }
-
-  float getNoiseSimple(vec2 uv) {
-    // 动画
-    uv.x += 0.0001 * czm_frameNumber;
-    float noise = texture(noiseMap, uv).r;
-    noise += texture(noiseMap, uv * 3.5).r / 3.5;
-    noise += texture(noiseMap, uv * 12.25).r / 12.25;
-    noise += texture(noiseMap, uv * 42.87).r / 42.87;
-    noise /= 1.4472;
-
-    return noise;
+    return value / maxSum;
   }
 
   float getDensity(AABB box, vec3 point) {
-    return fbm(point * 0.5);
-    return noiseFromMap(point * 0.1);
-
-    vec2 uv = ((point - box.min) / (box.max - box.min)).xy;
-    return getNoiseSimple(uv * 0.1) * 2. - 1.;
+    // return fbm(point * uvScale);
+    return noise(point * uvScale);
   }
 
   vec4 getColor(AABB box, vec3 rayOrigin, vec3 rayDirection, IntersectInfo intersectInfo, vec3 lightDir, float offset) {
@@ -254,7 +305,7 @@ export default /* glsl */ `
     vec4 colorSum = vec4(0.); // 积累的颜色
 
     vec3 point = rayOrigin + rayDirection * intersectInfo.tNear;
-    int count = 64;
+    int count = 32;
     float stepLength = length(intersectInfo.tFar - intersectInfo.tNear) / float(count);
 
     // ray marching
@@ -266,7 +317,7 @@ export default /* glsl */ `
       }
 
       float density = getDensity(box, point);
-      density *= 0.5;
+      density *= 0.1;
 
       if (density < 0.01) continue;
 
@@ -274,6 +325,8 @@ export default /* glsl */ `
 
       vec4 color = vec4(baseColor, density);
       colorSum += color * (1.0 - colorSum.a);
+
+      if (colorSum.a >= 0.95) break;
     }
 
     return colorSum;
@@ -331,6 +384,7 @@ export default /* glsl */ `
     // 眼睛坐标系计算
     // vec4 point1EC = czm_view * vec4(point1High + point1Low, 1.0);
     // vec4 point2EC = czm_view * vec4(point2High + point2Low, 1.0);
+    // 解决世界坐标精度问题
     vec4 point1EC = czm_translateRelativeToEye(point1High, point1Low);
     vec4 point2EC = czm_translateRelativeToEye(point2High, point2Low);
     point1EC = czm_modelViewRelativeToEye * point1EC;

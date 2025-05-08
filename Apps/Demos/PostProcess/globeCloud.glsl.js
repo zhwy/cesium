@@ -1,6 +1,8 @@
 export default /* glsl */ `
   uniform sampler2D colorTexture;
+  uniform sampler2D depthTexture;
   uniform sampler2D noiseMap;
+  uniform sampler2D coverageMap;
   uniform float earthRadius;
 
   in vec2 v_textureCoordinates;
@@ -16,7 +18,7 @@ export default /* glsl */ `
   #define LIGHT_DARK   vec3(0.7, 0.75, 0.8)      // 光照颜色 -- 暗部
 
   float getDepth(vec2 uv) {
-    return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
+    return czm_unpackDepth(texture(depthTexture, uv));
   }
 
   vec3 getWorldCoordinate(vec2 fragCoord, float depth) {
@@ -47,7 +49,7 @@ export default /* glsl */ `
     info.minDistance = -1.0;
     info.maxDistance = -1.0;
 
-    if (hSq >= radiusSq) {
+    if (hSq > radiusSq) {
       // 射线错过了球体，相切也算错过，因为步进距离为0
       return info;
     }
@@ -75,20 +77,12 @@ export default /* glsl */ `
     return info;
   }
 
-  float noiseFromTexture(vec3 x)
-  {
-    vec3 p = floor(x);
-    vec3 f = fract(x);
-    f = smoothstep(0.0, 1.0, f);
-
-    vec2 uv = (p.xy + vec2(37.0, 17.0) * p.z) + f.xy;
-    float v1 = texture( noiseMap, (uv) / 512.0, -100.0 ).x;
-    float v2 = texture( noiseMap, (uv + vec2(37.0, 17.0)) / 512.0, -100.0 ).x;
-    return mix(v1, v2, f.z);
+  float remap(float value, float min1, float max1, float min2, float max2) {
+    return min2 + (max2 - min2) * ((value - min1) / (max1 - min1));
   }
 
-  // 简单高效的3D噪声
-  float noise(vec3 x) {
+  // 简化3D梯度噪声
+  float noise3D(vec3 x) {
     vec3 i = floor(x);
     vec3 f = fract(x);
 
@@ -117,81 +111,215 @@ export default /* glsl */ `
     ) * 2.0 - 1.0; // 映射回[-1,1]范围
   }
 
+  vec3 rand3D(vec3 p) {
+    float h = fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+    return fract(vec3(h * 43758.5453, h * 38746.9213, h * 19283.2371));
+  }
+
+  float worleyNoise(vec3 p) {
+    // // 当前体素（整数坐标）
+    // vec3 i = floor(p);
+    // vec3 f = fract(p);
+
+    // float minDist = 1e10; // 最小距离初始化为最大值
+
+    // // 遍历当前体素及其相邻26个体素（3x3x3）
+    // for (int x = -1; x <= 1; x++) {
+    //   for (int y = -1; y <= 1; y++) {
+    //     for (int z = -1; z <= 1; z++) {
+    //       // 相邻体素坐标
+    //       vec3 neighbor = vec3(x, y, z);
+    //       vec3 cell = i + neighbor;
+
+    //       // 为该体素生成一个随机特征点
+    //       vec3 point = rand3D(cell);
+
+    //       // 计算当前片段到特征点的距离（欧几里得距离）
+    //       float dist = length(neighbor + point - f);
+
+    //       // 更新最小距离
+    //       minDist = min(minDist, dist);
+    //     }
+    //   }
+    // }
+
+    // return 1. - smoothstep(0.0, 1.0, minDist);
+    float value = cellular2x2x2(p).x;
+    return 1. - smoothstep(0.0, 1.0, value);
+  }
+
+  // #define GRDIENT_NOISE
+  #define WORLEY_NOISE
+
+  float noise(vec3 x) {
+    #ifdef GRDIENT_NOISE
+    return noise3D(x);
+    #endif
+
+    #ifdef WORLEY_NOISE
+    return worleyNoise(x);
+    #endif
+
+  }
+
+  float noise(vec2 uv) {
+    return texture(noiseMap, uv).r * 2.0 - 1.0; // 映射回[-1,1]范围
+  }
+
   float fbm(vec3 p) {
-    vec3 q = p + czm_frameNumber * 1e-4 * vec3(1.0, -0.2, -0.0);
+    vec3 q = p + czm_frameNumber * 1e-3 * vec3(1.0, -0.2, -0.0);
 
     float f = 0.0;
     float scale = 0.5;
     float factor = 2.02;
+    float maxScale = 0.;
+
+    for (int i = 0; i < 4; i++) {
+      f += scale * noise(q);
+      q *= factor;
+      factor += 0.21;
+      maxScale += scale;
+      scale *= 0.5;
+    }
+
+    return f / maxScale;
+  }
+
+  float perlinFbm(vec3 p) {
+    vec3 q = p + czm_frameNumber * 1e-3 * vec3(1.0, -0.2, -0.0);
+
+    float f = 0.0;
+    float scale = 0.5;
+    float factor = 2.02;
+    float maxScale = 0.;
+
+    for (int i = 0; i < 4; i++) {
+      f += scale * noise3D(q);
+      q *= factor;
+      factor += 0.21;
+      maxScale += scale;
+      scale *= 0.5;
+    }
+
+    return f / maxScale;
+  }
+
+  float worleyFbm(vec3 p) {
+    return worleyNoise(p) * 0.625 +
+           worleyNoise(p * 2.) * 0.25 +
+           worleyNoise(p * 4.) * 0.125;
+  }
+
+  float fbm(vec2 p) {
+    vec2 q = p;
+
+    // 简易fbm
+    // float noise = texture(noiseMap, q).r / 2.;
+    // noise += texture(noiseMap, q * 3.5).r / 3.5;
+    // noise += texture(noiseMap, q * 12.25).r / 12.25;
+    // noise += texture(noiseMap, q * 42.87).r / 42.87;
+    // noise /= 1.4472;
+    // return noise;
+
+    float f = 0.0;
+    float scale = 1.;
+    float factor = 2.02;
+    float maxScale = 0.;
 
     for (int i = 0; i < 6; i++) {
       f += scale * noise(q);
       q *= factor;
       factor += 0.21;
+      maxScale += scale;
       scale *= 0.5;
     }
 
-    return f;
+    return f / maxScale;
   }
 
-  float getDensity(vec3 point) {
-    float noise = fbm(point * 1e-5);
+  #define MODE 3
 
+  float getDensity(vec3 point) {
+    // 将世界坐标转换为2D纹理坐标
+    vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point / earthRadius));
+    float coverage = texture(coverageMap, uv).x;
+
+    #if MODE == 0
+    float value = fbm(uv);
+    if (value < 0.0)  return 0.0;
     // 高度衰减
     float normalizedHeight = (length(point - CENTER) - MIN_HEIGHT - earthRadius) / (MAX_HEIGHT - MIN_HEIGHT);
-    // 使用更自然的高度分布曲线（类似高斯分布）
-    float baseHeight = 0.5; // 云层最浓密的相对高度
-    float spread = 0.4;     // 云层垂直分布范围
-    float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
+    // 底部厚，顶部稀
+    float heightFactor = clamp(remap(normalizedHeight, 0.0, coverage, 1., 0.), 0., 1.);
+    #endif
 
-    // vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point - CENTER)) * 100.;
-    // uv.x += 0.00001 * czm_frameNumber;
-    // float noise = texture(noiseMap, uv).r;
-    // noise += texture(noiseMap, uv * 3.5).r / 3.5;
-    // noise += texture(noiseMap, uv * 12.25).r / 12.25;
-    // noise += texture(noiseMap, uv * 42.87).r / 42.87;
-    // noise /= 1.4472;
+    #if MODE == 1
+    float value = fbm(point * 1e-5);
+    if (value < 0.0)  return 0.0;
+    // 高度衰减
+    float normalizedHeight = (length(point - CENTER) - MIN_HEIGHT - earthRadius) / (MAX_HEIGHT - MIN_HEIGHT);
+    // 中间厚边缘稀
+    // float baseHeight = 0.5; // 云层最浓密的相对高度
+    // float spread = 0.4;     // 云层垂直分布范围
+    // float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (8.0 * spread * spread));
+    float heightFactor = clamp(remap(normalizedHeight, 0.0, coverage, 1., 0.), 0., 1.);
+    #endif
 
-    noise = noise * heightFactor;
-    // if(noise < 0.4) noise = 0.;
+    #if MODE == 3
+    float pfbm = mix(1., perlinFbm(point * 1e-5) * 0.5 + 0.5, 0.5);
+    pfbm = abs(pfbm * 2. - 1.);
+    float wfbm = worleyFbm(point * 1e-5);
+    float value = remap(pfbm, 0., 1., wfbm, 1.);
+    float heightFactor = 1.;
+    #endif
 
-    return noise;
+    value = value * heightFactor * coverage;
+
+    return value;
   }
 
   vec4 getCloud(vec3 rayOrigin, vec3 rayDirection, vec3 start, float marchDistance, vec3 lightDir) {
-    float maxStep = marchDistance * 0.05;
-    float minStep = marchDistance * 0.01;
-    int maxCount = 32;
-    float densityScale = 0.5;
+    if (marchDistance < 0.1) return vec4(0.);
+
+    float maxStep = marchDistance * 0.1;
+    float minStep = marchDistance * 0.05;
+    const int maxCount = 32;
+    float densityScale = 1.;
 
     float stepSize = marchDistance / float(maxCount);
     int count = 0;
     vec4 colorSum = vec4(0.); // 积累的颜色
     float stepLength = 0.; // 已经步进的距离
-
+    float startToOriginDistance = length(start - rayOrigin);
 
     // ray marching
     // for (int i = 0; i < count; i++) {
-    while (count < maxCount) {
+    while (true) {
       count++;
       if (stepLength > marchDistance) break;
-      // IntersectInfo infoLow = isIntersectSphere(earthRadius + MIN_HEIGHT, rayOrigin, rayDirection, point, false);
-      // IntersectInfo infoHigh = isIntersectSphere(earthRadius + MAX_HEIGHT, rayOrigin, rayDirection, point, false);
-      // if (infoLow.inside || !infoHigh.inside) break;
 
       vec3 point = start + rayDirection * stepLength;
-
       float density = getDensity(point);
-      // 计算新步长
-      // stepSize = clamp(maxStep * pow(1. - density, 0.1), minStep, maxStep);
-      stepSize = minStep;
+      // // 动态改变步长
+      // if (density > 0.05) {
+      //   // 高密度区域：减小步长
+      //   stepSize = max(minStep, stepSize * 0.5);
+      // } else {
+      //   // 低密度区域：增大步长
+      //   stepSize = min(maxStep, stepSize * 1.05);
+      // }
       stepLength += stepSize;
-
       density *= densityScale;
 
+      // float pointToOriginDistance = startToOriginDistance + stepLength;
+      // float distanceFactor = smoothstep(0.01, 1., pointToOriginDistance / 1000.); // 距离衰减，靠近相机时减少云的密度
+      // density *= distanceFactor;
+
       if (density < 0.01) continue;
+
       vec3 baseColor = mix(BASE_BRIGHT, BASE_DARK, density) * density;
 
+      #ifdef ADD_LIGHT
       // 计算光照衰减
       float lightTransmittance = 1.0;
       vec3 lightSamplePoint = point;
@@ -223,6 +351,9 @@ export default /* glsl */ `
       // 应用光照 - 结合直射光和散射光，环境光
       vec3 scatteredLight = LIGHT_BRIGHT * (phase + forwardScatter) * lightTransmittance;
       vec3 finalColor = baseColor + scatteredLight * 0.01;
+      #else
+      vec3 finalColor = baseColor;
+      #endif
 
       vec4 color = vec4(finalColor, density);
       colorSum += color * (1.0 - colorSum.a);
@@ -230,12 +361,12 @@ export default /* glsl */ `
       if (colorSum.a > 0.95) break;
     }
 
-    // 计算视线方向与地平线方向的夹角
-    vec3 upDirection = normalize(rayOrigin - CENTER);
-    // 地平线因子，越接近地平线越接近0
-    float horizonFactor = abs(dot(rayDirection, upDirection));
-    // 在地平线附近减少云层，增加模糊感
-    colorSum = mix(vec4(0.), colorSum, smoothstep(0.0, 0.1, horizonFactor));
+    // // 计算视线方向与地平线方向的夹角
+    // vec3 upDirection = normalize(rayOrigin - CENTER);
+    // // 地平线因子，越接近地平线越接近0
+    // float horizonFactor = abs(dot(rayDirection, upDirection));
+    // // 在地平线附近减少云层，增加模糊感
+    // colorSum = mix(vec4(0.), colorSum, smoothstep(0.0, 0.1, horizonFactor));
 
     return colorSum;
   }
@@ -255,6 +386,11 @@ export default /* glsl */ `
     // }
 
     vec3 worldCoordinate = getWorldCoordinate(gl_FragCoord.xy, depth);
+    // test
+    // vec2 uv = czm_ellipsoidTextureCoordinates(normalize(worldCoordinate / earthRadius));
+    // float noiseValue = texture(coverageMap, uv).x;
+    // out_FragColor.rgb = vec3(noiseValue);
+    // return;
 
     vec3 rayOrigin = czm_viewerPositionWC;
     vec3 rayDirection = normalize(worldCoordinate - rayOrigin);
@@ -287,8 +423,6 @@ export default /* glsl */ `
         // 在云层中
         info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
         marchDistance = info2.maxDistance;
-        // out_FragColor = vec4(marchDistance / 300000.);
-        // return;
       }
 
       info.intersected = true;
@@ -310,13 +444,12 @@ export default /* glsl */ `
           // 在云层中
           marchDistance = info.maxDistance - info.minDistance;
         }
-
       }
     }
 
     if (info.intersected) {
       vec4 color = getCloud(rayOrigin, rayDirection, start, marchDistance, czm_lightDirectionWC);
-      out_FragColor = vec4(out_FragColor.xyz * (1. - color.a) + color.xyz, 1.);
+      out_FragColor = vec4(out_FragColor.rgb * (1. - color.a) + color.rgb, 1.);
     }
   }
 `;

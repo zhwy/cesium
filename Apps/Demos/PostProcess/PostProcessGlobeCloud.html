@@ -22,6 +22,7 @@
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       import fs from "./globeCloud.glsl.js";
+      import cellular2x2x2 from "./cellular2x2x2.glsl.js";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
 
@@ -51,18 +52,19 @@
 
       window.viewer = viewer;
 
-      let noiseMap = new Cesium.Texture({
-        context: viewer.scene.context,
-        width: 1,
-        height: 1,
+      const p1 = Cesium.Resource.fetchImage({
+        url: "./clouds.jpg",
       });
-      Cesium.Resource.fetchImage({
-        url: "./noise.png",
-      }).then((image) => {
-        noiseMap = new Cesium.Texture({
+
+      const p2 = Cesium.Resource.fetchImage({
+        url: "./gradientNoise.png",
+      });
+
+      Promise.all([p1, p2]).then((images) => {
+        const coverageMap = new Cesium.Texture({
           context: viewer.scene.context,
-          width: image.width,
-          height: image.height,
+          width: images[0].width,
+          height: images[0].height,
           pixelFormat: Cesium.PixelFormat.RGBA,
           pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
           flipY: true,
@@ -72,64 +74,49 @@
             wrapS: Cesium.TextureWrap.REPEAT,
             wrapT: Cesium.TextureWrap.REPEAT,
           }),
-          source: image,
+          source: images[0],
         });
+
+        const noiseMap = new Cesium.Texture({
+          context: viewer.scene.context,
+          width: images[1].width,
+          height: images[1].height,
+          pixelFormat: Cesium.PixelFormat.RGBA,
+          pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
+          flipY: true,
+          sampler: new Cesium.Sampler({
+            minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+            magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+            wrapS: Cesium.TextureWrap.REPEAT,
+            wrapT: Cesium.TextureWrap.REPEAT,
+          }),
+          source: images[1],
+        });
+
+        const stage = new Cesium.PostProcessStage({
+          id: "test",
+          uniforms: {
+            noiseMap() {
+              return noiseMap;
+            },
+            coverageMap() {
+              return coverageMap;
+            },
+            earthRadius() {
+              const carto = viewer.camera.positionCartographic;
+              const surfacePoint = Cesium.Cartesian3.fromRadians(
+                carto.longitude,
+                carto.latitude,
+                0,
+              );
+              return Cesium.Cartesian3.magnitude(surfacePoint);
+            },
+          },
+          fragmentShader: cellular2x2x2 + fs,
+        });
+
+        scene.postProcessStages.add(stage);
       });
-
-      let stage;
-      const processTerrainProvider = () => {
-        if (stage) {
-          scene.postProcessStages.remove(stage);
-        }
-
-        const originRequest = viewer.terrainProvider.requestTileGeometry;
-
-        let stageLoading = false;
-        const loadStage = () => {
-          if (stageLoading) {
-            return;
-          }
-          stageLoading = true;
-          setTimeout(() => {
-            stage = new Cesium.PostProcessStage({
-              id: "test",
-              uniforms: {
-                noiseMap() {
-                  return noiseMap;
-                },
-                earthRadius() {
-                  const carto = viewer.camera.positionCartographic;
-                  const surfacePoint = Cesium.Cartesian3.fromRadians(
-                    carto.longitude,
-                    carto.latitude,
-                    0,
-                  );
-                  return Cesium.Cartesian3.magnitude(surfacePoint);
-                },
-              },
-              fragmentShader: fs,
-            });
-
-            scene.postProcessStages.add(stage);
-          }, 3000);
-        };
-
-        viewer.terrainProvider.requestTileGeometry = (x, y, level, request) =>
-          new Promise((resolve, reject) => {
-            loadStage();
-            originRequest(x, y, level, request).then((geometry) => {
-              resolve(geometry);
-            }, reject);
-          });
-      };
-
-      // 地形变化时depthTexture会暂时取不到值
-      scene.globe.terrainProviderChanged.addEventListener(() => {
-        scene.postProcessStages.remove(stage);
-        processTerrainProvider();
-      });
-
-      processTerrainProvider();
     </script>
   </body>
 </html>

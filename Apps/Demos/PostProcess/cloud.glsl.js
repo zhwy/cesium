@@ -18,7 +18,7 @@ export default /* glsl */ `
   in vec2 v_textureCoordinates;
 
   float getDepth(vec2 uv) {
-    return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
+    return czm_unpackDepth(texture(depthTexture, uv));
   }
 
   vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
@@ -211,7 +211,7 @@ export default /* glsl */ `
     float scale = 0.5;
     float factor = 2.02;
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 4; i++) {
       f += scale * noise(q);
       q *= factor;
       factor += 0.21;

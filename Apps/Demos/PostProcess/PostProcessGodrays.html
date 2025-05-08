@@ -60,7 +60,7 @@
             in vec2 v_textureCoordinates;
 
             float getDepth(vec2 uv) {
-              return czm_unpackDepth(texture(czm_globeDepthTexture, uv));
+              return czm_unpackDepth(texture(depthTexture, uv));
             }
 
             vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
@@ -188,42 +188,8 @@
         });
       };
 
-      let stage;
-
-      const processTerrainProvider = () => {
-        if (stage) {
-          scene.postProcessStages.remove(stage);
-        }
-
-        const originRequest = viewer.terrainProvider.requestTileGeometry;
-
-        let stageLoading = false;
-        const loadStage = () => {
-          if (stageLoading) {
-            return;
-          }
-          stageLoading = true;
-          setTimeout(() => {
-            stage = getStage();
-            scene.postProcessStages.add(stage);
-          }, 3000);
-        };
-
-        viewer.terrainProvider.requestTileGeometry = (x, y, level, request) =>
-          new Promise((resolve, reject) => {
-            loadStage();
-            originRequest(x, y, level, request).then((geometry) => {
-              resolve(geometry);
-            }, reject);
-          });
-      };
-
-      processTerrainProvider();
-
-      // 地形变化时depthTexture会暂时取不到值
-      scene.globe.terrainProviderChanged.addEventListener(() => {
-        processTerrainProvider();
-      });
+      const stage = getStage();
+      scene.postProcessStages.add(stage);
     </script>
   </body>
 </html>
