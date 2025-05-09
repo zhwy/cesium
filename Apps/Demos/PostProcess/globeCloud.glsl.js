@@ -4,11 +4,9 @@ export default /* glsl */ `
   uniform sampler2D noiseMap;
   uniform sampler2D coverageMap;
   uniform float earthRadius;
+  uniform vec2 heightRange;
 
   in vec2 v_textureCoordinates;
-
-  #define MIN_HEIGHT 10000.
-  #define MAX_HEIGHT 20000.
 
   #define CENTER vec3(0.) // 地心
 
@@ -148,8 +146,8 @@ export default /* glsl */ `
     return 1. - smoothstep(0.0, 1.0, value);
   }
 
-  // #define GRDIENT_NOISE
-  #define WORLEY_NOISE
+  #define GRDIENT_NOISE
+  // #define WORLEY_NOISE
 
   float noise(vec3 x) {
     #ifdef GRDIENT_NOISE
@@ -167,14 +165,14 @@ export default /* glsl */ `
   }
 
   float fbm(vec3 p) {
-    vec3 q = p + czm_frameNumber * 1e-3 * vec3(1.0, -0.2, -0.0);
+    vec3 q = p + czm_frameNumber * 2e-4 * vec3(1.0, -0.2, -0.0);
 
     float f = 0.0;
     float scale = 0.5;
     float factor = 2.02;
     float maxScale = 0.;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
       f += scale * noise(q);
       q *= factor;
       factor += 0.21;
@@ -186,14 +184,14 @@ export default /* glsl */ `
   }
 
   float perlinFbm(vec3 p) {
-    vec3 q = p + czm_frameNumber * 1e-3 * vec3(1.0, -0.2, -0.0);
+    vec3 q = p + czm_frameNumber * 1e-4 * vec3(1.0, -0.2, -0.0);
 
     float f = 0.0;
     float scale = 0.5;
     float factor = 2.02;
     float maxScale = 0.;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
       f += scale * noise3D(q);
       q *= factor;
       factor += 0.21;
@@ -205,9 +203,10 @@ export default /* glsl */ `
   }
 
   float worleyFbm(vec3 p) {
-    return worleyNoise(p) * 0.625 +
-           worleyNoise(p * 2.) * 0.25 +
-           worleyNoise(p * 4.) * 0.125;
+    vec3 q = p; // + czm_frameNumber * 1e-4 * vec3(1.0, -0.2, -0.0);
+    return worleyNoise(q) * 0.625 +
+           worleyNoise(q * 2.) * 0.25 +
+           worleyNoise(q * 4.) * 0.125;
   }
 
   float fbm(vec2 p) {
@@ -237,43 +236,61 @@ export default /* glsl */ `
     return f / maxScale;
   }
 
-  #define MODE 3
+  float perlinWorleyNoise(vec3 p) {
+    // https://www.shadertoy.com/view/3dVXDc
+    float pfbm = mix(1., perlinFbm(p) * 0.5 + 0.5, 0.5);
+    pfbm = abs(pfbm * 2. - 1.);
+
+    float wfbm1 = worleyFbm(p);
+    // float wfbm2 = worleyFbm(p * 2e-6);
+    // float wfbm4 = worleyFbm(p * 4e-6);
+    // float wfbm = wfbm1 * 0.625 + wfbm2 * 0.25 + wfbm4 * 0.125;
+    float wfbm = wfbm1;
+
+    float value = remap(pfbm, 0., 1., wfbm1, 1.); // perlin-worley
+    // value = remap(value, wfbm - 1., 1., 0., 1.);
+    // value = remap(value, 0.85, 1., 0., 1.);
+    return value;
+  }
+
+  #define MODE 1
 
   float getDensity(vec3 point) {
     // 将世界坐标转换为2D纹理坐标
     vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point / earthRadius));
     float coverage = texture(coverageMap, uv).x;
+    float normalizedHeight = (length(point - CENTER) - heightRange.x - earthRadius) / (heightRange.y - heightRange.x);
 
     #if MODE == 0
     float value = fbm(uv);
     if (value < 0.0)  return 0.0;
-    // 高度衰减
-    float normalizedHeight = (length(point - CENTER) - MIN_HEIGHT - earthRadius) / (MAX_HEIGHT - MIN_HEIGHT);
     // 底部厚，顶部稀
     float heightFactor = clamp(remap(normalizedHeight, 0.0, coverage, 1., 0.), 0., 1.);
     #endif
 
     #if MODE == 1
-    float value = fbm(point * 1e-5);
-    if (value < 0.0)  return 0.0;
-    // 高度衰减
-    float normalizedHeight = (length(point - CENTER) - MIN_HEIGHT - earthRadius) / (MAX_HEIGHT - MIN_HEIGHT);
+    float value = fbm(point * 1e-4);
+    // value = mix(1., value * 0.5 + 0.5, 0.5);
+    // value = abs(value * 2. - 1.);
     // 中间厚边缘稀
-    // float baseHeight = 0.5; // 云层最浓密的相对高度
-    // float spread = 0.4;     // 云层垂直分布范围
-    // float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (8.0 * spread * spread));
-    float heightFactor = clamp(remap(normalizedHeight, 0.0, coverage, 1., 0.), 0., 1.);
+    float baseHeight = 0.5; // 云层最浓密的相对高度
+    float spread = 0.1;     // 云层垂直分布范围
+    float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
     #endif
 
     #if MODE == 3
-    float pfbm = mix(1., perlinFbm(point * 1e-5) * 0.5 + 0.5, 0.5);
-    pfbm = abs(pfbm * 2. - 1.);
-    float wfbm = worleyFbm(point * 1e-5);
-    float value = remap(pfbm, 0., 1., wfbm, 1.);
-    float heightFactor = 1.;
+    float value = 1.;
+    float noise = perlinWorleyNoise(point * 1e-5);
+    // float heightFactor = clamp(remap(normalizedHeight, 0.75, 1.0, 1., 0.), 0., 1.);
+    // float heightFactor = normalizedHeight;
+    float heightFactor = 1. - normalizedHeight;
+    value *= heightFactor;
+    value = clamp(remap(value, noise, 1., 0., 1.), 0., 1.) * 0.5 * coverage * coverage;
+
     #endif
 
-    value = value * heightFactor * coverage;
+    value = value * heightFactor;
+    value = clamp(value, 0.0, 1.0);
 
     return value;
   }
@@ -388,7 +405,11 @@ export default /* glsl */ `
     vec3 worldCoordinate = getWorldCoordinate(gl_FragCoord.xy, depth);
     // test
     // vec2 uv = czm_ellipsoidTextureCoordinates(normalize(worldCoordinate / earthRadius));
+    // // out_FragColor.rgb = vec3(uv, 0.);
     // float noiseValue = texture(coverageMap, uv).x;
+    // if (noiseValue < 0.9) {
+    //   noiseValue = 0.;
+    // };
     // out_FragColor.rgb = vec3(noiseValue);
     // return;
 
@@ -401,10 +422,10 @@ export default /* glsl */ `
     vec3 start;
     float marchDistance = 0.;
 
-    float radius1 = earthRadius + MIN_HEIGHT;
-    float radius2 = earthRadius + MAX_HEIGHT;
+    float radius1 = earthRadius + heightRange.x;
+    float radius2 = earthRadius + heightRange.y;
 
-    if (czm_eyeHeight < MIN_HEIGHT) {
+    if (czm_eyeHeight < heightRange.x) {
       // 低于云层
       info = isIntersectSphere(radius1, rayOrigin, rayDirection, worldCoordinate, infinite);
       start = rayOrigin + rayDirection * info.maxDistance;
@@ -413,7 +434,7 @@ export default /* glsl */ `
         info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
         marchDistance = info2.maxDistance - info.maxDistance;
       }
-    } else if (czm_eyeHeight < MAX_HEIGHT) {
+    } else if (czm_eyeHeight < heightRange.y) {
       // 处于云层中
       info = isIntersectSphere(radius1, rayOrigin, rayDirection, worldCoordinate, infinite);
       if (info.intersected) {
@@ -429,7 +450,7 @@ export default /* glsl */ `
       start = rayOrigin;
     } else {
       // 高于云层
-      // if (czm_eyeHeight > 5. * MAX_HEIGHT) {
+      // if (czm_eyeHeight > 5. * heightRange.y) {
       //   return;
       // }
 

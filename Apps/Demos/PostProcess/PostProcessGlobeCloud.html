@@ -50,15 +50,25 @@
         duration: 0,
       });
 
+      const minHeight = 1000;
+      const maxHeight = 5000;
+
+      viewer.entities.add({
+        polyline: {
+          positions: [
+            Cesium.Cartesian3.fromDegrees(120, 30, minHeight),
+            Cesium.Cartesian3.fromDegrees(120, 30, maxHeight),
+          ],
+          width: 10,
+          material: Cesium.Color.RED,
+        },
+      });
+
       window.viewer = viewer;
 
-      const p1 = Cesium.Resource.fetchImage({
-        url: "./clouds.jpg",
-      });
+      const p1 = Cesium.Resource.fetchImage({ url: "./clouds.jpg" });
 
-      const p2 = Cesium.Resource.fetchImage({
-        url: "./gradientNoise.png",
-      });
+      const p2 = Cesium.Resource.fetchImage({ url: "./gradientNoise.png" });
 
       Promise.all([p1, p2]).then((images) => {
         const coverageMap = new Cesium.Texture({
@@ -110,6 +120,9 @@
                 0,
               );
               return Cesium.Cartesian3.magnitude(surfacePoint);
+            },
+            heightRange() {
+              return new Cesium.Cartesian2(minHeight, maxHeight);
             },
           },
           fragmentShader: cellular2x2x2 + fs,
