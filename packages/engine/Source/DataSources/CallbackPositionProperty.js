@@ -1,4 +1,3 @@
-import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
 import DeveloperError from "../Core/DeveloperError.js";
 import Event from "../Core/Event.js";
@@ -21,7 +20,7 @@ import PositionProperty from "./PositionProperty.js";
 function CallbackPositionProperty(callback, isConstant, referenceFrame) {
   this._callback = undefined;
   this._isConstant = undefined;
-  this._referenceFrame = defaultValue(referenceFrame, ReferenceFrame.FIXED);
+  this._referenceFrame = referenceFrame ?? ReferenceFrame.FIXED;
   this._definitionChanged = new Event();
   this.setCallback(callback, isConstant);
 }
@@ -90,7 +89,7 @@ CallbackPositionProperty.prototype.getValue = function (time, result) {
  */
 CallbackPositionProperty.prototype.setCallback = function (
   callback,
-  isConstant
+  isConstant,
 ) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(callback)) {
@@ -123,7 +122,7 @@ CallbackPositionProperty.prototype.setCallback = function (
 CallbackPositionProperty.prototype.getValueInReferenceFrame = function (
   time,
   referenceFrame,
-  result
+  result,
 ) {
   //>>includeStart('debug', pragmas.debug);
   if (!defined(time)) {
@@ -141,7 +140,7 @@ CallbackPositionProperty.prototype.getValueInReferenceFrame = function (
     value,
     this._referenceFrame,
     referenceFrame,
-    result
+    result,
   );
 };
 

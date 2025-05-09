@@ -1,5 +1,4 @@
 import Check from "./Check.js";
-import defaultValue from "./defaultValue.js";
 import defined from "./defined.js";
 import DeveloperError from "./DeveloperError.js";
 import CesiumMath from "./Math.js";
@@ -22,14 +21,14 @@ function Cartesian2(x, y) {
    * @type {number}
    * @default 0.0
    */
-  this.x = defaultValue(x, 0.0);
+  this.x = x ?? 0.0;
 
   /**
    * The Y component.
    * @type {number}
    * @default 0.0
    */
-  this.y = defaultValue(y, 0.0);
+  this.y = y ?? 0.0;
 }
 
 /**
@@ -113,7 +112,7 @@ Cartesian2.pack = function (value, array, startingIndex) {
   Check.defined("array", array);
   //>>includeEnd('debug');
 
-  startingIndex = defaultValue(startingIndex, 0);
+  startingIndex = startingIndex ?? 0;
 
   array[startingIndex++] = value.x;
   array[startingIndex] = value.y;
@@ -134,7 +133,7 @@ Cartesian2.unpack = function (array, startingIndex, result) {
   Check.defined("array", array);
   //>>includeEnd('debug');
 
-  startingIndex = defaultValue(startingIndex, 0);
+  startingIndex = startingIndex ?? 0;
 
   if (!defined(result)) {
     result = new Cartesian2();
@@ -162,7 +161,7 @@ Cartesian2.packArray = function (array, result) {
     result = new Array(resultLength);
   } else if (!Array.isArray(result) && result.length !== resultLength) {
     throw new DeveloperError(
-      "If result is a typed array, it must have exactly array.length * 2 elements"
+      "If result is a typed array, it must have exactly array.length * 2 elements",
     );
   } else if (result.length !== resultLength) {
     result.length = resultLength;
@@ -644,7 +643,7 @@ Cartesian2.angleBetween = function (left, right) {
   Cartesian2.normalize(left, angleBetweenScratch);
   Cartesian2.normalize(right, angleBetweenScratch2);
   return CesiumMath.acosClamped(
-    Cartesian2.dot(angleBetweenScratch, angleBetweenScratch2)
+    Cartesian2.dot(angleBetweenScratch, angleBetweenScratch2),
   );
 };
 
@@ -714,7 +713,7 @@ Cartesian2.equalsEpsilon = function (
   left,
   right,
   relativeEpsilon,
-  absoluteEpsilon
+  absoluteEpsilon,
 ) {
   return (
     left === right ||
@@ -724,13 +723,13 @@ Cartesian2.equalsEpsilon = function (
         left.x,
         right.x,
         relativeEpsilon,
-        absoluteEpsilon
+        absoluteEpsilon,
       ) &&
       CesiumMath.equalsEpsilon(
         left.y,
         right.y,
         relativeEpsilon,
-        absoluteEpsilon
+        absoluteEpsilon,
       ))
   );
 };
@@ -801,13 +800,13 @@ Cartesian2.prototype.equals = function (right) {
 Cartesian2.prototype.equalsEpsilon = function (
   right,
   relativeEpsilon,
-  absoluteEpsilon
+  absoluteEpsilon,
 ) {
   return Cartesian2.equalsEpsilon(
     this,
     right,
     relativeEpsilon,
-    absoluteEpsilon
+    absoluteEpsilon,
   );
 };
 

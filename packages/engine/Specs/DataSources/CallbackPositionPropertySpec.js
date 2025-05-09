@@ -7,7 +7,10 @@ import {
 } from "../../index.js";
 
 describe("DataSources/CallbackPositionProperty", function () {
-  const time = JulianDate.now();
+  let time;
+  beforeEach(function () {
+    time = JulianDate.now();
+  });
 
   it("constructor throws with undefined isConstant", function () {
     expect(function () {
@@ -29,7 +32,7 @@ describe("DataSources/CallbackPositionProperty", function () {
     property = new CallbackPositionProperty(
       callback,
       true,
-      ReferenceFrame.INERTIAL
+      ReferenceFrame.INERTIAL,
     );
     expect(property.referenceFrame).toBe(ReferenceFrame.INERTIAL);
   });
@@ -62,7 +65,7 @@ describe("DataSources/CallbackPositionProperty", function () {
       time,
       valueInertial,
       ReferenceFrame.INERTIAL,
-      ReferenceFrame.FIXED
+      ReferenceFrame.FIXED,
     );
     const callback = function (_time, result) {
       return valueInertial.clone(result);
@@ -70,7 +73,7 @@ describe("DataSources/CallbackPositionProperty", function () {
     const property = new CallbackPositionProperty(
       callback,
       true,
-      ReferenceFrame.INERTIAL
+      ReferenceFrame.INERTIAL,
     );
 
     const result = property.getValue(time);
@@ -99,7 +102,7 @@ describe("DataSources/CallbackPositionProperty", function () {
 
     const result = property.getValueInReferenceFrame(
       time,
-      ReferenceFrame.INERTIAL
+      ReferenceFrame.INERTIAL,
     );
     expect(result).not.toBe(value);
     expect(result).toEqual(
@@ -107,8 +110,8 @@ describe("DataSources/CallbackPositionProperty", function () {
         time,
         value,
         ReferenceFrame.FIXED,
-        ReferenceFrame.INERTIAL
-      )
+        ReferenceFrame.INERTIAL,
+      ),
     );
   });
 
@@ -120,14 +123,14 @@ describe("DataSources/CallbackPositionProperty", function () {
     const property = new CallbackPositionProperty(
       callback,
       true,
-      ReferenceFrame.INERTIAL
+      ReferenceFrame.INERTIAL,
     );
 
     const expected = new Cartesian3();
     const result = property.getValueInReferenceFrame(
       time,
       ReferenceFrame.FIXED,
-      expected
+      expected,
     );
     expect(result).toBe(expected);
     expect(expected).toEqual(
@@ -135,8 +138,8 @@ describe("DataSources/CallbackPositionProperty", function () {
         time,
         value,
         ReferenceFrame.INERTIAL,
-        ReferenceFrame.FIXED
-      )
+        ReferenceFrame.FIXED,
+      ),
     );
   });
 
@@ -189,7 +192,7 @@ describe("DataSources/CallbackPositionProperty", function () {
     right = new CallbackPositionProperty(
       callback,
       true,
-      ReferenceFrame.INERTIAL
+      ReferenceFrame.INERTIAL,
     );
     expect(left.equals(right)).toEqual(false);
   });

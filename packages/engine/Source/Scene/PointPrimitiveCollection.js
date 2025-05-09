@@ -1,7 +1,7 @@
 import BoundingSphere from "../Core/BoundingSphere.js";
 import Color from "../Core/Color.js";
 import ComponentDatatype from "../Core/ComponentDatatype.js";
-import defaultValue from "../Core/defaultValue.js";
+import Frozen from "../Core/Frozen.js";
 import defined from "../Core/defined.js";
 import destroyObject from "../Core/destroyObject.js";
 import DeveloperError from "../Core/DeveloperError.js";
@@ -91,7 +91,7 @@ const attributeLocations = {
  * @see PointPrimitive
  */
 function PointPrimitiveCollection(options) {
-  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+  options = options ?? Frozen.EMPTY_OBJECT;
 
   this._sp = undefined;
   this._spTranslucent = undefined;
@@ -135,7 +135,7 @@ function PointPrimitiveCollection(options) {
    * @type {boolean}
    * @default true
    */
-  this.show = defaultValue(options.show, true);
+  this.show = options.show ?? true;
 
   /**
    * The 4x4 transformation matrix that transforms each point in this collection from model to world coordinates.
@@ -169,9 +169,7 @@ function PointPrimitiveCollection(options) {
    *
    * @see Transforms.eastNorthUpToFixedFrame
    */
-  this.modelMatrix = Matrix4.clone(
-    defaultValue(options.modelMatrix, Matrix4.IDENTITY)
-  );
+  this.modelMatrix = Matrix4.clone(options.modelMatrix ?? Matrix4.IDENTITY);
   this._modelMatrix = Matrix4.clone(Matrix4.IDENTITY);
 
   /**
@@ -184,10 +182,7 @@ function PointPrimitiveCollection(options) {
    *
    * @default false
    */
-  this.debugShowBoundingVolume = defaultValue(
-    options.debugShowBoundingVolume,
-    false
-  );
+  this.debugShowBoundingVolume = options.debugShowBoundingVolume ?? false;
 
   /**
    * The point blending option. The default is used for rendering both opaque and translucent points.
@@ -197,10 +192,7 @@ function PointPrimitiveCollection(options) {
    * @type {BlendOption}
    * @default BlendOption.OPAQUE_AND_TRANSLUCENT
    */
-  this.blendOption = defaultValue(
-    options.blendOption,
-    BlendOption.OPAQUE_AND_TRANSLUCENT
-  );
+  this.blendOption = options.blendOption ?? BlendOption.OPAQUE_AND_TRANSLUCENT;
   this._blendOption = undefined;
 
   this._mode = SceneMode.SCENE3D;
@@ -380,12 +372,11 @@ function removePointPrimitives(pointPrimitiveCollection) {
 
 PointPrimitiveCollection.prototype._updatePointPrimitive = function (
   pointPrimitive,
-  propertyChanged
+  propertyChanged,
 ) {
   if (!pointPrimitive._dirty) {
-    this._pointPrimitivesToUpdate[
-      this._pointPrimitivesToUpdateIndex++
-    ] = pointPrimitive;
+    this._pointPrimitivesToUpdate[this._pointPrimitivesToUpdateIndex++] =
+      pointPrimitive;
   }
 
   ++this._propertiesChanged[propertyChanged];
@@ -500,7 +491,7 @@ function createVAF(context, numberOfPointPrimitives, buffersUsage) {
         usage: buffersUsage[DISTANCE_DISPLAY_CONDITION_INDEX],
       },
     ],
-    numberOfPointPrimitives
+    numberOfPointPrimitives,
   ); // 1 vertex per pointPrimitive
 }
 
@@ -515,7 +506,7 @@ function writePositionSizeAndOutline(
   pointPrimitiveCollection,
   context,
   vafWriters,
-  pointPrimitive
+  pointPrimitive,
 ) {
   const i = pointPrimitive._index;
   const position = pointPrimitive._getActualPosition();
@@ -524,7 +515,7 @@ function writePositionSizeAndOutline(
     BoundingSphere.expand(
       pointPrimitiveCollection._baseVolume,
       position,
-      pointPrimitiveCollection._baseVolume
+      pointPrimitiveCollection._baseVolume,
     );
     pointPrimitiveCollection._boundingVolumeDirty = true;
   }
@@ -535,7 +526,7 @@ function writePositionSizeAndOutline(
 
   pointPrimitiveCollection._maxPixelSize = Math.max(
     pointPrimitiveCollection._maxPixelSize,
-    pixelSize + outlineWidth
+    pixelSize + outlineWidth,
   );
 
   const positionHighWriter = vafWriters[attributeLocations.positionHighAndSize];
@@ -555,7 +546,7 @@ function writeCompressedAttrib0(
   pointPrimitiveCollection,
   context,
   vafWriters,
-  pointPrimitive
+  pointPrimitive,
 ) {
   const i = pointPrimitive._index;
 
@@ -591,7 +582,7 @@ function writeCompressedAttrib1(
   pointPrimitiveCollection,
   context,
   vafWriters,
-  pointPrimitive
+  pointPrimitive,
 ) {
   const i = pointPrimitive._index;
 
@@ -641,7 +632,7 @@ function writeScaleByDistance(
   pointPrimitiveCollection,
   context,
   vafWriters,
-  pointPrimitive
+  pointPrimitive,
 ) {
   const i = pointPrimitive._index;
   const writer = vafWriters[attributeLocations.scaleByDistance];
@@ -671,7 +662,7 @@ function writeDistanceDisplayConditionAndDepthDisableAndSplitDirection(
   pointPrimitiveCollection,
   context,
   vafWriters,
-  pointPrimitive
+  pointPrimitive,
 ) {
   const i = pointPrimitive._index;
   const writer =
@@ -714,37 +705,37 @@ function writePointPrimitive(
   pointPrimitiveCollection,
   context,
   vafWriters,
-  pointPrimitive
+  pointPrimitive,
 ) {
   writePositionSizeAndOutline(
     pointPrimitiveCollection,
     context,
     vafWriters,
-    pointPrimitive
+    pointPrimitive,
   );
   writeCompressedAttrib0(
     pointPrimitiveCollection,
     context,
     vafWriters,
-    pointPrimitive
+    pointPrimitive,
   );
   writeCompressedAttrib1(
     pointPrimitiveCollection,
     context,
     vafWriters,
-    pointPrimitive
+    pointPrimitive,
   );
   writeScaleByDistance(
     pointPrimitiveCollection,
     context,
     vafWriters,
-    pointPrimitive
+    pointPrimitive,
   );
   writeDistanceDisplayConditionAndDepthDisableAndSplitDirection(
     pointPrimitiveCollection,
     context,
     vafWriters,
-    pointPrimitive
+    pointPrimitive,
   );
 }
 
@@ -754,7 +745,7 @@ function recomputeActualPositions(
   length,
   frameState,
   modelMatrix,
-  recomputeBoundingVolume
+  recomputeBoundingVolume,
 ) {
   let boundingVolume;
   if (frameState.mode === SceneMode.SCENE3D) {
@@ -771,7 +762,7 @@ function recomputeActualPositions(
     const actualPosition = PointPrimitive._computeActualPosition(
       position,
       frameState,
-      modelMatrix
+      modelMatrix,
     );
     if (defined(actualPosition)) {
       pointPrimitive._setActualPosition(actualPosition);
@@ -818,7 +809,7 @@ function updateMode(pointPrimitiveCollection, frameState) {
         pointPrimitives.length,
         frameState,
         modelMatrix,
-        true
+        true,
       );
     }
   } else if (mode === SceneMode.MORPHING) {
@@ -828,7 +819,7 @@ function updateMode(pointPrimitiveCollection, frameState) {
       pointPrimitives.length,
       frameState,
       modelMatrix,
-      true
+      true,
     );
   } else if (mode === SceneMode.SCENE2D || mode === SceneMode.COLUMBUS_VIEW) {
     recomputeActualPositions(
@@ -837,7 +828,7 @@ function updateMode(pointPrimitiveCollection, frameState) {
       pointPrimitiveCollection._pointPrimitivesToUpdateIndex,
       frameState,
       modelMatrix,
-      false
+      false,
     );
   }
 }
@@ -846,7 +837,7 @@ function updateBoundingVolume(collection, frameState, boundingVolume) {
   const pixelSize = frameState.camera.getPixelSize(
     boundingVolume,
     frameState.context.drawingBufferWidth,
-    frameState.context.drawingBufferHeight
+    frameState.context.drawingBufferHeight,
   );
   const size = pixelSize * collection._maxPixelSize;
   boundingVolume.radius += size;
@@ -939,7 +930,7 @@ PointPrimitiveCollection.prototype.update = function (frameState) {
       properties[SPLIT_DIRECTION_INDEX]
     ) {
       writers.push(
-        writeDistanceDisplayConditionAndDepthDisableAndSplitDirection
+        writeDistanceDisplayConditionAndDepthDisableAndSplitDirection,
       );
     }
 
@@ -993,7 +984,7 @@ PointPrimitiveCollection.prototype.update = function (frameState) {
     BoundingSphere.transform(
       this._baseVolume,
       this.modelMatrix,
-      this._baseVolumeWC
+      this._baseVolumeWC,
     );
   }
 
@@ -1003,12 +994,12 @@ PointPrimitiveCollection.prototype.update = function (frameState) {
     modelMatrix = this.modelMatrix;
     boundingVolume = BoundingSphere.clone(
       this._baseVolumeWC,
-      this._boundingVolume
+      this._boundingVolume,
     );
   } else {
     boundingVolume = BoundingSphere.clone(
       this._baseVolume2D,
-      this._boundingVolume
+      this._boundingVolume,
     );
   }
   updateBoundingVolume(this, frameState, boundingVolume);
@@ -1134,8 +1125,10 @@ PointPrimitiveCollection.prototype.update = function (frameState) {
     }
 
     this._compiledShaderScaleByDistance = this._shaderScaleByDistance;
-    this._compiledShaderTranslucencyByDistance = this._shaderTranslucencyByDistance;
-    this._compiledShaderDistanceDisplayCondition = this._shaderDistanceDisplayCondition;
+    this._compiledShaderTranslucencyByDistance =
+      this._shaderTranslucencyByDistance;
+    this._compiledShaderDistanceDisplayCondition =
+      this._shaderDistanceDisplayCondition;
     this._compiledShaderDisableDepthDistance = this._shaderDisableDepthDistance;
   }
 

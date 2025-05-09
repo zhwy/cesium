@@ -1,4 +1,3 @@
-import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
 import DeveloperError from "../Core/DeveloperError.js";
 
@@ -113,7 +112,7 @@ Property.getValueOrUndefined = function (property, time, result) {
  */
 Property.getValueOrDefault = function (property, time, valueDefault, result) {
   return defined(property)
-    ? defaultValue(property.getValue(time, result), valueDefault)
+    ? (property.getValue(time, result) ?? valueDefault)
     : valueDefault;
 };
 
@@ -124,7 +123,7 @@ Property.getValueOrClonedDefault = function (
   property,
   time,
   valueDefault,
-  result
+  result,
 ) {
   let value;
   if (defined(property)) {

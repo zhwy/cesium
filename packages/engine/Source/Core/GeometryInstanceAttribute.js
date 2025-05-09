@@ -1,4 +1,4 @@
-import defaultValue from "./defaultValue.js";
+import Frozen from "./Frozen.js";
 import defined from "./defined.js";
 import DeveloperError from "./DeveloperError.js";
 
@@ -40,7 +40,7 @@ import DeveloperError from "./DeveloperError.js";
  * @see DistanceDisplayConditionGeometryInstanceAttribute
  */
 function GeometryInstanceAttribute(options) {
-  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+  options = options ?? Frozen.EMPTY_OBJECT;
 
   //>>includeStart('debug', pragmas.debug);
   if (!defined(options.componentDatatype)) {
@@ -54,7 +54,7 @@ function GeometryInstanceAttribute(options) {
     options.componentsPerAttribute > 4
   ) {
     throw new DeveloperError(
-      "options.componentsPerAttribute must be between 1 and 4."
+      "options.componentsPerAttribute must be between 1 and 4.",
     );
   }
   if (!defined(options.value)) {
@@ -111,7 +111,7 @@ function GeometryInstanceAttribute(options) {
    *   Cesium.Color.floatToByte(color.alpha)
    * ];
    */
-  this.normalize = defaultValue(options.normalize, false);
+  this.normalize = options.normalize ?? false;
 
   /**
    * The values for the attributes stored in a typed array.  In the code example,

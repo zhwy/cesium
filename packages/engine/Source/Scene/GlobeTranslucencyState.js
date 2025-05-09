@@ -1,5 +1,4 @@
 import combine from "../Core/combine.js";
-import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
 import NearFarScalar from "../Core/NearFarScalar.js";
 import Rectangle from "../Core/Rectangle.js";
@@ -133,24 +132,24 @@ GlobeTranslucencyState.prototype.update = function (scene) {
     globe.translucency.enabled,
     globe.translucency.frontFaceAlpha,
     globe.translucency.frontFaceAlphaByDistance,
-    this._frontFaceAlphaByDistance
+    this._frontFaceAlphaByDistance,
   );
   this._backFaceAlphaByDistance = updateAlphaByDistance(
     globe.translucency.enabled,
     globe.translucency.backFaceAlpha,
     globe.translucency.backFaceAlphaByDistance,
-    this._backFaceAlphaByDistance
+    this._backFaceAlphaByDistance,
   );
 
   this._frontFaceTranslucent = isFaceTranslucent(
     globe.translucency.enabled,
     this._frontFaceAlphaByDistance,
-    globe
+    globe,
   );
   this._backFaceTranslucent = isFaceTranslucent(
     globe.translucency.enabled,
     this._backFaceAlphaByDistance,
-    globe
+    globe,
   );
 
   this._requiresManualDepthTest = requiresManualDepthTest(this, scene, globe);
@@ -162,7 +161,7 @@ GlobeTranslucencyState.prototype.update = function (scene) {
 
   this._rectangle = Rectangle.clone(
     globe.translucency.rectangle,
-    this._rectangle
+    this._rectangle,
   );
 
   gatherDerivedCommandRequirements(this, scene);
@@ -244,7 +243,7 @@ function gatherDerivedCommandRequirements(state, scene) {
     scene,
     false,
     false,
-    state._derivedCommandTypes
+    state._derivedCommandTypes,
   );
 
   state._derivedBlendCommandsLength = getDerivedCommandTypes(
@@ -252,7 +251,7 @@ function gatherDerivedCommandRequirements(state, scene) {
     scene,
     true,
     false,
-    state._derivedBlendCommandTypes
+    state._derivedBlendCommandTypes,
   );
 
   state._derivedPickCommandsLength = getDerivedCommandTypes(
@@ -260,7 +259,7 @@ function gatherDerivedCommandRequirements(state, scene) {
     scene,
     false,
     true,
-    state._derivedPickCommandTypes
+    state._derivedPickCommandTypes,
   );
 
   let i;
@@ -298,7 +297,7 @@ function getDerivedCommandTypes(
   scene,
   isBlendCommand,
   isPickCommand,
-  types
+  types,
 ) {
   let length = 0;
 
@@ -316,14 +315,14 @@ function getDerivedCommandTypes(
   const translucentFrontFaceCommandType = isPickCommand
     ? DerivedCommandType.PICK_FRONT_FACE
     : requiresManualDepthTest
-    ? DerivedCommandType.TRANSLUCENT_FRONT_FACE_MANUAL_DEPTH_TEST
-    : DerivedCommandType.TRANSLUCENT_FRONT_FACE;
+      ? DerivedCommandType.TRANSLUCENT_FRONT_FACE_MANUAL_DEPTH_TEST
+      : DerivedCommandType.TRANSLUCENT_FRONT_FACE;
 
   const translucentBackFaceCommandType = isPickCommand
     ? DerivedCommandType.PICK_BACK_FACE
     : requiresManualDepthTest
-    ? DerivedCommandType.TRANSLUCENT_BACK_FACE_MANUAL_DEPTH_TEST
-    : DerivedCommandType.TRANSLUCENT_BACK_FACE;
+      ? DerivedCommandType.TRANSLUCENT_BACK_FACE_MANUAL_DEPTH_TEST
+      : DerivedCommandType.TRANSLUCENT_BACK_FACE;
 
   if (scene.mode === SceneMode.SCENE2D) {
     types[length++] = DerivedCommandType.DEPTH_ONLY_FRONT_FACE;
@@ -412,7 +411,7 @@ function getTranslucentShaderProgram(vs, fs) {
   for (let i = 0; i < length; ++i) {
     sources[i] = ShaderSource.replaceMain(
       sources[i],
-      "czm_globe_translucency_main"
+      "czm_globe_translucency_main",
     );
   }
 
@@ -490,7 +489,7 @@ function getDerivedShaderProgram(
   derivedShaderProgram,
   shaderProgramDirty,
   getShaderProgramFunction,
-  cacheName
+  cacheName,
 ) {
   if (!defined(getShaderProgramFunction)) {
     return shaderProgram;
@@ -502,7 +501,7 @@ function getDerivedShaderProgram(
 
   let shader = context.shaderCache.getDerivedShaderProgram(
     shaderProgram,
-    cacheName
+    cacheName,
   );
   if (!defined(shader)) {
     const attributeLocations = shaderProgram._attributeLocations;
@@ -520,7 +519,7 @@ function getDerivedShaderProgram(
         vertexShaderSource: vs,
         fragmentShaderSource: fs,
         attributeLocations: attributeLocations,
-      }
+      },
     );
   }
 
@@ -600,7 +599,7 @@ function getDerivedRenderState(
   derivedRenderState,
   renderStateDirty,
   getRenderStateFunction,
-  cache
+  cache,
 ) {
   if (!defined(getRenderStateFunction)) {
     return renderState;
@@ -634,7 +633,7 @@ function getDerivedUniformMap(
   uniformMap,
   derivedUniformMap,
   uniformMapDirty,
-  getDerivedUniformMapFunction
+  getDerivedUniformMapFunction,
 ) {
   if (!defined(getDerivedUniformMapFunction)) {
     return uniformMap;
@@ -718,7 +717,8 @@ function createDerivedCommandPacks() {
     new DerivedCommandPack({
       pass: Pass.TRANSLUCENT,
       pickOnly: false,
-      getShaderProgramFunction: getTranslucentFrontFaceManualDepthTestShaderProgram,
+      getShaderProgramFunction:
+        getTranslucentFrontFaceManualDepthTestShaderProgram,
       getRenderStateFunction: getTranslucentFrontFaceRenderState,
       getUniformMapFunction: getTranslucencyUniformMap,
     }),
@@ -726,7 +726,8 @@ function createDerivedCommandPacks() {
     new DerivedCommandPack({
       pass: Pass.TRANSLUCENT,
       pickOnly: false,
-      getShaderProgramFunction: getTranslucentBackFaceManualDepthTestShaderProgram,
+      getShaderProgramFunction:
+        getTranslucentBackFaceManualDepthTestShaderProgram,
       getRenderStateFunction: getTranslucentBackFaceRenderState,
       getUniformMapFunction: getTranslucencyUniformMap,
     }),
@@ -754,7 +755,7 @@ const derivedCommandPacks = new Array(derivedCommandsMaximumLength);
 
 GlobeTranslucencyState.prototype.updateDerivedCommands = function (
   command,
-  frameState
+  frameState,
 ) {
   const derivedCommandTypes = this._derivedCommandTypesToUpdate;
   const derivedCommandsLength = this._derivedCommandsToUpdateLength;
@@ -775,7 +776,7 @@ GlobeTranslucencyState.prototype.updateDerivedCommands = function (
     derivedCommandTypes,
     derivedCommandNames,
     derivedCommandPacks,
-    frameState
+    frameState,
   );
 };
 
@@ -786,7 +787,7 @@ function updateDerivedCommands(
   derivedCommandTypes,
   derivedCommandNames,
   derivedCommandPacks,
-  frameState
+  frameState,
 ) {
   let derivedCommandsObject = command.derivedCommands.globeTranslucency;
   const derivedCommandsDirty = state._derivedCommandsDirty;
@@ -805,18 +806,12 @@ function updateDerivedCommands(
 
     const frameNumber = frameState.frameNumber;
 
-    const uniformMapDirtyFrame = defaultValue(
-      derivedCommandsObject.uniformMapDirtyFrame,
-      0
-    );
-    const shaderProgramDirtyFrame = defaultValue(
-      derivedCommandsObject.shaderProgramDirtyFrame,
-      0
-    );
-    const renderStateDirtyFrame = defaultValue(
-      derivedCommandsObject.renderStateDirtyFrame,
-      0
-    );
+    const uniformMapDirtyFrame =
+      derivedCommandsObject.uniformMapDirtyFrame ?? 0;
+    const shaderProgramDirtyFrame =
+      derivedCommandsObject.shaderProgramDirtyFrame ?? 0;
+    const renderStateDirtyFrame =
+      derivedCommandsObject.renderStateDirtyFrame ?? 0;
 
     const uniformMapDirty =
       derivedCommandsObject.uniformMap !== command.uniformMap;
@@ -864,18 +859,12 @@ function updateDerivedCommands(
       derivedCommand = DrawCommand.shallowClone(command, derivedCommand);
       derivedCommandsObject[derivedCommandName] = derivedCommand;
 
-      const derivedUniformMapDirtyFrame = defaultValue(
-        derivedCommand.derivedCommands.uniformMapDirtyFrame,
-        0
-      );
-      const derivedShaderProgramDirtyFrame = defaultValue(
-        derivedCommand.derivedCommands.shaderProgramDirtyFrame,
-        0
-      );
-      const derivedRenderStateDirtyFrame = defaultValue(
-        derivedCommand.derivedCommands.renderStateDirtyFrame,
-        0
-      );
+      const derivedUniformMapDirtyFrame =
+        derivedCommand.derivedCommands.uniformMapDirtyFrame ?? 0;
+      const derivedShaderProgramDirtyFrame =
+        derivedCommand.derivedCommands.shaderProgramDirtyFrame ?? 0;
+      const derivedRenderStateDirtyFrame =
+        derivedCommand.derivedCommands.renderStateDirtyFrame ?? 0;
 
       const derivedUniformMapDirty =
         uniformMapDirty || derivedUniformMapDirtyFrame < uniformMapDirtyFrame;
@@ -904,7 +893,7 @@ function updateDerivedCommands(
         command.uniformMap,
         derivedUniformMap,
         derivedUniformMapDirty,
-        derivedCommandPack.getUniformMapFunction
+        derivedCommandPack.getUniformMapFunction,
       );
       derivedCommand.shaderProgram = getDerivedShaderProgram(
         frameState.context,
@@ -912,14 +901,14 @@ function updateDerivedCommands(
         derivedShaderProgram,
         derivedShaderProgramDirty,
         derivedCommandPack.getShaderProgramFunction,
-        derivedCommandName
+        derivedCommandName,
       );
       derivedCommand.renderState = getDerivedRenderState(
         command.renderState,
         derivedRenderState,
         derivedRenderStateDirty,
         derivedCommandPack.getRenderStateFunction,
-        derivedCommandPack.renderStateCache
+        derivedCommandPack.renderStateCache,
       );
     }
   }
@@ -928,7 +917,7 @@ function updateDerivedCommands(
 GlobeTranslucencyState.prototype.pushDerivedCommands = function (
   command,
   isBlendCommand,
-  frameState
+  frameState,
 ) {
   const picking = frameState.passes.pick || frameState.passes.pickVoxel;
   if (picking && isBlendCommand) {
@@ -967,7 +956,7 @@ function executeCommandsMatchingType(
   executeCommandFunction,
   scene,
   passState,
-  types
+  types,
 ) {
   for (let i = 0; i < commandsLength; ++i) {
     const command = commands[i];
@@ -983,7 +972,7 @@ function executeCommands(
   commandsLength,
   executeCommandFunction,
   scene,
-  passState
+  passState,
 ) {
   for (let i = 0; i < commandsLength; ++i) {
     executeCommandFunction(commands[i], scene, passState);
@@ -1005,7 +994,7 @@ GlobeTranslucencyState.prototype.executeGlobeCommands = function (
   executeCommandFunction,
   globeTranslucencyFramebuffer,
   scene,
-  passState
+  passState,
 ) {
   const context = scene.context;
   const globeCommands = frustumCommands.commands[Pass.GLOBE];
@@ -1025,7 +1014,7 @@ GlobeTranslucencyState.prototype.executeGlobeCommands = function (
     executeCommandFunction,
     scene,
     passState,
-    opaqueTypes
+    opaqueTypes,
   );
 };
 
@@ -1034,7 +1023,7 @@ GlobeTranslucencyState.prototype.executeGlobeClassificationCommands = function (
   executeCommandFunction,
   globeTranslucencyFramebuffer,
   scene,
-  passState
+  passState,
 ) {
   const { context } = scene;
   const { uniformState } = context;
@@ -1060,7 +1049,7 @@ GlobeTranslucencyState.prototype.executeGlobeClassificationCommands = function (
       classificationCommandsLength,
       executeCommandFunction,
       scene,
-      passState
+      passState,
     );
   }
 
@@ -1084,14 +1073,14 @@ GlobeTranslucencyState.prototype.executeGlobeClassificationCommands = function (
     executeCommandFunction,
     scene,
     passState,
-    depthOnlyTypes
+    depthOnlyTypes,
   );
 
   if (context.depthTexture) {
     // Pack depth into separate texture for ground polylines and textured ground primitives
     const packedDepthTexture = globeTranslucencyFramebuffer.packDepth(
       context,
-      passState
+      passState,
     );
     uniformState.globeDepthTexture = packedDepthTexture;
   }
@@ -1102,7 +1091,7 @@ GlobeTranslucencyState.prototype.executeGlobeClassificationCommands = function (
     classificationCommandsLength,
     executeCommandFunction,
     scene,
-    passState
+    passState,
   );
 
   // Unset temporary state

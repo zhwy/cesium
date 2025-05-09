@@ -1,5 +1,5 @@
 import Check from "./Check.js";
-import defaultValue from "./defaultValue.js";
+import Frozen from "./Frozen.js";
 import defined from "./defined.js";
 import DeveloperError from "./DeveloperError.js";
 import CesiumMath from "./Math.js";
@@ -33,7 +33,7 @@ import PerspectiveOffCenterFrustum from "./PerspectiveOffCenterFrustum.js";
  * @see PerspectiveOffCenterFrustum
  */
 function PerspectiveFrustum(options) {
-  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+  options = options ?? Frozen.EMPTY_OBJECT;
 
   this._offCenterFrustum = new PerspectiveOffCenterFrustum();
 
@@ -63,7 +63,7 @@ function PerspectiveFrustum(options) {
    * @type {number}
    * @default 1.0
    */
-  this.near = defaultValue(options.near, 1.0);
+  this.near = options.near ?? 1.0;
   this._near = this.near;
 
   /**
@@ -71,7 +71,7 @@ function PerspectiveFrustum(options) {
    * @type {number}
    * @default 500000000.0
    */
-  this.far = defaultValue(options.far, 500000000.0);
+  this.far = options.far ?? 500000000.0;
   this._far = this.far;
 
   /**
@@ -79,7 +79,7 @@ function PerspectiveFrustum(options) {
    * @type {number}
    * @default 0.0
    */
-  this.xOffset = defaultValue(options.xOffset, 0.0);
+  this.xOffset = options.xOffset ?? 0.0;
   this._xOffset = this.xOffset;
 
   /**
@@ -87,7 +87,7 @@ function PerspectiveFrustum(options) {
    * @type {number}
    * @default 0.0
    */
-  this.yOffset = defaultValue(options.yOffset, 0.0);
+  this.yOffset = options.yOffset ?? 0.0;
   this._yOffset = this.yOffset;
 }
 
@@ -112,7 +112,7 @@ PerspectiveFrustum.pack = function (value, array, startingIndex) {
   Check.defined("array", array);
   //>>includeEnd('debug');
 
-  startingIndex = defaultValue(startingIndex, 0);
+  startingIndex = startingIndex ?? 0;
 
   array[startingIndex++] = value.fov;
   array[startingIndex++] = value.aspectRatio;
@@ -137,7 +137,7 @@ PerspectiveFrustum.unpack = function (array, startingIndex, result) {
   Check.defined("array", array);
   //>>includeEnd('debug');
 
-  startingIndex = defaultValue(startingIndex, 0);
+  startingIndex = startingIndex ?? 0;
 
   if (!defined(result)) {
     result = new PerspectiveFrustum();
@@ -162,7 +162,7 @@ function update(frustum) {
     !defined(frustum.far)
   ) {
     throw new DeveloperError(
-      "fov, aspectRatio, near, or far parameters are not set."
+      "fov, aspectRatio, near, or far parameters are not set.",
     );
   }
   //>>includeEnd('debug');
@@ -186,7 +186,7 @@ function update(frustum) {
   Check.typeOf.number.greaterThanOrEquals(
     "aspectRatio",
     frustum.aspectRatio,
-    0.0
+    0.0,
   );
 
   Check.typeOf.number.greaterThanOrEquals("near", frustum.near, 0.0);
@@ -312,7 +312,7 @@ Object.defineProperties(PerspectiveFrustum.prototype, {
 PerspectiveFrustum.prototype.computeCullingVolume = function (
   position,
   direction,
-  up
+  up,
 ) {
   update(this);
   return this._offCenterFrustum.computeCullingVolume(position, direction, up);
@@ -353,7 +353,7 @@ PerspectiveFrustum.prototype.getPixelDimensions = function (
   drawingBufferHeight,
   distance,
   pixelRatio,
-  result
+  result,
 ) {
   update(this);
   return this._offCenterFrustum.getPixelDimensions(
@@ -361,7 +361,7 @@ PerspectiveFrustum.prototype.getPixelDimensions = function (
     drawingBufferHeight,
     distance,
     pixelRatio,
-    result
+    result,
   );
 };
 
@@ -427,7 +427,7 @@ PerspectiveFrustum.prototype.equals = function (other) {
 PerspectiveFrustum.prototype.equalsEpsilon = function (
   other,
   relativeEpsilon,
-  absoluteEpsilon
+  absoluteEpsilon,
 ) {
   if (!defined(other) || !(other instanceof PerspectiveFrustum)) {
     return false;
@@ -441,18 +441,18 @@ PerspectiveFrustum.prototype.equalsEpsilon = function (
       this.fov,
       other.fov,
       relativeEpsilon,
-      absoluteEpsilon
+      absoluteEpsilon,
     ) &&
     CesiumMath.equalsEpsilon(
       this.aspectRatio,
       other.aspectRatio,
       relativeEpsilon,
-      absoluteEpsilon
+      absoluteEpsilon,
     ) &&
     this._offCenterFrustum.equalsEpsilon(
       other._offCenterFrustum,
       relativeEpsilon,
-      absoluteEpsilon
+      absoluteEpsilon,
     )
   );
 };

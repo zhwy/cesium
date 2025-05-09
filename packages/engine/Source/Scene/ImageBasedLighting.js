@@ -1,7 +1,7 @@
 import Cartesian2 from "../Core/Cartesian2.js";
 import Check from "../Core/Check.js";
 import defined from "../Core/defined.js";
-import defaultValue from "../Core/defaultValue.js";
+import Frozen from "../Core/Frozen.js";
 import destroyObject from "../Core/destroyObject.js";
 import DeveloperError from "../Core/DeveloperError.js";
 import SpecularEnvironmentCubeMap from "./SpecularEnvironmentCubeMap.js";
@@ -24,7 +24,7 @@ import SpecularEnvironmentCubeMap from "./SpecularEnvironmentCubeMap.js";
  * @param {string} [options.specularEnvironmentMaps] A URL to a KTX2 file that contains a cube map of the specular lighting and the convoluted specular mipmaps.
  */
 function ImageBasedLighting(options) {
-  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+  options = options ?? Frozen.EMPTY_OBJECT;
   const imageBasedLightingFactor = defined(options.imageBasedLightingFactor)
     ? Cartesian2.clone(options.imageBasedLightingFactor)
     : new Cartesian2(1.0, 1.0);
@@ -32,27 +32,27 @@ function ImageBasedLighting(options) {
   //>>includeStart('debug', pragmas.debug);
   Check.typeOf.object(
     "options.imageBasedLightingFactor",
-    imageBasedLightingFactor
+    imageBasedLightingFactor,
   );
   Check.typeOf.number.greaterThanOrEquals(
     "options.imageBasedLightingFactor.x",
     imageBasedLightingFactor.x,
-    0.0
+    0.0,
   );
   Check.typeOf.number.lessThanOrEquals(
     "options.imageBasedLightingFactor.x",
     imageBasedLightingFactor.x,
-    1.0
+    1.0,
   );
   Check.typeOf.number.greaterThanOrEquals(
     "options.imageBasedLightingFactor.y",
     imageBasedLightingFactor.y,
-    0.0
+    0.0,
   );
   Check.typeOf.number.lessThanOrEquals(
     "options.imageBasedLightingFactor.y",
     imageBasedLightingFactor.y,
-    1.0
+    1.0,
   );
   //>>includeEnd('debug');
 
@@ -67,7 +67,7 @@ function ImageBasedLighting(options) {
       sphericalHarmonicCoefficients.length !== 9)
   ) {
     throw new DeveloperError(
-      "options.sphericalHarmonicCoefficients must be an array of 9 Cartesian3 values."
+      "options.sphericalHarmonicCoefficients must be an array of 9 Cartesian3 values.",
     );
   }
   //>>includeEnd('debug');
@@ -89,7 +89,7 @@ function ImageBasedLighting(options) {
 
   // Keeps track of the last values for use during update logic
   this._previousImageBasedLightingFactor = Cartesian2.clone(
-    imageBasedLightingFactor
+    imageBasedLightingFactor,
   );
   this._previousSphericalHarmonicCoefficients = sphericalHarmonicCoefficients;
   this._removeErrorListener = undefined;
@@ -117,31 +117,31 @@ Object.defineProperties(ImageBasedLighting.prototype, {
       Check.typeOf.number.greaterThanOrEquals(
         "imageBasedLightingFactor.x",
         value.x,
-        0.0
+        0.0,
       );
       Check.typeOf.number.lessThanOrEquals(
         "imageBasedLightingFactor.x",
         value.x,
-        1.0
+        1.0,
       );
       Check.typeOf.number.greaterThanOrEquals(
         "imageBasedLightingFactor.y",
         value.y,
-        0.0
+        0.0,
       );
       Check.typeOf.number.lessThanOrEquals(
         "imageBasedLightingFactor.y",
         value.y,
-        1.0
+        1.0,
       );
       //>>includeEnd('debug');
       this._previousImageBasedLightingFactor = Cartesian2.clone(
         this._imageBasedLightingFactor,
-        this._previousImageBasedLightingFactor
+        this._previousImageBasedLightingFactor,
       );
       this._imageBasedLightingFactor = Cartesian2.clone(
         value,
-        this._imageBasedLightingFactor
+        this._imageBasedLightingFactor,
       );
     },
   },
@@ -172,11 +172,12 @@ Object.defineProperties(ImageBasedLighting.prototype, {
       //>>includeStart('debug', pragmas.debug);
       if (defined(value) && (!Array.isArray(value) || value.length !== 9)) {
         throw new DeveloperError(
-          "sphericalHarmonicCoefficients must be an array of 9 Cartesian3 values."
+          "sphericalHarmonicCoefficients must be an array of 9 Cartesian3 values.",
         );
       }
       //>>includeEnd('debug');
-      this._previousSphericalHarmonicCoefficients = this._sphericalHarmonicCoefficients;
+      this._previousSphericalHarmonicCoefficients =
+        this._sphericalHarmonicCoefficients;
       this._sphericalHarmonicCoefficients = value;
     },
   },
@@ -308,15 +309,14 @@ function createSpecularEnvironmentCubeMap(imageBasedLighting, context) {
 
   if (defined(imageBasedLighting._specularEnvironmentMaps)) {
     const cubeMap = new SpecularEnvironmentCubeMap(
-      imageBasedLighting._specularEnvironmentMaps
+      imageBasedLighting._specularEnvironmentMaps,
     );
     imageBasedLighting._specularEnvironmentCubeMap = cubeMap;
 
-    imageBasedLighting._removeErrorListener = cubeMap.errorEvent.addEventListener(
-      (error) => {
+    imageBasedLighting._removeErrorListener =
+      cubeMap.errorEvent.addEventListener((error) => {
         console.error(`Error loading specularEnvironmentMaps: ${error}`);
-      }
-    );
+      });
   }
 
   // Regenerate shaders so they do not use an environment map.
@@ -348,7 +348,7 @@ ImageBasedLighting.prototype.update = function (frameState) {
 
     this._previousImageBasedLightingFactor = Cartesian2.clone(
       this._imageBasedLightingFactor,
-      this._previousImageBasedLightingFactor
+      this._previousImageBasedLightingFactor,
     );
   }
 
@@ -361,7 +361,8 @@ ImageBasedLighting.prototype.update = function (frameState) {
       defined(this._previousSphericalHarmonicCoefficients) !==
         defined(this._sphericalHarmonicCoefficients);
 
-    this._previousSphericalHarmonicCoefficients = this._sphericalHarmonicCoefficients;
+    this._previousSphericalHarmonicCoefficients =
+      this._sphericalHarmonicCoefficients;
   }
 
   this._shouldRegenerateShaders =
@@ -369,7 +370,8 @@ ImageBasedLighting.prototype.update = function (frameState) {
     this._previousSpecularEnvironmentMapLoaded !==
       this._specularEnvironmentMapLoaded;
 
-  this._previousSpecularEnvironmentMapLoaded = this._specularEnvironmentMapLoaded;
+  this._previousSpecularEnvironmentMapLoaded =
+    this._specularEnvironmentMapLoaded;
 
   if (this._specularEnvironmentCubeMapDirty) {
     createSpecularEnvironmentCubeMap(this, context);
