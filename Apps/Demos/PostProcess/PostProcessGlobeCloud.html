@@ -40,28 +40,38 @@
       scene.globe.depthTestAgainstTerrain = true;
       scene.debugShowFramesPerSecond = true;
 
+      const minHeight = 5000;
+      const maxHeight = 10000;
+
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(120, 30, 1e7),
+        destination: Cesium.Cartesian3.fromRadians(2.089398, 0.519712, 16.7),
         orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-90),
+          heading: 0.47, // Cesium.Math.toRadians(0),
+          pitch: 0.13, // Cesium.Math.toRadians(-90),
           roll: 0,
         },
         duration: 0,
       });
 
-      const minHeight = 1000;
-      const maxHeight = 5000;
+      const point = Cesium.Cartesian3.fromDegrees(120, 30, maxHeight);
 
       viewer.entities.add({
-        polyline: {
-          positions: [
-            Cesium.Cartesian3.fromDegrees(120, 30, minHeight),
-            Cesium.Cartesian3.fromDegrees(120, 30, maxHeight),
-          ],
-          width: 10,
+        plane: {
+          plane: Cesium.Plane.transform(
+            Cesium.Plane.ORIGIN_XY_PLANE,
+            Cesium.Transforms.eastNorthUpToFixedFrame(point),
+          ),
+          dimensions: new Cesium.Cartesian2(1000, 1000),
           material: Cesium.Color.RED,
         },
+        // polyline: {
+        //   positions: [
+        //     Cesium.Cartesian3.fromDegrees(120, 30, minHeight),
+        //     Cesium.Cartesian3.fromDegrees(120, 30, maxHeight),
+        //   ],
+        //   width: 10,
+        //   material: Cesium.Color.RED,
+        // },
       });
 
       window.viewer = viewer;

@@ -56,18 +56,18 @@ export default /* glsl */ `
     float minDistance = d - halfDis;
     float maxDistance = d + halfDis;
 
-    float distance = length(point - rayOrigin);
+    float dist = length(point - rayOrigin);
 
     if (minDistance > 0.0) {
       // 射线原点在球外部
-      info.intersected = distance >= minDistance || infinite;
-      info.inside = distance >= minDistance && distance <= maxDistance;
+      info.intersected = dist >= minDistance || infinite;
+      info.inside = dist >= minDistance && dist <= maxDistance;
       info.minDistance = minDistance;
       info.maxDistance = maxDistance;
     } else if (maxDistance > 0.0) {
       // 射线原点在球内部
-      info.intersected = distance >= maxDistance || infinite;
-      info.inside = distance <= maxDistance;
+      info.intersected = dist >= maxDistance || infinite;
+      info.inside = dist <= maxDistance;
       info.minDistance = 0.0;
       info.maxDistance = maxDistance;
     }
@@ -146,8 +146,8 @@ export default /* glsl */ `
     return 1. - smoothstep(0.0, 1.0, value);
   }
 
-  #define GRDIENT_NOISE
-  // #define WORLEY_NOISE
+  // #define GRDIENT_NOISE
+  #define WORLEY_NOISE
 
   float noise(vec3 x) {
     #ifdef GRDIENT_NOISE
@@ -155,7 +155,7 @@ export default /* glsl */ `
     #endif
 
     #ifdef WORLEY_NOISE
-    return worleyNoise(x);
+    return worleyNoise(x) * 2. - 1.;
     #endif
 
   }
@@ -192,7 +192,7 @@ export default /* glsl */ `
     float maxScale = 0.;
 
     for (int i = 0; i < 6; i++) {
-      f += scale * noise3D(q);
+      f += scale * (noise3D(q) * 0.5 + 0.5);
       q *= factor;
       factor += 0.21;
       maxScale += scale;
@@ -238,8 +238,10 @@ export default /* glsl */ `
 
   float perlinWorleyNoise(vec3 p) {
     // https://www.shadertoy.com/view/3dVXDc
-    float pfbm = mix(1., perlinFbm(p) * 0.5 + 0.5, 0.5);
-    pfbm = abs(pfbm * 2. - 1.);
+    // float pfbm = mix(1., perlinFbm(p) * 0.5 + 0.5, 0.5);
+    // pfbm = abs(pfbm * 2. - 1.);
+    float pfbm = perlinFbm(p);
+    
 
     float wfbm1 = worleyFbm(p);
     // float wfbm2 = worleyFbm(p * 2e-6);
@@ -247,13 +249,13 @@ export default /* glsl */ `
     // float wfbm = wfbm1 * 0.625 + wfbm2 * 0.25 + wfbm4 * 0.125;
     float wfbm = wfbm1;
 
-    float value = remap(pfbm, 0., 1., wfbm1, 1.); // perlin-worley
+    float value = remap(pfbm, wfbm1, 1., 0., 1.); // perlin-worley
     // value = remap(value, wfbm - 1., 1., 0., 1.);
     // value = remap(value, 0.85, 1., 0., 1.);
-    return value;
+    return value * 2. - 1.;
   }
 
-  #define MODE 1
+  #define MODE 2
 
   float getDensity(vec3 point) {
     // 将世界坐标转换为2D纹理坐标
@@ -265,28 +267,25 @@ export default /* glsl */ `
     float value = fbm(uv);
     if (value < 0.0)  return 0.0;
     // 底部厚，顶部稀
-    float heightFactor = clamp(remap(normalizedHeight, 0.0, coverage, 1., 0.), 0., 1.);
+    float heightFactor = (1. - normalizedHeight) * (1. - normalizedHeight);
     #endif
 
     #if MODE == 1
     float value = fbm(point * 1e-4);
-    // value = mix(1., value * 0.5 + 0.5, 0.5);
-    // value = abs(value * 2. - 1.);
     // 中间厚边缘稀
-    float baseHeight = 0.5; // 云层最浓密的相对高度
-    float spread = 0.1;     // 云层垂直分布范围
-    float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
+    // float baseHeight = 0.5; // 云层最浓密的相对高度
+    // float spread = 0.1;     // 云层垂直分布范围
+    // float heightFactor = exp(-(normalizedHeight - baseHeight) * (normalizedHeight - baseHeight) / (2.0 * spread * spread));
+    // 底部厚，顶部稀
+    float heightFactor = (1. - normalizedHeight) * (1. - normalizedHeight);
     #endif
 
-    #if MODE == 3
-    float value = 1.;
-    float noise = perlinWorleyNoise(point * 1e-5);
+    #if MODE == 2
+    float value = perlinWorleyNoise(point * 1e-4);
     // float heightFactor = clamp(remap(normalizedHeight, 0.75, 1.0, 1., 0.), 0., 1.);
-    // float heightFactor = normalizedHeight;
-    float heightFactor = 1. - normalizedHeight;
-    value *= heightFactor;
-    value = clamp(remap(value, noise, 1., 0., 1.), 0., 1.) * 0.5 * coverage * coverage;
-
+    float heightFactor = (1. - normalizedHeight) * (1. - normalizedHeight);
+    // value *= heightFactor;
+    // value = clamp(remap(value, noise, 1., 0., 1.), 0., 1.) * 0.5 * coverage * coverage;
     #endif
 
     value = value * heightFactor;
@@ -298,9 +297,9 @@ export default /* glsl */ `
   vec4 getCloud(vec3 rayOrigin, vec3 rayDirection, vec3 start, float marchDistance, vec3 lightDir) {
     if (marchDistance < 0.1) return vec4(0.);
 
-    float maxStep = marchDistance * 0.1;
-    float minStep = marchDistance * 0.05;
-    const int maxCount = 32;
+    float maxStep = marchDistance * 0.01;
+    float minStep = marchDistance * 0.001;
+    const int maxCount = 300;
     float densityScale = 1.;
 
     float stepSize = marchDistance / float(maxCount);
@@ -318,7 +317,7 @@ export default /* glsl */ `
       vec3 point = start + rayDirection * stepLength;
       float density = getDensity(point);
       // // 动态改变步长
-      // if (density > 0.05) {
+      // if (density > 0.01) {
       //   // 高密度区域：减小步长
       //   stepSize = max(minStep, stepSize * 0.5);
       // } else {
@@ -336,6 +335,7 @@ export default /* glsl */ `
 
       vec3 baseColor = mix(BASE_BRIGHT, BASE_DARK, density) * density;
 
+      // #define ADD_LIGHT
       #ifdef ADD_LIGHT
       // 计算光照衰减
       float lightTransmittance = 1.0;
@@ -393,14 +393,9 @@ export default /* glsl */ `
     out_FragColor = texture(colorTexture, v_textureCoordinates);
 
     float depth = getDepth(v_textureCoordinates);
-    bool infinite = depth == 0.; // 是否无限远处
-    if (infinite) {
-      depth = 1.;
-    }
-    // 如果想要实现云层中的效果，下方需要注释掉
-    // else {
-    //   return;
-    // }
+    // out_FragColor.rgb = vec3(depth); // 测试深度值
+    // return;
+    bool infinite = depth >= 0.99; // 是否无限远处
 
     vec3 worldCoordinate = getWorldCoordinate(gl_FragCoord.xy, depth);
     // test
@@ -437,17 +432,28 @@ export default /* glsl */ `
     } else if (czm_eyeHeight < heightRange.y) {
       // 处于云层中
       info = isIntersectSphere(radius1, rayOrigin, rayDirection, worldCoordinate, infinite);
+      info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
       if (info.intersected) {
         // 透过云层底部
-        marchDistance = info.minDistance;
+        if (!infinite) {
+          // 与地面相交
+          marchDistance = info.minDistance;
+          start = rayOrigin;
+        } else {
+          // 两次穿透云层底部
+          marchDistance = info2.maxDistance - info.maxDistance + info.minDistance;
+          start = rayOrigin;
+          // out_FragColor.rgb= vec3(0.);
+          // return;
+        }
       } else {
-        // 在云层中
-        info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
+        // 不穿透云层
         marchDistance = info2.maxDistance;
+        start = rayOrigin;
       }
 
       info.intersected = true;
-      start = rayOrigin;
+      
     } else {
       // 高于云层
       // if (czm_eyeHeight > 5. * heightRange.y) {
