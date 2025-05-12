@@ -11,7 +11,7 @@ export default /* glsl */ `
   #define CENTER vec3(0.) // 地心
 
   #define BASE_BRIGHT  vec3(1.00, 1.00, 0.95)    // 基础颜色 -- 亮部
-  #define BASE_DARK    vec3(0.31, 0.31, 0.32)    // 基础颜色 -- 暗部
+  #define BASE_DARK    vec3(0.51, 0.51, 0.52)    // 基础颜色 -- 暗部
   #define LIGHT_BRIGHT vec3(1.00, 1.00, 0.95)  // 光照颜色 -- 亮部
   #define LIGHT_DARK   vec3(0.7, 0.75, 0.8)      // 光照颜色 -- 暗部
 
@@ -32,7 +32,7 @@ export default /* glsl */ `
     float maxDistance;
   };
 
-  IntersectInfo isIntersectSphere(float radius, vec3 rayOrigin, vec3 rayDirection, vec3 point, bool infinite) {
+  IntersectInfo isIntersectSphere(float radius, vec3 rayOrigin, vec3 rayDirection, float distToOrigin, bool infinite) {
     vec3 c2o = CENTER - rayOrigin;
     float c2oDistance = length(c2o);
     float d = c2oDistance * dot(normalize(c2o), rayDirection);
@@ -56,18 +56,16 @@ export default /* glsl */ `
     float minDistance = d - halfDis;
     float maxDistance = d + halfDis;
 
-    float dist = length(point - rayOrigin);
-
     if (minDistance > 0.0) {
       // 射线原点在球外部
-      info.intersected = dist >= minDistance || infinite;
-      info.inside = dist >= minDistance && dist <= maxDistance;
+      info.intersected = distToOrigin >= minDistance || infinite;
+      info.inside = distToOrigin >= minDistance && distToOrigin <= maxDistance;
       info.minDistance = minDistance;
       info.maxDistance = maxDistance;
     } else if (maxDistance > 0.0) {
       // 射线原点在球内部
-      info.intersected = dist >= maxDistance || infinite;
-      info.inside = dist <= maxDistance;
+      info.intersected = distToOrigin >= maxDistance || infinite;
+      info.inside = distToOrigin <= maxDistance;
       info.minDistance = 0.0;
       info.maxDistance = maxDistance;
     }
@@ -192,7 +190,7 @@ export default /* glsl */ `
     float maxScale = 0.;
 
     for (int i = 0; i < 6; i++) {
-      f += scale * (noise3D(q) * 0.5 + 0.5);
+      f += scale * (noise3D(q));
       q *= factor;
       factor += 0.21;
       maxScale += scale;
@@ -237,27 +235,24 @@ export default /* glsl */ `
   }
 
   float perlinWorleyNoise(vec3 p) {
-    // https://www.shadertoy.com/view/3dVXDc
-    // float pfbm = mix(1., perlinFbm(p) * 0.5 + 0.5, 0.5);
-    // pfbm = abs(pfbm * 2. - 1.);
-    float pfbm = perlinFbm(p);
-    
+    // 大尺度形状
+    float pfbm = perlinFbm(p); // -1..1
 
-    float wfbm1 = worleyFbm(p);
+    // 小尺度细节
+    float wfbm1 = worleyFbm(p); // 0..1
     // float wfbm2 = worleyFbm(p * 2e-6);
     // float wfbm4 = worleyFbm(p * 4e-6);
     // float wfbm = wfbm1 * 0.625 + wfbm2 * 0.25 + wfbm4 * 0.125;
     float wfbm = wfbm1;
 
-    float value = remap(pfbm, wfbm1, 1., 0., 1.); // perlin-worley
-    // value = remap(value, wfbm - 1., 1., 0., 1.);
-    // value = remap(value, 0.85, 1., 0., 1.);
-    return value * 2. - 1.;
+    // 简单混合两种噪声
+    float value = wfbm * pfbm;
+    return value;
   }
 
   #define MODE 2
 
-  float getDensity(vec3 point) {
+  float getDensity(vec3 point, bool light) {
     // 将世界坐标转换为2D纹理坐标
     vec2 uv = czm_ellipsoidTextureCoordinates(normalize(point / earthRadius));
     float coverage = texture(coverageMap, uv).x;
@@ -281,7 +276,12 @@ export default /* glsl */ `
     #endif
 
     #if MODE == 2
-    float value = perlinWorleyNoise(point * 1e-4);
+    float value = 0.;
+    if (light) {
+      value = perlinFbm(point * 1e-4);
+    } else {
+      value = perlinWorleyNoise(point * 1e-4);
+    }
     // float heightFactor = clamp(remap(normalizedHeight, 0.75, 1.0, 1., 0.), 0., 1.);
     float heightFactor = (1. - normalizedHeight) * (1. - normalizedHeight);
     // value *= heightFactor;
@@ -299,8 +299,8 @@ export default /* glsl */ `
 
     float maxStep = marchDistance * 0.01;
     float minStep = marchDistance * 0.001;
-    const int maxCount = 300;
-    float densityScale = 1.;
+    const int maxCount = 40;
+    const float densityScale = 1.;
 
     float stepSize = marchDistance / float(maxCount);
     int count = 0;
@@ -309,13 +309,12 @@ export default /* glsl */ `
     float startToOriginDistance = length(start - rayOrigin);
 
     // ray marching
-    // for (int i = 0; i < count; i++) {
     while (true) {
       count++;
       if (stepLength > marchDistance) break;
 
       vec3 point = start + rayDirection * stepLength;
-      float density = getDensity(point);
+      float density = getDensity(point, false);
       // // 动态改变步长
       // if (density > 0.01) {
       //   // 高密度区域：减小步长
@@ -335,7 +334,7 @@ export default /* glsl */ `
 
       vec3 baseColor = mix(BASE_BRIGHT, BASE_DARK, density) * density;
 
-      // #define ADD_LIGHT
+      #define ADD_LIGHT
       #ifdef ADD_LIGHT
       // 计算光照衰减
       float lightTransmittance = 1.0;
@@ -353,8 +352,8 @@ export default /* glsl */ `
       float forwardScatter = pow(max(0.0, cosAngle), 200.0); // 后面的数值越大，透过云层的阳光越聚焦
 
       for (int j = 0; j < lightSteps; j++) {
-        lightSamplePoint += lightDir * marchDistance / float(lightSteps);
-        float lightSampleDensity = getDensity(lightSamplePoint);
+        lightSamplePoint += lightDir * marchDistance / float(lightSteps) * 0.5;
+        float lightSampleDensity = getDensity(lightSamplePoint, true);
         lightSampleDensity *= densityScale;
         if (j == 0) {
           // 朝向光源的更亮，背向光源的更暗
@@ -393,9 +392,10 @@ export default /* glsl */ `
     out_FragColor = texture(colorTexture, v_textureCoordinates);
 
     float depth = getDepth(v_textureCoordinates);
+    if (depth == 0.) return;
     // out_FragColor.rgb = vec3(depth); // 测试深度值
     // return;
-    bool infinite = depth >= 0.99; // 是否无限远处
+    bool infinite = depth > 0.99; // 是否无限远处
 
     vec3 worldCoordinate = getWorldCoordinate(gl_FragCoord.xy, depth);
     // test
@@ -419,20 +419,21 @@ export default /* glsl */ `
 
     float radius1 = earthRadius + heightRange.x;
     float radius2 = earthRadius + heightRange.y;
+    float dist = length( worldCoordinate - rayOrigin);
 
     if (czm_eyeHeight < heightRange.x) {
       // 低于云层
-      info = isIntersectSphere(radius1, rayOrigin, rayDirection, worldCoordinate, infinite);
+      info = isIntersectSphere(radius1, rayOrigin, rayDirection, dist, infinite);
       start = rayOrigin + rayDirection * info.maxDistance;
       if (info.intersected) {
         // 此时是看向天空的，与云层顶部也一定相交
-        info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
+        info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, dist, infinite);
         marchDistance = info2.maxDistance - info.maxDistance;
       }
     } else if (czm_eyeHeight < heightRange.y) {
       // 处于云层中
-      info = isIntersectSphere(radius1, rayOrigin, rayDirection, worldCoordinate, infinite);
-      info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
+      info = isIntersectSphere(radius1, rayOrigin, rayDirection, dist, infinite);
+      info2 = isIntersectSphere(radius2, rayOrigin, rayDirection, dist, infinite);
       if (info.intersected) {
         // 透过云层底部
         if (!infinite) {
@@ -453,18 +454,13 @@ export default /* glsl */ `
       }
 
       info.intersected = true;
-      
-    } else {
-      // 高于云层
-      // if (czm_eyeHeight > 5. * heightRange.y) {
-      //   return;
-      // }
 
-      info = isIntersectSphere(radius2, rayOrigin, rayDirection, worldCoordinate, infinite);
+    } else {
+      info = isIntersectSphere(radius2, rayOrigin, rayDirection, dist, infinite);
       start = rayOrigin + rayDirection * info.minDistance;
       if (info.intersected) {
-        info2 = isIntersectSphere(radius1, rayOrigin, rayDirection, worldCoordinate, infinite);
-        if (info2.intersected) {
+        info2 = isIntersectSphere(radius1, rayOrigin, rayDirection, dist, infinite);
+        if (info2.intersected || !infinite) {
           // 透过云层底部
           marchDistance = info2.minDistance - info.minDistance;
         } else {
@@ -475,6 +471,10 @@ export default /* glsl */ `
     }
 
     if (info.intersected) {
+      if (!infinite) {
+        // 交点在云层间，重新计算步进距离
+        marchDistance = min(marchDistance, dist);
+      }
       vec4 color = getCloud(rayOrigin, rayDirection, start, marchDistance, czm_lightDirectionWC);
       out_FragColor = vec4(out_FragColor.rgb * (1. - color.a) + color.rgb, 1.);
     }
