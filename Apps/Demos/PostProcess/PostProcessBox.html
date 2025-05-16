@@ -141,7 +141,7 @@
           struct OBB {
             vec3 center;      // 中心点
             vec3 halfExtents; // 半长度
-            mat3 rotation;    // 旋转矩阵
+            mat3 baseAxes;    // 基向量
           };
 
           struct AABB {
@@ -162,18 +162,18 @@
             vec3 yAxis = normalize(yAxis4.xyz);
             vec3 zAxis = normalize(zAxis4.xyz);
 
-            // 计算旋转矩阵，按列填充
+            // 计算基向量，按列填充
             // 最终矩阵的第一列：xAxis.x, xAxis.y, xAxis.z
-            // obb.rotation = mat3(
+            // obb.baseAxes = mat3(
             //   xAxis.x, xAxis.y, xAxis.z,
             //   yAxis.x, yAxis.y, yAxis.z,
             //   zAxis.x, zAxis.y, zAxis.z
             // );
-            obb.rotation = mat3(xAxis, yAxis, zAxis);
+            obb.baseAxes = mat3(xAxis, yAxis, zAxis);
 
             // 将点转换到OBB的局部坐标系
-            vec3 localP1 = transpose(obb.rotation) * (p1 - obb.center);
-            vec3 localP2 = transpose(obb.rotation) * (p2 - obb.center);
+            vec3 localP1 = transpose(obb.baseAxes) * (p1 - obb.center);
+            vec3 localP2 = transpose(obb.baseAxes) * (p2 - obb.center);
 
             // 计算局部空间中的半长度
             obb.halfExtents = max(abs(localP1), abs(localP2));
@@ -229,8 +229,8 @@
 
           IntersectInfo isIntersect(OBB box, vec3 rayOrigin, vec3 rayDirection) {
             // 将射线从眼睛坐标转换到OBB box的局部空间
-            vec3 localRayOrigin = transpose(box.rotation) * (rayOrigin - box.center);
-            vec3 localRayDirection = transpose(box.rotation) * normalize(rayDirection);
+            vec3 localRayOrigin = transpose(box.baseAxes) * (rayOrigin - box.center);
+            vec3 localRayDirection = transpose(box.baseAxes) * normalize(rayDirection);
 
             AABB aabb = AABB(-box.halfExtents, box.halfExtents);
             return isIntersect(aabb, localRayOrigin, localRayDirection);
@@ -256,19 +256,20 @@
             // vec3 rayDirection = normalize(pointLocal - rayOrigin);
 
             // vec3 center = (point1 + point2) * 0.5;
-            // vec4 rotationCol1 = transform * vec4(1.0, 0.0, 0.0, 0.0);
-            // vec4 rotationCol2 = transform * vec4(0.0, 1.0, 0.0, 0.0);
-            // vec4 rotationCol3 = transform * vec4(0.0, 0.0, 1.0, 0.0);
+            // vec4 axisX = transform * vec4(1.0, 0.0, 0.0, 0.0);
+            // vec4 axisY = transform * vec4(0.0, 1.0, 0.0, 0.0);
+            // vec4 axisZ = transform * vec4(0.0, 0.0, 1.0, 0.0);
 
-            // // obb坐标轴不与世界坐标轴平行，需要计算旋转矩阵
-            // mat3 rotation = mat3(
-            //   normalize(rotationCol1.xyz),
-            //   normalize(rotationCol2.xyz),
-            //   normalize(rotationCol3.xyz)
+            // // obb坐标轴不与世界坐标轴平，利用基向量的逆将点转换到局部坐标系
+            // // 由于基向量各分量正交，逆和转置相同
+            // mat3 baseAxes = mat3(
+            //   normalize(axisX.xyz),
+            //   normalize(axisY.xyz),
+            //   normalize(axisZ.xyz)
             // );
 
-            // vec3 localP1 = transpose(rotation) * (point1 - center);
-            // vec3 localP2 = transpose(rotation) * (point2 - center);
+            // vec3 localP1 = transpose(baseAxes) * (point1 - center);
+            // vec3 localP2 = transpose(baseAxes) * (point2 - center);
 
             // vec3 halfExtents = max(abs(localP1), abs(localP2));
 
@@ -291,9 +292,11 @@
             IntersectInfo intersectInfo = isIntersect(box, rayOrigin, rayDirection);
 
             if (intersectInfo.hit && length(pointEC - rayOrigin) >= intersectInfo.tNear) {
-              out_FragColor = mix(out_FragColor, vec4(1., 0., 0., 1.), 0.5);
+              vec3 localPoint = transpose(box.baseAxes) * (rayOrigin + rayDirection * intersectInfo.tNear - box.center);
+              localPoint = localPoint / box.halfExtents * 0.5 + 0.5; // 0..1
+              out_FragColor.rgb = localPoint;
+              // out_FragColor = mix(out_FragColor, vec4(1., 0., 0., 1.), 0.5);
             }
-
           }
           `,
       });

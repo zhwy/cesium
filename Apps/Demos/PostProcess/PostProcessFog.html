@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>后处理高度雾</title>
+    <title>后处理雾</title>
     <style>
       @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
       body {
@@ -21,6 +21,8 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      window.Cesium = Cesium;
+      import fs from "./fog.glsl.js";
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
 
@@ -41,131 +43,143 @@
       ) {
         const worldPosition = viewer.scene.pickPosition(movement.position);
         const cartographic = Cesium.Cartographic.fromCartesian(worldPosition);
-        console.log(cartographic);
+        console.log({ cartographic, worldPosition });
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(120, 30, 1500),
+      const point1 = viewer.entities.add({
+        show: false,
+        position: Cesium.Cartesian3.fromRadians(2.095, 0.522, 0),
+        point: {
+          pixelSize: 5,
+          color: Cesium.Color.BLUE,
+        },
+      });
+
+      const point2 = viewer.entities.add({
+        show: false,
+        position: Cesium.Cartesian3.fromRadians(2.096, 0.524, 100),
+        point: {
+          pixelSize: 5,
+          color: Cesium.Color.BLUE,
+        },
+      });
+
+      const encodedPoint1 = Cesium.EncodedCartesian3.fromCartesian(
+        point1.position.getValue(),
+      );
+      const encodedPoint2 = Cesium.EncodedCartesian3.fromCartesian(
+        point2.position.getValue(),
+      );
+
+      const center = viewer.entities.add({
+        position: Cesium.Cartesian3.multiplyByScalar(
+          Cesium.Cartesian3.add(
+            point1.position.getValue(),
+            point2.position.getValue(),
+            new Cesium.Cartesian3(),
+          ),
+          0.5,
+          new Cesium.Cartesian3(),
+        ),
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.YELLOW,
+        },
+      });
+
+      // viewer.flyTo(center, {
+      //   duration: 0,
+      //   offset: new Cesium.HeadingPitchRange(
+      //     0,
+      //     Cesium.Math.toRadians(-90),
+      //     2e7,
+      //   ),
+      // });
+
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromRadians(2.095408, 0.522899, 296.69),
         orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-45),
+          heading: 0.121,
+          pitch: -0.184,
           roll: 0,
         },
-        duration: 0,
       });
+
+      const transform = Cesium.Transforms.eastNorthUpToFixedFrame(
+        center.position.getValue(),
+      );
 
       window.viewer = viewer;
 
-      const stage = new Cesium.PostProcessStage({
-        id: "fog",
-        uniforms: {
-          earthRadius() {
-            const carto = viewer.camera.positionCartographic;
-            const surfacePoint = Cesium.Cartesian3.fromRadians(
-              carto.longitude,
-              carto.latitude,
-              0,
-            );
-            return Cesium.Cartesian3.magnitude(surfacePoint);
-          },
-          fogHeight() {
-            return 100;
-          },
-          maxAlpha() {
-            return 0.8;
-          },
-          fotNearFar() {
-            return new Cesium.Cartesian4(2000, 0, 20000, 1.0);
-          },
+      Cesium.Resource.fetchImage({ url: "./gradientNoise.png" }).then(
+        (image) => {
+          const noiseMap = new Cesium.Texture({
+            context: viewer.scene.context,
+            width: image.width,
+            height: image.height,
+            pixelFormat: Cesium.PixelFormat.RGBA,
+            pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
+            flipY: true,
+            sampler: new Cesium.Sampler({
+              minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+              magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+              wrapS: Cesium.TextureWrap.REPEAT,
+              wrapT: Cesium.TextureWrap.REPEAT,
+            }),
+            source: image,
+          });
+
+          const stage = new Cesium.PostProcessStage({
+            id: "fog",
+            uniforms: {
+              earthRadius() {
+                const carto = viewer.camera.positionCartographic;
+                const surfacePoint = Cesium.Cartesian3.fromRadians(
+                  carto.longitude,
+                  carto.latitude,
+                  0,
+                );
+                return Cesium.Cartesian3.magnitude(surfacePoint);
+              },
+              fogHeight() {
+                return 500;
+              },
+              maxAlpha() {
+                return 1;
+              },
+              fogNearFar() {
+                return new Cesium.Cartesian4(50, 0.3, 10000, 0.95);
+              },
+              densityFactor() {
+                return stage.densityFactor ?? 0.0036;
+              },
+              noiseUvScale() {
+                return stage.noiseUvScale ?? 1e5;
+              },
+              noiseMap() {
+                return noiseMap;
+              },
+              point1High() {
+                return encodedPoint1.high;
+              },
+              point1Low() {
+                return encodedPoint1.low;
+              },
+              point2High() {
+                return encodedPoint2.high;
+              },
+              point2Low() {
+                return encodedPoint2.low;
+              },
+              transform() {
+                return transform;
+              },
+            },
+            fragmentShader: fs,
+          });
+          scene.postProcessStages.add(stage);
         },
-        fragmentShader: /* glsl */ `
-          #define METHOD 3
-
-          uniform sampler2D colorTexture;
-          uniform sampler2D depthTexture;
-          uniform float earthRadius;
-          uniform float fogHeight;
-          uniform float maxAlpha;
-          uniform vec4 fotNearFar;
-
-          in vec2 v_textureCoordinates;
-
-          float getDepth(vec2 uv) {
-            return czm_unpackDepth(texture(depthTexture, uv));
-          }
-
-          vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
-            vec4 eyeCoordinate4 = czm_windowToEyeCoordinates(fragCoord, depth);
-            return eyeCoordinate4.xyz / eyeCoordinate4.w;
-          }
-
-          vec3 getWorldCoordinateFromEye(vec3 eyeCoord) {
-            vec4 worldCoordinate4 = czm_inverseView * vec4(eyeCoord, 1.);
-            return worldCoordinate4.xyz / worldCoordinate4.w;
-          }
-
-          float simpleLinearHeightFog(float pixelHeight) {
-            float fog = clamp(1.0 - pixelHeight / fogHeight, 0.0, maxAlpha);
-            return fog;
-          }
-
-          float simpleLinearDistanceFog(vec3 eyeCoord) {
-            float startDistance = fotNearFar.x;
-              float startValue = fotNearFar.y;
-              float endDistance = fotNearFar.z;
-              float endValue = fotNearFar.w;
-              float dis = length(eyeCoord);
-              float disRate = clamp((dis - startDistance) / (endDistance - startDistance), 0.0, 1.0);
-              float fog = mix(startValue, endValue, disRate);
-
-              return fog;
-          }
-
-          void main() {
-            out_FragColor = texture(colorTexture, v_textureCoordinates);
-
-            float depth = getDepth(v_textureCoordinates);
-            if (depth == 0.) depth = 1.; // 天空深度调整
-
-            vec3 targetEC = getEyeCoordinate(gl_FragCoord.xy, depth);
-
-            #if METHOD == 1
-              vec3 targetWC = getWorldCoordinateFromEye(targetEC);
-              float pixelHeight = length(targetWC) - earthRadius;
-              float fog = simpleLinearHeightFog(pixelHeight);
-              out_FragColor = mix(out_FragColor, vec4(1.0), fog);
-              return;
-            #elif METHOD == 2
-              float fog = simpleLinearDistanceFog(targetEC);
-              out_FragColor = mix(out_FragColor, vec4(1.0), fog);
-              return;
-            #endif
-
-            vec3 dir = normalize(targetEC);
-
-            float marchDistance = length(targetEC);
-            int marchCount = 32;
-            float marchStep = marchDistance / float(marchCount);
-            vec3 point = vec3(0.);
-
-            float densitySum = 0.;
-            for(int i = 0; i < marchCount; i++) {
-              point += dir * marchStep;
-
-              vec3 pointWC = getWorldCoordinateFromEye(point);
-              float currentHeight = length(pointWC) - earthRadius;
-              densitySum += simpleLinearHeightFog(currentHeight) * 0.05;
-
-              if (densitySum > 0.95) {
-                break;
-              }
-            }
-
-            out_FragColor.rgb = vec3(out_FragColor.rgb * (1.0 - densitySum) + vec3(densitySum));
-          }
-        `,
-      });
-      scene.postProcessStages.add(stage);
+      );
     </script>
   </body>
 </html>
