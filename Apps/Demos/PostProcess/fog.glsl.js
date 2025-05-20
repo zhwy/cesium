@@ -13,6 +13,7 @@ uniform vec3 point2Low;
 uniform mat4 transform;
 uniform float densityFactor;
 uniform float noiseUvScale;
+uniform float adjust;
 
 in vec2 v_textureCoordinates;
 
@@ -45,7 +46,7 @@ FogInfo intersectFog(vec3 rayOrigin, vec3 rayDirection, vec3 pointWC, out vec4 o
   info.intersected = false;
   float pointH = max(length(pointWC) - earthRadius, 0.);
 
-  vec3 normal = normalize(pointWC);
+  vec3 normal = normalize(pointWC / earthRadius);
   float theta = dot(-normal, rayDirection);
   float dist = length(pointWC - rayOrigin);
 
@@ -64,7 +65,7 @@ FogInfo intersectFog(vec3 rayOrigin, vec3 rayDirection, vec3 pointWC, out vec4 o
       info.minH = pointH;
       info.maxH = czm_eyeHeight;
     }
-    info.maxDistance = min(dist, height / max(abs(theta), 0.001));
+    info.maxDistance = min(dist, height / max(abs(theta), 0.01));
     // if (info.maxDistance != dist) {
     //   out_FragColor.rgb = vec3(1., 0., 0.);
     // }
@@ -122,61 +123,73 @@ float simpleLinearDistanceFog(vec3 eyeCoord) {
   return fog;
 }
 
-const float attenuation = 0.1;
+const float attenuation = 1.;
 
 float exponentialHeightFog(float height, bool integration) {
   float normalizedHeight = height / fogHeight;
   if (integration) {
-    return -maxAlpha / attenuation * exp(-attenuation * normalizedHeight);
+    return maxAlpha * (exp(-attenuation * normalizedHeight) / -attenuation - exp(-attenuation) * normalizedHeight);
   } else {
-    return maxAlpha * exp(-attenuation * normalizedHeight);
+    return maxAlpha * (exp(-attenuation * normalizedHeight) - exp(-attenuation));
   }
 }
 
-float integrationExponentialHeightFog(FogInfo fogInfo, vec3 pointEC) {
+float remap(float value, float oldMin, float oldMax, float newMin, float newMax) {
+  return newMin + (newMax - newMin) * ((value - oldMin) / (oldMax - oldMin));
+}
+
+float integrationExponentialHeightFog(FogInfo fogInfo, vec3 pointEC, out vec4 out_FragColor, float depth) {
   if (!fogInfo.intersected) return 0.;
 
   float fog = 0.;
   float x1 = fogInfo.minH;
   float x2 = fogInfo.maxH;
-  // // 平滑过渡范围
-  // float transitionThreshold = 0.01;
+  // 平滑过渡范围
+  const float transitionThreshold = 0.002;
+  const float pixel = 10.; // 根据transitionThreshold来确定范围
   float thetaAbs = abs(fogInfo.theta);
-  // if (thetaAbs < 0.001) {
-  //   // 雾中平视，积分计算为0
-  //   float density = exponentialHeightFog(x1, false);
-  //   fog = density * (fogInfo.maxDistance - fogInfo.minDistance) * densityFactor * maxAlpha;
-  // } else if (thetaAbs < transitionThreshold) {
-  //   // 平滑过渡区域
-  //   float weight = smoothstep(0.001, transitionThreshold, thetaAbs);
+  float cameraHeight = mix(x1, x2, step(0., fogInfo.theta));
+  float density = exponentialHeightFog(cameraHeight, false);
 
-  //   // 计算平视下的雾值
-  //   float flatFog = exponentialHeightFog(x1, false) * (fogInfo.maxDistance - fogInfo.minDistance) * densityFactor * maxAlpha;
+  // 想通过采样transitionThreshold附近像素点来平滑过渡积分接近0的情况，但是效果不理想，最终还是采用射线步进
+  if (thetaAbs < transitionThreshold) {
+    // 雾中平视，积分计算接近0
+    float scale = remap(fogInfo.theta, -transitionThreshold, transitionThreshold, 0., 1.);
+    float pixelUp = scale * pixel;
+    float pixelDown = pixel - pixelUp;
 
-  //   // 计算积分雾值
-  //   float y1 = exponentialHeightFog(x1, true);
-  //   float y2 = exponentialHeightFog(x2, true);
-  //   float integratedFog = (y2 - y1) / thetaAbs;
+    // 向上采样
+    vec3 pointEC1 = getEyeCoordinate(gl_FragCoord.xy + vec2(0., pixelUp), getDepth((gl_FragCoord.xy + vec2(0., pixelUp)) / czm_viewport.zw));
+    vec3 worldEC1 = getWorldCoordinateFromEye(pointEC1);
+    float height1 = max(length(worldEC1) - earthRadius, 0.);
+    // 向下采样
+    vec3 pointEC2 = getEyeCoordinate(gl_FragCoord.xy - vec2(0., pixelDown), getDepth((gl_FragCoord.xy - vec2(0., pixelDown)) / czm_viewport.zw));
+    vec3 worldEC2 = getWorldCoordinateFromEye(pointEC2);
+    float height2 = max(length(worldEC2) - earthRadius, 0.);
 
-  //   // 在两种计算方式间插值
-  //   fog = mix(flatFog, integratedFog, weight);
-  // }
-  // else {
-  //   // 积分
-  //   float y1 = exponentialHeightFog(x1, true);
-  //   float y2 = exponentialHeightFog(x2, true);
-  //   fog = (y2 - y1) / thetaAbs;
-  // }
-  float y1 = exponentialHeightFog(x1, true);
-  float y2 = exponentialHeightFog(x2, true);
+    float ymax = exponentialHeightFog(height1, true);
+    float ymin = exponentialHeightFog(height2, true);
+    float ycam = exponentialHeightFog(cameraHeight, true);
 
-  float fogVertical = (y2 - y1);
+    float up = (ymax - ycam) * 1. / transitionThreshold;
+    up = mix(0.0, maxAlpha, up / (up + 1.0));
 
-  float fogHorizontal = exponentialHeightFog((x1 + x2) * 0.5, false) * (fogInfo.maxDistance - fogInfo.minDistance);
+    float down = (ycam - ymin) * 1. / transitionThreshold;
+    down = mix(0.0, maxAlpha, down / (down + 1.0));
 
-  fog = sqrt(fogVertical * fogVertical + fogHorizontal * fogHorizontal) / fogHeight * maxAlpha;
+    fog = mix(up, down, scale);
+    // fog = exponentialHeightFog(height1, false);
+    // fog = scale;
+    // fog = 1.;
+  }
+  else {
+    float y1 = exponentialHeightFog(x1, true);
+    float y2 = exponentialHeightFog(x2, true);
+    fog = (y2 - y1) / thetaAbs;
+    fog = mix(0.0, maxAlpha, fog / (fog + 1.0));
+  }
 
-  fog = mix(0.0, maxAlpha, fog / (fog + 1.0));
+  // out_FragColor.rgb = vec3(fog);
   return fog;
 }
 
@@ -257,7 +270,9 @@ float getDensity(vec3 p) {
   return clamp(value * edgeFactor, 0., 1.);
 }
 
-#define METHOD 2
+#define METHOD 4
+
+#define FOG_COLOR vec3(1.)
 
 void main() {
   out_FragColor = texture(colorTexture, v_textureCoordinates);
@@ -276,86 +291,52 @@ void main() {
   // noise = abs(noise);
   // noise = noise * 0.5 + 0.5;
   noise *= mix(1., 0., clamp(-pointEC.z / 5000., 0., 1.));
-  targetWC += normalWC * noise * 1000.;
+  // targetWC += normalWC * noise * 1000.;
   // out_FragColor.rbg = vec3(noise) * 0.8 + out_FragColor.rbg * 0.2;// * 0.5 + out_FragColor.rgb * 0.5;
   // return;
 
   vec3 rayOrigin = czm_viewerPositionWC;
   vec3 rayDirection = normalize(targetWC - czm_viewerPositionWC);
   FogInfo fogInfo = intersectFog(rayOrigin, rayDirection, targetWC, out_FragColor);
-  // return;
   vec4 colorSum = vec4(0.);
   float distanceScale = smoothstep(50., 500., dist);
 
   #if METHOD == 1 // 线性高度雾
   float fog = integrationLinearHeightFog(fogInfo);
-  colorSum = vec4(mix(vec3(0.), vec3(1.), fog), fog);
+  colorSum = vec4(FOG_COLOR, fog);
 
   #elif METHOD == 2 // 指数高度雾
-  float fog = integrationExponentialHeightFog(fogInfo, pointEC);
+  float fog = integrationExponentialHeightFog(fogInfo, pointEC, out_FragColor, depth);
+  // return;
   // fog += noise * step(0.01, fog) * 0.5;
   // fog = clamp(fog, 0., maxAlpha);
-  colorSum = vec4(mix(vec3(0.), vec3(1.), fog), fog);
+  colorSum = vec4(FOG_COLOR, fog);
 
   #elif METHOD == 3 // 线性深度雾
   float fog = simpleLinearDistanceFog(pointEC);
-  colorSum = vec4(mix(vec3(0.), vec3(1.), fog), fog);
+  colorSum = vec4(FOG_COLOR, fog);
 
-  // #elif METHOD == 3 // 射线步进
-  // // 眼睛坐标下box范围
-  // vec3 point1EC = czm_translateRelativeToEye(point1High, point1Low);
-  // vec3 point2EC = czm_translateRelativeToEye(point2High, point2Low);
-  // point1EC = czm_modelViewRelativeToEye * point1EC;
-  // point2EC = czm_modelViewRelativeToEye * point2EC;
-  // OBB box = createOBBFromPoints(point1EC.xyz / point1EC.w, point2EC.xyz / point2EC.w, czm_view * transform);
+  #elif METHOD == 4 // 射线步进
+  float marchDistance = fogInfo.maxDistance - fogInfo.minDistance;
+  const int marchCount = 5;
+  float marchStep = max(marchDistance / float(marchCount), 0.1);
+  vec3 start = rayOrigin + rayDirection * fogInfo.minDistance;
+  float fog = 0.;
 
-  // // 射线原点即眼睛位置
-  // vec3 rayOrigin = vec3(0.);
-  // vec3 rayDirection = normalize(pointEC - rayOrigin);
+  if (fogInfo.intersected) {
+    for(int i = 0; i < marchCount; i++) {
+      float marched = marchStep * float(i);
+      if (marched > marchDistance) break;
+      vec3 point = rayDirection * marched + start;
+      float height = max(length(point) - earthRadius, 0.);
+      fog += exponentialHeightFog(height, false) * distanceScale;
+    }
+    fog = mix(0.0, maxAlpha, fog / (fog + 0.1));
+  }
+  colorSum = vec4(FOG_COLOR, fog);
 
-  // AABB aabb;
-  // IntersectInfo intersectInfo = isIntersect(box, rayOrigin, rayDirection, aabb);
-
-  // vec4 colorSum = vec4(0.);
-  // float dist = length(pointEC - rayOrigin);
-
-  // if (intersectInfo.hit && dist >= intersectInfo.tNear) {
-  //   // vec3 localPoint = transpose(box.baseAxes) * (rayOrigin + rayDirection * intersectInfo.tNear - box.center);
-  //   // localPoint = localPoint / box.halfExtents * 0.5 + 0.5; // 0..1
-  //   // out_FragColor.rgb = localPoint;
-  //   // return;
-
-  //   if (intersectInfo.tNear < 0.) {
-  //     // 射线起点在AABB内
-  //     intersectInfo.tNear = 0.;
-  //   }
-
-  //   float marchDistance = min(intersectInfo.tFar - intersectInfo.tNear, dist - intersectInfo.tNear);
-
-  //   const int marchCount = 30;
-  //   float marchStep = marchDistance / float(marchCount);
-  //   vec3 start = rayOrigin + rayDirection * intersectInfo.tNear;
-
-  //   for(int i = 0; i < marchCount; i++) {
-  //     vec3 point = rayDirection * (marchStep * float(i)) + start;
-  //     // 计算当前点在AABB中的坐标
-  //     vec3 localPoint = transpose(box.baseAxes) * (point - box.center);
-  //     localPoint = localPoint / box.halfExtents; // -1..1
-  //     float density = getDensity(localPoint) * 0.5;
-  //     if (density < 0.01) continue;
-
-  //     vec3 baseColor = mix(vec3(0.), vec3(1.), density);
-
-  //     vec4 color = vec4(baseColor, density);
-  //     colorSum += color * (1.0 - colorSum.a);
-
-  //     if (colorSum.a > maxAlpha) {
-  //       break;
-  //     }
-  //   }
-  // }
   #endif
 
-  out_FragColor.rgb = out_FragColor.rgb * (1.0 - colorSum.a) + colorSum.rgb;
+  out_FragColor.rgb = out_FragColor.rgb * (1.0 - colorSum.a) + colorSum.rgb * colorSum.a;
 }
 `;

@@ -31,7 +31,12 @@
         shadows: false,
       });
 
-      Cesium.createWorldTerrainAsync().then((terrainProvider) => {
+      Cesium.CesiumTerrainProvider.fromUrl(
+        "http://localhost:803/terrain_hangzhou",
+        {
+          requestVertexNormals: true,
+        },
+      ).then((terrainProvider) => {
         viewer.terrainProvider = terrainProvider;
       });
 
@@ -97,11 +102,11 @@
       // });
 
       viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromRadians(2.095408, 0.522899, 296.69),
+        destination: Cesium.Cartesian3.fromRadians(2.094717, 0.539575, 921.8),
         orientation: {
-          heading: 0.121,
-          pitch: -0.184,
-          roll: 0,
+          heading: 0.0886, // Cesium.Math.toRadians(0),
+          pitch: -0.3126, // Cesium.Math.toRadians(-90),
+          roll: Cesium.Math.toRadians(0),
         },
       });
 
@@ -142,7 +147,7 @@
                 return Cesium.Cartesian3.magnitude(surfacePoint);
               },
               fogHeight() {
-                return 500;
+                return 300;
               },
               maxAlpha() {
                 return 1;
@@ -151,7 +156,7 @@
                 return new Cesium.Cartesian4(50, 0.3, 10000, 0.95);
               },
               densityFactor() {
-                return stage.densityFactor ?? 0.0036;
+                return stage.densityFactor ?? 0.1;
               },
               noiseUvScale() {
                 return stage.noiseUvScale ?? 1e5;
@@ -173,6 +178,9 @@
               },
               transform() {
                 return transform;
+              },
+              adjust() {
+                return stage.adjust ?? 0.0;
               },
             },
             fragmentShader: fs,
