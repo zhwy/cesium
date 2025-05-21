@@ -29,6 +29,19 @@
         shadows: false,
       });
 
+      viewer.clock.currentTime = Cesium.JulianDate.fromDate(
+        new Date(2025, 13, 21, 16, 35, 11),
+      );
+
+      viewer.timeline.zoomTo(
+        viewer.clock.currentTime,
+        Cesium.JulianDate.addDays(
+          viewer.clock.currentTime,
+          1,
+          new Cesium.JulianDate(),
+        ),
+      );
+
       Cesium.createOsmBuildingsAsync().then((tileset) => {
         viewer.scene.primitives.add(tileset);
       });
@@ -37,10 +50,10 @@
       scene.globe.depthTestAgainstTerrain = true;
 
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromRadians(2.120766, 0.545255, 266),
+        destination: Cesium.Cartesian3.fromRadians(2.120751, 0.545291, 97.5),
         orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-45),
+          heading: 4.44, // Cesium.Math.toRadians(0),
+          pitch: -0.03, // Cesium.Math.toRadians(-45),
           roll: 0,
         },
         duration: 0,
@@ -70,16 +83,13 @@
 
             void main() {
               // out_FragColor = texture(colorTexture, v_textureCoordinates);
-              out_FragColor = vec4(1.);
+              out_FragColor = vec4(0.);
 
               float depth = getDepth(v_textureCoordinates);
 
-              if (depth != 0.) {
-                out_FragColor = vec4(0.);
-                return;
+              if (depth > 0.99) {
+                out_FragColor = vec4(1.);
               }
-
-              // if (depth == 0.) depth = 1.; // 天空深度调整
 
               // vec3 pointEC = getEyeCoordinate(gl_FragCoord.xy, depth);
             }
@@ -190,6 +200,7 @@
 
       const stage = getStage();
       scene.postProcessStages.add(stage);
+      window.stage = stage;
     </script>
   </body>
 </html>

@@ -329,8 +329,9 @@ void main() {
       if (marched > marchDistance) break;
       vec3 point = rayDirection * marched + start;
       float height = max(length(point) - earthRadius, 0.);
-      fog += exponentialHeightFog(height, false) * distanceScale;
+      fog += exponentialHeightFog(height, false);
     }
+    fog *= distanceScale;
     fog = mix(0.0, maxAlpha, fog / (fog + 0.1));
   }
   colorSum = vec4(FOG_COLOR, fog);
