@@ -620,6 +620,16 @@ function Primitive() {
    * @private
    */
   this.outlineCoordinates = undefined;
+
+  /**
+   * If the model is part of a Model3DTileContent of a Cesium3DTileset that
+   * has 'imageryLayers', then this will represent the information that is
+   * required for draping the imagery over this primitive.
+   *
+   * @type {ModelPrimitiveImagery|undefined}
+   * @private
+   */
+  this.modelPrimitiveImagery = undefined;
 }
 
 /**
@@ -1246,7 +1256,7 @@ function MetallicRoughness() {
    * @private
    */
   this.baseColorFactor = Cartesian4.clone(
-    MetallicRoughness.DEFAULT_BASE_COLOR_FACTOR
+    MetallicRoughness.DEFAULT_BASE_COLOR_FACTOR,
   );
 
   /**
@@ -1316,7 +1326,7 @@ function SpecularGlossiness() {
    * @private
    */
   this.diffuseFactor = Cartesian4.clone(
-    SpecularGlossiness.DEFAULT_DIFFUSE_FACTOR
+    SpecularGlossiness.DEFAULT_DIFFUSE_FACTOR,
   );
 
   /**
@@ -1327,7 +1337,7 @@ function SpecularGlossiness() {
    * @private
    */
   this.specularFactor = Cartesian3.clone(
-    SpecularGlossiness.DEFAULT_SPECULAR_FACTOR
+    SpecularGlossiness.DEFAULT_SPECULAR_FACTOR,
   );
 
   /**
@@ -1381,7 +1391,7 @@ function Specular() {
    * @private
    */
   this.specularColorFactor = Cartesian3.clone(
-    Specular.DEFAULT_SPECULAR_COLOR_FACTOR
+    Specular.DEFAULT_SPECULAR_COLOR_FACTOR,
   );
 
   /**

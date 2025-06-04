@@ -341,7 +341,7 @@ PixelFormat.isBC7Format = function (pixelFormat) {
 PixelFormat.compressedTextureSizeInBytes = function (
   pixelFormat,
   width,
-  height
+  height,
 ) {
   switch (pixelFormat) {
     case PixelFormat.RGB_DXT1:
@@ -363,7 +363,7 @@ PixelFormat.compressedTextureSizeInBytes = function (
     case PixelFormat.RGB_PVRTC_2BPPV1:
     case PixelFormat.RGBA_PVRTC_2BPPV1:
       return Math.floor(
-        (Math.max(width, 16) * Math.max(height, 8) * 2 + 7) / 8
+        (Math.max(width, 16) * Math.max(height, 8) * 2 + 7) / 8,
       );
 
     case PixelFormat.RGBA_BC7:
@@ -381,7 +381,7 @@ PixelFormat.textureSizeInBytes = function (
   pixelFormat,
   pixelDatatype,
   width,
-  height
+  height,
 ) {
   let componentsLength = PixelFormat.componentsLength(pixelFormat);
   if (PixelDatatype.isPacked(pixelDatatype)) {
@@ -389,6 +389,29 @@ PixelFormat.textureSizeInBytes = function (
   }
   return (
     componentsLength * PixelDatatype.sizeInBytes(pixelDatatype) * width * height
+  );
+};
+
+/**
+ * @private
+ */
+PixelFormat.texture3DSizeInBytes = function (
+  pixelFormat,
+  pixelDatatype,
+  width,
+  height,
+  depth,
+) {
+  let componentsLength = PixelFormat.componentsLength(pixelFormat);
+  if (PixelDatatype.isPacked(pixelDatatype)) {
+    componentsLength = 1;
+  }
+  return (
+    componentsLength *
+    PixelDatatype.sizeInBytes(pixelDatatype) *
+    width *
+    height *
+    depth
   );
 };
 
@@ -413,7 +436,7 @@ PixelFormat.createTypedArray = function (
   pixelFormat,
   pixelDatatype,
   width,
-  height
+  height,
 ) {
   const constructor = PixelDatatype.getTypedArrayConstructor(pixelDatatype);
   const size = PixelFormat.componentsLength(pixelFormat) * width * height;
@@ -428,7 +451,7 @@ PixelFormat.flipY = function (
   pixelFormat,
   pixelDatatype,
   width,
-  height
+  height,
 ) {
   if (height === 1) {
     return bufferView;
@@ -437,7 +460,7 @@ PixelFormat.flipY = function (
     pixelFormat,
     pixelDatatype,
     width,
-    height
+    height,
   );
   const numberOfComponents = PixelFormat.componentsLength(pixelFormat);
   const textureWidth = width * numberOfComponents;
@@ -496,6 +519,19 @@ PixelFormat.toInternalFormat = function (pixelFormat, pixelDatatype, context) {
         return WebGLConstants.RG16F;
       case PixelFormat.RED:
         return WebGLConstants.R16F;
+    }
+  }
+
+  if (pixelDatatype === PixelDatatype.UNSIGNED_BYTE) {
+    switch (pixelFormat) {
+      case PixelFormat.RGBA:
+        return WebGLConstants.RGBA8;
+      case PixelFormat.RGB:
+        return WebGLConstants.RGB8;
+      case PixelFormat.RG:
+        return WebGLConstants.RG8;
+      case PixelFormat.RED:
+        return WebGLConstants.R8;
     }
   }
 
