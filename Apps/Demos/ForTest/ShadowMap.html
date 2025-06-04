@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShadowMap</title>
+    <style>
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
+      body {
+        padding: 0;
+        margin: 0;
+      }
+      #cesiumContainer {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        nearGroundSkyBox: false,
+        shadows: true,
+      });
+
+      viewer.clock.currentTime = Cesium.JulianDate.fromDate(
+        new Date(2025, 13, 21, 16, 35, 11),
+      );
+
+      viewer.timeline.zoomTo(
+        viewer.clock.currentTime,
+        Cesium.JulianDate.addDays(
+          viewer.clock.currentTime,
+          1,
+          new Cesium.JulianDate(),
+        ),
+      );
+
+      Cesium.createOsmBuildingsAsync().then((tileset) => {
+        viewer.scene.primitives.add(tileset);
+      });
+
+      const scene = viewer.scene;
+      scene.globe.depthTestAgainstTerrain = true;
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromRadians(2.120751, 0.545291, 97.5),
+        orientation: {
+          heading: 4.44, // Cesium.Math.toRadians(0),
+          pitch: -0.03, // Cesium.Math.toRadians(-45),
+          roll: 0,
+        },
+        duration: 0,
+      });
+
+      window.viewer = viewer;
+      viewer.shadowMap.debugShow = true;
+
+      const stage = new Cesium.PostProcessStage({
+        id: "test",
+        uniforms: {
+          shadowMapTexture() {
+            return (
+              viewer.shadowMap._shadowMapTexture ||
+              new Cesium.Texture({
+                context: scene.context,
+                width: 1,
+                height: 1,
+              })
+            );
+          },
+          shadowMapTextureMatrix() {
+            try {
+              return viewer.shadowMap._shadowMapCamera.getViewProjection();
+            } catch {
+              return new Cesium.Matrix4();
+            }
+          },
+        },
+        fragmentShader: /* glsl */ `
+            uniform sampler2D colorTexture;
+            uniform sampler2D depthTexture;
+            uniform sampler2D shadowMapTexture;
+            uniform mat4 shadowMapTextureMatrix;
+            uniform vec3 center;
+
+            in vec2 v_textureCoordinates;
+
+            float getDepth(vec2 uv) {
+              return czm_unpackDepth(texture(depthTexture, uv));
+            }
+
+            vec3 getEyeCoordinate(vec2 fragCoord, float depth) {
+              vec4 eyeCoordinate4 = czm_windowToEyeCoordinates(fragCoord, depth);
+              return eyeCoordinate4.xyz / eyeCoordinate4.w;
+            }
+
+            vec3 getWorldCoordinateFromEye(vec3 eyeCoord) {
+              vec4 worldCoordinate4 = czm_inverseView * vec4(eyeCoord, 1.);
+              return worldCoordinate4.xyz / worldCoordinate4.w;
+            }
+
+            void main() {
+              out_FragColor = texture(colorTexture, v_textureCoordinates);
+
+              float depth = getDepth(v_textureCoordinates);
+              // if (depth > 0.99) {
+              //   out_FragColor = vec4(1.);
+              // }
+
+              if (v_textureCoordinates.x > 0.5) {
+                vec3 pointEC = getEyeCoordinate(v_textureCoordinates, depth);
+                vec3 pointWC = getWorldCoordinateFromEye(pointEC);
+                vec4 pointLight = shadowMapTextureMatrix * vec4(pointWC, 1.0);
+                float pointDepth = pointLight.z / pointLight.w;
+                float shadowDepth = textureProj(shadowMapTexture, pointLight).r;
+                float color = pointDepth > shadowDepth ? 0. : 1.;
+
+                // out_FragColor.rgb = out_FragColor.rgb * 0.5 + vec3(shadow, 0., 0.) * 0.5;
+                out_FragColor.rgb = vec3(shadowDepth);
+              }
+            }
+          `,
+      });
+
+      // scene.postProcessStages.add(stage);
+      window.stage = stage;
+    </script>
+  </body>
+</html>
