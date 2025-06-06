@@ -14,15 +14,28 @@
         width: 100vw;
         height: 100vh;
       }
+      .debug {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: white;
+        z-index: 9;
+      }
     </style>
   </head>
 
   <body>
-    <div id="cesiumContainer"></div>
+    <div id="cesiumContainer">
+      <div class="debug">
+        <input id="debugFrustum" type="checkbox" />
+        <label for="debugFrustum">debug light camera frustum</label>
+      </div>
+    </div>
+
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk"; //设置你的ion加载Cesium资产
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer", {
         nearGroundSkyBox: false,
@@ -61,6 +74,11 @@
 
       window.viewer = viewer;
       viewer.shadowMap.debugShow = true;
+      document
+        .getElementById("debugFrustum")
+        .addEventListener("change", (e) => {
+          viewer.shadowMap.debugFreezeFrame = e.target.checked;
+        });
 
       const stage = new Cesium.PostProcessStage({
         id: "test",

@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Render To Texture</title>
+    <style>
+      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      button {
+        position: absolute;
+        z-index: 99;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="cesiumContainer"></div>
+    <script type="module">
+      // import IndexedDbCache from "../Lib/indexDbCache.js";
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.Cesium = Cesium;
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
+
+      const WIDTH = 512;
+
+      class CustomRenderer {
+        constructor(viewer) {
+          this.viewer = viewer;
+          this.view = undefined;
+          this.viewport = undefined;
+          this.camera = undefined;
+          this.outputTexture = undefined;
+          this.framebuffer = undefined;
+          this.clearCommand = undefined;
+          this.drawCommand = undefined;
+          this.initialized = false;
+          this.renderPassState = undefined;
+          this.drawPassState = undefined;
+
+          viewer.cesiumWidget.useDefaultRenderLoop = false;
+
+          this._initialize(viewer.scene.context);
+        }
+
+        start() {
+          const scene = this.viewer.scene;
+          const originView = scene._defaultView;
+          const originCamera = scene.camera;
+
+          const renderScene = () => {
+            // 绘制原始场景
+            scene._defaultView = originView;
+            scene.camera = originCamera;
+
+            scene.initializeFrame();
+            const currentTime = this.viewer.clock.tick();
+            scene.render(currentTime);
+
+            // 绘制新相机场景
+            scene._view = this.view;
+            scene.camera = this.camera;
+            scene.updateFrameState();
+            scene.frameState.passes.render = true;
+            scene.context.uniformState.update(scene.frameState);
+            // scene.frameState.passes.offscreen = true;
+            scene.updateAndExecuteCommands(
+              this.renderPassState,
+              scene.backgroundColor,
+            );
+
+            // 绘制到屏幕右上角
+            this.drawPassState.viewport = new Cesium.BoundingRectangle(
+              originView.viewport.width - WIDTH,
+              originView.viewport.height - WIDTH,
+              WIDTH,
+              WIDTH,
+            );
+            this.drawCommand.execute(scene.context, this.drawPassState);
+
+            requestAnimationFrame(renderScene);
+          };
+          requestAnimationFrame(renderScene);
+        }
+
+        _render() {
+          const context = this.viewer.scene.context;
+          const passState = this.viewer.scene._view.passState;
+          const frameState = this.viewer.scene.frameState;
+          // 原始状态
+          const originalCamera = this.viewer.scene.camera;
+          const originalViewport = passState.viewport;
+
+          // 更新相机位置（俯瞰）
+          this.camera.position = originalCamera.position.clone();
+          this.camera.direction = Cesium.Cartesian3.normalize(
+            originalCamera.position,
+            new Cesium.Cartesian3(),
+          );
+          this.camera.right = originalCamera.right.clone();
+          this.camera.up = Cesium.Cartesian3.normalize(
+            Cesium.Cartesian3.cross(
+              this.camera.right,
+              this.camera.direction,
+              new Cesium.Cartesian3(),
+            ),
+            new Cesium.Cartesian3(),
+          );
+
+          // 当前视角状态
+          // passState.framebuffer = this.framebuffer;
+          // passState.viewport = new Cesium.BoundingRectangle(0, 0, WIDTH, WIDTH);
+          this.viewer.scene.camera = this.camera;
+          frameState.camera = this.camera;
+          context.uniformState.updateCamera(this.camera);
+
+          // this.clearCommand.execute(context, passState);
+
+          const commands = this._getRenderCommands();
+          commands.forEach((command) => {
+            command.execute(context, this.renderPassState);
+          });
+
+          // 绘制到屏幕
+          this.drawPassState.viewport = new Cesium.BoundingRectangle(
+            originalViewport.width - WIDTH,
+            originalViewport.height - WIDTH,
+            WIDTH,
+            WIDTH,
+          );
+
+          // this.clearCommand.execute(context, passState);
+          this.drawCommand.execute(context, this.drawPassState);
+
+          // 恢复原始状态
+          this.viewer.scene.camera = originalCamera;
+        }
+
+        _initialize(context) {
+          this._createCamera();
+
+          this.viewport = new Cesium.BoundingRectangle(0, 0, WIDTH, WIDTH);
+
+          this.view = new Cesium.View(
+            this.viewer.scene,
+            this.camera,
+            this.viewport,
+          );
+          this.view.name = "custom";
+
+          this.outputTexture = new Cesium.Texture({
+            width: WIDTH,
+            height: WIDTH,
+            context,
+            pixelFormat: Cesium.PixelFormat.RGBA,
+            pixelDatatype: Cesium.PixelDatatype.UNSIGNED_BYTE,
+            flipX: false,
+            flipY: false,
+          });
+
+          this.framebuffer = new Cesium.Framebuffer({
+            context,
+            colorTextures: [this.outputTexture],
+            depthRenderbuffer: new Cesium.Renderbuffer({
+              context: context,
+              width: WIDTH,
+              height: WIDTH,
+              format: Cesium.RenderbufferFormat.DEPTH_COMPONENT16,
+            }),
+            destroyAttachments: false,
+          });
+          this.framebuffer.name = "custom";
+          this.view.sceneFramebuffer._colorFramebuffer._framebuffer =
+            this.framebuffer;
+
+          this.clearCommand = new Cesium.ClearCommand({
+            color: new Cesium.Color(0.0, 0.0, 0.0, 0.0),
+            framebuffer: this.framebuffer,
+            pass: Cesium.Pass.OPAQUE,
+          });
+
+          this.drawCommand = this._createDrawCommands(context);
+
+          this.renderPassState = new Cesium.PassState(context);
+          this.renderPassState.viewport = this.viewport;
+          this.renderPassState.framebuffer = this.framebuffer;
+
+          this.view.passState = this.renderPassState;
+
+          this.drawPassState = new Cesium.PassState(context);
+
+          this.initialized = true;
+        }
+
+        _createCamera() {
+          const camera = new Cesium.Camera(this.viewer.scene);
+          camera.frustum = this.viewer.camera.frustum.clone();
+          camera.name = "custom";
+          this.camera = camera;
+        }
+
+        _getRenderCommands() {
+          const commands = [
+            this.viewer.scene.context.createViewportQuadCommand(
+              `
+                void main() {
+                  out_FragColor = vec4(abs(sin(czm_frameNumber / 200.0)));
+                }
+              `,
+              {
+                owner: this,
+              },
+            ),
+          ];
+          // const commands = this.viewer.scene.frameState.commandList.slice();
+          // const commands = [];
+          // const frustumCommandsList =
+          //   this.viewer.scene._view.frustumCommandsList;
+          // for (let i = 0; i < frustumCommandsList.length; i += 1) {
+          //   const frustumCommands = frustumCommandsList[i];
+          //   const j = 2;
+          //   // for (let j = 0; j < Cesium.Pass.NUMBER_OF_PASSES; j += 1) {
+          //   const drawCommands = frustumCommands.commands[j].slice();
+          //   commands.push(...drawCommands);
+          //   // }
+          // }
+
+          return commands;
+        }
+
+        // 绘制到屏幕右上角
+        _createDrawCommands(context) {
+          const offsetx = -1;
+          const offsety = -1;
+
+          const drawGeometry = new Cesium.Geometry({
+            attributes: {
+              position: new Cesium.GeometryAttribute({
+                componentDatatype: Cesium.ComponentDatatype.FLOAT,
+                componentsPerAttribute: 2,
+                values: new Float64Array([
+                  offsetx,
+                  offsety,
+                  1,
+                  offsety,
+                  1,
+                  1,
+                  offsetx,
+                  1,
+                ]),
+              }),
+              st: new Cesium.GeometryAttribute({
+                componentDatatype: Cesium.ComponentDatatype.FLOAT,
+                componentsPerAttribute: 2,
+                values: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+              }),
+            },
+            indices: new Uint16Array([0, 1, 2, 0, 2, 3]),
+          });
+
+          const attributeLocations =
+            Cesium.GeometryPipeline.createAttributeLocations(drawGeometry);
+
+          const shaderProgram = Cesium.ShaderProgram.fromCache({
+            context,
+            attributeLocations,
+            vertexShaderSource: `
+              in vec4 position;
+              in vec2 st;
+
+              out vec2 v_texCoord;
+
+              void main() {
+                gl_Position = position;
+                v_texCoord = st;
+              }
+            `,
+            fragmentShaderSource: `
+              uniform sampler2D inputTexture;
+              in vec2 v_texCoord;
+
+              void main() {
+                out_FragColor = texture(inputTexture, v_texCoord);
+                // out_FragColor = vec4(v_texCoord, 0.0, 1.0);
+              }
+            `,
+          });
+
+          const scope = this;
+
+          const drawCommand = new Cesium.DrawCommand({
+            modelMatrix: Cesium.Matrix4.IDENTITY,
+            pass: Cesium.Pass.OPAQUE,
+            shaderProgram: shaderProgram,
+            renderState: Cesium.RenderState.fromCache({
+              depthTest: {
+                enabled: false,
+              },
+              viewport: undefined,
+            }),
+            vertexArray: Cesium.VertexArray.fromGeometry({
+              context,
+              geometry: drawGeometry,
+              attributeLocations,
+              bufferUsage: Cesium.BufferUsage.STATIC_DRAW,
+            }),
+            primitiveType: Cesium.PrimitiveType.TRIANGLES,
+            uniformMap: {
+              inputTexture() {
+                return scope.outputTexture;
+              },
+            },
+          });
+
+          drawCommand.name = "draw";
+
+          return drawCommand;
+        }
+      }
+
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      window._viewer = viewer;
+
+      const renderer = new CustomRenderer(viewer);
+      renderer.start();
+
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(1, 0, 557000),
+        orientation: {
+          heading: 0,
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0,
+        },
+      });
+    </script>
+  </body>
+</html>

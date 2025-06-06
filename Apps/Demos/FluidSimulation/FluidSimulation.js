@@ -8,7 +8,7 @@ import {
   BUFFER_D,
   RENDER_SHADER_VERTEX_SOURCE,
   RENDER_SHADER_FRAGMENT_SOURCE,
-} from "./FloodSimulation.glsl.js";
+} from "./FluidSimulation.glsl.js";
 import generateHeightMap from "./GenerateHeightMap.js";
 
 function generateModelMatrix(
@@ -45,7 +45,7 @@ function generateModelMatrix(
   return modelMatrix;
 }
 
-export default class FloodSimulation {
+export default class FluidSimulation {
   get inverseModelMatrix() {
     return Cesium.Matrix4.inverse(this.modelMatrix, new Cesium.Matrix4());
   }

@@ -46,7 +46,7 @@
     </div>
     <script type="module">
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
-      import FloodSimulation from "./FloodSimulation.js";
+      import FluidSimulation from "./FluidSimulation.js";
       window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
 
       Cesium.Ion.defaultAccessToken =
@@ -70,11 +70,11 @@
           destination: rectangle,
         });
 
-        const floodSimulation = new FloodSimulation(viewer);
-        floodSimulation.debug = true;
-        floodSimulation.updateExtent(rectangle);
+        const simulation = new FluidSimulation(viewer);
+        simulation.debug = true;
+        simulation.updateExtent(rectangle);
         document.getElementById("button").onclick = () => {
-          floodSimulation.drawExtent();
+          simulation.drawExtent();
         };
       });
     </script>
