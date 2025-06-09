@@ -76,17 +76,13 @@
             const currentTime = this.viewer.clock.tick();
             scene.render(currentTime);
 
+            this._updateCamera(originCamera);
+
             // 绘制新相机场景
+            scene._defaultView = this.view;
             scene._view = this.view;
             scene.camera = this.camera;
-            scene.updateFrameState();
-            scene.frameState.passes.render = true;
-            scene.context.uniformState.update(scene.frameState);
-            // scene.frameState.passes.offscreen = true;
-            scene.updateAndExecuteCommands(
-              this.renderPassState,
-              scene.backgroundColor,
-            );
+            this._render(scene);
 
             // 绘制到屏幕右上角
             this.drawPassState.viewport = new Cesium.BoundingRectangle(
@@ -102,61 +98,147 @@
           requestAnimationFrame(renderScene);
         }
 
-        _render() {
-          const context = this.viewer.scene.context;
-          const passState = this.viewer.scene._view.passState;
-          const frameState = this.viewer.scene.frameState;
-          // 原始状态
-          const originalCamera = this.viewer.scene.camera;
-          const originalViewport = passState.viewport;
+        _updateCamera(originCamera) {
+          this.camera.position = originCamera.position.clone();
 
-          // 更新相机位置（俯瞰）
-          this.camera.position = originalCamera.position.clone();
-          this.camera.direction = Cesium.Cartesian3.normalize(
-            originalCamera.position,
-            new Cesium.Cartesian3(),
-          );
-          this.camera.right = originalCamera.right.clone();
-          this.camera.up = Cesium.Cartesian3.normalize(
-            Cesium.Cartesian3.cross(
-              this.camera.right,
-              this.camera.direction,
+          if (
+            this.camera.frustum instanceof Cesium.OrthographicOffCenterFrustum
+          ) {
+            // 俯瞰
+            const enuMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
+              this.camera.position,
+            );
+
+            this.camera.direction = Cesium.Matrix4.getColumn(
+              enuMatrix,
+              2,
               new Cesium.Cartesian3(),
-            ),
-            new Cesium.Cartesian3(),
-          );
+            );
+            Cesium.Cartesian3.negate(
+              this.camera.direction,
+              this.camera.direction,
+            );
+            this.camera.up = Cesium.Matrix4.getColumn(
+              enuMatrix,
+              1,
+              new Cesium.Cartesian3(),
+            );
+            this.camera.right = Cesium.Matrix4.getColumn(
+              enuMatrix,
+              0,
+              new Cesium.Cartesian3(),
+            );
 
-          // 当前视角状态
-          // passState.framebuffer = this.framebuffer;
-          // passState.viewport = new Cesium.BoundingRectangle(0, 0, WIDTH, WIDTH);
-          this.viewer.scene.camera = this.camera;
-          frameState.camera = this.camera;
-          context.uniformState.updateCamera(this.camera);
+            const halfRange =
+              Math.tan(originCamera.frustum.fov / 2) *
+              originCamera.positionCartographic.height;
+            const frustum = this.camera.frustum;
+            frustum.left = -halfRange;
+            frustum.right = halfRange;
+            frustum.bottom = -halfRange;
+            frustum.top = halfRange;
+          } else {
+            this.camera.direction = originCamera.direction.clone();
+            this.camera.up = originCamera.up.clone();
+            this.camera.right = originCamera.right.clone();
+          }
+        }
 
-          // this.clearCommand.execute(context, passState);
+        _render(scene) {
+          const frameState = scene._frameState;
 
-          const commands = this._getRenderCommands();
-          commands.forEach((command) => {
-            command.execute(context, this.renderPassState);
+          const context = scene.context;
+          const { uniformState } = context;
+
+          const view = scene._defaultView;
+          scene._view = view;
+
+          scene.updateFrameState();
+          frameState.passes.render = true;
+          frameState.passes.postProcess = scene.postProcessStages.hasSelected;
+          frameState.tilesetPassState = new Cesium.Cesium3DTilePassState({
+            pass: Cesium.Cesium3DTilePass.RENDER,
           });
 
-          // 绘制到屏幕
-          this.drawPassState.viewport = new Cesium.BoundingRectangle(
-            originalViewport.width - WIDTH,
-            originalViewport.height - WIDTH,
-            WIDTH,
-            WIDTH,
+          let backgroundColor = scene.backgroundColor ?? Cesium.Color.BLACK;
+          if (scene._hdr) {
+            backgroundColor = Cesium.Color.clone(
+              backgroundColor,
+              new Cesium.Color(),
+            );
+            backgroundColor.red = Math.pow(backgroundColor.red, scene.gamma);
+            backgroundColor.green = Math.pow(
+              backgroundColor.green,
+              scene.gamma,
+            );
+            backgroundColor.blue = Math.pow(backgroundColor.blue, scene.gamma);
+          }
+          frameState.backgroundColor = backgroundColor;
+
+          // frameState.atmosphere = scene.atmosphere;
+          // scene.fog.update(frameState);
+
+          uniformState.update(frameState);
+
+          // const shadowMap = scene.shadowMap;
+          // if (shadowMap && shadowMap.enabled) {
+          //   if (!scene.light || scene.light instanceof Cesium.SunLight) {
+          //     // Negate the sun direction so that it is from the Sun, not to the Sun
+          //     Cesium.Cartesian3.negate(
+          //       uniformState.sunDirectionWC,
+          //       scene._shadowMapCamera.direction,
+          //     );
+          //   } else {
+          //     Cesium.Cartesian3.clone(
+          //       scene.light.direction,
+          //       scene._shadowMapCamera.direction,
+          //     );
+          //   }
+          //   frameState.shadowMaps.push(shadowMap);
+          // }
+
+          scene._computeCommandList.length = 0;
+          scene._overlayCommandList.length = 0;
+
+          const viewport = view.viewport;
+          // viewport.x = 0;
+          // viewport.y = 0;
+          // viewport.width = context.drawingBufferWidth;
+          // viewport.height = context.drawingBufferHeight;
+
+          const passState = view.passState;
+          // passState.framebuffer = undefined;
+          passState.blendingEnabled = undefined;
+          passState.scissorTest = undefined;
+          passState.viewport = Cesium.BoundingRectangle.clone(
+            viewport,
+            passState.viewport,
           );
 
-          // this.clearCommand.execute(context, passState);
-          this.drawCommand.execute(context, this.drawPassState);
+          // if (scene.globe) {
+          //   scene.globe.beginFrame(frameState);
+          // }
 
-          // 恢复原始状态
-          this.viewer.scene.camera = originalCamera;
+          scene.updateEnvironment();
+          scene.updateAndExecuteCommands(passState, backgroundColor);
+          scene.resolveFramebuffers(passState);
+
+          // passState.framebuffer = undefined;
+          // executeOverlayCommands(scene, passState);
+
+          // if (scene.globe) {
+          //   scene.globe.endFrame(frameState);
+
+          //   if (!scene.globe.tilesLoaded) {
+          //     scene._renderRequested = true;
+          //   }
+          // }
+
+          context.endFrame();
         }
 
         _initialize(context) {
-          this._createCamera();
+          this._createCamera("");
 
           this.viewport = new Cesium.BoundingRectangle(0, 0, WIDTH, WIDTH);
 
@@ -211,40 +293,26 @@
           this.initialized = true;
         }
 
-        _createCamera() {
+        _createCamera(type) {
           const camera = new Cesium.Camera(this.viewer.scene);
-          camera.frustum = this.viewer.camera.frustum.clone();
+          if (type === "orthographic") {
+            const halfRange = 100;
+            camera.frustum = new Cesium.OrthographicOffCenterFrustum({
+              left: -halfRange,
+              right: halfRange,
+              bottom: -halfRange,
+              top: halfRange,
+              near: 0.1,
+              far: 1e10,
+            });
+          } else {
+            camera.frustum = this.viewer.camera.frustum.clone();
+            camera.frustum.fov = Cesium.Math.toRadians(5); // 望远镜
+          }
+
           camera.name = "custom";
+
           this.camera = camera;
-        }
-
-        _getRenderCommands() {
-          const commands = [
-            this.viewer.scene.context.createViewportQuadCommand(
-              `
-                void main() {
-                  out_FragColor = vec4(abs(sin(czm_frameNumber / 200.0)));
-                }
-              `,
-              {
-                owner: this,
-              },
-            ),
-          ];
-          // const commands = this.viewer.scene.frameState.commandList.slice();
-          // const commands = [];
-          // const frustumCommandsList =
-          //   this.viewer.scene._view.frustumCommandsList;
-          // for (let i = 0; i < frustumCommandsList.length; i += 1) {
-          //   const frustumCommands = frustumCommandsList[i];
-          //   const j = 2;
-          //   // for (let j = 0; j < Cesium.Pass.NUMBER_OF_PASSES; j += 1) {
-          //   const drawCommands = frustumCommands.commands[j].slice();
-          //   commands.push(...drawCommands);
-          //   // }
-          // }
-
-          return commands;
         }
 
         // 绘制到屏幕右上角
@@ -343,11 +411,15 @@
       const renderer = new CustomRenderer(viewer);
       renderer.start();
 
+      Cesium.createOsmBuildingsAsync().then((tileset) => {
+        viewer.scene.primitives.add(tileset);
+      });
+
       viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(1, 0, 557000),
+        destination: Cesium.Cartesian3.fromRadians(2.120474, 0.545213, 945),
         orientation: {
           heading: 0,
-          pitch: Cesium.Math.toRadians(-90),
+          pitch: Cesium.Math.toRadians(-45),
           roll: 0,
         },
       });
