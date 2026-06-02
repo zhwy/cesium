@@ -1,19 +1,15 @@
 import {
   MouseEventHandler,
-  ReactElement,
   ReactNode,
-  RefObject,
   useCallback,
   useContext,
   useEffect,
-  useImperativeHandle,
   useMemo,
-  useReducer,
   useRef,
   useState,
   useTransition,
 } from "react";
-import { Allotment, AllotmentHandle } from "allotment";
+import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 import "./App.css";
 
@@ -40,7 +36,15 @@ import {
   sun,
   windowPopout,
   documentation,
+  aiSparkle,
 } from "./icons.ts";
+import {
+  ChatPanel,
+  ConsoleChatAction,
+  ErrorBoundary,
+  type CodeContext,
+  type ExecutionResult,
+} from "./copilot";
 import {
   ConsoleMessage,
   ConsoleMessageType,
@@ -52,108 +56,26 @@ import { MetadataPopover } from "./MetadataPopover.tsx";
 import { SharePopover } from "./SharePopover.tsx";
 import { SandcastlePopover } from "./SandcastlePopover.tsx";
 import { urlSpecifiesSandcastle } from "./Gallery/loadFromUrl.ts";
+import {
+  ViewerConsoleStack,
+  ViewerConsoleStackRef,
+} from "./ViewerConsoleStack.tsx";
+import { usePageTitle } from "./util/usePageTitle.ts";
+import {
+  defaultHtmlCode,
+  defaultJsCode,
+  useCodeState,
+} from "./util/useCodeState.ts";
 
-const defaultJsCode = `import * as Cesium from "cesium";
-
-const viewer = new Cesium.Viewer("cesiumContainer");
-`;
-const defaultHtmlCode = `<style>
-  @import url(../templates/bucket.css);
-</style>
-<div id="cesiumContainer" class="fullSize"></div>
-<div id="loadingOverlay"><h1>Loading...</h1></div>
-<div id="toolbar"></div>
-`;
+type PendingChatDraft = {
+  id: string;
+  text: string;
+};
 
 const cesiumVersion = __CESIUM_VERSION__;
 const versionString = __COMMIT_SHA__
   ? `Commit: ${__COMMIT_SHA__.replaceAll(/['"]/g, "").substring(0, 7)} - ${cesiumVersion}`
   : cesiumVersion;
-
-type RightSideRef = {
-  toggleExpanded: () => void;
-};
-
-function RightSideAllotment({
-  ref,
-  children,
-  consoleCollapsedHeight,
-  consoleExpanded,
-  setConsoleExpanded,
-}: {
-  ref: RefObject<RightSideRef | null>;
-  children: ReactElement<typeof Allotment.Pane>[];
-  consoleCollapsedHeight: number;
-  consoleExpanded: boolean;
-  setConsoleExpanded: (expanded: boolean) => void;
-}) {
-  const rightSideRef = useRef<AllotmentHandle>(null);
-  const rightSideSizes = useRef<number[]>([0, 0]);
-
-  const [previousConsoleHeight, setPreviousConsoleHeight] = useState<
-    number | undefined
-  >(undefined);
-  const toggleExpanded = useCallback(() => {
-    const [top, bottom] = rightSideSizes.current;
-    const totalHeight = top + bottom;
-    if (!consoleExpanded) {
-      const targetHeight = previousConsoleHeight ?? 200;
-      rightSideRef.current?.resize([totalHeight - targetHeight, targetHeight]);
-    } else {
-      setPreviousConsoleHeight(bottom);
-      rightSideRef.current?.resize([
-        totalHeight - consoleCollapsedHeight,
-        consoleCollapsedHeight,
-      ]);
-    }
-    setConsoleExpanded(!consoleExpanded);
-  }, [
-    consoleExpanded,
-    previousConsoleHeight,
-    consoleCollapsedHeight,
-    setConsoleExpanded,
-  ]);
-
-  useImperativeHandle(ref, () => {
-    return {
-      toggleExpanded: () => toggleExpanded(),
-    };
-  });
-
-  return (
-    <Allotment
-      vertical
-      ref={rightSideRef}
-      defaultSizes={[100, 0]}
-      onChange={(sizes) => {
-        if (previousConsoleHeight) {
-          // Unset this because we just dragged
-          setPreviousConsoleHeight(undefined);
-        }
-        rightSideSizes.current = sizes;
-      }}
-      onDragEnd={(sizes) => {
-        const [, consoleSize] = sizes;
-        if (consoleSize <= consoleCollapsedHeight && consoleExpanded) {
-          setConsoleExpanded(false);
-        } else if (consoleSize > consoleCollapsedHeight && !consoleExpanded) {
-          setConsoleExpanded(true);
-        }
-      }}
-      onReset={() => {
-        const [top, bottom] = rightSideSizes.current;
-        const totalHeight = top + bottom;
-        rightSideRef.current?.resize([
-          totalHeight - consoleCollapsedHeight,
-          consoleCollapsedHeight,
-        ]);
-        setConsoleExpanded(false);
-      }}
-    >
-      {children}
-    </Allotment>
-  );
-}
 
 function AppBarButton({
   children,
@@ -171,7 +93,12 @@ function AppBarButton({
   if (active) {
     return (
       <Tooltip content={label} type="label" placement="right">
-        <Button tone="accent" onClick={onClick} onAuxClick={onAuxClick}>
+        <Button
+          tone="accent"
+          onClick={onClick}
+          onAuxClick={onAuxClick}
+          aria-label={label}
+        >
           {children}
         </Button>
       </Tooltip>
@@ -179,121 +106,59 @@ function AppBarButton({
   }
   return (
     <Tooltip content={label} type="label" placement="right">
-      <Button variant="ghost" onClick={onClick} onAuxClick={onAuxClick}>
+      <Button
+        variant="ghost"
+        onClick={onClick}
+        onAuxClick={onAuxClick}
+        aria-label={label}
+      >
         {children}
       </Button>
     </Tooltip>
   );
 }
 
-export type SandcastleAction =
-  | { type: "reset" }
-  | { type: "resetDirty" }
-  | { type: "setCode"; code: string }
-  | { type: "setHtml"; html: string }
-  | { type: "runSandcastle" }
-  | { type: "setAndRun"; code?: string; html?: string };
-
 function App() {
   const { settings, updateSettings } = useContext(SettingsContext);
-  const rightSideRef = useRef<RightSideRef>(null);
+  const rightSideRef = useRef<ViewerConsoleStackRef>(null);
   const consoleCollapsedHeight = 33;
   const [consoleExpanded, setConsoleExpanded] = useState(false);
 
   const isStartingWithCode = useMemo(() => urlSpecifiesSandcastle(), []);
   const startOnEditor =
     isStartingWithCode || settings.defaultPanel === "editor";
+
   const [leftPanel, setLeftPanel] = useState<LeftPanel>(
     startOnEditor ? "editor" : "gallery",
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatPanelOpen, setChatPanelOpen] = useState(false);
+  const [pendingChatDraft, setPendingChatDraft] =
+    useState<PendingChatDraft | null>(null);
+  const [activeTab, setActiveTab] = useState<"js" | "html">("js");
+  const autoRunTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useEffect(
+    () => () => {
+      clearTimeout(autoRunTimeoutRef.current);
+    },
+    [],
+  );
 
-  const [title, setTitle] = useState("New Sandcastle");
+  const [sandcastleTitle, setSandcastleTitle] = useState("New Sandcastle");
   const [description, setDescription] = useState("");
+  const { setPageTitle, setIsDirty } = usePageTitle();
 
-  type CodeState = {
-    code: string;
-    html: string;
-    committedCode: string;
-    committedHtml: string;
-    runNumber: number;
-    dirty: boolean;
-  };
-
-  const initialState: CodeState = {
-    code: defaultJsCode,
-    html: defaultHtmlCode,
-    committedCode: defaultJsCode,
-    committedHtml: defaultHtmlCode,
-    runNumber: 0,
-    dirty: false,
-  };
-
-  const [codeState, dispatch] = useReducer(function reducer(
-    state: CodeState,
-    action: SandcastleAction,
-  ): CodeState {
-    switch (action.type) {
-      case "reset": {
-        return { ...initialState };
-      }
-      case "setCode": {
-        return {
-          ...state,
-          code: action.code,
-          dirty: true,
-        };
-      }
-      case "setHtml": {
-        return {
-          ...state,
-          html: action.html,
-          dirty: true,
-        };
-      }
-      case "runSandcastle": {
-        return {
-          ...state,
-          committedCode: state.code,
-          committedHtml: state.html,
-          runNumber: state.runNumber + 1,
-        };
-      }
-      case "setAndRun": {
-        return {
-          code: action.code ?? state.code,
-          html: action.html ?? state.html,
-          committedCode: action.code ?? state.code,
-          committedHtml: action.html ?? state.html,
-          runNumber: state.runNumber + 1,
-          dirty: false,
-        };
-      }
-      case "resetDirty": {
-        return {
-          ...state,
-          dirty: false,
-        };
-      }
-    }
-  }, initialState);
+  const [codeState, dispatch] = useCodeState();
 
   useEffect(() => {
-    const host = window.location.host;
-    let envString = "";
-    if (host.includes("localhost") && host !== "localhost:8080") {
-      // this helps differentiate tabs for local sandcastle development or other testing
-      envString = `${host.replace("localhost:", "")} `;
-    }
+    setIsDirty(codeState.dirty);
+  }, [setIsDirty, codeState.dirty]);
 
-    const dirtyIndicator = codeState.dirty ? "*" : "";
-    if (title === "" || title === "New Sandcastle") {
-      // No need to clutter the window/tab with a name if not viewing a named gallery demo
-      document.title = `${envString}Sandcastle${dirtyIndicator} | CesiumJS`;
-    } else {
-      document.title = `${envString}${title}${dirtyIndicator} | Sandcastle | CesiumJS`;
-    }
-  }, [title, codeState.dirty]);
+  useEffect(() => {
+    setPageTitle(sandcastleTitle);
+  }, [setPageTitle, sandcastleTitle]);
 
   const confirmLeave = useCallback(() => {
     if (!codeState.dirty) {
@@ -307,6 +172,62 @@ function App() {
   }, [codeState.dirty]);
 
   const [consoleMessages, setConsoleMessages] = useState<ConsoleMessage[]>([]);
+
+  type RunErrorCollection = {
+    resolve: (
+      errors: Array<{ message: string; type: "error" | "warn" }>,
+    ) => void;
+    collected: Array<{ message: string; type: "error" | "warn" }>;
+    timeoutId: ReturnType<typeof setTimeout>;
+  };
+
+  const runErrorCollectionRef = useRef<RunErrorCollection | null>(null);
+
+  const finishCollection = useCallback(() => {
+    const current = runErrorCollectionRef.current;
+    if (!current) {
+      return;
+    }
+    clearTimeout(current.timeoutId);
+    runErrorCollectionRef.current = null;
+    current.resolve(current.collected);
+  }, []);
+
+  const handleRunComplete = useCallback(() => {
+    finishCollection();
+  }, [finishCollection]);
+
+  const awaitNextRunErrors = useCallback((): Promise<
+    Array<{ message: string; type: "error" | "warn" }>
+  > => {
+    // If a previous collection is still pending (e.g. user kicked off a new run
+    // before the previous runComplete arrived), resolve it empty so callers
+    // don't hang. The overtaking caller gets a fresh window.
+    if (runErrorCollectionRef.current) {
+      const stale = runErrorCollectionRef.current;
+      clearTimeout(stale.timeoutId);
+      runErrorCollectionRef.current = null;
+      stale.resolve([]);
+    }
+
+    return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => {
+        const current = runErrorCollectionRef.current;
+        if (!current) {
+          return;
+        }
+        runErrorCollectionRef.current = null;
+        current.resolve(current.collected);
+      }, 2500);
+
+      runErrorCollectionRef.current = {
+        resolve,
+        collected: [],
+        timeoutId,
+      };
+    });
+  }, []);
+
   const appendConsole = useCallback(
     function appendConsole(type: ConsoleMessageType, message: string) {
       setConsoleMessages((prevConsoleMessages) => [
@@ -315,6 +236,11 @@ function App() {
       ]);
       if (!consoleExpanded && type !== "log") {
         rightSideRef.current?.toggleExpanded();
+      }
+      // Feed the active run-error collection window, if any.
+      const collection = runErrorCollectionRef.current;
+      if (collection && (type === "error" || type === "warn")) {
+        collection.collected.push({ type, message });
       }
     },
     [consoleExpanded],
@@ -342,12 +268,22 @@ function App() {
     [codeState.runNumber],
   );
 
+  const handleSendConsoleLineToChat = useCallback((log: ConsoleMessage) => {
+    setPendingChatDraft({
+      id: crypto.randomUUID(),
+      text: `${{ log: "Console output", warn: "Console warning", error: "Console error", special: "Console message" }[log.type]}:\n${log.message}`,
+    });
+    setChatPanelOpen(true);
+  }, []);
+
+  const handlePendingChatDraftConsumed = useCallback((draftId: string) => {
+    setPendingChatDraft((currentDraft) =>
+      currentDraft?.id === draftId ? null : currentDraft,
+    );
+  }, []);
+
   function runSandcastle() {
     dispatch({ type: "runSandcastle" });
-  }
-
-  function highlightLine(lineNumber: number) {
-    console.log("would highlight line", lineNumber, "but not implemented yet");
   }
 
   function resetSandcastle() {
@@ -358,19 +294,26 @@ function App() {
 
     window.history.pushState({}, "", getBaseUrl());
 
-    setTitle("New Sandcastle");
+    setSandcastleTitle("New Sandcastle");
     setDescription("");
   }
 
   function openStandalone() {
-    const base64String = makeCompressedBase64String({
-      code: codeState.code,
-      html: codeState.html,
-    });
+    const searchParams = new URLSearchParams(window.location.search);
 
-    let url = getBaseUrl();
-    url =
-      `${url.replace("index.html", "")}standalone.html` + `#c=${base64String}`;
+    const standaloneUrl = `${getBaseUrl().replace("index.html", "")}standalone.html`;
+
+    const url = new URL(standaloneUrl);
+    const currentId = searchParams.get("id");
+    if (currentId && !codeState.dirty) {
+      url.searchParams.set("id", currentId);
+    } else {
+      const base64String = makeCompressedBase64String({
+        code: codeState.code,
+        html: codeState.html,
+      });
+      url.hash = `c=${base64String}`;
+    }
 
     window.open(url, "_blank");
     window.focus();
@@ -384,7 +327,8 @@ function App() {
   const { useLoadFromUrl } = galleryItemStore;
   const loadFromUrl = useLoadFromUrl();
   useEffect(() => {
-    const load = () =>
+    const load = () => {
+      setInitialized(true);
       startLoadPending(async () => {
         try {
           if (isLoadPending || !loadFromUrl) {
@@ -401,7 +345,7 @@ function App() {
             if (isLoadPending) {
               return;
             }
-            setTitle(title);
+            setSandcastleTitle(title);
             dispatch({
               type: "setAndRun",
               code: code ?? defaultJsCode,
@@ -414,9 +358,9 @@ function App() {
           console.error(message);
         }
       });
+    };
 
     if (!initialized && loadFromUrl) {
-      setInitialized(true);
       load();
     }
 
@@ -431,7 +375,14 @@ function App() {
     };
     window.addEventListener("popstate", stateLoad);
     return () => window.removeEventListener("popstate", stateLoad);
-  }, [initialized, isLoadPending, loadFromUrl, confirmLeave, appendConsole]);
+  }, [
+    initialized,
+    isLoadPending,
+    loadFromUrl,
+    confirmLeave,
+    appendConsole,
+    dispatch,
+  ]);
 
   useEffect(() => {
     // if the code has been edited listen for navigation away and warn
@@ -468,11 +419,11 @@ function App() {
           window.history.pushState({}, "", `${getBaseUrl()}?id=${id}`);
         }
 
-        setTitle(title);
+        setSandcastleTitle(title);
         dispatch({
           type: "setAndRun",
           code: code ?? defaultJsCode,
-          html: html ?? defaultJsCode,
+          html: html ?? defaultHtmlCode,
         });
       } catch (error) {
         const message = (error as Error)?.message;
@@ -480,12 +431,76 @@ function App() {
         console.error(message);
       }
     },
-    [confirmLeave, appendConsole],
+    [confirmLeave, appendConsole, dispatch],
   );
 
   const onOpenCode = useCallback(() => {
     setLeftPanel("editor");
   }, []);
+
+  const handleApplyAiCode = useCallback(
+    (javascript?: string, html?: string, autoRun: boolean = true) => {
+      setConsoleMessages([]);
+
+      if (javascript) {
+        dispatch({ type: "setCode", code: javascript });
+        setActiveTab("js");
+      }
+      if (html) {
+        dispatch({ type: "setHtml", html });
+        setActiveTab("html");
+      }
+      // Auto-run after applying AI changes, suppressed during tool chain
+      // execution so intermediate edits don't trigger broken preview states.
+      if (autoRun) {
+        clearTimeout(autoRunTimeoutRef.current);
+        autoRunTimeoutRef.current = setTimeout(
+          () => dispatch({ type: "runSandcastle" }),
+          500,
+        );
+      }
+    },
+    [dispatch],
+  );
+
+  const handleRunAndCollectErrors =
+    useCallback(async (): Promise<ExecutionResult> => {
+      const startTime = Date.now();
+
+      const collectionPromise = awaitNextRunErrors();
+      clearTimeout(autoRunTimeoutRef.current);
+      dispatch({ type: "runSandcastle" });
+
+      const runErrors = await collectionPromise;
+      const onlyErrors = runErrors.filter((e) => e.type === "error");
+
+      return {
+        success: onlyErrors.length === 0,
+        diffErrors: [],
+        consoleErrors: onlyErrors,
+        appliedCount: 0,
+        timestamp: Date.now(),
+        executionTimeMs: Date.now() - startTime,
+      };
+    }, [awaitNextRunErrors, dispatch]);
+
+  const codeContext: CodeContext = useMemo(
+    () => ({
+      javascript: codeState.code,
+      html: codeState.html,
+      consoleMessages: consoleMessages
+        .filter((msg) => msg.type !== "special")
+        .map((msg) => ({
+          type: msg.type as "log" | "warn" | "error",
+          message: msg.message,
+        })),
+    }),
+    [codeState.code, codeState.html, consoleMessages],
+  );
+
+  // Unconditional clear, unlike resetConsole which guards on runNumber > 0.
+  // The copilot's auto-fix loop needs to clear before the first run too.
+  const handleClearConsole = useCallback(() => setConsoleMessages([]), []);
 
   return (
     <Root
@@ -493,20 +508,19 @@ function App() {
       className="sandcastle-root"
       density="dense"
       colorScheme={settings.theme}
-      synchronizeColorScheme
     >
       <header className="header">
         <a className="logo" href={getBaseUrl()}>
           <img
             src={
               settings.theme === "dark"
-                ? "./images/Cesium_Logo_overlay.png"
+                ? "./images/Cesium_Logo_Color_Overlay_Light.png"
                 : "./images/Cesium_Logo_Color_Overlay.png"
             }
             style={{ width: "118px" }}
           />
         </a>
-        <MetadataPopover title={title} description={description} />
+        <MetadataPopover title={sandcastleTitle} description={description} />
         <SharePopover code={codeState.code} html={codeState.html} />
         <Divider aria-orientation="vertical" />
         <Button onClick={() => openStandalone()}>
@@ -542,14 +556,14 @@ function App() {
           active={leftPanel === "gallery"}
           label="Gallery"
         >
-          <Icon href={image} size="large" />
+          <Icon href={`${image}#icon-large`} size="large" />
         </AppBarButton>
         <AppBarButton
           onClick={() => setLeftPanel("editor")}
           active={leftPanel === "editor"}
           label="Editor"
         >
-          <Icon href={script} size="large" />
+          <Icon href={`${script}#icon-large`} size="large" />
         </AppBarButton>
         <Divider />
         <AppBarButton
@@ -559,14 +573,21 @@ function App() {
           }}
           label="New Sandcastle"
         >
-          <Icon href={add} size="large" />
+          <Icon href={`${add}#icon-large`} size="large" />
         </AppBarButton>
         <AppBarButton
           label="Documentation"
           onClick={openDocsPage}
           onAuxClick={openDocsPage}
         >
-          <Icon href={documentation} size="large" />
+          <Icon href={`${documentation}#icon-large`} size="large" />
+        </AppBarButton>
+        <AppBarButton
+          label="Cesium Copilot"
+          onClick={() => setChatPanelOpen(!chatPanelOpen)}
+          active={chatPanelOpen}
+        >
+          <Icon href={aiSparkle} size="large" />
         </AppBarButton>
         <div className="flex-spacer"></div>
         <Divider />
@@ -578,7 +599,10 @@ function App() {
           }
           label="Toggle theme"
         >
-          <Icon href={settings.theme === "dark" ? moon : sun} size="large" />
+          <Icon
+            href={`${settings.theme === "dark" ? moon : sun}#icon-large`}
+            size="large"
+          />
         </AppBarButton>
         <AppBarButton
           label="Settings"
@@ -586,7 +610,7 @@ function App() {
             setSettingsOpen(true);
           }}
         >
-          <Icon href={settingsIcon} size="large" />
+          <Icon href={`${settingsIcon}#icon-large`} size="large" />
         </AppBarButton>
         <SettingsModal open={settingsOpen} setOpen={setSettingsOpen} />
       </div>
@@ -612,6 +636,8 @@ function App() {
               }
               setJs={(newCode) => dispatch({ type: "setCode", code: newCode })}
               readOnly={!initialized}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
             />
           )}
           <StoreContext value={galleryItemStore}>
@@ -623,7 +649,7 @@ function App() {
           </StoreContext>
         </Allotment.Pane>
         <Allotment.Pane className="right-panel">
-          <RightSideAllotment
+          <ViewerConsoleStack
             ref={rightSideRef}
             consoleCollapsedHeight={consoleCollapsedHeight}
             consoleExpanded={consoleExpanded}
@@ -637,9 +663,10 @@ function App() {
                   code={codeState.committedCode}
                   html={codeState.committedHtml}
                   runNumber={codeState.runNumber}
-                  highlightLine={(lineNumber) => highlightLine(lineNumber)}
+                  highlightLine={() => {}}
                   appendConsole={appendConsole}
                   resetConsole={resetConsole}
+                  onRunComplete={handleRunComplete}
                 />
               )}
             </Allotment.Pane>
@@ -652,10 +679,37 @@ function App() {
                 expanded={consoleExpanded}
                 toggleExpanded={() => rightSideRef.current?.toggleExpanded()}
                 resetConsole={resetConsole}
+                renderLogAction={(log, index) => (
+                  <ConsoleChatAction
+                    log={log}
+                    index={index}
+                    onSend={handleSendConsoleLineToChat}
+                  />
+                )}
               />
             </Allotment.Pane>
-          </RightSideAllotment>
+          </ViewerConsoleStack>
         </Allotment.Pane>
+        {chatPanelOpen && (
+          <Allotment.Pane
+            minSize={250}
+            maxSize={800}
+            preferredSize={450}
+            className="chat-panel-pane"
+          >
+            <ErrorBoundary>
+              <ChatPanel
+                onClose={() => setChatPanelOpen(false)}
+                codeContext={codeContext}
+                onApplyCode={handleApplyAiCode}
+                onClearConsole={handleClearConsole}
+                pendingDraft={pendingChatDraft}
+                onPendingDraftConsumed={handlePendingChatDraftConsumed}
+                onRunAndCollectErrors={handleRunAndCollectErrors}
+              />
+            </ErrorBoundary>
+          </Allotment.Pane>
+        )}
       </Allotment>
     </Root>
   );

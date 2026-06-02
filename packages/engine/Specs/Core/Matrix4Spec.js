@@ -2094,11 +2094,7 @@ describe("Core/Matrix4", function () {
     );
     const rightRotation = Matrix3.fromRotationX(CesiumMath.toRadians(30.0));
     const right = Matrix4.fromRotationTranslation(rightRotation);
-    const expected = new Matrix4.multiplyTransformation(
-      left,
-      right,
-      new Matrix4()
-    );
+    const expected = Matrix4.multiplyTransformation(left, right, new Matrix4());
     const result = new Matrix4();
     const returnedResult = Matrix4.multiplyByMatrix3(
       left,
@@ -2116,11 +2112,7 @@ describe("Core/Matrix4", function () {
     );
     const rightRotation = Matrix3.fromRotationX(CesiumMath.toRadians(30.0));
     const right = Matrix4.fromRotationTranslation(rightRotation);
-    const expected = new Matrix4.multiplyTransformation(
-      left,
-      right,
-      new Matrix4()
-    );
+    const expected = Matrix4.multiplyTransformation(left, right, new Matrix4());
     const returnedResult = Matrix4.multiplyByMatrix3(left, rightRotation, left);
     expect(returnedResult).toBe(left);
     expect(left).toEqual(expected);
@@ -4458,7 +4450,7 @@ describe("Core/Matrix4", function () {
   });
 
   it("getElement throws without row parameter", function () {
-    let row;
+    const row = undefined;
     const col = 0.0;
     expect(function () {
       Matrix4.getElementIndex(col, row);
@@ -4467,7 +4459,7 @@ describe("Core/Matrix4", function () {
 
   it("getElement throws without column parameter", function () {
     const row = 0.0;
-    let col;
+    const col = undefined;
     expect(function () {
       Matrix4.getElementIndex(col, row);
     }).toThrowDeveloperError();

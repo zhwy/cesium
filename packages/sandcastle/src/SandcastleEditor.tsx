@@ -6,7 +6,6 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
-  useState,
 } from "react";
 import * as prettier from "prettier";
 import * as babelPlugin from "prettier/plugins/babel";
@@ -65,6 +64,8 @@ function SandcastleEditor({
   onRun: onRunSandcastle,
   setJs,
   readOnly,
+  activeTab,
+  onActiveTabChange,
 }: {
   ref?: RefObject<SandcastleEditorRef | null>;
   darkTheme: boolean;
@@ -75,8 +76,9 @@ function SandcastleEditor({
   onRun: () => void;
   setJs: (newCode: string) => void;
   readOnly: boolean;
+  activeTab: "js" | "html";
+  onActiveTabChange: (tab: "js" | "html") => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"js" | "html">("js");
   const internalEditorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
 
   const {
@@ -321,16 +323,16 @@ Sandcastle.addToolbarMenu(${variableName});`);
   return (
     <div className="editor-container">
       <div className="header">
-        <Tabs.Root>
+        <Tabs.Provider>
           <Tabs.TabList tone="accent">
-            <Tabs.Tab id="js" onClick={() => setActiveTab("js")}>
+            <Tabs.Tab id="js" onClick={() => onActiveTabChange("js")}>
               Javascript
             </Tabs.Tab>
-            <Tabs.Tab id="html" onClick={() => setActiveTab("html")}>
+            <Tabs.Tab id="html" onClick={() => onActiveTabChange("html")}>
               HTML/CSS
             </Tabs.Tab>
           </Tabs.TabList>
-        </Tabs.Root>
+        </Tabs.Provider>
         <div className="flex-spacer"></div>
         <div className="editor-actions">
           <Tooltip content="Format" placement="bottom">
@@ -342,7 +344,7 @@ Sandcastle.addToolbarMenu(${variableName});`);
               <Icon href={textAlignLeft} />
             </Button>
           </Tooltip>
-          <DropdownMenu.Root>
+          <DropdownMenu.Provider>
             <DropdownMenu.Button disabled={activeTab !== "js"}>
               Insert
             </DropdownMenu.Button>
@@ -351,7 +353,7 @@ Sandcastle.addToolbarMenu(${variableName});`);
               <DropdownMenu.Item label="Toggle" onClick={() => addToggle()} />
               <DropdownMenu.Item label="Menu" onClick={() => addMenu()} />
             </DropdownMenu.Content>
-          </DropdownMenu.Root>
+          </DropdownMenu.Provider>
           <Tooltip content="Run Sandcastle" placement="bottom">
             <Button tone="accent" onClick={() => onRunSandcastle()}>
               <Icon href={play} /> Run <Kbd variant="solid">F8</Kbd>
@@ -382,6 +384,7 @@ Sandcastle.addToolbarMenu(${variableName});`);
             fontSize: fontSize,
             fontLigatures: fontLigatures,
             readOnly: readOnly,
+            fixedOverflowWidgets: true,
           }}
           path={activeTab === "js" ? "script.js" : "index.html"}
           language={activeTab === "js" ? "javascript" : "html"}
