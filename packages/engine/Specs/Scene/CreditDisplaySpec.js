@@ -112,7 +112,7 @@ describe("Scene/CreditDisplay", function () {
       creditDisplay = new CreditDisplay(container);
       const credit = new Credit(
         '<a href="http://cesiumjs.org">CesiumJS.org</a>',
-        true
+        true,
       );
       beginFrame(creditDisplay);
       creditDisplay.addCreditToNextFrame(credit);
@@ -429,7 +429,7 @@ describe("Scene/CreditDisplay", function () {
       creditDisplay.endFrame();
       creditDisplay.update();
 
-      let innerHTML = creditList.innerHTML;
+      const innerHTML = creditList.innerHTML;
       expect(creditList.childNodes.length).toEqual(1);
       expect(creditList.childNodes[0].childNodes[0]).toEqual(credit1.element);
 
@@ -439,7 +439,6 @@ describe("Scene/CreditDisplay", function () {
       creditDisplay.update();
 
       expect(creditList.innerHTML).not.toEqual(innerHTML);
-      innerHTML = creditList.innerHTML;
       expect(creditList.childNodes.length).toEqual(2);
       expect(creditList.childNodes[0].childNodes[0]).toEqual(credit1.element);
       expect(creditList.childNodes[1].childNodes[0]).toEqual(credit2.element);
@@ -512,10 +511,10 @@ describe("Scene/CreditDisplay", function () {
       const lightboxCreditList = creditDisplay._creditList;
       expect(lightboxCreditList.childNodes.length).toEqual(2);
       expect(lightboxCreditList.childNodes[0].childNodes[0]).toEqual(
-        credit1.element
+        credit1.element,
       );
       expect(lightboxCreditList.childNodes[1].childNodes[0]).toEqual(
-        credit2.element
+        credit2.element,
       );
 
       // Show credits on screen again
@@ -607,10 +606,10 @@ describe("Scene/CreditDisplay", function () {
       const container2 = document.createElement("div");
       const creditDisplay2 = new CreditDisplay(container2);
       expect(creditDisplay._currentCesiumCredit).toEqual(
-        creditDisplay2._currentCesiumCredit
+        creditDisplay2._currentCesiumCredit,
       );
       expect(creditDisplay._currentCesiumCredit).not.toBe(
-        creditDisplay2._currentCesiumCredit
+        creditDisplay2._currentCesiumCredit,
       );
     });
   }

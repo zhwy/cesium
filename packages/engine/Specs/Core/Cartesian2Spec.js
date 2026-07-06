@@ -23,14 +23,12 @@ describe("Core/Cartesian2", function () {
   });
 
   it("fromArray creates a Cartesian2", function () {
-    let cartesian = new Cartesian2();
-    cartesian = Cartesian2.fromArray([1.0, 2.0]);
+    const cartesian = Cartesian2.fromArray([1.0, 2.0]);
     expect(cartesian).toEqual(new Cartesian2(1.0, 2.0));
   });
 
   it("fromArray with an offset creates a Cartesian2", function () {
-    let cartesian = new Cartesian2();
-    cartesian = Cartesian2.fromArray([0.0, 1.0, 2.0, 0.0], 1);
+    const cartesian = Cartesian2.fromArray([0.0, 1.0, 2.0, 0.0], 1);
     expect(cartesian).toEqual(new Cartesian2(1.0, 2.0));
   });
 
@@ -85,42 +83,42 @@ describe("Core/Cartesian2", function () {
     second = new Cartesian2(1.0, 0.0);
     expected = new Cartesian2(1.0, 0.0);
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(1.0, 0.0);
     second = new Cartesian2(2.0, 0.0);
     expected = new Cartesian2(1.0, 0.0);
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -15.0);
     second = new Cartesian2(1.0, -20.0);
     expected = new Cartesian2(1.0, -20.0);
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -20.0);
     second = new Cartesian2(1.0, -15.0);
     expected = new Cartesian2(1.0, -20.0);
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -15.0);
     second = new Cartesian2(1.0, -20.0);
     expected = new Cartesian2(1.0, -20.0);
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -15.0);
     second = new Cartesian2(1.0, -20.0);
     expected = new Cartesian2(1.0, -20.0);
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -139,13 +137,13 @@ describe("Core/Cartesian2", function () {
     const second = new Cartesian2(1.0, 0.0);
     const expected = new Cartesian2(1.0, 0.0);
     expect(Cartesian2.minimumByComponent(first, second, first)).toEqual(
-      expected
+      expected,
     );
 
     first.x = 1.0;
     second.x = 2.0;
     expect(Cartesian2.minimumByComponent(first, second, second)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -166,13 +164,13 @@ describe("Core/Cartesian2", function () {
     const second = new Cartesian2(1.0, 0.0);
     const expected = new Cartesian2(1.0, 0.0);
     expect(Cartesian2.minimumByComponent(first, second, expected)).toEqual(
-      expected
+      expected,
     );
 
     second.x = 3.0;
     expected.x = 2.0;
     expect(Cartesian2.minimumByComponent(first, second, expected)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -182,13 +180,13 @@ describe("Core/Cartesian2", function () {
     const expected = new Cartesian2(0.0, 1.0);
     const result = new Cartesian2();
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     second.y = 3.0;
     expected.y = 2.0;
     expect(Cartesian2.minimumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -202,42 +200,42 @@ describe("Core/Cartesian2", function () {
     second = new Cartesian2(1.0, 0.0);
     expected = new Cartesian2(2.0, 0.0);
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(1.0, 0.0);
     second = new Cartesian2(2.0, 0.0);
     expected = new Cartesian2(2.0, 0.0);
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -15.0);
     second = new Cartesian2(1.0, -20.0);
     expected = new Cartesian2(2.0, -15.0);
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -20.0);
     second = new Cartesian2(1.0, -15.0);
     expected = new Cartesian2(2.0, -15.0);
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -15.0);
     second = new Cartesian2(1.0, -20.0);
     expected = new Cartesian2(2.0, -15.0);
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     first = new Cartesian2(2.0, -15.0);
     second = new Cartesian2(1.0, -20.0);
     expected = new Cartesian2(2.0, -15.0);
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -256,13 +254,13 @@ describe("Core/Cartesian2", function () {
     const second = new Cartesian2(1.0, 0.0);
     const expected = new Cartesian2(2.0, 0.0);
     expect(Cartesian2.maximumByComponent(first, second, first)).toEqual(
-      expected
+      expected,
     );
 
     first.x = 1.0;
     second.x = 2.0;
     expect(Cartesian2.maximumByComponent(first, second, second)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -284,13 +282,13 @@ describe("Core/Cartesian2", function () {
     const expected = new Cartesian2(2.0, 0.0);
     const result = new Cartesian2();
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     second.x = 3.0;
     expected.x = 3.0;
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -300,13 +298,13 @@ describe("Core/Cartesian2", function () {
     const expected = new Cartesian2(0.0, 2.0);
     const result = new Cartesian2();
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
 
     second.y = 3.0;
     expected.y = 3.0;
     expect(Cartesian2.maximumByComponent(first, second, result)).toEqual(
-      expected
+      expected,
     );
   });
 
@@ -422,7 +420,7 @@ describe("Core/Cartesian2", function () {
   it("distance", function () {
     const distance = Cartesian2.distance(
       new Cartesian2(1.0, 0.0),
-      new Cartesian2(2.0, 0.0)
+      new Cartesian2(2.0, 0.0),
     );
     expect(distance).toEqual(1.0);
   });
@@ -442,7 +440,7 @@ describe("Core/Cartesian2", function () {
   it("distanceSquared", function () {
     const distanceSquared = Cartesian2.distanceSquared(
       new Cartesian2(1.0, 0.0),
-      new Cartesian2(3.0, 0.0)
+      new Cartesian2(3.0, 0.0),
     );
     expect(distanceSquared).toEqual(4.0);
   });
@@ -582,7 +580,7 @@ describe("Core/Cartesian2", function () {
     const returnedResult = Cartesian2.multiplyByScalar(
       cartesian,
       scalar,
-      result
+      result,
     );
     expect(result).toBe(returnedResult);
     expect(result).toEqual(expectedResult);
@@ -595,7 +593,7 @@ describe("Core/Cartesian2", function () {
     const returnedResult = Cartesian2.multiplyByScalar(
       cartesian,
       scalar,
-      cartesian
+      cartesian,
     );
     expect(cartesian).toBe(returnedResult);
     expect(cartesian).toEqual(expectedResult);
@@ -618,7 +616,7 @@ describe("Core/Cartesian2", function () {
     const returnedResult = Cartesian2.divideByScalar(
       cartesian,
       scalar,
-      cartesian
+      cartesian,
     );
     expect(cartesian).toBe(returnedResult);
     expect(cartesian).toEqual(expectedResult);
@@ -709,11 +707,11 @@ describe("Core/Cartesian2", function () {
     const y = new Cartesian2(1.0, 1.0);
     expect(Cartesian2.angleBetween(x, y)).toEqualEpsilon(
       CesiumMath.PI_OVER_FOUR,
-      CesiumMath.EPSILON14
+      CesiumMath.EPSILON14,
     );
     expect(Cartesian2.angleBetween(y, x)).toEqualEpsilon(
       CesiumMath.PI_OVER_FOUR,
-      CesiumMath.EPSILON14
+      CesiumMath.EPSILON14,
     );
   });
 
@@ -722,11 +720,11 @@ describe("Core/Cartesian2", function () {
     const y = new Cartesian2(-1.0, -1.0);
     expect(Cartesian2.angleBetween(x, y)).toEqualEpsilon(
       (CesiumMath.PI * 3.0) / 4.0,
-      CesiumMath.EPSILON14
+      CesiumMath.EPSILON14,
     );
     expect(Cartesian2.angleBetween(y, x)).toEqualEpsilon(
       (CesiumMath.PI * 3.0) / 4.0,
-      CesiumMath.EPSILON14
+      CesiumMath.EPSILON14,
     );
   });
 
@@ -738,27 +736,27 @@ describe("Core/Cartesian2", function () {
   it("most orthogonal angle is x", function () {
     const v = new Cartesian2(0.0, 1.0);
     expect(Cartesian2.mostOrthogonalAxis(v, new Cartesian2())).toEqual(
-      Cartesian2.UNIT_X
+      Cartesian2.UNIT_X,
     );
   });
 
   it("most orthogonal angle is y", function () {
     const v = new Cartesian2(1.0, 0.0);
     expect(Cartesian2.mostOrthogonalAxis(v, new Cartesian2())).toEqual(
-      Cartesian2.UNIT_Y
+      Cartesian2.UNIT_Y,
     );
   });
 
   it("equals", function () {
     const cartesian = new Cartesian2(1.0, 2.0);
     expect(Cartesian2.equals(cartesian, new Cartesian2(1.0, 2.0))).toEqual(
-      true
+      true,
     );
     expect(Cartesian2.equals(cartesian, new Cartesian2(2.0, 2.0))).toEqual(
-      false
+      false,
     );
     expect(Cartesian2.equals(cartesian, new Cartesian2(2.0, 1.0))).toEqual(
-      false
+      false,
     );
     expect(Cartesian2.equals(cartesian, undefined)).toEqual(false);
   });
@@ -766,49 +764,49 @@ describe("Core/Cartesian2", function () {
   it("equalsEpsilon", function () {
     let cartesian = new Cartesian2(1.0, 2.0);
     expect(cartesian.equalsEpsilon(new Cartesian2(1.0, 2.0), 0.0)).toEqual(
-      true
+      true,
     );
     expect(cartesian.equalsEpsilon(new Cartesian2(1.0, 2.0), 1.0)).toEqual(
-      true
+      true,
     );
     expect(cartesian.equalsEpsilon(new Cartesian2(2.0, 2.0), 1.0)).toEqual(
-      true
+      true,
     );
     expect(cartesian.equalsEpsilon(new Cartesian2(1.0, 3.0), 1.0)).toEqual(
-      true
+      true,
     );
     expect(
-      cartesian.equalsEpsilon(new Cartesian2(1.0, 3.0), CesiumMath.EPSILON6)
+      cartesian.equalsEpsilon(new Cartesian2(1.0, 3.0), CesiumMath.EPSILON6),
     ).toEqual(false);
     expect(cartesian.equalsEpsilon(undefined, 1)).toEqual(false);
 
     cartesian = new Cartesian2(3000000.0, 4000000.0);
     expect(
-      cartesian.equalsEpsilon(new Cartesian2(3000000.0, 4000000.0), 0.0)
+      cartesian.equalsEpsilon(new Cartesian2(3000000.0, 4000000.0), 0.0),
     ).toEqual(true);
     expect(
       cartesian.equalsEpsilon(
         new Cartesian2(3000000.0, 4000000.2),
-        CesiumMath.EPSILON7
-      )
+        CesiumMath.EPSILON7,
+      ),
     ).toEqual(true);
     expect(
       cartesian.equalsEpsilon(
         new Cartesian2(3000000.2, 4000000.0),
-        CesiumMath.EPSILON7
-      )
+        CesiumMath.EPSILON7,
+      ),
     ).toEqual(true);
     expect(
       cartesian.equalsEpsilon(
         new Cartesian2(3000000.2, 4000000.2),
-        CesiumMath.EPSILON7
-      )
+        CesiumMath.EPSILON7,
+      ),
     ).toEqual(true);
     expect(
       cartesian.equalsEpsilon(
         new Cartesian2(3000000.2, 4000000.2),
-        CesiumMath.EPSILON9
-      )
+        CesiumMath.EPSILON9,
+      ),
     ).toEqual(false);
     expect(cartesian.equalsEpsilon(undefined, 1)).toEqual(false);
 
@@ -1100,6 +1098,6 @@ describe("Core/Cartesian2", function () {
     Cartesian2,
     [new Cartesian2(1, 2), new Cartesian2(3, 4)],
     [1, 2, 3, 4],
-    2
+    2,
   );
 });
