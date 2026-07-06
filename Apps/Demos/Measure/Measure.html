@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -33,8 +33,6 @@
         padding: 10px;
       }
     </style>
-    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-    <script src="./Measure.js"></script>
   </head>
 
   <body>
@@ -45,9 +43,13 @@
         <button id="clear">清除</button>
       </div>
     </div>
-    <script>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import Measure, { MeasureType } from "./Measure.js";
+      window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
+
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer", {
         selectionIndicator: false,
@@ -61,7 +63,7 @@
           measure.deactivate();
         }
 
-        measure = new Cesium.Measure(viewer, Cesium.MeasureType.AREA);
+        measure = new Measure(viewer, MeasureType.AREA);
         measure.activate();
       };
 
@@ -70,7 +72,7 @@
           measure.deactivate();
         }
 
-        measure = new Cesium.Measure(viewer, Cesium.MeasureType.DISTANCE);
+        measure = new Measure(viewer, MeasureType.DISTANCE);
         measure.activate();
       };
 

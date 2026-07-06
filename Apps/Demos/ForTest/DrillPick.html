@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -28,10 +28,10 @@
 
   <body>
     <div id="cesiumContainer"></div>
-    <script type="module" src="../../Sandcastle/load-cesium-es6.js"></script>
     <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
       window._viewer = viewer;
@@ -51,12 +51,12 @@
       const startPosition = Cesium.Cartesian3.fromDegrees(
         121.488627,
         31.237938,
-        5
+        5,
       );
       let endPosition = Cesium.Cartesian3.fromDegrees(
         121.4898067,
         31.23789311,
-        8
+        8,
       );
 
       const startEntity = viewer.entities.add({
@@ -81,7 +81,7 @@
           width: 10,
           arcType: Cesium.ArcType.NONE,
           material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.YELLOW
+            Cesium.Color.YELLOW,
           ),
         },
       });
@@ -96,7 +96,7 @@
       Cesium.Model.fromGltfAsync({
         url: "https://maps.bim-ace.com:10202/models/blowBoat.glb",
         modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(
-          Cesium.Cartesian3.fromDegrees(121.489627, 31.237938, 5)
+          Cesium.Cartesian3.fromDegrees(121.489627, 31.237938, 5),
         ),
       }).then((model) => {
         viewer.scene.primitives.add(model);
@@ -113,12 +113,12 @@
         const direction = Cesium.Cartesian3.subtract(
           endPosition,
           startPosition,
-          new Cesium.Cartesian3()
+          new Cesium.Cartesian3(),
         );
 
         const ray = new Cesium.Ray(
           startPosition,
-          Cesium.Cartesian3.normalize(direction, new Cesium.Cartesian3())
+          Cesium.Cartesian3.normalize(direction, new Cesium.Cartesian3()),
         );
         const results = viewer.scene.drillPickFromRay(ray, 10, [
           startEntity,
@@ -129,7 +129,7 @@
 
         for (let i = 0; i < results.length; ++i) {
           const object = results[i].object;
-          const node = results[i].object.detail.node;
+          const node = object.detail.node;
           nodes.push(node);
           // node.show = false;
 
@@ -147,7 +147,7 @@
                 font: "10px",
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
               },
-            })
+            }),
           );
         }
       };

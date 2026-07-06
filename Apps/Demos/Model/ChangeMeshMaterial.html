@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -33,7 +33,7 @@
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer", {
         shouldAnimate: true,
@@ -57,7 +57,7 @@
       const origin = Cesium.Cartesian3.fromDegrees(121, 31, 1);
       const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
         origin,
-        new Cesium.HeadingPitchRoll()
+        new Cesium.HeadingPitchRoll(),
       );
 
       const modelUrl = "../../SampleData/models/Test/钢坝_d.glb";
@@ -82,21 +82,17 @@
           const pitch = Cesium.Math.toRadians(-20.0);
           camera.lookAt(
             model.boundingSphere.center,
-            new Cesium.HeadingPitchRange(heading, pitch, r * 2.0)
+            new Cesium.HeadingPitchRange(heading, pitch, r * 2.0),
           );
 
-          const options = Object.keys(model._nodesByName).forEach((name) => {
+          Object.keys(model._nodesByName).forEach((name) => {
             if (name === "闸门") {
               const node = model.getNode(name);
               const primitives = node._runtimeNode.node.primitives;
 
               primitives.forEach((primitive) => {
-                primitive.material.metallicRoughness.baseColorFactor = new Cesium.Cartesian4(
-                  1,
-                  0,
-                  0,
-                  1
-                );
+                primitive.material.metallicRoughness.baseColorFactor =
+                  new Cesium.Cartesian4(1, 0, 0, 1);
               });
             } else if (name === "立方体.002") {
               const node = model.getNode(name);
@@ -104,12 +100,8 @@
 
               primitives.forEach((primitive) => {
                 primitive.material.alphaMode = Cesium.AlphaMode.BLEND;
-                primitive.material.metallicRoughness.baseColorFactor = new Cesium.Cartesian4(
-                  0,
-                  1,
-                  0,
-                  0.5
-                );
+                primitive.material.metallicRoughness.baseColorFactor =
+                  new Cesium.Cartesian4(0, 1, 0, 0.5);
               });
             }
           });

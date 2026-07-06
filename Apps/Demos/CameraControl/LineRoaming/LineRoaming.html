@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -30,12 +30,11 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-      import * as Cesium from "/Build/CesiumUnminified/index.js";
-      import PickFromRay from "/Apps/Demos/Lib/pickFromRay.js";
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
       import LineRoamingHelper from "./lineRoamingHelper.js";
 
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer", {
         animation: false,
@@ -74,9 +73,8 @@
 
       const globe = scene.globe;
       globe.depthTestAgainstTerrain = true;
-      globe.undergroundColor = Cesium.Color.fromCssColorString(
-        "rgb(61, 53, 51)"
-      );
+      globe.undergroundColor =
+        Cesium.Color.fromCssColorString("rgb(61, 53, 51)");
       globe.undergroundColorAlphaByDistance.near = 0;
       globe.undergroundColorAlphaByDistance.far = 100;
       globe.undergroundColorAlphaByDistance.nearValue = 0;
@@ -85,7 +83,7 @@
       const pos = Cesium.Cartesian3.fromDegrees(120.04939, 29.830674, 650.67);
       const orientation = Cesium.Transforms.headingPitchRollQuaternion(
         pos,
-        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0)
+        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(-45), 0, 0),
       );
       const model = viewer.entities.add({
         position: pos,
@@ -108,7 +106,7 @@
       };
 
       viewer.screenSpaceEventHandler.removeInputAction(
-        Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+        Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
       ); // 移除原有
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -117,8 +115,8 @@
       handler.setInputAction(function (evt) {
         if (scene.mode !== Cesium.SceneMode.MORPHING) {
           if (scene.pickPositionSupported) {
-            let pickedObject = scene.pick(evt.position);
-            if (pickedObject?.id?.id == "tunnel") {
+            const pickedObject = scene.pick(evt.position);
+            if (pickedObject?.id?.id === "tunnel") {
               roamingHelper.activateRoaming();
             }
           } else {

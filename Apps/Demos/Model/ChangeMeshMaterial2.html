@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -33,7 +33,7 @@
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
       window._viewer = viewer;
@@ -57,7 +57,7 @@
       const model = await Cesium.Model.fromGltfAsync({
         url: "../../SampleData/models/GroundVehicle/GroundVehicle.glb",
         modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(
-          Cesium.Cartesian3.fromDegrees(121.489627, 31.237938, 5)
+          Cesium.Cartesian3.fromDegrees(121.489627, 31.237938, 5),
         ),
       });
       viewer.scene.primitives.add(model);
@@ -102,12 +102,8 @@
             old._node.primitives.forEach((p) => {
               p.material.metallicRoughness.originColor =
                 p.material.metallicRoughness.baseColorFactor;
-              p.material.metallicRoughness.baseColorFactor = new Cesium.Cartesian4(
-                1,
-                0,
-                0,
-                1
-              );
+              p.material.metallicRoughness.baseColorFactor =
+                new Cesium.Cartesian4(1, 0, 0, 1);
 
               p.material.metallicRoughness.originTexture =
                 p.material.metallicRoughness.baseColorTexture;

@@ -1,22 +1,24 @@
 /*** 来源 https://www.jianshu.com/p/4a97d3ed4a06 ***/
 
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+
 //空间两点距离计算函数
 function getSpaceDistance(positions) {
   let distance = 0;
   for (let i = 0; i < positions.length - 1; i++) {
-    let point1cartographic = Cesium.Cartographic.fromCartesian(positions[i]);
-    let point2cartographic = Cesium.Cartographic.fromCartesian(
-      positions[i + 1]
+    const point1cartographic = Cesium.Cartographic.fromCartesian(positions[i]);
+    const point2cartographic = Cesium.Cartographic.fromCartesian(
+      positions[i + 1],
     );
     /**根据经纬度计算出距离**/
-    let geodesic = new Cesium.EllipsoidGeodesic();
+    const geodesic = new Cesium.EllipsoidGeodesic();
     geodesic.setEndPoints(point1cartographic, point2cartographic);
     let s = geodesic.surfaceDistance;
     //console.log(Math.sqrt(Math.pow(distance, 2) + Math.pow(endheight, 2)));
     //返回两点之间的距离
     s = Math.sqrt(
       Math.pow(s, 2) +
-        Math.pow(point2cartographic.height - point1cartographic.height, 2)
+        Math.pow(point2cartographic.height - point1cartographic.height, 2),
     );
     distance = distance + s;
   }
@@ -25,14 +27,14 @@ function getSpaceDistance(positions) {
 
 /*方向*/
 function getBearing(from, to) {
-  let lat1 = from.lat;
-  let lon1 = from.lon;
-  let lat2 = to.lat;
-  let lon2 = to.lon;
+  const lat1 = from.lat;
+  const lon1 = from.lon;
+  const lat2 = to.lat;
+  const lon2 = to.lon;
   let angle = -Math.atan2(
     Math.sin(lon1 - lon2) * Math.cos(lat2),
     Math.cos(lat1) * Math.sin(lat2) -
-      Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2)
+      Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2),
   );
   if (angle < 0) {
     angle += Math.PI * 2.0;
@@ -43,8 +45,8 @@ function getBearing(from, to) {
 
 /*角度*/
 function getAngle(p1, p2, p3) {
-  let bearing21 = getBearing(p2, p1);
-  let bearing23 = getBearing(p2, p3);
+  const bearing21 = getBearing(p2, p1);
+  const bearing23 = getBearing(p2, p3);
   let angle = bearing21 - bearing23;
   if (angle < 0) {
     angle += 360;
@@ -57,8 +59,8 @@ function getArea(positions) {
   if (positions.length < 4) {
     return 0;
   }
-  let points = positions.map((pos) => {
-    let coord = Cesium.Cartographic.fromCartesian(pos);
+  const points = positions.map((pos) => {
+    const coord = Cesium.Cartographic.fromCartesian(pos);
     return {
       lon: coord.longitude,
       lat: coord.latitude,
@@ -73,12 +75,12 @@ function getArea(positions) {
   let res = 0;
   //拆分三角曲面
   for (let i = 0; i < points.length - 2; i++) {
-    let j = (i + 1) % points.length;
-    let k = (i + 2) % points.length;
-    let totalAngle = getAngle(points[i], points[j], points[k]);
+    const j = (i + 1) % points.length;
+    const k = (i + 2) % points.length;
+    const totalAngle = getAngle(points[i], points[j], points[k]);
 
-    let dis_temp1 = distance(positions[i], positions[j]);
-    let dis_temp2 = distance(positions[j], positions[k]);
+    const dis_temp1 = distance(positions[i], positions[j]);
+    const dis_temp2 = distance(positions[j], positions[k]);
     res += dis_temp1 * dis_temp2 * Math.abs(Math.sin(totalAngle));
   }
   return res;
@@ -86,17 +88,17 @@ function getArea(positions) {
 
 //多点距离
 function distance(point1, point2) {
-  let point1cartographic = Cesium.Cartographic.fromCartesian(point1);
-  let point2cartographic = Cesium.Cartographic.fromCartesian(point2);
+  const point1cartographic = Cesium.Cartographic.fromCartesian(point1);
+  const point2cartographic = Cesium.Cartographic.fromCartesian(point2);
   /**根据经纬度计算出距离**/
-  let geodesic = new Cesium.EllipsoidGeodesic();
+  const geodesic = new Cesium.EllipsoidGeodesic();
   geodesic.setEndPoints(point1cartographic, point2cartographic);
   let s = geodesic.surfaceDistance;
   //console.log(Math.sqrt(Math.pow(distance, 2) + Math.pow(endheight, 2)));
   //返回两点之间的距离
   s = Math.sqrt(
     Math.pow(s, 2) +
-      Math.pow(point2cartographic.height - point1cartographic.height, 2)
+      Math.pow(point2cartographic.height - point1cartographic.height, 2),
   );
   return s;
 }
@@ -151,11 +153,11 @@ class MeasureTool {
     this.label = viewer.entities.add(this.labelOptions);
 
     this.orginLeftDblEvt = viewer.screenSpaceEventHandler.getInputAction(
-      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
     );
     // 取消双击事件-追踪该位置
     viewer.screenSpaceEventHandler.removeInputAction(
-      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
     );
 
     this.handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -164,11 +166,13 @@ class MeasureTool {
     let cartesian = null;
 
     this.handler.setInputAction(function (evt) {
-      if (me.viewer.scene.mode != Cesium.SceneMode.MORPHING) {
+      if (me.viewer.scene.mode !== Cesium.SceneMode.MORPHING) {
         if (me.viewer.scene.pickPositionSupported) {
           cartesian = me.getPickPosition(evt.endPosition);
 
-          if (cartesian) me.pointerPos = cartesian.clone();
+          if (cartesian) {
+            me.pointerPos = cartesian.clone();
+          }
           if (cartesian && !me.lastCompleted) {
             if (me.positions.length <= 1) {
               me.positions.push(cartesian);
@@ -240,7 +244,7 @@ class MeasureTool {
 
     this.viewer.screenSpaceEventHandler.setInputAction(
       this.orginLeftDblEvt,
-      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
     ); //添加回双击事件
   }
   getPickPosition(pos) {
@@ -252,7 +256,9 @@ class MeasureTool {
       if (!cartesian) {
         const ray = viewer.camera.getPickRay(pos);
         const result = viewer.scene.pickFromRay(ray, [this.pointer]);
-        if (result) return result.position;
+        if (result) {
+          return result.position;
+        }
       }
     } else {
       const ray = viewer.camera.getPickRay(pos);
@@ -281,7 +287,7 @@ class MeasureTool {
 class MeasureDistance extends MeasureTool {
   constructor(viewer) {
     super(viewer);
-    let me = this;
+    const me = this;
     this.measureOptions = {
       name: "measure-line",
       polyline: {
@@ -392,17 +398,14 @@ class MeasureArea extends MeasureTool {
   }
 }
 
-class Measure {
+export default class Measure {
   constructor(viewer, type = MeasureType.DISTANCE) {
     this.viewer = viewer;
-    if (type == MeasureType.DISTANCE) {
+    if (type === MeasureType.DISTANCE) {
       return new MeasureDistance(viewer);
     }
-    if (type == MeasureType.AREA) {
+    if (type === MeasureType.AREA) {
       return new MeasureArea(viewer);
     }
   }
 }
-
-Cesium.Measure = Measure;
-Cesium.MeasureType = MeasureType;

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -52,12 +52,12 @@
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
 
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
 
       const tileset = await Cesium.Cesium3DTileset.fromUrl(
-        "./tiles/tileset.json"
+        "./tiles/tileset.json",
       );
       viewer.scene.primitives.add(tileset);
 
@@ -71,7 +71,7 @@
       const newPos = Cesium.Cartesian3.fromRadians(
         Cesium.Math.toRadians(121),
         Cesium.Math.toRadians(31),
-        5
+        5,
       );
 
       // 旋转
@@ -80,8 +80,8 @@
         new Cesium.HeadingPitchRoll(
           Cesium.Math.toRadians(90),
           Cesium.Math.toRadians(0),
-          Cesium.Math.toRadians(0)
-        )
+          Cesium.Math.toRadians(0),
+        ),
       );
 
       // 缩放
@@ -108,7 +108,7 @@
           Cesium.Matrix4.multiply(
             realTransform,
             tileset.modelMatrix,
-            realTransform
+            realTransform,
           );
 
           // 用逆计算相对于模型原点的位置
@@ -117,20 +117,20 @@
             new Cesium.Cartesian3(
               child.sphere[0],
               child.sphere[1],
-              child.sphere[2]
+              child.sphere[2],
             ),
-            new Cesium.Cartesian3()
+            new Cesium.Cartesian3(),
           );
 
           const newPos = Cesium.Matrix4.multiplyByPoint(
             realTransform,
             orgPos,
-            new Cesium.Cartesian3()
+            new Cesium.Cartesian3(),
           );
 
           const boundingSphere = new Cesium.BoundingSphere(
             newPos,
-            child.sphere[3] * scaleValue
+            child.sphere[3] * scaleValue,
           );
 
           text.onclick = () => {

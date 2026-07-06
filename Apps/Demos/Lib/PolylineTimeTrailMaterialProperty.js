@@ -1,4 +1,6 @@
 /* eslint-disable */
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+
 function PolylineTimeTrailMaterialProperty(options) {
   options = options ?? {};
 

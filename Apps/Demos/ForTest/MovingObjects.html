@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -30,7 +30,6 @@
   <body>
     <div id="cesiumContainer"></div>
     <script type="module">
-      /* eslint-disable no-undef */
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
       const viewer = new Cesium.Viewer("cesiumContainer");
@@ -44,23 +43,23 @@
         const lng = 120 + 0.1 * i;
 
         const positions = new Cesium.SampledPositionProperty();
-        const startPos = new Cesium.Cartesian3.fromDegrees(lng, 30, 5000);
-        const endPos = new Cesium.Cartesian3.fromDegrees(lng, 31, 5000);
+        const startPos = Cesium.Cartesian3.fromDegrees(lng, 30, 5000);
+        const endPos = Cesium.Cartesian3.fromDegrees(lng, 31, 5000);
 
         positions.addSample(startTime, startPos);
         positions.addSample(
           Cesium.JulianDate.addSeconds(
             startTime,
             totalTime,
-            new Cesium.JulianDate()
+            new Cesium.JulianDate(),
           ),
-          endPos
+          endPos,
         );
 
         const hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
         const orientation = Cesium.Transforms.headingPitchRollQuaternion(
           startPos,
-          hpr
+          hpr,
         );
 
         const line = viewer.entities.add({
@@ -92,7 +91,7 @@
         const now = Cesium.JulianDate.addSeconds(
           startTime,
           time,
-          new Cesium.JulianDate()
+          new Cesium.JulianDate(),
         );
         time++;
         if (time === totalTime) {

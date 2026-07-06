@@ -2,6 +2,8 @@
 // 链接：https://www.jianshu.com/p/193b8ea734cd
 
 /* eslint-disable */
+import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+
 function PolylineTrailMaterial2Property(options) {
   options = options ?? {};
 

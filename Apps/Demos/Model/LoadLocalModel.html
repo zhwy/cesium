@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -39,12 +39,11 @@
       <input type="file" id="selector" />
     </div>
     <script type="module">
-      /* eslint-disable */
       import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       import { SimpleDropzone } from "./simpleDropZone.js";
 
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       enableDropModel();
 
@@ -99,7 +98,7 @@
       viewer.scene.preRender.addEventListener((scene, time) => {
         scene.light.direction = Cesium.Cartesian3.clone(
           scene.camera.direction,
-          scene.light.direction
+          scene.light.direction,
         );
       });
 
@@ -111,17 +110,17 @@
           } else if (file.name.includes(".gltf")) {
             reader.readAsText(file);
           } else {
+            // eslint-disable-next-line no-alert
             alert("未找到glb或gltf文件！");
           }
 
           reader.onload = (res) => {
             viewer.scene.primitives.removeAll();
 
-            let width = getComputedStyle(viewer.container).width;
-            let height = getComputedStyle(viewer.container).height;
-            width = Number(width.slice(0, -2));
-            height = Number(height.slice(0, -2));
-
+            // let width = getComputedStyle(viewer.container).width;
+            // let height = getComputedStyle(viewer.container).height;
+            // width = Number(width.slice(0, -2));
+            // height = Number(height.slice(0, -2));
             // const pos = viewer.scene.pickPosition({
             //   x: width / 2,
             //   y: height / 2,
@@ -130,30 +129,9 @@
 
             Cesium.Model.fromGltfAsync({
               gltf:
-                typeof reader.result == "string"
+                typeof reader.result === "string"
                   ? JSON.parse(reader.result)
                   : new Uint8Array(reader.result),
-              // basePath: new Cesium.Resource({
-              //   url: "http://localhost:804/",
-              //   request: new Cesium.Request({
-              //     url: "http://localhost:804/",
-              //     requestFunction: new Promise((resolve, reject) => {
-              //       if (files) {
-              //         for (let key of files.keys()) {
-              //           if (key.includes(".bin")) {
-              //             return files.get(key);
-              //             var reader2 = new FileReader();
-              //             reader2.readAsArrayBuffer(files.get(key));
-              //             reader2.onload = () => {
-              //               resolve(reader2.result);
-              //             }
-              //             break;
-              //           }
-              //         }
-              //       }
-              //     })
-              //   })
-              // }),
               // debugShowBoundingVolume: true
               modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(pos),
             }).then((dropModel) => {
@@ -173,17 +151,17 @@
           };
         }
 
-        function allowDrop(e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
+        // function allowDrop(e) {
+        //   e.preventDefault();
+        //   e.stopPropagation();
+        // }
 
-        function drop(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          var df = e.dataTransfer;
-          readModelFile(df.files[0]);
-        }
+        // function drop(e) {
+        //   e.preventDefault();
+        //   e.stopPropagation();
+        //   const df = e.dataTransfer;
+        //   readModelFile(df.files[0]);
+        // }
 
         const container = document.getElementById("cesiumContainer");
         // container.ondragenter = allowDrop;
@@ -193,12 +171,12 @@
 
         const controller = new SimpleDropzone(
           container,
-          document.getElementById("selector")
+          document.getElementById("selector"),
         );
         controller.on("drop", ({ files }) => {
           console.log(files);
 
-          for (let key of files.keys()) {
+          for (const key of files.keys()) {
             if (key.includes(".glb") || key.includes(".gltf")) {
               readModelFile(files.get(key), files);
               break;

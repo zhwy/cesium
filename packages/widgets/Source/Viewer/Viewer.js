@@ -305,8 +305,6 @@ function enableVRUI(viewer, enabled) {
  * @property {TerrainProvider} [terrainProvider=new EllipsoidTerrainProvider()] The terrain provider to use
  * @property {Terrain} [terrain] A terrain object which handles asynchronous terrain provider. Can only specify if options.terrainProvider is undefined.
  * @property {SkyBox|false} [skyBox] The skybox used to render the stars. When <code>undefined</code> and the WGS84 ellipsoid used, the default stars are used. If set to <code>false</code>, no skyBox, Sun, or Moon will be added.
- * @property {SkyBox| false} [nearGroundSkyBox] The near-ground skybox.
- * @property {Number} [nearGroundSkyBoxShowHeight=5000.0] The near-ground skybox show height.
  * @property {SkyAtmosphere|false} [skyAtmosphere] Blue sky, and the glow around the Earth's limb. Enabled when the WGS84 ellipsoid used. Set to <code>false</code> to turn it off.
  * @property {Element|string} [fullscreenElement=document.body] The element or id to be placed into fullscreen mode when the full screen button is pressed.
  * @property {boolean} [useDefaultRenderLoop=true] True if this widget should control the render loop, false otherwise.
@@ -490,8 +488,6 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
     clock: clock,
     shouldAnimate: options.shouldAnimate,
     skyBox: options.skyBox,
-    nearGroundSkyBox: options.nearGroundSkyBox,
-    nearGroundSkyBoxShowHeight: options.nearGroundSkyBoxShowHeight,
     skyAtmosphere: options.skyAtmosphere,
     sceneMode: options.sceneMode,
     ellipsoid: options.ellipsoid,
@@ -518,6 +514,7 @@ Either specify options.terrainProvider instead or set options.baseLayerPicker to
     requestRenderMode: options.requestRenderMode,
     maximumRenderTimeChange: options.maximumRenderTimeChange,
     depthPlaneEllipsoidOffset: options.depthPlaneEllipsoidOffset,
+    msaaSamples: options.msaaSamples,
   });
 
   const scene = cesiumWidget.scene;

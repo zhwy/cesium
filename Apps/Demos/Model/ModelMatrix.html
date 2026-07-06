@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -11,8 +11,6 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
     <title>模型矩阵</title>
-    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
-    <script src="../Lib/tool.js"></script>
     <style>
       @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -86,9 +84,12 @@
       />
       <input type="text" size="5" data-bind="value: RotateZ" />
     </div>
-    <script>
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import { changeModelPosition } from "../Lib/tool.js";
+
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewModel = {
         height: 0,
@@ -110,11 +111,11 @@
       const cartesian = Cesium.Cartesian3.fromDegrees(
         116.790876,
         36.498398,
-        50
+        50,
       );
       const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
         cartesian,
-        new Cesium.HeadingPitchRoll(0, 0, 0)
+        new Cesium.HeadingPitchRoll(0, 0, 0),
       );
 
       let model;
@@ -160,8 +161,8 @@
             new Cesium.Cartesian3(
               modelMatrix[12],
               modelMatrix[13],
-              modelMatrix[14]
-            )
+              modelMatrix[14],
+            ),
           );
 
           const translationVector = new Cesium.Cartesian3(0, 0, delta);
@@ -169,14 +170,14 @@
           Cesium.Matrix4.multiplyByPointAsVector(
             transform,
             translationVector,
-            translationVector
+            translationVector,
           );
 
           // 模型将沿fixedFrame的z轴变化
           Cesium.Matrix4.multiply(
             Cesium.Matrix4.fromTranslation(translationVector),
             modelMatrix,
-            modelMatrix
+            modelMatrix,
           );
         });
 
@@ -192,7 +193,7 @@
           }
 
           const rotation = Cesium.Matrix3.fromRotationX(
-            Cesium.Math.toRadians(delta)
+            Cesium.Math.toRadians(delta),
           );
 
           rotate(model.modelMatrix, rotation);
@@ -210,7 +211,7 @@
           }
 
           const rotation = Cesium.Matrix3.fromRotationY(
-            Cesium.Math.toRadians(delta)
+            Cesium.Math.toRadians(delta),
           );
 
           rotate(model.modelMatrix, rotation);
@@ -228,7 +229,7 @@
           }
 
           const rotation = Cesium.Matrix3.fromRotationZ(
-            Cesium.Math.toRadians(delta)
+            Cesium.Math.toRadians(delta),
           );
 
           rotate(model.modelMatrix, rotation);
@@ -240,7 +241,7 @@
         // 位于最右侧，这样是相对自身坐标系旋转
         const rightTransform = Cesium.Matrix4.fromRotation(
           rotation,
-          new Cesium.Matrix4()
+          new Cesium.Matrix4(),
         );
 
         Cesium.Matrix4.multiply(matrix, rightTransform, matrix);
@@ -284,8 +285,8 @@
           deltay = 0,
           deltah = 0,
           rotation = 0,
-          deltaRotation = 0,
-          delta = 0.1;
+          deltaRotation = 0;
+        const delta = 0.1;
 
         document.addEventListener("keydown", (e) => {
           if (model) {

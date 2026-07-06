@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -11,7 +11,6 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
     <title>Geometry</title>
-    <script src="../../../Build/CesiumUnminified/Cesium.js"></script>
     <style>
       @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -29,11 +28,10 @@
 
   <body>
     <div id="cesiumContainer"></div>
-    <script src="../Lib/PolylineTrailMaterial2Property.js"></script>
-    <script>
-      /* eslint-disable no-undef */
-      // import * as Cesium from "../../../Source/Cesium.js";
-      // window.CESIUM_BASE_URL = "../../../Source/";
+    <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import "../Lib/PolylineTrailMaterial2Property.js";
+      window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
       function TetrahedronGeometry() {
         const negativeRootTwoOverThree = -Math.sqrt(2.0) / 3.0;
         const negativeOneThird = -1.0 / 3.0;
@@ -111,7 +109,7 @@
         // 包围球
         const boundingSphere = new Cesium.BoundingSphere(
           new Cesium.Cartesian3(0.0, 0.0, 0.0),
-          1.0
+          1.0,
         );
 
         const geometry = Cesium.GeometryPipeline.computeNormal(
@@ -120,7 +118,7 @@
             indices: indices,
             primitiveType: Cesium.PrimitiveType.TRIANGLES,
             boundingSphere: boundingSphere,
-          })
+          }),
         );
         return geometry;
       }
@@ -134,14 +132,14 @@
         Cesium.Matrix4.multiplyByTranslation(
           Cesium.Transforms.eastNorthUpToFixedFrame(
             ellipsoid.cartographicToCartesian(
-              Cesium.Cartographic.fromDegrees(-100.0, 40.0)
-            )
+              Cesium.Cartographic.fromDegrees(-100.0, 40.0),
+            ),
           ),
           new Cesium.Cartesian3(0.0, 0.0, 200000.0),
-          new Cesium.Matrix4()
+          new Cesium.Matrix4(),
         ),
         500000.0,
-        new Cesium.Matrix4()
+        new Cesium.Matrix4(),
       );
       //四面体的实例
       const instance = new Cesium.GeometryInstance({
@@ -149,7 +147,7 @@
         modelMatrix: modelMatrix,
         attributes: {
           color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-            new Cesium.Color(1, 1, 0, 1)
+            new Cesium.Color(1, 1, 0, 1),
           ),
           /**
            * 这里添加的自定义参数，在着色器中需要使用czm_batchTable_customAttr(batchId)方法获取值
@@ -200,7 +198,7 @@
           geometryInstances: instance,
           appearance,
           asynchronous: false,
-        })
+        }),
       );
 
       //线

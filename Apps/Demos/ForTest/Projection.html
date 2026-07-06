@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <!-- Use correct character set. -->
@@ -28,10 +28,10 @@
 
   <body>
     <div id="cesiumContainer"></div>
-    <script type="module" src="../../Sandcastle/load-cesium-es6.js"></script>
     <script type="module">
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const models = [
         new Cesium.ProviderViewModel({
@@ -40,8 +40,7 @@
           iconUrl: "",
           creationFunction: function () {
             return new Cesium.UrlTemplateImageryProvider({
-              url:
-                "https://t{s}.tianditu.gov.cn/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
+              url: "https://t{s}.tianditu.gov.cn/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
               maximumLevel: 18,
               subdomains: "01234567",
             });
@@ -61,8 +60,7 @@
             };
 
             return new Cesium.UrlTemplateImageryProvider({
-              url:
-                "https://t{s}.tianditu.gov.cn/DataServer?T=img_c&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
+              url: "https://t{s}.tianditu.gov.cn/DataServer?T=img_c&X={x}&Y={y}&L={z}&tk=479045451acc52ebaaccf0b7892201dd",
               maximumLevel: 18,
               subdomains: "01234567",
               tilingScheme: tiling,

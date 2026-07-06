@@ -35,12 +35,12 @@
     <div id="cesiumContainer"></div>
     <script type="module">
       import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      // import VectorTilePrimitive from "./src/VectorTilePrimitive.js";
+      // import VectorTilePrimitive from "./VectorTilePrimitive.js";
 
       window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer");
       viewer.imageryLayers.addImageryProvider(
