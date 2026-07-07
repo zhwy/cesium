@@ -1,4 +1,4 @@
-import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 
 export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
   constructor() {
@@ -58,16 +58,19 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
 
     tile.upsampledFromParent = isUpsampledOnly;
 
-    // Allow rendering if any available layers are loaded
-    tile.renderable = tile.renderable && (isAnyTileLoaded || isDoneLoading);
+    // Renderable as soon as any layer for this region is loaded (or there is
+    // nothing left to load). Assign directly rather than AND-ing with the
+    // previous value, whose initial `false` would otherwise lock the tile
+    // permanently unrenderable and stall the quadtree load queue.
+    tile.renderable = isAnyTileLoaded || isDoneLoading;
 
     return isDoneLoading;
   }
 
   static initialize(tile, vectorTileLayerCollection) {
-    let surfaceTile = tile.data;
+    const surfaceTile = tile.data;
     if (!Cesium.defined(surfaceTile)) {
-      surfaceTile = tile.data = new VectorSurfaceTile();
+      tile.data = new VectorSurfaceTile();
     }
 
     if (tile.state === Cesium.QuadtreeTileLoadState.START) {
@@ -91,6 +94,5 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
     if (isVectorTileDoneLoading) {
       tile.state = Cesium.QuadtreeTileLoadState.DONE;
     }
-    tile.renderable = true;
   }
 }

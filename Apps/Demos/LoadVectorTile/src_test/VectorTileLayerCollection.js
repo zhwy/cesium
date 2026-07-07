@@ -21,6 +21,8 @@ export default class VectorTileLayerCollection {
     this.layerMoved = new Event();
 
     this.layerShownOrHidden = new Event();
+
+    this.layerChanged = new Event();
   }
 
   add(layer, index) {
@@ -52,10 +54,18 @@ export default class VectorTileLayerCollection {
 
     this._update();
     this.layerAdded.raiseEvent(layer, index);
-    const removeReadyEventListener = layer.readyEvent.addEventListener(() => {
-      this.layerShownOrHidden.raiseEvent(layer, layer._layerIndex, layer.show);
-      removeReadyEventListener();
-    });
+    layer._removeCollectionShowListener =
+      layer.showChangedEvent.addEventListener((changedLayer, show) => {
+        this.layerShownOrHidden.raiseEvent(
+          changedLayer,
+          changedLayer._layerIndex,
+          show,
+        );
+      });
+    layer._removeCollectionChangedListener =
+      layer.changedEvent.addEventListener((changedLayer) => {
+        this.layerChanged.raiseEvent(changedLayer, changedLayer._layerIndex);
+      });
   }
 
   addLayerProvider(layerProvider, index) {
@@ -80,6 +90,7 @@ export default class VectorTileLayerCollection {
       this._update();
 
       this.layerRemoved.raiseEvent(layer, index);
+      removeLayerListeners(layer);
 
       if (destroy) {
         layer.destroy();
@@ -98,6 +109,7 @@ export default class VectorTileLayerCollection {
     for (let i = 0, len = layers.length; i < len; i++) {
       const layer = layers[i];
       this.layerRemoved.raiseEvent(layer, i);
+      removeLayerListeners(layer);
 
       if (destroy) {
         layer.destroy();
@@ -136,33 +148,16 @@ export default class VectorTileLayerCollection {
 
   _update() {
     const layers = this._layers;
-    let layersShownOrHidden;
-    let layer;
-    let i, len;
-    for (i = 0, len = layers.length; i < len; ++i) {
-      layer = layers[i];
+    for (let i = 0, len = layers.length; i < len; ++i) {
+      const layer = layers[i];
       layer._layerIndex = i;
-
-      if (layer.show !== layer._show) {
-        if (defined(layer._show)) {
-          if (!defined(layersShownOrHidden)) {
-            layersShownOrHidden = [];
-          }
-          layersShownOrHidden.push(layer);
-        }
-        layer._show = layer.show;
-      }
-    }
-
-    if (defined(layersShownOrHidden)) {
-      for (i = 0, len = layersShownOrHidden.length; i < len; ++i) {
-        layer = layersShownOrHidden[i];
-        this.layerShownOrHidden.raiseEvent(
-          layer,
-          layer._layerIndex,
-          layer.show,
-        );
-      }
     }
   }
+}
+
+function removeLayerListeners(layer) {
+  layer._removeCollectionShowListener?.();
+  layer._removeCollectionChangedListener?.();
+  layer._removeCollectionShowListener = undefined;
+  layer._removeCollectionChangedListener = undefined;
 }

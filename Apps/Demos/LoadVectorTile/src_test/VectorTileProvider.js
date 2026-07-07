@@ -1,5 +1,6 @@
 import MvtTileLoader from "./MvtTileLoader.js";
-import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 
 export default class VectorTileProvider {
   constructor(options = {}) {
@@ -9,6 +10,8 @@ export default class VectorTileProvider {
       options.tilingScheme ?? new Cesium.WebMercatorTilingScheme();
     this._minimumLevel = options.minimumLevel ?? 0;
     this._maximumLevel = options.maximumLevel ?? 18;
+    this._networkScheduler =
+      options.networkScheduler ?? new VectorTileTaskScheduler(8);
 
     this._resource = new Cesium.Resource({
       url: options.url,
@@ -48,22 +51,22 @@ Object.defineProperties(VectorTileProvider.prototype, {
  */
 VectorTileProvider.prototype.getTileResource = function (tile) {};
 
+VectorTileProvider.prototype.isTileAvailable = function (level) {
+  return level >= this._minimumLevel && level <= this._maximumLevel;
+};
+
 VectorTileProvider.prototype.requestTile = function (tile) {
-  if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {
+  if (!this.isTileAvailable(tile.level)) {
     return;
   }
 
   const resource = this.getTileResource(tile);
   if (Cesium.defined(resource)) {
-    return new Promise((resolve, reject) => {
-      MvtTileLoader.instance()
-        .load(resource, false)
-        .then((arrayBuffer) => {
-          if (arrayBuffer.byteLength > 0) {
-            resolve(arrayBuffer);
-          }
-        }, reject);
-    });
+    return MvtTileLoader.instance().load(
+      resource,
+      this._networkScheduler,
+      tile.priority,
+    );
   }
 };
 

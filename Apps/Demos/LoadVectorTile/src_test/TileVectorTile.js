@@ -1,4 +1,4 @@
-import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 const { defined, ImageryState } = Cesium;
 
 /**
@@ -42,7 +42,11 @@ TileVectorTile.prototype.processStateMachine = function (
 ) {
   const loadingVectorTile = this.loadingVectorTile;
 
-  loadingVectorTile.processStateMachine(frameState, skipLoading);
+  loadingVectorTile.processStateMachine(
+    frameState,
+    skipLoading,
+    tile._loadPriority ?? tile._distance ?? 0,
+  );
 
   if (loadingVectorTile.state === ImageryState.READY) {
     if (defined(this.readyVectorTile)) {

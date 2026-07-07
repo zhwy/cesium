@@ -1,4 +1,4 @@
-import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import VectorTileProvider from "./VectorTileProvider.js";
 
 export default class WmtsVectorTileProvider extends VectorTileProvider {

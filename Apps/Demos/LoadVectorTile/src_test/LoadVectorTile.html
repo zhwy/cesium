@@ -10,7 +10,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>自定义Provider</title>
+    <title>自定义Provider - Pick对比</title>
     <style>
       @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
 
@@ -24,64 +24,315 @@
         overflow: hidden;
       }
 
-      button {
+      #toolbar {
         position: absolute;
+        top: 10px;
+        left: 10px;
         z-index: 99;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 150px;
+      }
+
+      button {
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+
+      button.active {
+        background: #0078d4;
+        color: #fff;
+        border-color: #0078d4;
+      }
+
+      #pickPanel {
+        position: absolute;
+        top: 10px;
+        left: 170px;
+        z-index: 99;
+        width: 320px;
+        max-height: 60%;
+        overflow: auto;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        font-family: monospace;
+        font-size: 12px;
+        padding: 12px;
+        border-radius: 4px;
+      }
+
+      #diagnosticsPanel {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 99;
+        width: 400px;
+        max-height: 200px;
+        overflow: auto;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        font-family: monospace;
+        font-size: 11px;
+        padding: 8px;
+        border-radius: 4px;
+      }
+
+      #pickPanel h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+
+      #pickPanel .backend {
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #555;
+      }
+
+      #pickPanel .status {
+        color: #ffcc00;
+        margin-bottom: 8px;
+      }
+
+      #pickPanel pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        margin: 0;
       }
     </style>
   </head>
 
   <body>
     <div id="cesiumContainer"></div>
+    <div id="toolbar">
+      <button id="btnInstances" class="active">instances（可拾取）</button>
+      <button id="btnPacked">packed（不可拾取）</button>
+      <button id="btnClear">清除高亮</button>
+    </div>
+    <div id="pickPanel">
+      <h3>Pick 对比</h3>
+      <div class="backend">
+        当前后端：<span id="backendLabel">instances</span>
+      </div>
+      <div class="status" id="pickStatus">点击地图要素查看拾取结果。</div>
+      <pre id="pickResult">{}</pre>
+    </div>
+    <div id="diagnosticsPanel">
+      <h3>诊断信息</h3>
+      <pre id="diagnosticsResult">等待数据...</pre>
+    </div>
     <script type="module">
-      import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
       import VectorTileLayerManager from "./VectorTileLayerManager.js";
+      import createVectorTileBenchmark from "./VectorTileBenchmark.js";
 
-      window.CESIUM_BASE_URL = "../../../../../Build/CesiumUnminified/";
+      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0MjM4NGQ4Yi05MjAzLTQ3NzMtOTZmYS05ZDE1ZWZhYTk3OWMiLCJpZCI6MTEzNTYsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NTg2ODcwMDJ9.I0-TpqepRcWIVUUI8KrhoSZp-a70sRSRveNLBXOwOto";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
-      const viewer = new Cesium.Viewer("cesiumContainer");
-      viewer.imageryLayers.removeAll();
-      viewer.imageryLayers.addImageryProvider(
-        new Cesium.TileCoordinatesImageryProvider({
-          tilingScheme: new Cesium.WebMercatorTilingScheme(),
-        }),
-      );
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        scene3DOnly: true,
+        timeline: false,
+        fullscreenButton: false,
+        vrButton: false,
+        animation: false,
+      });
+      viewer.scene.debugShowFramesPerSecond = true;
       window._viewer = viewer;
+      viewer.imageryLayers.addImageryProvider(
+        new Cesium.TileCoordinatesImageryProvider(),
+      );
 
-      const manager = new VectorTileLayerManager();
+      const manager = new VectorTileLayerManager({
+        diagnostics: { enabled: true },
+      });
       manager.addToScene(viewer.scene);
+      window._vectorTileManager = manager;
+      window.vectorTileBenchmark = createVectorTileBenchmark(viewer, manager);
 
-      manager.addLayer({
-        url: "http://localhost:9090/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
-        maximumLevel: 0,
-        styles: {
-          // countries: {
-          //   fill: true,
-          //   fillColor: "#ff000077",
-          //   fillOutline: true,
-          //   fillOutlineColor: "#ff00ff",
-          //   fillOutlineWidth: 1,
-          // },
-          coastlines: {
-            lineColor: "#0000ff77",
-            lineWidth: 3,
+      // const layerUrl =
+      //   "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf";
+      // const layerStyles = {
+      //   countries: {
+      //     fill: true,
+      //     fillColor: "#ff00ff77",
+      //     fillOutline: true,
+      //     fillOutlineColor: "#ff00ff",
+      //     fillOutlineWidth: 1,
+      //   },
+      //   coastlines: {
+      //     lineColor: "#0000ff77",
+      //     lineWidth: 2,
+      //   },
+      // };
+
+      const options = [
+        // {
+        //   url: "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
+        //   styles: {
+        //     countries: {
+        //       fill: true,
+        //       fillColor: "#ff00ff77",
+        //       fillOutline: true,
+        //       fillOutlineColor: "#ff00ff",
+        //       fillOutlineWidth: 1,
+        //     },
+        //     coastlines: {
+        //       lineColor: "#0000ff77",
+        //       lineWidth: 2,
+        //     },
+        //   },
+        // },
+        {
+          url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
+          minimumLevel: 0,
+          maximumLevel: 10,
+          styles: {
+            res_org_gr: {
+              fill: true,
+              fillColor: "#00ff0022",
+            },
           },
         },
+        // {
+        //   url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_parent_plot_boundary/{z}/{x}/{y}.pbf",
+        //   minimumLevel: 11,
+        //   maximumLevel: 15,
+        //   styles: {
+        //     res_parent_plot_boundary: {
+        //       fill: true,
+        //       fillColor: "#ff000077",
+        //     },
+        //   },
+        // },
+      ];
+
+      let currentLayers = [];
+      let highlightPrimitive;
+
+      function createLayers(backend) {
+        const allowPicking = backend === "instances";
+
+        return options.map((option) => {
+          return manager.addLayer({
+            url: option.url,
+            minimumLevel: option.minimumLevel,
+            maximumLevel: option.maximumLevel,
+            styles: option.styles,
+            allowPicking: allowPicking,
+            renderBackend: backend,
+          });
+        });
+      }
+
+      function switchBackend(backend) {
+        currentLayers.forEach((layer) => {
+          if (layer && !layer.isDestroyed()) {
+            manager.vectorTileLayers.remove(layer, true);
+          }
+        });
+
+        currentLayers = createLayers(backend);
+        window._vectorTileLayers = currentLayers;
+        updateBackendUI(backend);
+      }
+
+      function updateBackendUI(backend) {
+        document.getElementById("backendLabel").textContent = backend;
+        document
+          .getElementById("btnInstances")
+          .classList.toggle("active", backend === "instances");
+        document
+          .getElementById("btnPacked")
+          .classList.toggle("active", backend === "packed");
+
+        const statusEl = document.getElementById("pickStatus");
+        if (backend === "instances") {
+          statusEl.textContent =
+            "instances 后端：点击地图要素可拾取到 feature id 与属性。";
+          statusEl.style.color = "#90ee90";
+        } else {
+          statusEl.textContent =
+            "packed 后端：为降低开销已禁用逐要素拾取，点击将返回 undefined。";
+          statusEl.style.color = "#ffcc00";
+        }
+      }
+
+      function clearHighlight() {
+        if (Cesium.defined(highlightPrimitive)) {
+          viewer.scene.primitives.remove(highlightPrimitive);
+          highlightPrimitive = undefined;
+        }
+      }
+
+      function showPickResult(picked) {
+        const resultEl = document.getElementById("pickResult");
+        if (!Cesium.defined(picked)) {
+          resultEl.textContent = "undefined（未拾取到任何要素）";
+          return;
+        }
+        resultEl.textContent = JSON.stringify(picked?.id?.properties, null, 2);
+      }
+
+      function highlightPosition(cartesian) {
+        clearHighlight();
+        highlightPrimitive = viewer.scene.primitives.add(
+          new Cesium.Primitive({
+            geometryInstances: new Cesium.GeometryInstance({
+              geometry: new Cesium.SphereGeometry({
+                radius: 20000.0,
+                vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+              }),
+              attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+                  Cesium.Color.YELLOW.withAlpha(0.6),
+                ),
+              },
+            }),
+            appearance: new Cesium.PerInstanceColorAppearance({
+              translucent: true,
+              closed: true,
+            }),
+            asynchronous: false,
+          }),
+        );
+        const modelMatrix = Cesium.Matrix4.fromTranslation(cartesian);
+        highlightPrimitive.modelMatrix = modelMatrix;
+      }
+
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+      handler.setInputAction((click) => {
+        const picked = viewer.scene.pick(click.position);
+        showPickResult(picked);
+
+        const ray = viewer.camera.getPickRay(click.position);
+        const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+        if (Cesium.defined(cartesian)) {
+          highlightPosition(cartesian);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      document
+        .getElementById("btnInstances")
+        .addEventListener("click", () => switchBackend("instances"));
+      document
+        .getElementById("btnPacked")
+        .addEventListener("click", () => switchBackend("packed"));
+      document.getElementById("btnClear").addEventListener("click", () => {
+        clearHighlight();
+        document.getElementById("pickResult").textContent = "{}";
       });
 
-      // manager.addLayer({
-      //   url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
-      //   minimumLevel: 8,
-      //   maximumLevel: 15,
-      //   layer: "res_org_gr",
-      //   tileType: "XYZ",
-      //   colors: {
-      //     DEFAULT: "#0000ff77",
-      //   },
-      // });
+      // 默认使用 instances 后端并开启拾取
+      switchBackend("instances");
+
+      // 每一帧更新诊断信息
+      viewer.scene.postRender.addEventListener(() => {
+        const diagnostics = manager.diagnostics.snapshot();
+        document.getElementById("diagnosticsResult").textContent =
+          JSON.stringify(diagnostics, null, 2);
+      });
     </script>
   </body>
 </html>
