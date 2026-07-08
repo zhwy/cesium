@@ -58,7 +58,7 @@ VectorTileLayerManager
         │       └── VectorTileLayer
         │               ├── VectorTileProvider
         │               │       ├── XYZVectorTileProvider
-        │               │       └── WmtsVectorTileProvider
+        │               │       └── WMTSVectorTileProvider
         │               ├── VectorTileCache
         │               └── network/decode/build 调度器
         │
@@ -69,7 +69,7 @@ VectorTileLayerManager
                                         └── VectorTile
 
 网络请求
-  → MvtTileLoader
+  → MVTLoader
   → VectorTileDecoder
   → VectorTileDecodeWorker
   → decodeVectorTile
@@ -160,14 +160,14 @@ READY
 | `VectorTile.js`                  | 保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。                             |
 | `VectorTileProvider.js`          | Provider 基类，约束层级并发起瓦片请求。                                                           |
 | `XYZVectorTileProvider.js`       | 解析 `{z}/{x}/{y}`、`{-y}`、`{s}` 等 XYZ/TMS 模板变量。                                           |
-| `WmtsGeoVectorTileProvider.js`   | 解析 WMTS GeoJSON 实验分支的 TileMatrix、TileRow、TileCol 等模板变量。                            |
-| `WmtsVectorTileProvider.js`      | 解析 WMTS MVT 的 TileMatrix、TileRow、TileCol 等模板变量。                                        |
-| `MvtTileLoader.js`               | 使用 Cesium `Resource.fetchArrayBuffer()` 下载 PBF。                                              |
+| `WMTSGeoVectorTileProvider.js`   | 解析 WMTS GeoJSON 实验分支的 TileMatrix、TileRow、TileCol 等模板变量。                            |
+| `WMTSVectorTileProvider.js`      | 解析 WMTS MVT 的 TileMatrix、TileRow、TileCol 等模板变量。                                        |
+| `MVTLoader.js`                   | 使用 Cesium `Resource.fetchArrayBuffer()` 下载 PBF。                                              |
 | `VectorTileTaskScheduler.js`     | 有界优先级任务队列，支持排队、调整优先级和取消。                                                  |
 | `VectorTileDecoder.js`           | 管理 Worker 请求和异步响应。                                                                      |
 | `VectorTileDecodeWorker.js`      | Worker 入口。                                                                                     |
 | `decodeVectorTile.js`            | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                       |
-| `VectorTileGeometry.js`          | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。              |
+| `VectorTileGeometryUtil.js`      | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。              |
 | `VectorTileCache.js`             | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                    |
 | `VectorTileLodSelection.js`      | 在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                                       |
 | `VectorTileDiagnostics.js`       | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                               |
@@ -590,7 +590,7 @@ passesAdoptionThreshold
 - Worker 当前为单实例，`maximumDecodeTasks` 限制提交链路，但 Worker 内仍串行执行消息；
 - 面裁剪按单环执行，不能修复源数据中的自相交、重复面或复杂拓扑错误；
 - 源数据本身重叠时，客户端不会自动 dissolve；
-- `WmtsGeoVectorTileProvider` 属于遗留实验分支，没有完整接入当前 MVT Worker/Primitive 主链；
+- `WMTSGeoVectorTileProvider` 属于遗留实验分支，没有完整接入当前 MVT Worker/Primitive 主链；
 - `@mapbox/vector-tile` 和 `pbf` 当前从 jsDelivr ESM 加载，离线部署应改为本地依赖并固定版本；
 - 本目录使用 Cesium 内部四叉树类，升级 Cesium 时需要回归验证内部接口变化。
 

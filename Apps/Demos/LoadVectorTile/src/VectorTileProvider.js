@@ -1,4 +1,4 @@
-import MvtTileLoader from "./MvtTileLoader.js";
+import MVTLoader from "./MVTLoader.js";
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 
@@ -62,7 +62,7 @@ VectorTileProvider.prototype.requestTile = function (tile) {
 
   const resource = this.getTileResource(tile);
   if (Cesium.defined(resource)) {
-    return MvtTileLoader.instance().load(
+    return MVTLoader.instance().load(
       resource,
       this._networkScheduler,
       tile.priority,

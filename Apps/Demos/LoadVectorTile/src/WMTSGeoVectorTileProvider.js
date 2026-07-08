@@ -1,7 +1,7 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import WmtsVectorTileProvider from "./WmtsVectorTileProvider.js";
+import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
 
-export default class WmtsGeoVectorTileProvider extends WmtsVectorTileProvider {
+export default class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
   loadTile(frameState, tile) {
     if (tile.state === Cesium.QuadtreeTileLoadState.START) {
       if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {

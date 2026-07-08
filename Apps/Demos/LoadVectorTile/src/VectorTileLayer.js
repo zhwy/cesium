@@ -21,7 +21,7 @@ import { computeVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
 import {
   getWebMercatorTileBounds,
   isTileBoundarySegment,
-} from "./VectorTileGeometry.js";
+} from "./VectorTileGeometryUtil.js";
 import {
   evaluateVectorStyleFilter,
   isWorkerSupportedVectorStyleFilter,

@@ -14,7 +14,7 @@
 
 let instance;
 
-export default class MvtTileLoader {
+export default class MVTLoader {
   constructor(cacheStore) {
     // this.cacheStore = cacheStore;
     // this.cacheStore.init();
@@ -34,7 +34,7 @@ export default class MvtTileLoader {
 
   static instance() {
     if (!instance) {
-      instance = new MvtTileLoader();
+      instance = new MVTLoader();
       // new IndexDbKvCacheStore(
       //   "wdvt-cache-store",
       //   window.YJ3D_MVT_CACHE_MAX_SIZE_MB || 512,
@@ -45,4 +45,4 @@ export default class MvtTileLoader {
   }
 }
 // init
-MvtTileLoader.instance();
+MVTLoader.instance();
