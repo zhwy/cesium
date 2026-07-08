@@ -277,9 +277,6 @@ function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
     if (!doesGeometryTypeMatchStyleRule(feature.type, styleRule.type)) {
       continue;
     }
-    if (!isZoomInRange(zoom, styleRule)) {
-      continue;
-    }
     if (
       evaluateVectorStyleFilter(styleRule.filter, feature, {
         zoom,
@@ -298,13 +295,6 @@ function doesGeometryTypeMatchStyleRule(featureType, styleRuleType) {
     (featureType === 1 && styleRuleType === "symbol") ||
     (featureType === 2 && styleRuleType === "line") ||
     (featureType === 3 && styleRuleType === "fill")
-  );
-}
-
-function isZoomInRange(zoom, styleRule) {
-  return (
-    (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
-    (styleRule.maxzoom === undefined || zoom <= styleRule.maxzoom)
   );
 }
 

@@ -17,6 +17,7 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
     this._iconResolver = options.iconResolver ?? createVectorTileIconResolver();
     this._allowPicking = options.allowPicking ?? false;
     this._diagnostics = options.diagnostics;
+    this._ignoreZoomRange = options.ignoreZoomRange ?? false;
   }
 
   build(points, zoom) {
@@ -35,7 +36,9 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
     for (let i = 0; i < positions.length / 2; ++i) {
       const pointMetadata = metadata[i];
       if (
-        !doesSymbolStyleRuleMatchMetadata(pointMetadata, this.styleRule, zoom)
+        !doesSymbolStyleRuleMatchMetadata(pointMetadata, this.styleRule, zoom, {
+          ignoreZoomRange: this._ignoreZoomRange,
+        })
       ) {
         continue;
       }
@@ -239,9 +242,14 @@ function parseCesiumColor(Cesium, value, fallback) {
   );
 }
 
-function doesSymbolStyleRuleMatchMetadata(metadata, styleRule, zoom) {
+function doesSymbolStyleRuleMatchMetadata(
+  metadata,
+  styleRule,
+  zoom,
+  options = {},
+) {
   return (
-    isZoomInRange(zoom, styleRule) &&
+    (options.ignoreZoomRange || isZoomInRange(zoom, styleRule)) &&
     evaluateVectorStyleFilter(styleRule.filter, metadata, { zoom, level: zoom })
   );
 }
@@ -249,7 +257,7 @@ function doesSymbolStyleRuleMatchMetadata(metadata, styleRule, zoom) {
 function isZoomInRange(zoom, styleRule) {
   return (
     (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
-    (styleRule.maxzoom === undefined || zoom <= styleRule.maxzoom)
+    (styleRule.maxzoom === undefined || zoom < styleRule.maxzoom)
   );
 }
 
@@ -268,9 +276,9 @@ function getSymbolHeightReference(Cesium, scene, styleRule) {
 }
 
 function getSymbolDisableDepthTestDistance(styleRule) {
-  return styleRule.terrain?.clampToGround === true
-    ? Number.POSITIVE_INFINITY
-    : undefined;
+  return Number.isNaN(Number(styleRule.terrain?.disableDepthTestDistance))
+    ? undefined
+    : Number(styleRule.terrain.disableDepthTestDistance);
 }
 
 function markCollectionReady(collection) {

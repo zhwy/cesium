@@ -17,7 +17,10 @@ import {
   createStyleDocumentFromLegacyOptions,
   normalizeStyleDocument,
 } from "./VectorTileStyle.js";
-import { computeVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
+import {
+  computeCameraVectorTileStyleZoom,
+  computeVectorTileStyleZoom,
+} from "./VectorTileStyleZoom.js";
 import {
   getWebMercatorTileBounds,
   isTileBoundarySegment,
@@ -376,6 +379,7 @@ export default class VectorTileLayer {
     }
     const buildStartTime = this._diagnostics?.startTimer();
     vectorTile.primitives = {};
+    vectorTile.primitiveStyleRules = {};
     const styleRules = getStyleRulesForBuild(this._styleDocument);
     if (styleRules.length > 0) {
       styleRules.forEach((styleRule) => {
@@ -391,6 +395,7 @@ export default class VectorTileLayer {
         );
         if (bucket.length > 0) {
           vectorTile.primitives[bucket.id] = bucket.primitives;
+          vectorTile.primitiveStyleRules[bucket.id] = styleRule;
         }
       });
     } else {
@@ -438,6 +443,17 @@ export default class VectorTileLayer {
       new TileVectorTile(vectorTile),
     );
     return true;
+  }
+
+  getStyleZoom(tileLevel) {
+    return computeVectorTileStyleZoom(tileLevel, this._option);
+  }
+
+  getFrameStyleZoom(frameState) {
+    return computeCameraVectorTileStyleZoom(frameState, {
+      ...this._option,
+      scene: this._scene,
+    });
   }
 
   _createTilePrimitivesForStyle(packedLayer, style) {
@@ -521,6 +537,7 @@ export default class VectorTileLayer {
       iconResolver: this._iconResolver,
       allowPicking: this._option.allowPicking,
       diagnostics: this._diagnostics,
+      ignoreZoomRange: true,
     }).build(points, zoom);
     return bucket.primitives;
   }
@@ -726,7 +743,11 @@ export default class VectorTileLayer {
       }
 
       const metadata = lines.metadata[i];
-      if (!doesStyleRuleMatchMetadata(metadata, 2, styleRule, zoom)) {
+      if (
+        !doesStyleRuleMatchMetadata(metadata, 2, styleRule, zoom, {
+          ignoreZoomRange: true,
+        })
+      ) {
         continue;
       }
 
@@ -770,7 +791,11 @@ export default class VectorTileLayer {
       }
 
       const metadata = lines.metadata[i];
-      if (!doesStyleRuleMatchMetadata(metadata, 2, styleRule, zoom)) {
+      if (
+        !doesStyleRuleMatchMetadata(metadata, 2, styleRule, zoom, {
+          ignoreZoomRange: true,
+        })
+      ) {
         continue;
       }
 
@@ -891,7 +916,11 @@ export default class VectorTileLayer {
     const instances = [];
     for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
       const metadata = polygons.metadata[i];
-      if (!doesStyleRuleMatchMetadata(metadata, 3, styleRule, zoom)) {
+      if (
+        !doesStyleRuleMatchMetadata(metadata, 3, styleRule, zoom, {
+          ignoreZoomRange: true,
+        })
+      ) {
         continue;
       }
 
@@ -958,7 +987,11 @@ export default class VectorTileLayer {
       : getStyleRuleHeightOffset(styleRule);
     for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
       const metadata = polygons.metadata[i];
-      if (!doesStyleRuleMatchMetadata(metadata, 3, styleRule, zoom)) {
+      if (
+        !doesStyleRuleMatchMetadata(metadata, 3, styleRule, zoom, {
+          ignoreZoomRange: true,
+        })
+      ) {
         continue;
       }
 
@@ -1026,7 +1059,11 @@ export default class VectorTileLayer {
     const offsets = [0];
     const metadata = [];
     for (let i = 0; i + 1 < lines.offsets.length; ++i) {
-      if (!doesStyleRuleMatchMetadata(lines.metadata[i], 2, styleRule, zoom)) {
+      if (
+        !doesStyleRuleMatchMetadata(lines.metadata[i], 2, styleRule, zoom, {
+          ignoreZoomRange: true,
+        })
+      ) {
         continue;
       }
       const start = lines.offsets[i];
@@ -1277,8 +1314,6 @@ function getStyleRulesForDecode(styleDocument) {
       type: layer.type,
       sourceLayer: layer.sourceLayer,
       filter: layer.filter,
-      minzoom: layer.minzoom,
-      maxzoom: layer.maxzoom,
       visibility: layer.visibility,
     }));
 }
@@ -1309,10 +1344,16 @@ function getStyledLayerNames(styleDocument, styles) {
   return Object.keys(styles);
 }
 
-function doesStyleRuleMatchMetadata(metadata, geometryType, styleRule, zoom) {
+function doesStyleRuleMatchMetadata(
+  metadata,
+  geometryType,
+  styleRule,
+  zoom,
+  options = {},
+) {
   return (
     doesGeometryTypeMatchStyleRule(geometryType, styleRule.type) &&
-    isZoomInRange(zoom, styleRule) &&
+    (options.ignoreZoomRange || isZoomInRange(zoom, styleRule)) &&
     evaluateVectorStyleFilter(styleRule.filter, metadata, { zoom })
   );
 }
@@ -1528,9 +1569,6 @@ function doesFeatureMatchAnyStyleRule(
     if (!doesGeometryTypeMatchStyleRule(geometryType, styleRule.type)) {
       continue;
     }
-    if (!isZoomInRange(zoom, styleRule)) {
-      continue;
-    }
     if (evaluateVectorStyleFilter(styleRule.filter, metadata, { zoom })) {
       return true;
     }
@@ -1549,7 +1587,7 @@ function doesGeometryTypeMatchStyleRule(geometryType, styleRuleType) {
 function isZoomInRange(zoom, styleRule) {
   return (
     (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
-    (styleRule.maxzoom === undefined || zoom <= styleRule.maxzoom)
+    (styleRule.maxzoom === undefined || zoom < styleRule.maxzoom)
   );
 }
 

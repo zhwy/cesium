@@ -140,6 +140,11 @@
       });
       viewer.scene.debugShowFramesPerSecond = true;
       window._viewer = viewer;
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(0, 0, 1e8),
+        duration: 0,
+      });
+
       viewer.imageryLayers.addImageryProvider(
         new Cesium.TileCoordinatesImageryProvider({
           tileWidth: 512,
@@ -161,44 +166,17 @@
       window.vectorTileBenchmark = createVectorTileBenchmark(viewer, manager);
 
       const options = [
-        // {
-        //   url: "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
-        //   styles: {
-        //     countries: {
-        //       fill: true,
-        //       fillColor: "#ff00ff77",
-        //       fillOutline: true,
-        //       fillOutlineColor: "#ff00ff",
-        //       fillOutlineWidth: 1,
-        //     },
-        //     coastlines: {
-        //       lineColor: "#0000ff77",
-        //       lineWidth: 2,
-        //     },
-        //   },
-        // },
         {
-          url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
-          minimumLevel: 0,
-          maximumLevel: 10,
+          url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_parent_plot_boundary/{z}/{x}/{y}.pbf",
+          minimumLevel: 11,
+          maximumLevel: 15,
           styles: {
-            res_org_gr: {
+            res_parent_plot_boundary: {
               fill: true,
-              fillColor: "#00ff0022",
+              fillColor: "#ff000077",
             },
           },
         },
-        // {
-        //   url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_parent_plot_boundary/{z}/{x}/{y}.pbf",
-        //   minimumLevel: 11,
-        //   maximumLevel: 15,
-        //   styles: {
-        //     res_parent_plot_boundary: {
-        //       fill: true,
-        //       fillColor: "#ff000077",
-        //     },
-        //   },
-        // },
       ];
 
       let currentLayers = [];
@@ -323,19 +301,44 @@
           globe: {
             type: "vector",
             url: "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
+            // url: "http://localhost:10101/geoserver/ne/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER=ne:world&STYLE=&TILEMATRIX=EPSG:3857:{z}&TILEMATRIXSET=EPSG:3857&FORMAT=application/vnd.mapbox-vector-tile&TILECOL={x}&TILEROW={y}",
+            // tileType: "WMTS",
             minimumLevel: 0,
             maximumLevel: 18,
             allowPicking: false,
             renderBackend: "packed",
           },
+          res_parent_plot_boundary: {
+            type: "vector",
+            url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_parent_plot_boundary/{z}/{x}/{y}.pbf",
+            minimumLevel: 11,
+            maximumLevel: 18,
+            allowPicking: true,
+            renderBackend: "instances",
+          },
         },
         layers: [
+          {
+            id: "res_org_gr-level1-fill",
+            type: "fill",
+            source: "res_org_gr",
+            sourceLayer: "res_org_gr",
+            maxzoom: 5,
+            paint: {
+              "fill-color": "#ffff00",
+            },
+            filter: [
+              "all",
+              ["==", ["get", "year"], 2025],
+              ["==", ["get", "org_level"], "1"],
+            ],
+          },
           {
             id: "res_org_gr-level2-fill",
             type: "fill",
             source: "res_org_gr",
             sourceLayer: "res_org_gr",
-            minzoom: 0,
+            minzoom: 5,
             maxzoom: 10,
             paint: {
               "fill-color": "#00ff0022",
@@ -359,22 +362,64 @@
               clampToGround: true,
             },
           },
-          // {
-          //   id: "res_org_gr-level1-fill",
-          //   type: "fill",
-          //   source: "res_org_gr",
-          //   sourceLayer: "res_org_gr",
-          //   minzoom: 0,
-          //   maxzoom: 10,
-          //   paint: {
-          //     "fill-color": "#ffff00",
-          //   },
-          //   filter: [
-          //     "all",
-          //     ["==", ["get", "year"], 2025],
-          //     ["==", ["get", "org_level"], "1"],
-          //   ],
-          // },
+          {
+            id: "res_org_gr-level3-fill",
+            type: "fill",
+            source: "res_org_gr",
+            sourceLayer: "res_org_gr",
+            minzoom: 10,
+            maxzoom: 13,
+            paint: {
+              "fill-color": "#ff000022",
+              "fill-outline-color": "#ff0000",
+              "fill-outline-width": 2,
+            },
+            filter: [
+              "all",
+              ["==", ["get", "year"], 2025],
+              ["==", ["get", "org_level"], "3"],
+            ],
+            terrain: {
+              clampToGround: true,
+            },
+          },
+          {
+            id: "res_org_gr-level4-fill",
+            type: "fill",
+            source: "res_org_gr",
+            sourceLayer: "res_org_gr",
+            minzoom: 13,
+            maxzoom: 15,
+            paint: {
+              "fill-color": "#ffff0022",
+              "fill-outline-color": "#ff0000",
+              "fill-outline-width": 2,
+            },
+            filter: [
+              "all",
+              ["==", ["get", "year"], 2025],
+              ["==", ["get", "org_level"], "4"],
+            ],
+            terrain: {
+              clampToGround: true,
+            },
+          },
+          {
+            id: "res_parent_plot_boundary-line",
+            type: "line",
+            source: "res_parent_plot_boundary",
+            sourceLayer: "res_parent_plot_boundary",
+            minzoom: 15,
+            maxzoom: 22,
+            paint: {
+              "line-color": "#00ffff",
+              "line-width": 2,
+            },
+            terrain: {
+              clampToGround: true,
+            },
+            filter: ["all", ["==", ["get", "year"], 2025]],
+          },
           {
             id: "globe-text",
             type: "symbol",
@@ -387,11 +432,14 @@
             },
             layout: {
               "text-field": ["get", "name"],
+              // "icon-image":
+              //   "http://localhost:8080/Build/CesiumUnminified/Assets/Textures/moonSmall.jpg",
             },
             terrain: {
               clampToGround: true,
               // heightOffset: 10,
             },
+            minzoom: 5,
           },
           {
             id: "globe-coastline-line",
@@ -406,20 +454,21 @@
               clampToGround: true,
             },
           },
-          // {
-          //   id: "countries",
-          //   type: "fill",
-          //   source: "globe",
-          //   sourceLayer: "countries",
-          //   paint: {
-          //     "fill-color": "#ff00ff77",
-          //     "fill-outline-color": "#ff00ff",
-          //     "fill-outline-width": 2,
-          //   },
-          //   terrain: {
-          //     heightOffset: 10,
-          //   },
-          // },
+          {
+            id: "countries",
+            type: "fill",
+            source: "globe",
+            sourceLayer: "countries",
+            maxzoom: 5,
+            paint: {
+              "fill-color": "#ff00ff77",
+              "fill-outline-color": "#ff00ff",
+              "fill-outline-width": 2,
+            },
+            terrain: {
+              heightOffset: 10,
+            },
+          },
         ],
       });
 

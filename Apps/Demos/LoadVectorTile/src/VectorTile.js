@@ -34,6 +34,7 @@ function VectorTile(vectorTileLayer, x, y, level, rectangle) {
   this.arrayBuffer = undefined;
   this.arrayBufferBytes = 0;
   this.primitives = undefined;
+  this.primitiveStyleRules = undefined;
   this.terminalReason = undefined;
   this.released = false;
   this.priority = 0;
@@ -158,6 +159,7 @@ VectorTile.prototype.destroyResources = function () {
     });
     this.primitives = undefined;
   }
+  this.primitiveStyleRules = undefined;
   destroyObject(this);
 };
 export default VectorTile;

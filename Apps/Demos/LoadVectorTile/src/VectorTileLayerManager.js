@@ -83,7 +83,6 @@ export default class VectorTileLayerManager {
   addToScene(scene) {
     this._scene = scene;
     this._setSceneOnLayers(scene);
-    this._initializeGroundPrimitiveHeights();
     scene.primitives.add(this.quadtreePrimitive);
     if (this._diagnostics.enabled) {
       this._removePreUpdateListener = scene.preUpdate.addEventListener(() => {
@@ -290,10 +289,5 @@ export default class VectorTileLayerManager {
     for (let i = 0; i < this._vectorTileLayers.length; ++i) {
       this._vectorTileLayers.get(i).setScene(scene);
     }
-  }
-
-  _initializeGroundPrimitiveHeights() {
-    Cesium.GroundPrimitive.initializeTerrainHeights?.();
-    Cesium.GroundPolylinePrimitive.initializeTerrainHeights?.();
   }
 }

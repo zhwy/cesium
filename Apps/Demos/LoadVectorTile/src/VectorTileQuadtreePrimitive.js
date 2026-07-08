@@ -212,11 +212,10 @@ export default class VectorTileQuadtreePrimitive
           }
 
           const vt = tileVectorTile.readyVectorTile;
-          if (
-            vt?.state === Cesium.ImageryState.READY &&
-            !entry.candidates.has(vt) &&
-            !warmupTiles.has(vt)
-          ) {
+          if (vt?.state === Cesium.ImageryState.READY && !warmupTiles.has(vt)) {
+            if (entry.candidates.has(vt)) {
+              continue;
+            }
             if (arePrimitivesReady(vt)) {
               entry.candidates.add(vt);
               idealTileCount++;
@@ -310,10 +309,15 @@ export default class VectorTileQuadtreePrimitive
       if (!layer._show || state.committedRenderSet.size === 0) {
         continue;
       }
+      const styleZoom = layer.getFrameStyleZoom(frameState);
       for (const tile of state.committedRenderSet) {
         const layerPrimitives = tile.primitives || {};
         const primitiveKeys = Object.keys(layerPrimitives);
         for (let ki = 0; ki < primitiveKeys.length; ++ki) {
+          const styleRule = tile.primitiveStyleRules?.[primitiveKeys[ki]];
+          if (!isStyleRuleVisibleForZoom(styleRule, styleZoom)) {
+            continue;
+          }
           const primitives = layerPrimitives[primitiveKeys[ki]];
           for (let pi = 0; pi < primitives.length; ++pi) {
             const primitive = primitives[pi];
@@ -378,8 +382,18 @@ export default class VectorTileQuadtreePrimitive
 function warmUpPrimitive(primitive, frameState) {
   const commandListLength = frameState.commandList.length;
   const show = primitive.show;
-  primitive.show = true;
+  primitive.show = true; // Some Cesium collections return early when show=false, so temporarily enable it to warm up.
   primitive.update(frameState);
   primitive.show = show;
   frameState.commandList.length = commandListLength;
+}
+
+function isStyleRuleVisibleForZoom(styleRule, zoom) {
+  if (!styleRule || !Number.isFinite(zoom)) {
+    return true;
+  }
+  return (
+    (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
+    (styleRule.maxzoom === undefined || zoom < styleRule.maxzoom)
+  );
 }

@@ -8,9 +8,9 @@ export default class WMTSVectorTileProvider extends VectorTileProvider {
       ? labels[tile.level]
       : `${this._options.tileMatrixSetID}:${tile.level}`;
     const subdomains = this._options.subdomains || [];
+    const reverseY =
+      this.tilingScheme.getNumberOfYTilesAtLevel(tile.level) - tile.y - 1;
     const templateValues = {
-      Layer: this._options.layer,
-      Format: this._options.format,
       TileMatrixSet: this._options.tileMatrixSetID,
       TileMatrix: tileMatrix,
       TileRow: tile.y.toString(),
@@ -19,6 +19,10 @@ export default class WMTSVectorTileProvider extends VectorTileProvider {
         subdomains.length > 0
           ? subdomains[(tile.x + tile.y + tile.level) % subdomains.length]
           : "",
+      x: tile.x.toString(),
+      y: tile.y.toString(),
+      "-y": reverseY.toString(),
+      z: tile.level.toString(),
     };
     const resource = this._resource.getDerivedResource({});
     resource._url = resource._url.replace(

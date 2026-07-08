@@ -290,6 +290,7 @@ manager.setStyle({
 - `layers[]` 描述可见样式图层，一个 source 可以被多个 layer 复用。
 - `sourceLayer` 指向 PBF 内部 source-layer 名称；名称不匹配时当前 layer 合法但为空。
 - `filter` 在 worker 或建桶前尽早剔除不需要的要素。
+- `minzoom/maxzoom` 使用相机离地高度估算出的全局 style zoom 控制 layer 可见性，语义为 `minzoom <= zoom < maxzoom`，同一帧内所有瓦片一致。
 - `paint/layout/terrain` 按 style rule 独立生效，因此同一份 PBF 可以同时画面、画线框、画文字。
 
 旧版 `styles` 仍兼容，内部会转换为等价 style document；后续新示例建议优先使用 `sources/layers`。

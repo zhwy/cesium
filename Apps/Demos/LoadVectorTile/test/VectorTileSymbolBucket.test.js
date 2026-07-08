@@ -236,4 +236,35 @@ const Cesium = {
   console.log("✓ build text-only symbol bucket");
 }
 
+{
+  const styleRule = {
+    id: "labels-zoom",
+    type: "symbol",
+    sourceLayer: "poi",
+    minzoom: 2,
+    maxzoom: 4,
+    layout: {
+      "text-field": ["get", "name"],
+    },
+    paint: {},
+  };
+  const points = {
+    positions: new Float64Array([30, 40]),
+    metadata: [{ properties: { name: "HiddenAtMaxZoom" } }],
+  };
+
+  const hiddenBucket = new VectorTileSymbolBucket(styleRule, {
+    Cesium,
+  }).build(points, 4);
+  assert.equal(hiddenBucket.length, 0);
+
+  const buildBucket = new VectorTileSymbolBucket(styleRule, {
+    Cesium,
+    ignoreZoomRange: true,
+  }).build(points, 4);
+  assert.equal(buildBucket.length, 1);
+  assert.equal(buildBucket.primitives[0].items[0].text, "HiddenAtMaxZoom");
+  console.log("✓ maxzoom is exclusive and can be ignored while building");
+}
+
 console.log("VectorTileSymbolBucket tests passed.");
