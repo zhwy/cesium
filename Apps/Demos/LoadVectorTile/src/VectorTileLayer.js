@@ -17,10 +17,7 @@ import {
   createStyleDocumentFromLegacyOptions,
   normalizeStyleDocument,
 } from "./VectorTileStyle.js";
-import {
-  computeCameraVectorTileStyleZoom,
-  computeVectorTileStyleZoom,
-} from "./VectorTileStyleZoom.js";
+import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
 import {
   getWebMercatorTileBounds,
   isTileBoundarySegment,
@@ -48,7 +45,7 @@ const defaultOptions = {
   clipToTile: true,
   renderBackend: "instances",
   packedMinimumInstances: 200,
-  styleZoomTileWidth: 512,
+  tileSize: 512,
 };
 
 export default class VectorTileLayer {
@@ -251,10 +248,8 @@ export default class VectorTileLayer {
       if (hasUnsupportedWorkerFilter) {
         this._diagnostics?.increment("mainThreadStyleFilterFallbacks");
       }
-      const styleZoom = computeVectorTileStyleZoom(
-        vectorTile.level,
-        this._option,
-      );
+
+      const styleZoom = vectorTile.level;
 
       const decodeTask = this._decodeScheduler.schedule(
         () =>
@@ -264,7 +259,7 @@ export default class VectorTileLayer {
               y: vectorTile.y,
               level: vectorTile.level,
               sourceLevel: vectorTile.level,
-              styleZoom,
+              styleZoom: vectorTile.level,
             },
             styledLayerNames: getStyledLayerNames(
               this._styleDocument,
@@ -443,10 +438,6 @@ export default class VectorTileLayer {
       new TileVectorTile(vectorTile),
     );
     return true;
-  }
-
-  getStyleZoom(tileLevel) {
-    return computeVectorTileStyleZoom(tileLevel, this._option);
   }
 
   getFrameStyleZoom(frameState) {

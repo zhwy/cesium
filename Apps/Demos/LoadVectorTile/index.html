@@ -160,6 +160,7 @@
 
       const manager = new VectorTileLayerManager({
         diagnostics: { enabled: true },
+        pixelRatio: window.devicePixelRatio,
       });
       manager.addToScene(viewer.scene);
       window._vectorTileManager = manager;

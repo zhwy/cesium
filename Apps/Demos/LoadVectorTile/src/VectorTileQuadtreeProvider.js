@@ -110,6 +110,44 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
   }
 }
 
+/**
+ * Computes the level-zero geometric error that makes the quadtree's LOD
+ * switch points exactly match map-style (mapbox) zoom levels, instead of
+ * relying on Cesium's terrain-heightmap default (65-vertex grid × 0.25
+ * quality factor) coincidentally lining up.
+ *
+ * Derivation: QuadtreePrimitive renders level L when
+ *   SSE(L) = error(L) / metersPerDevicePixel <= maximumScreenSpaceError.
+ * A map style advances to zoom L when the CSS-pixel resolution reaches the
+ * tile texel spacing:
+ *   metersPerCssPixel = C / (N * 2^L * tileWidth)
+ * where C is the tiling scheme's equatorial circumference, N the number of
+ * X tiles at level zero, and tileWidth the map tile width in CSS pixels.
+ * With metersPerDevicePixel = metersPerCssPixel / pixelRatio, equating the
+ * two switch points gives:
+ *   error(L) = maximumScreenSpaceError * C / (N * 2^L * tileWidth * pixelRatio)
+ *
+ * @param {TilingScheme} tilingScheme
+ * @param {number} tileWidth Map tile width in CSS pixels (512 = mapbox).
+ * @param {number} maximumScreenSpaceError The quadtree's SSE threshold.
+ * @param {number} pixelRatio Device pixels per CSS pixel used by the
+ *        drawing buffer. 1 keeps Cesium's device-pixel LOD; pass
+ *        window.devicePixelRatio for exact CSS-pixel mapbox parity.
+ * @returns {number}
+ */
+function computeMapAlignedLevelZeroGeometricError(
+  tilingScheme,
+  tileWidth,
+  maximumScreenSpaceError,
+  pixelRatio,
+) {
+  const circumference = tilingScheme.ellipsoid.maximumRadius * 2.0 * Math.PI;
+  return (
+    (maximumScreenSpaceError * circumference) /
+    (tileWidth * pixelRatio * tilingScheme.getNumberOfXTilesAtLevel(0))
+  );
+}
+
 export default class VectorTileQuadtreeProvider {
   constructor(options = {}) {
     this._quadtree = undefined;
@@ -122,10 +160,12 @@ export default class VectorTileQuadtreeProvider {
     this._maximumHeight = options.maximumHeight || 0;
     this._minimumLevel = options.minimumLevel || 0;
     this._maximumLevel = options.maximumLevel || 20;
-    this._levelZeroMaximumError =
-      Cesium.QuadtreeTileProvider.computeDefaultLevelZeroMaximumGeometricError(
-        this._tilingScheme,
-      );
+    this._levelZeroMaximumError = computeMapAlignedLevelZeroGeometricError(
+      this._tilingScheme,
+      options.tileSize ?? 512,
+      options.maximumScreenSpaceError ?? 2,
+      options.pixelRatio ?? 1,
+    );
     this.cartographicLimitRectangle = Cesium.Rectangle.clone(
       Cesium.Rectangle.MAX_VALUE,
     );

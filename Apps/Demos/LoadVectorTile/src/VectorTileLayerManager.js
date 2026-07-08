@@ -49,15 +49,23 @@ export default class VectorTileLayerManager {
     this._dataProviders = new Map();
 
     this._vectorTileLayers = new VectorTileLayerCollection();
+    // The same maximumScreenSpaceError must be used by both the quadtree
+    // (refinement threshold) and the provider (geometric-error calibration)
+    // so tile.level stays exactly aligned with map-style zoom.
+    const maximumScreenSpaceError = options.maximumScreenSpaceError ?? 2;
     const tileProvider = new VectorTileQuadtreeProvider({
       vectorTileLayers: this._vectorTileLayers,
       tilingScheme: this._tilingScheme,
       diagnostics: this._diagnostics,
+      tileSize: options.tileSize ?? 512,
+      maximumScreenSpaceError,
+      pixelRatio: options.pixelRatio ?? 1,
     });
     this._quadtreePrimitive = new VectorTileQuadtreePrimitive({
       tileProvider,
       diagnostics: this._diagnostics,
       tileCacheSize: options.tileCacheSize ?? 100,
+      maximumScreenSpaceError,
     });
 
     const invalidateTiles = () => this._quadtreePrimitive.invalidateAllTiles();
