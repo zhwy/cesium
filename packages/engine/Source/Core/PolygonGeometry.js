@@ -1198,23 +1198,30 @@ function createProjectTo2d(rectangle, outerPositions, ellipsoid) {
 function createProjectPositionTo2d(rectangle, outerRing, ellipsoid) {
   // If the polygon positions span a large enough extent, use a specialized projection
   if (rectangle.height >= CesiumMath.PI || rectangle.width >= CesiumMath.PI) {
-    return (position, result) => {
+    return (positions, results) => {
       // polygons that cross the equator must use cyllindrical coordinates to correctly compute winding order.
       if (rectangle.south < 0 && rectangle.north > 0) {
-        const cartographic = ellipsoid.cartesianToCartographic(
-          position,
-          scratchCartographicCyllindrical,
-        );
-        if (!defined(result)) {
-          result = new Cartesian2();
+        if (!results) {
+          results = [];
         }
-        result.x = cartographic.longitude / CesiumMath.PI;
-        result.y = cartographic.latitude / CesiumMath.PI_OVER_TWO;
 
-        return result;
+        for (let i = 0; i < positions.length; ++i) {
+          const cartographic = ellipsoid.cartesianToCartographic(
+            positions[i],
+            scratchCartographicCyllindrical,
+          );
+
+          results[i] = new Cartesian2(
+            cartographic.longitude / CesiumMath.PI,
+            cartographic.latitude / CesiumMath.PI_OVER_TWO,
+          );
+        }
+
+        results.length = positions.length;
+        return results;
       }
 
-      return Stereographic.fromCartesian(position, result);
+      return Stereographic.fromCartesianArray(positions, results);
     };
   }
 
