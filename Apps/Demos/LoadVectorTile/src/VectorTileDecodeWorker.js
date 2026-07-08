@@ -11,6 +11,7 @@ globalThis.onmessage = function (event) {
     styledLayerNames,
     includeProperties,
     clipToTile,
+    styleRules,
   } = event.data;
   try {
     const result = decodeVectorTile(
@@ -19,6 +20,7 @@ globalThis.onmessage = function (event) {
       styledLayerNames,
       includeProperties,
       clipToTile,
+      styleRules,
     );
     globalThis.postMessage({ id, result }, getTransferableBuffers(result));
   } catch (error) {

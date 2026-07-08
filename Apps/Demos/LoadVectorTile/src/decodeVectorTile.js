@@ -8,6 +8,7 @@ import {
   isPointInRectangle,
   projectPoint,
 } from "./VectorTileGeometry.js";
+import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
 
 function createPackedLayer() {
   return {
@@ -172,9 +173,11 @@ export function decodeVectorTile(
   styledLayerNames,
   includeProperties = false,
   clipToTile = true,
+  styleRules = undefined,
 ) {
   const vectorTile = new VectorTile(new PbfReader(arrayBuffer));
   const layers = {};
+  const styleRulesBySourceLayer = groupStyleRulesBySourceLayer(styleRules);
   for (let i = 0; i < styledLayerNames.length; ++i) {
     const layerName = styledLayerNames[i];
     const vectorTileLayer = vectorTile.layers[layerName];
@@ -183,12 +186,20 @@ export function decodeVectorTile(
     }
 
     const packedLayer = createPackedLayer();
+    const layerStyleRules = styleRulesBySourceLayer.get(layerName);
     for (
       let featureIndex = 0;
       featureIndex < vectorTileLayer.length;
       ++featureIndex
     ) {
       const feature = vectorTileLayer.feature(featureIndex);
+      if (
+        layerStyleRules &&
+        !doesFeatureMatchAnyStyleRule(feature, layerStyleRules, tile)
+      ) {
+        packedLayer.styleFilteredFeatureCount++;
+        continue;
+      }
       const geometry = feature.loadGeometry();
       packedLayer.featureCount++;
       const positionCountBefore = packedLayer.positionCount;
@@ -238,6 +249,63 @@ export function decodeVectorTile(
     layers[layerName] = finalizePackedLayer(packedLayer);
   }
   return { layers };
+}
+
+function groupStyleRulesBySourceLayer(styleRules) {
+  const result = new Map();
+  if (!Array.isArray(styleRules) || styleRules.length === 0) {
+    return result;
+  }
+  styleRules.forEach((styleRule) => {
+    if (!styleRule?.sourceLayer || styleRule.visibility === false) {
+      return;
+    }
+    let rules = result.get(styleRule.sourceLayer);
+    if (!rules) {
+      rules = [];
+      result.set(styleRule.sourceLayer, rules);
+    }
+    rules.push(styleRule);
+  });
+  return result;
+}
+
+function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
+  const zoom = tile.styleZoom ?? tile.level;
+  for (let i = 0; i < styleRules.length; ++i) {
+    const styleRule = styleRules[i];
+    if (!doesGeometryTypeMatchStyleRule(feature.type, styleRule.type)) {
+      continue;
+    }
+    if (!isZoomInRange(zoom, styleRule)) {
+      continue;
+    }
+    if (
+      evaluateVectorStyleFilter(styleRule.filter, feature, {
+        zoom,
+        level: zoom,
+        sourceLevel: tile.sourceLevel ?? tile.level,
+      })
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function doesGeometryTypeMatchStyleRule(featureType, styleRuleType) {
+  return (
+    (featureType === 1 && styleRuleType === "symbol") ||
+    (featureType === 2 && styleRuleType === "line") ||
+    (featureType === 3 && styleRuleType === "fill")
+  );
+}
+
+function isZoomInRange(zoom, styleRule) {
+  return (
+    (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
+    (styleRule.maxzoom === undefined || zoom <= styleRule.maxzoom)
+  );
 }
 
 export function getTransferableBuffers(result) {

@@ -1,7 +1,7 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
 import VectorTileProvider from "./VectorTileProvider.js";
 
-export default class WmtsVectorTileProvider extends VectorTileProvider {
+export default class WMTSVectorTileProvider extends VectorTileProvider {
   getTileResource(tile) {
     const labels = this._options.tileMatrixLabels;
     const tileMatrix = Cesium.defined(labels)

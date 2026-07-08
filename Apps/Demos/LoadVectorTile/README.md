@@ -13,10 +13,44 @@
 - 父级回退、LOD 去重、字节预算 LRU 缓存；
 - 性能诊断和 A/B 基准测试。
 
+## 文件结构与入口
+
+当前目录已经从早期 `src_test` 结构整理为更接近 Demo 模块的布局：
+
+```text
+Apps/Demos/LoadVectorTile/
+├── index.html              # Demo 页面入口
+├── README.md               # 当前说明文档
+├── TODO.txt                # 临时待办记录
+├── src/                    # 运行时代码
+│   ├── VectorTileLayerManager.js
+│   ├── VectorTileDataProvider.js
+│   ├── VectorTileStyle.js
+│   ├── VectorTileStyleRule.js
+│   ├── VectorTilePrimitiveBucket.js
+│   ├── VectorTileSymbolBucket.js
+│   ├── VectorStyleExpression.js
+│   ├── VectorStyleFilter.js
+│   ├── VectorTileQuadtreePrimitive.js
+│   ├── VectorTileQuadtreeProvider.js
+│   ├── VectorTileDecodeWorker.js
+│   └── ...
+├── test/                   # 轻量 Node 单元测试
+│   ├── VectorTileStyle.test.js
+│   ├── VectorStyleExpression.test.js
+│   ├── VectorTileDataProvider.test.js
+│   ├── VectorTilePrimitiveBucket.test.js
+│   ├── VectorTileStyleZoom.test.js
+│   └── VectorTileSymbolBucket.test.js
+└── src_old/                # 旧实验版本备份，仅作对照
+```
+
+日常调试入口是 `index.html`。运行时代码统一放在 `src/`，测试统一放在 `test/`；`src_old/` 不参与当前主链路。
+
 ## 1. 整体架构
 
 ```text
-LoadVectorTile.html
+index.html
         │
         ▼
 VectorTileLayerManager
@@ -66,7 +100,7 @@ network 队列请求 ArrayBuffer
   ↓
 decode 队列将 ArrayBuffer 转交 Web Worker
   ↓
-Worker 仅解析 styles 中启用的 source layer
+Worker 仅解析 style document 或旧 styles 中启用的 source layer
   ↓
 裁剪到 [0, extent]，投影为经纬度，返回 TypedArray
   ↓
@@ -111,7 +145,14 @@ READY
 | -------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `VectorTileLayerManager.js`      | 创建四叉树、图层集合、任务调度器和诊断器，对外提供 `addLayer()`、`addToScene()`、`clearCache()`。 |
 | `VectorTileLayerCollection.js`   | 管理图层顺序、增删、显隐和样式变化事件。                                                          |
-| `VectorTileLayer.js`             | 单个矢量图层的请求、解码、建模、样式、缓存和后端选择。                                            |
+| `VectorTileLayer.js`             | 单个数据 Provider 对应的请求、解码、建桶、缓存和后端选择。                                        |
+| `VectorTileDataProvider.js`      | 封装一个外部 `sources` 数据源，复用请求、解码和 source-level 缓存。                               |
+| `VectorTileStyle.js`             | 解析、校验 style document，并提供旧 `styles` 兼容转换。                                           |
+| `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。            |
+| `VectorTilePrimitiveBucket.js`   | 管理一个 style rule 在单个瓦片上的 Primitive/Collection 生命周期。                                |
+| `VectorTileSymbolBucket.js`      | 基于点要素创建 `BillboardCollection` 和 `LabelCollection`。                                       |
+| `VectorStyleExpression.js`       | 执行样式表达式子集，例如 `get`、`match`、`case`、`interpolate`、`zoom`。                          |
+| `VectorStyleFilter.js`           | 执行和校验可序列化 filter 表达式，拒绝函数 filter。                                               |
 | `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                     |
 | `VectorTileQuadtreeProvider.js`  | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                  |
 | `VectorSurfaceTile.js`           | 挂载到 Cesium 四叉树瓦片上的矢量数据容器。                                                        |
@@ -119,13 +160,14 @@ READY
 | `VectorTile.js`                  | 保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。                             |
 | `VectorTileProvider.js`          | Provider 基类，约束层级并发起瓦片请求。                                                           |
 | `XYZVectorTileProvider.js`       | 解析 `{z}/{x}/{y}`、`{-y}`、`{s}` 等 XYZ/TMS 模板变量。                                           |
-| `WmtsVectorTileProvider.js`      | 解析 WMTS 的 TileMatrix、TileRow、TileCol 等模板变量。                                            |
+| `WmtsGeoVectorTileProvider.js`   | 解析 WMTS GeoJSON 实验分支的 TileMatrix、TileRow、TileCol 等模板变量。                            |
+| `WmtsVectorTileProvider.js`      | 解析 WMTS MVT 的 TileMatrix、TileRow、TileCol 等模板变量。                                        |
 | `MvtTileLoader.js`               | 使用 Cesium `Resource.fetchArrayBuffer()` 下载 PBF。                                              |
 | `VectorTileTaskScheduler.js`     | 有界优先级任务队列，支持排队、调整优先级和取消。                                                  |
 | `VectorTileDecoder.js`           | 管理 Worker 请求和异步响应。                                                                      |
 | `VectorTileDecodeWorker.js`      | Worker 入口。                                                                                     |
 | `decodeVectorTile.js`            | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                       |
-| `VectorTileGeometry.js`          | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪。                                                |
+| `VectorTileGeometry.js`          | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。              |
 | `VectorTileCache.js`             | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                    |
 | `VectorTileLodSelection.js`      | 在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                                       |
 | `VectorTileDiagnostics.js`       | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                               |
@@ -134,7 +176,7 @@ READY
 ## 4. 快速使用
 
 ```js
-import VectorTileLayerManager from "./VectorTileLayerManager.js";
+import VectorTileLayerManager from "./src/VectorTileLayerManager.js";
 
 const manager = new VectorTileLayerManager({
   maximumNetworkTasks: 8,
@@ -169,6 +211,89 @@ const layer = manager.addLayer({
 
 注意：`styles` 中的键必须与 PBF 内部的 source-layer 名完全一致。请求成功但名称不匹配时，不会生成任何 Primitive。
 
+### 新 style document 配置
+
+推荐的新入口是 `manager.setStyle(styleDocument)` 或 `manager.addLayer({ styleDocument })`。外部配置沿用易理解的 `sources + layers` 结构，但内部不会照搬 Mapbox 的类名，而是映射到 Cesium 风格的 `VectorTileDataProvider`、`VectorTileStyleRule` 和 `PrimitiveBucket`。
+
+```js
+manager.setStyle({
+  version: 1,
+  sources: {
+    land: {
+      type: "vector",
+      url: "http://localhost:10101/tiles/{z}/{x}/{-y}.pbf",
+      minimumLevel: 0,
+      maximumLevel: 10,
+      tileType: "XYZ",
+      renderBackend: "instances",
+    },
+  },
+  layers: [
+    {
+      id: "land-fill",
+      type: "fill",
+      source: "land",
+      sourceLayer: "countries",
+      filter: ["==", ["get", "kind"], "land"],
+      paint: {
+        "fill-color": [
+          "match",
+          ["get", "type"],
+          "park",
+          "#00ff0044",
+          "#0088ff33",
+        ],
+        "fill-outline-color": "#ffffffaa",
+        "fill-outline-width": 1,
+      },
+      terrain: {
+        clampToGround: false,
+        heightOffset: 1,
+      },
+    },
+    {
+      id: "coastline-line",
+      type: "line",
+      source: "land",
+      sourceLayer: "coastlines",
+      paint: {
+        "line-color": "#0000ffcc",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 1, 1, 6, 4],
+      },
+    },
+    {
+      id: "place-label",
+      type: "symbol",
+      source: "land",
+      sourceLayer: "populated_places",
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 14,
+      },
+      paint: {
+        "text-color": "#ffffffff",
+        "text-halo-color": "#000000cc",
+        "text-halo-width": 2,
+      },
+      terrain: {
+        clampToGround: true,
+        heightOffset: 10,
+      },
+    },
+  ],
+});
+```
+
+关键关系：
+
+- `sources` 只描述数据源、URL、层级、切片类型和渲染选项。
+- `layers[]` 描述可见样式图层，一个 source 可以被多个 layer 复用。
+- `sourceLayer` 指向 PBF 内部 source-layer 名称；名称不匹配时当前 layer 合法但为空。
+- `filter` 在 worker 或建桶前尽早剔除不需要的要素。
+- `paint/layout/terrain` 按 style rule 独立生效，因此同一份 PBF 可以同时画面、画线框、画文字。
+
+旧版 `styles` 仍兼容，内部会转换为等价 style document；后续新示例建议优先使用 `sources/layers`。
+
 ## 5. Manager 配置
 
 | 参数                  |                    默认值 | 说明                                                                                       |
@@ -197,6 +322,31 @@ const layer = manager.addLayer({
 | `polygonHeight`          |                 `1.0` | 面相对椭球面的高度，减少与地球表面共面闪烁。                 |
 | `asynchronous`           |                `true` | instances 后端是否使用 Cesium 异步 Primitive 构建。          |
 | `shadows`                | `ShadowMode.DISABLED` | 是否参与阴影。                                               |
+
+### `terrain` 贴地与高度偏移
+
+新 style document 的每个 layer 可以配置 Cesium 三维扩展字段：
+
+```js
+terrain: {
+  clampToGround: true,
+  heightOffset: 0,
+}
+```
+
+语义如下：
+
+| 几何类型 | `clampToGround: false`                                                  | `clampToGround: true, heightOffset: 0`                    | `clampToGround: true, heightOffset != 0`                                            |
+| -------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `fill`   | 使用普通 `Primitive + PolygonGeometry`，高度为 `heightOffset`。         | 使用 `GroundPrimitive` 贴地绘制面。                       | Cesium 没有“贴地后再抬高”的 polygon primitive，降级为普通高度面并记录诊断。         |
+| `line`   | 使用普通 `Primitive + PolylineGeometry`，高度为 `heightOffset`。        | 使用 `GroundPolylinePrimitive + GroundPolylineGeometry`。 | Cesium 没有“贴地后再抬高”的 ground polyline primitive，降级为普通高度线并记录诊断。 |
+| `symbol` | 使用 `BillboardCollection` / `LabelCollection`，高度为 `heightOffset`。 | 使用 `HeightReference.CLAMP_TO_GROUND`。                  | 使用 `HeightReference.RELATIVE_TO_GROUND`，位置高度作为相对地面偏移。               |
+
+诊断指标：
+
+- `createdGroundPrimitives`：创建的贴地面 primitive 数；
+- `createdGroundPolylinePrimitives`：创建的贴地线 primitive 数；
+- `groundHeightOffsetFallbacks`：请求贴地且设置非零高度偏移时，线/面降级到普通高度渲染的次数。
 
 ### XYZ/TMS 模板变量
 
@@ -339,7 +489,7 @@ manager.vectorTileLayers.remove(layer, true);
 Demo URL 添加 `?diagnostics`：
 
 ```text
-LoadVectorTile.html?diagnostics
+index.html?diagnostics
 ```
 
 读取当前快照：
@@ -416,10 +566,11 @@ passesAdoptionThreshold
 
 ## 14. 当前 Demo
 
-`LoadVectorTile.html` 提供两个后端切换按钮：
+`index.html` 提供旧 `styles` 和新 style document 两类示例：
 
 - `instances（可拾取）`：创建允许 picking 的图层；
 - `packed（不可拾取）`：创建 packed 实验图层；
+- style document 示例：演示同一 source 下的 fill、line、symbol、filter、表达式和 terrain 配置；
 - 点击地图后，右侧面板显示拾取属性；
 - `_vectorTileManager`、`_vectorTileLayer` 和 `vectorTileBenchmark` 暴露在 `window` 上，便于调试。
 
@@ -427,14 +578,14 @@ passesAdoptionThreshold
 
 1. 已构建 `Build/CesiumUnminified`；
 2. PBF 服务允许浏览器跨域访问；
-3. 修改 Demo 中的 `layerUrl` 为实际服务；
+3. 修改 Demo 中的 URL 模板和 `sourceLayer` 为实际服务；
 4. 使用 HTTP 服务打开页面，不要直接通过 `file://` 打开；
 5. Worker 文件更新后强制刷新浏览器，避免旧模块缓存。
 
 ## 15. 已知限制
 
-- 点要素已经解码，但尚未创建图标、点 Primitive 或文字标注；
-- `fillOutline`、`fillOutlineColor`、`fillOutlineWidth` 目前只是 Demo 配置，尚未生成面轮廓；
+- symbol 已支持图标和文字，但尚未实现碰撞避让、沿线文字、图标旋转对齐和字体栈管理；
+- `clampToGround: true` 与非零 `heightOffset` 在线/面上不能同时严格满足，当前会降级为普通高度渲染；
 - packed 当前只优化大量同色线，不支持逐要素拾取；
 - Worker 当前为单实例，`maximumDecodeTasks` 限制提交链路，但 Worker 内仍串行执行消息；
 - 面裁剪按单环执行，不能修复源数据中的自相交、重复面或复杂拓扑错误；
@@ -447,8 +598,7 @@ passesAdoptionThreshold
 
 1. 为线、面裁剪和状态机补充正式自动化测试；
 2. 将 MVT/PBF 依赖本地化并固定版本；
-3. 增加 Point、图标和文字渲染桶；
-4. 实现面轮廓并按样式拆分渲染桶；
-5. 根据真实 A/B 数据决定是否保留 packed 后端；
-6. 如 packed 确有收益，将宽线展开和 Geometry 合并进一步迁移到专用 Worker；
-7. 完善 WMTS GeoJSON 分支或将其移出当前主框架。
+3. 根据真实 A/B 数据决定是否保留 packed 后端；
+4. 如 packed 确有收益，将宽线展开和 Geometry 合并进一步迁移到专用 Worker；
+5. 增加 symbol 碰撞避让、沿线文字、图标旋转对齐和字体栈管理；
+6. 完善 WMTS GeoJSON 分支或将其移出当前主框架。

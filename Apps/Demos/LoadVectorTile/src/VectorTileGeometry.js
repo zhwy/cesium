@@ -53,6 +53,55 @@ export function projectPoint(point, tile, extent, positions) {
   positions.push(longitude, latitude);
 }
 
+function projectTileYToLatitude(y, level) {
+  const worldY = y / 2 ** level;
+  return (
+    (Math.atan(Math.sinh(Math.PI * (1.0 - 2.0 * worldY))) * 180.0) / Math.PI
+  );
+}
+
+export function getWebMercatorTileBounds(tile) {
+  const worldSize = 2 ** tile.level;
+  return {
+    west: (tile.x / worldSize) * 360.0 - 180.0,
+    east: ((tile.x + 1) / worldSize) * 360.0 - 180.0,
+    north: projectTileYToLatitude(tile.y, tile.level),
+    south: projectTileYToLatitude(tile.y + 1, tile.level),
+  };
+}
+
+function nearlyEquals(left, right, epsilon = 1e-9) {
+  return Math.abs(left - right) <= epsilon;
+}
+
+function getTileBoundaryMask(point, tileBounds) {
+  let mask = 0;
+  if (nearlyEquals(point.longitude, tileBounds.west)) {
+    mask |= 1;
+  }
+  if (nearlyEquals(point.longitude, tileBounds.east)) {
+    mask |= 2;
+  }
+  if (nearlyEquals(point.latitude, tileBounds.south)) {
+    mask |= 4;
+  }
+  if (nearlyEquals(point.latitude, tileBounds.north)) {
+    mask |= 8;
+  }
+  return mask;
+}
+
+export function isTileBoundarySegment(start, end, tileBounds) {
+  if (!tileBounds) {
+    return false;
+  }
+  return (
+    (getTileBoundaryMask(start, tileBounds) &
+      getTileBoundaryMask(end, tileBounds)) !==
+    0
+  );
+}
+
 export function isPointInRectangle(point, minimum, maximum) {
   return (
     point.x >= minimum &&

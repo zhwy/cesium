@@ -3,5 +3,6 @@ packages/sandcastle/node_modules
 **/ThirdParty
 /Tools/**
 /plans/**
+/openspec/**
 
 LICENSE.md

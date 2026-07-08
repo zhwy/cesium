@@ -1,7 +1,6 @@
-import { VectorTile } from "https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2.0.3/+esm";
-import Protobuf from "https://cdn.jsdelivr.net/npm/pbf/+esm";
 import MvtTileLoader from "./MvtTileLoader.js";
-import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 
 export default class VectorTileProvider {
   constructor(options = {}) {
@@ -11,6 +10,8 @@ export default class VectorTileProvider {
       options.tilingScheme ?? new Cesium.WebMercatorTilingScheme();
     this._minimumLevel = options.minimumLevel ?? 0;
     this._maximumLevel = options.maximumLevel ?? 18;
+    this._networkScheduler =
+      options.networkScheduler ?? new VectorTileTaskScheduler(8);
 
     this._resource = new Cesium.Resource({
       url: options.url,
@@ -50,32 +51,23 @@ Object.defineProperties(VectorTileProvider.prototype, {
  */
 VectorTileProvider.prototype.getTileResource = function (tile) {};
 
+VectorTileProvider.prototype.isTileAvailable = function (level) {
+  return level >= this._minimumLevel && level <= this._maximumLevel;
+};
+
 VectorTileProvider.prototype.requestTile = function (tile) {
-  if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {
-    return Promise.resolve(undefined);
+  if (!this.isTileAvailable(tile.level)) {
+    return;
   }
 
   const resource = this.getTileResource(tile);
   if (Cesium.defined(resource)) {
-    return new Promise((resolve, reject) => {
-      MvtTileLoader.instance()
-        .load(resource, false)
-        .then((arrayBuffer) => {
-          if (arrayBuffer.byteLength > 0) {
-            const vectorTile = new VectorTile(new Protobuf(arrayBuffer));
-            const surfaceTile = tile.data;
-            // 所有图层共享surfaceTile中的layerFeatures
-            surfaceTile.layerFeatures = Cesium.combine(
-              surfaceTile.layerFeatures,
-              VectorTileProvider.readVectorTile(tile, vectorTile),
-            );
-            resolve(tile);
-          }
-        }, reject);
-    });
+    return MvtTileLoader.instance().load(
+      resource,
+      this._networkScheduler,
+      tile.priority,
+    );
   }
-
-  return Promise.resolve(undefined);
 };
 
 VectorTileProvider.readVectorTile = function (tile, vectorTile) {

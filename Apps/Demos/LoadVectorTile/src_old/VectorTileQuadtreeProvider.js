@@ -1,5 +1,4 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import VectorSurfaceTile from "./VectorSurfaceTile.js";
+import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
 
 const {
   defined,
@@ -9,11 +8,11 @@ const {
   Cartographic,
   SceneMode,
   Visibility,
+  GlobeSurfaceTile,
   TileBoundingRegion,
   Math: CesiumMath,
   OrthographicFrustum,
   Intersect,
-  EllipsoidalOccluder,
 } = Cesium;
 
 function isUndergroundVisible(tileProvider, frameState) {
@@ -72,7 +71,24 @@ function clipRectangleAntimeridian(tileRectangle, cartographicLimitRectangle) {
 function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
   let surfaceTile = tile.data;
   if (surfaceTile === undefined) {
-    surfaceTile = tile.data = new VectorSurfaceTile();
+    surfaceTile = tile.data = new GlobeSurfaceTile();
+  }
+  if (!Cesium.defined(surfaceTile.layerFeatures)) {
+    surfaceTile.layerFeatures = {};
+    surfaceTile.primitives = {};
+    surfaceTile.freeResources = function () {
+      if (this.primitives) {
+        Object.keys(this.primitives).forEach((key) => {
+          this.primitives[key].forEach((primitive) => {
+            primitive.destroy();
+          });
+          this.primitives[key] = undefined;
+          delete this.primitives[key];
+        });
+      }
+      delete this.layerFeatures;
+      delete this.freeResources;
+    };
   }
 
   const ellipsoid = tile.tilingScheme.ellipsoid;
@@ -85,39 +101,19 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
       maximumHeight: options.maximumHeight,
     });
     surfaceTile.tileBoundingRegion.computeBoundingVolumes(ellipsoid);
-    // Heights are fixed constants for vector tiles, so this tile's bounding
-    // region is always authoritative. Without this, computeTileVisibility
-    // bails out with Visibility.PARTIAL for every tile — no frustum or
-    // horizon culling at all — flooding _tilesToRender with the whole-globe
-    // tile pyramid (~900 tiles top-down) and starving the load queue.
-    surfaceTile.boundingVolumeSourceTile = tile;
-    // GlobeSurfaceTile initialises occludeePointInScaledSpace to a zero
-    // vector, which horizon culling treats as "never visible" and would cull
-    // every tile. Compute the real horizon culling point from the tile
-    // rectangle; for huge rectangles (e.g. root tiles) this returns
-    // undefined, which correctly skips horizon culling.
-    let occluder = tileProvider._ellipsoidalOccluder;
-    if (!defined(occluder)) {
-      occluder = tileProvider._ellipsoidalOccluder = new EllipsoidalOccluder(
-        ellipsoid,
-      );
-    }
-    surfaceTile.occludeePointInScaledSpace =
-      occluder.computeHorizonCullingPointFromRectangle(
-        tile.rectangle,
-        ellipsoid,
-      );
   }
 }
 
 export default class VectorTileQuadtreeProvider {
   constructor(options = {}) {
     this._quadtree = undefined;
-    this._vectorTileLayers = options.vectorTileLayers;
+    this._vectorTileProvider = options.vectorTileProvider;
 
     this._tilingScheme =
       options.tilingScheme || new Cesium.WebMercatorTilingScheme();
     this._errorEvent = new Cesium.Event();
+    this._maxTileRefineLevel =
+      options._maxTileRefineLevel || options.maximumLevel || 20;
     this._minimumHeight = options.minimumHeight || 0;
     this._maximumHeight = options.maximumHeight || 0;
     this._minimumLevel = options.minimumLevel || 0;
@@ -141,6 +137,11 @@ Object.defineProperties(VectorTileQuadtreeProvider.prototype, {
       this._quadtree = val;
     },
   },
+  vectorTileProvider: {
+    get: function () {
+      return this._vectorTileProvider;
+    },
+  },
   ready: {
     get: function () {
       return true;
@@ -149,11 +150,6 @@ Object.defineProperties(VectorTileQuadtreeProvider.prototype, {
   tilingScheme: {
     get: function () {
       return this._tilingScheme;
-    },
-  },
-  vectorTileLayers: {
-    get: function () {
-      return this._vectorTileLayers;
     },
   },
   errorEvent: {
@@ -177,12 +173,44 @@ VectorTileQuadtreeProvider.prototype.getLevelMaximumGeometricError = function (
   return this._levelZeroMaximumError / (1 << level);
 };
 
+VectorTileQuadtreeProvider.prototype.getTileResource = function (tile) {};
+
 VectorTileQuadtreeProvider.prototype.loadTile = function (frameState, tile) {
-  VectorSurfaceTile.processStateMachine(
-    tile,
-    frameState,
-    this._vectorTileLayers,
-  );
+  if (!tile.data) {
+    const surfaceTile = new Cesium.GlobeSurfaceTile();
+    surfaceTile.layerFeatures = {};
+    surfaceTile.primitives = {};
+    surfaceTile.freeResources = function () {
+      if (this.primitives) {
+        Object.keys(this.primitives).forEach((key) => {
+          this.primitives[key].forEach((primitive) => {
+            primitive.destroy();
+          });
+          this.primitives[key] = undefined;
+          delete this.primitives[key];
+        });
+      }
+      delete this.layerFeatures;
+      delete this.freeResources;
+    };
+    tile.data = surfaceTile;
+  }
+
+  if (tile.state === Cesium.QuadtreeTileLoadState.START) {
+    if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {
+      tile.renderable = true;
+      tile.state = Cesium.QuadtreeTileLoadState.DONE;
+      return;
+    }
+
+    tile.state = Cesium.QuadtreeTileLoadState.LOADING;
+
+    // TODO 请求错误处理
+    this._vectorTileProvider.requestTile(tile).finally(() => {
+      tile.renderable = true;
+      tile.state = Cesium.QuadtreeTileLoadState.DONE;
+    });
+  }
 };
 
 VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
@@ -333,25 +361,7 @@ VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
 };
 
 VectorTileQuadtreeProvider.prototype.canRefine = function (tile) {
-  let maximumLayerLevel = -1;
-  for (let i = 0; i < this._vectorTileLayers.length; ++i) {
-    const layer = this._vectorTileLayers.get(i);
-    if (layer.show) {
-      maximumLayerLevel = Math.max(
-        maximumLayerLevel,
-        layer.vectorTileProvider.maximumLevel,
-      );
-    }
-  }
-
-  return tile.level < maximumLayerLevel;
-};
-
-VectorTileQuadtreeProvider.prototype.computeTileLoadPriority = function (tile) {
-  const distance = Number.isFinite(tile._distance)
-    ? tile._distance
-    : Number.MAX_SAFE_INTEGER;
-  return distance + tile.level * 0.001;
+  return tile.level <= this._maxTileRefineLevel + 1;
 };
 
 VectorTileQuadtreeProvider.prototype.showTileThisFrame = function (

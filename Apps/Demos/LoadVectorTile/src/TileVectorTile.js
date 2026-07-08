@@ -1,4 +1,5 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileCoverageState from "./VectorTileCoverageState.js";
 const { defined, ImageryState } = Cesium;
 
 /**
@@ -47,6 +48,23 @@ TileVectorTile.prototype.processStateMachine = function (
     skipLoading,
     tile._loadPriority ?? tile._distance ?? 0,
   );
+
+  if (
+    loadingVectorTile.state === ImageryState.READY &&
+    loadingVectorTile.coverageState === VectorTileCoverageState.READY_EMPTY
+  ) {
+    const readyAncestor = findReadyAncestor(loadingVectorTile);
+    if (defined(readyAncestor)) {
+      if (this.readyVectorTile !== readyAncestor) {
+        if (defined(this.readyVectorTile)) {
+          this.readyVectorTile.releaseReference();
+        }
+        this.readyVectorTile = readyAncestor;
+        readyAncestor.addReference();
+      }
+      return true; // exact tile is loaded, but keep drawing the parent fallback
+    }
+  }
 
   if (loadingVectorTile.state === ImageryState.READY) {
     if (defined(this.readyVectorTile)) {
@@ -105,4 +123,19 @@ TileVectorTile.prototype.processStateMachine = function (
 
   return false; // not done loading
 };
+
+function findReadyAncestor(vectorTile) {
+  let ancestor = vectorTile.parent;
+  while (defined(ancestor)) {
+    if (
+      ancestor.state === ImageryState.READY &&
+      ancestor.coverageState !== VectorTileCoverageState.READY_EMPTY
+    ) {
+      return ancestor;
+    }
+    ancestor = ancestor.parent;
+  }
+  return undefined;
+}
+
 export default TileVectorTile;

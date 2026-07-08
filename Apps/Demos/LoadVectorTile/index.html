@@ -10,9 +10,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <title>自定义Provider - Pick对比</title>
+    <title>MVT加载</title>
     <style>
-      @import url(../../../../Build/CesiumUnminified/Widgets/widgets.css);
+      @import url(../../../Build/CesiumUnminified/Widgets/widgets.css);
 
       html,
       body,
@@ -122,17 +122,16 @@
       <pre id="diagnosticsResult">等待数据...</pre>
     </div>
     <script type="module">
-      import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-      import VectorTileLayerManager from "./VectorTileLayerManager.js";
-      import createVectorTileBenchmark from "./VectorTileBenchmark.js";
+      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import VectorTileLayerManager from "./src/VectorTileLayerManager.js";
+      import createVectorTileBenchmark from "./src/VectorTileBenchmark.js";
 
-      window.CESIUM_BASE_URL = "../../../../Build/CesiumUnminified/";
+      window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";
 
       const viewer = new Cesium.Viewer("cesiumContainer", {
-        scene3DOnly: true,
         timeline: false,
         fullscreenButton: false,
         vrButton: false,
@@ -141,8 +140,17 @@
       viewer.scene.debugShowFramesPerSecond = true;
       window._viewer = viewer;
       viewer.imageryLayers.addImageryProvider(
-        new Cesium.TileCoordinatesImageryProvider(),
+        new Cesium.TileCoordinatesImageryProvider({
+          tileWidth: 512,
+          tileHeight: 512,
+        }),
       );
+
+      // Cesium.MVTDataProvider.fromUrl(
+      //   "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
+      // ).then((tileset) => {
+      //   // viewer.scene.primitives.add(tileset);
+      // });
 
       const manager = new VectorTileLayerManager({
         diagnostics: { enabled: true },
@@ -150,22 +158,6 @@
       manager.addToScene(viewer.scene);
       window._vectorTileManager = manager;
       window.vectorTileBenchmark = createVectorTileBenchmark(viewer, manager);
-
-      // const layerUrl =
-      //   "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf";
-      // const layerStyles = {
-      //   countries: {
-      //     fill: true,
-      //     fillColor: "#ff00ff77",
-      //     fillOutline: true,
-      //     fillOutlineColor: "#ff00ff",
-      //     fillOutlineWidth: 1,
-      //   },
-      //   coastlines: {
-      //     lineColor: "#0000ff77",
-      //     lineWidth: 2,
-      //   },
-      // };
 
       const options = [
         // {
@@ -209,7 +201,7 @@
       ];
 
       let currentLayers = [];
-      let highlightPrimitive;
+      let highlightPoint;
 
       function createLayers(backend) {
         const allowPicking = backend === "instances";
@@ -260,16 +252,16 @@
       }
 
       function clearHighlight() {
-        if (Cesium.defined(highlightPrimitive)) {
-          viewer.scene.primitives.remove(highlightPrimitive);
-          highlightPrimitive = undefined;
+        if (Cesium.defined(highlightPoint)) {
+          viewer.entities.remove(highlightPoint);
+          highlightPoint = undefined;
         }
       }
 
       function showPickResult(picked) {
         const resultEl = document.getElementById("pickResult");
         if (!Cesium.defined(picked)) {
-          resultEl.textContent = "undefined（未拾取到任何要素）";
+          resultEl.textContent = "（未拾取到任何要素）";
           return;
         }
         resultEl.textContent = JSON.stringify(picked?.id?.properties, null, 2);
@@ -277,28 +269,17 @@
 
       function highlightPosition(cartesian) {
         clearHighlight();
-        highlightPrimitive = viewer.scene.primitives.add(
-          new Cesium.Primitive({
-            geometryInstances: new Cesium.GeometryInstance({
-              geometry: new Cesium.SphereGeometry({
-                radius: 20000.0,
-                vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
-              }),
-              attributes: {
-                color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-                  Cesium.Color.YELLOW.withAlpha(0.6),
-                ),
-              },
-            }),
-            appearance: new Cesium.PerInstanceColorAppearance({
-              translucent: true,
-              closed: true,
-            }),
-            asynchronous: false,
+        highlightPoint = viewer.entities.add(
+          new Cesium.Entity({
+            position: cartesian,
+            point: {
+              pixelSize: 10,
+              color: Cesium.Color.BLUE,
+              outlineColor: Cesium.Color.WHITE,
+              outlineWidth: 2,
+            },
           }),
         );
-        const modelMatrix = Cesium.Matrix4.fromTranslation(cartesian);
-        highlightPrimitive.modelMatrix = modelMatrix;
       }
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
@@ -325,7 +306,121 @@
       });
 
       // 默认使用 instances 后端并开启拾取
-      switchBackend("instances");
+      // switchBackend("instances");
+
+      manager.setStyle({
+        version: 1,
+        sources: {
+          res_org_gr: {
+            type: "vector",
+            url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
+            minimumLevel: 5,
+            maximumLevel: 15,
+            allowPicking: true,
+            renderBackend: "instances",
+          },
+          globe: {
+            type: "vector",
+            url: "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
+            minimumLevel: 0,
+            maximumLevel: 18,
+            allowPicking: false,
+            renderBackend: "packed",
+          },
+        },
+        layers: [
+          {
+            id: "res_org_gr-level2-fill",
+            type: "fill",
+            source: "res_org_gr",
+            sourceLayer: "res_org_gr",
+            minzoom: 0,
+            maxzoom: 10,
+            paint: {
+              "fill-color": "#00ff0022",
+              "fill-outline-color": "#ff0000",
+              "fill-outline-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                4,
+                1,
+                8,
+                5,
+              ],
+            },
+            filter: [
+              "all",
+              ["==", ["get", "year"], 2025],
+              ["==", ["get", "org_level"], "2"],
+            ],
+            terrain: {
+              clampToGround: true,
+            },
+          },
+          // {
+          //   id: "res_org_gr-level1-fill",
+          //   type: "fill",
+          //   source: "res_org_gr",
+          //   sourceLayer: "res_org_gr",
+          //   minzoom: 0,
+          //   maxzoom: 10,
+          //   paint: {
+          //     "fill-color": "#ffff00",
+          //   },
+          //   filter: [
+          //     "all",
+          //     ["==", ["get", "year"], 2025],
+          //     ["==", ["get", "org_level"], "1"],
+          //   ],
+          // },
+          {
+            id: "globe-text",
+            type: "symbol",
+            source: "globe",
+            sourceLayer: "populated_places",
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "#000000",
+              "text-halo-width": 3,
+            },
+            layout: {
+              "text-field": ["get", "name"],
+            },
+            terrain: {
+              clampToGround: true,
+              // heightOffset: 10,
+            },
+          },
+          {
+            id: "globe-coastline-line",
+            type: "line",
+            source: "globe",
+            sourceLayer: "coastlines",
+            paint: {
+              "line-color": "#0000ff77",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 1, 1, 18, 25],
+            },
+            terrain: {
+              clampToGround: true,
+            },
+          },
+          // {
+          //   id: "countries",
+          //   type: "fill",
+          //   source: "globe",
+          //   sourceLayer: "countries",
+          //   paint: {
+          //     "fill-color": "#ff00ff77",
+          //     "fill-outline-color": "#ff00ff",
+          //     "fill-outline-width": 2,
+          //   },
+          //   terrain: {
+          //     heightOffset: 10,
+          //   },
+          // },
+        ],
+      });
 
       // 每一帧更新诊断信息
       viewer.scene.postRender.addEventListener(() => {

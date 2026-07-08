@@ -10,7 +10,7 @@ export default class XYZVectorTileProvider extends VectorTileProvider {
     const x = parseFloat(tile.x);
     const z = parseFloat(tile.level);
     const y = parseFloat(tile.y);
-    const reverseY = this.tilingScheme.getNumberOfYTilesAtLevel(z) - y - 1;
+    const reverseY = tile.tilingScheme.getNumberOfYTilesAtLevel(z) - y - 1;
 
     const templateValues = {
       layer: this._options.layer,

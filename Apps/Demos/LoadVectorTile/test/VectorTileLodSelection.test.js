@@ -11,7 +11,7 @@ import {
   isRegionFullyCovered,
   isAncestorOrSame,
   selectByCoverage,
-} from "./VectorTileLodSelection.js";
+} from "../src/VectorTileLodSelection.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

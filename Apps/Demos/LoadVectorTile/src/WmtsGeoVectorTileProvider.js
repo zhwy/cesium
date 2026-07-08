@@ -1,4 +1,4 @@
-import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import WmtsVectorTileProvider from "./WmtsVectorTileProvider.js";
 
 export default class WmtsGeoVectorTileProvider extends WmtsVectorTileProvider {
@@ -32,7 +32,7 @@ export default class WmtsGeoVectorTileProvider extends WmtsVectorTileProvider {
             tile.renderable = true;
             tile.state = Cesium.QuadtreeTileLoadState.DONE;
           })
-          .catch((err) => {
+          .catch(() => {
             tile.renderable = true;
             tile.state = Cesium.QuadtreeTileLoadState.DONE;
           });

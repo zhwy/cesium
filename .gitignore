@@ -25,6 +25,7 @@ Thumbs.db
 # playwright
 /playwright/.cache/
 /Specs/e2e/*-snapshots/
+.playwright-mcp
 
 /Tools/jsdoc/cesium_template/static/javascript/prism.js
 /Tools/jsdoc/cesium_template/static/styles/prism.css
@@ -42,3 +43,6 @@ yarn.lock
 
 # Used in the CLA checking GitHub workflow
 GoogleConfig.json
+
+.github
+.codex

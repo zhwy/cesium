@@ -6,6 +6,9 @@ import createProvider from "./createProvider.js";
 import TileType from "./TileType.js";
 import VectorTileDiagnostics from "./VectorTileDiagnostics.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
+import VectorTileDataProvider from "./VectorTileDataProvider.js";
+import VectorTileStyleRule from "./VectorTileStyleRule.js";
+import { normalizeStyleDocument } from "./VectorTileStyle.js";
 
 export default class VectorTileLayerManager {
   get quadtreePrimitive() {
@@ -38,6 +41,12 @@ export default class VectorTileLayerManager {
     this._tilingScheme = new Cesium[
       options.tilingScheme || "WebMercatorTilingScheme"
     ]();
+    this._iconImages = {
+      ...(options.iconResources ?? {}),
+      ...(options.iconImages ?? {}),
+    };
+    this._scene = options.scene;
+    this._dataProviders = new Map();
 
     this._vectorTileLayers = new VectorTileLayerCollection();
     const tileProvider = new VectorTileQuadtreeProvider({
@@ -72,6 +81,9 @@ export default class VectorTileLayerManager {
   }
 
   addToScene(scene) {
+    this._scene = scene;
+    this._setSceneOnLayers(scene);
+    this._initializeGroundPrimitiveHeights();
     scene.primitives.add(this.quadtreePrimitive);
     if (this._diagnostics.enabled) {
       this._removePreUpdateListener = scene.preUpdate.addEventListener(() => {
@@ -146,9 +158,64 @@ export default class VectorTileLayerManager {
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
+      scene: this._scene,
+      iconImages: this._iconImages,
     });
 
     return this._vectorTileLayers.addLayerProvider(provider);
+  }
+
+  setStyle(styleDocument) {
+    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    this._dataProviders.clear();
+    this._vectorTileLayers.removeAll();
+
+    Object.keys(normalizedStyle.sources).forEach((sourceId) => {
+      const source = normalizedStyle.sources[sourceId];
+      const styleRules = normalizedStyle.layers
+        .filter((layer) => layer.source === sourceId)
+        .map((layer) => new VectorTileStyleRule(layer));
+      if (styleRules.length === 0) {
+        return;
+      }
+
+      const provider = this._createDataProvider(sourceId, source, styleRules);
+      this._dataProviders.set(sourceId, provider);
+      this._addDataProviderLayer(provider);
+    });
+
+    this._quadtreePrimitive.invalidateAllTiles();
+  }
+
+  getStyle() {
+    const sources = {};
+    const layers = [];
+    this._dataProviders.forEach((dataProvider, sourceId) => {
+      sources[sourceId] = dataProvider.source;
+      dataProvider.styleRules.forEach((styleRule) => {
+        layers.push(styleRule.toJSON());
+      });
+    });
+    if (Object.keys(sources).length === 0) {
+      return undefined;
+    }
+    return normalizeStyleDocument({
+      version: 1,
+      sources,
+      layers,
+      metadata: {},
+    });
+  }
+
+  registerIconImage(name, image) {
+    this._iconImages[name] = image;
+    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
+      this._vectorTileLayers.get(i).registerIconImage(name, image);
+    }
+  }
+
+  getIconImage(name) {
+    return this._iconImages[name];
   }
 
   clearCache() {
@@ -156,5 +223,77 @@ export default class VectorTileLayerManager {
       this._vectorTileLayers.get(i).clearCache(false);
     }
     this._quadtreePrimitive.invalidateAllTiles();
+  }
+
+  _createDataProvider(sourceId, source, styleRules) {
+    const provider = createProvider({
+      dataTypeField: "type",
+      dataIdField: "id",
+      minimumLevel: source.minimumLevel ?? 0,
+      maximumLevel: source.maximumLevel ?? 20,
+      tileType: source.tileType ?? TileType.XYZ,
+      format: source.format ?? "application/vnd.mapbox-vector-tile",
+      layer: source.layer ?? "",
+      allowPicking: source.allowPicking ?? false,
+      asynchronous: source.asynchronous ?? true,
+      shadows: source.shadows ?? Cesium.ShadowMode.DISABLED,
+      polygonHeight: source.polygonHeight ?? 1.0,
+      clipToTile: source.clipToTile ?? true,
+      renderBackend: source.renderBackend ?? "instances",
+      packedMinimumInstances: source.packedMinimumInstances ?? 200,
+      cacheBytes: source.cacheBytes ?? 64 * 1024 * 1024,
+      ...source,
+      sourceId,
+      styleSourceId: sourceId,
+      styleDocument: {
+        version: 1,
+        sources: {
+          [sourceId]: source,
+        },
+        layers: styleRules.map((styleRule) => styleRule.toJSON()),
+      },
+      tilingScheme: this.tilingScheme,
+      diagnostics: this._diagnostics,
+      networkScheduler: this._networkScheduler,
+      decodeScheduler: this._decodeScheduler,
+      buildScheduler: this._buildScheduler,
+      scene: this._scene,
+      iconImages: this._iconImages,
+    });
+    return new VectorTileDataProvider({
+      sourceId,
+      source,
+      provider,
+      styleRules,
+    });
+  }
+
+  _addDataProviderLayer(dataProvider) {
+    const styleDocument = dataProvider.toStyleDocument();
+    dataProvider._options = {
+      ...dataProvider._options,
+      sourceId: dataProvider.sourceId,
+      styleSourceId: dataProvider.sourceId,
+      styleDocument,
+      scene: this._scene,
+      iconImages: this._iconImages,
+      diagnostics: this._diagnostics,
+      networkScheduler: this._networkScheduler,
+      decodeScheduler: this._decodeScheduler,
+      buildScheduler: this._buildScheduler,
+    };
+    const layer = this._vectorTileLayers.addLayerProvider(dataProvider);
+    return layer;
+  }
+
+  _setSceneOnLayers(scene) {
+    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
+      this._vectorTileLayers.get(i).setScene(scene);
+    }
+  }
+
+  _initializeGroundPrimitiveHeights() {
+    Cesium.GroundPrimitive.initializeTerrainHeights?.();
+    Cesium.GroundPolylinePrimitive.initializeTerrainHeights?.();
   }
 }

@@ -1,5 +1,3 @@
-/* eslint-disable no-async-promise-executor */
-
 // function getCacheKey(resource) {
 //   return resource.url;
 // }
@@ -22,40 +20,16 @@ export default class MvtTileLoader {
     // this.cacheStore.init();
   }
 
-  load(resource, cache) {
-    return this._load(resource, cache);
+  load(resource, scheduler, priority) {
+    return scheduler.schedule((context) => {
+      const promise = resource.fetchArrayBuffer();
+      context.onCancel(() => resource.request.cancel());
+      return promise;
+    }, priority);
   }
 
   clearCache() {
     // this.cacheStore.reset();
-  }
-
-  _load(resource, cache) {
-    return new Promise(async (resolve, reject) => {
-      // const cacheKey = getCacheKey(resource);
-      // if (cache === true) {
-      //   try {
-      //     const cacheData = await this.cacheStore.get(cacheKey);
-      //     if (cacheData) {
-      //       resolve(cacheData);
-      //       return;
-      //     }
-      //   } catch (e) {
-      //     console.error(e);
-      //   }
-      // }
-      resource
-        .fetchArrayBuffer()
-        .then((arrayBuffer) => {
-          // if (cache === true) {
-          //   this.cacheStore.put(cacheKey, arrayBuffer).catch((err) => {
-          //     console.warn(err);
-          //   });
-          // }
-          resolve(arrayBuffer);
-        })
-        .catch((err) => reject(err));
-    });
   }
 
   static instance() {
