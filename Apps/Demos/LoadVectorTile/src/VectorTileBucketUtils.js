@@ -1,6 +1,7 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
 import { evaluateVectorStyleExpression } from "./VectorStyleExpression.js";
+import { doesStyleRuleUseGeometryType } from "./VectorTileGeometryPlacement.js";
 import { isTileBoundarySegment } from "./VectorTileGeometryUtils.js";
 
 export function isDefined(value) {
@@ -59,7 +60,7 @@ export function doesStyleRuleMatchMetadata(
   options = {},
 ) {
   return (
-    doesGeometryTypeMatchStyleRule(geometryType, styleRule.type) &&
+    doesStyleRuleUseGeometryType(styleRule, geometryType) &&
     (options.ignoreZoomRange || isZoomInRange(zoom, styleRule)) &&
     evaluateVectorStyleFilter(styleRule.filter, metadata, {
       zoom,
@@ -281,12 +282,4 @@ function getPackedPolygonPoint(polygons, index) {
     longitude: polygons.positions[index * 2],
     latitude: polygons.positions[index * 2 + 1],
   };
-}
-
-function doesGeometryTypeMatchStyleRule(geometryType, styleRuleType) {
-  return (
-    (geometryType === 1 && styleRuleType === "symbol") ||
-    (geometryType === 2 && styleRuleType === "line") ||
-    (geometryType === 3 && styleRuleType === "fill")
-  );
 }

@@ -1,4 +1,5 @@
 import { validateVectorStyleFilter } from "./VectorStyleFilter.js";
+import { normalizeSymbolPlacement } from "./VectorTileGeometryPlacement.js";
 
 const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol"]);
 
@@ -206,6 +207,13 @@ function normalizeLayers(layers, sources) {
 
     validateVectorStyleFilter(layer.filter, `layer "${id}" filter`);
 
+    const layout = cloneValue(layer.layout ?? {});
+    if (type === "symbol") {
+      layout["symbol-placement"] = normalizeSymbolPlacement(
+        layout["symbol-placement"],
+      );
+    }
+
     return {
       id,
       type,
@@ -214,7 +222,7 @@ function normalizeLayers(layers, sources) {
       minzoom: layer.minzoom,
       maxzoom: layer.maxzoom,
       filter: cloneValue(layer.filter),
-      layout: cloneValue(layer.layout ?? {}),
+      layout,
       paint: cloneValue(layer.paint ?? {}),
       terrain: {
         clampToGround: layer.terrain?.clampToGround ?? false,

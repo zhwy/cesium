@@ -2,6 +2,7 @@ import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import {
   createCartesianLine,
+  createOutlineCartesianLines,
   createGroundPolylinePrimitive,
   createPrimitive,
   doesStyleRuleMatchMetadata,
@@ -26,20 +27,27 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
     this._asynchronous = options.asynchronous ?? true;
   }
 
-  build(lines, zoom) {
+  build(lines, zoom, options = {}) {
+    const polygons = options.polygons;
+    const tileBounds = options.tileBounds;
     if (requiresGroundHeightOffsetFallback(this.styleRule)) {
       this._diagnostics?.increment("groundHeightOffsetFallbacks");
     }
 
-    if (this._shouldUsePackedLines(lines)) {
+    if (this._shouldUsePackedLines(lines, polygons)) {
       this.addPrimitives(this._createPackedLinePrimitives(lines, zoom));
       return this;
     }
 
     const useGroundPath = shouldUseGroundPath(this.styleRule);
     const lineInstances = useGroundPath
-      ? this._createGroundLineGeometryInstances(lines, zoom)
-      : this._createLineGeometryInstances(lines, zoom);
+      ? this._createGroundLineGeometryInstances(
+          lines,
+          polygons,
+          zoom,
+          tileBounds,
+        )
+      : this._createLineGeometryInstances(lines, polygons, zoom, tileBounds);
     if (lineInstances.length === 0) {
       return this;
     }
@@ -65,9 +73,10 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
     return this;
   }
 
-  _shouldUsePackedLines(lines) {
+  _shouldUsePackedLines(lines, polygons) {
     const lineCount = Math.max(0, (lines?.offsets?.length ?? 0) - 1);
     return (
+      (polygons?.polygonOffsets?.length ?? 0) <= 1 &&
       !shouldUseGroundPath(this.styleRule) &&
       this._renderBackend === "packed" &&
       !this._allowPicking &&
@@ -148,7 +157,7 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
     return primitives;
   }
 
-  _createLineGeometryInstances(lines, zoom) {
+  _createLineGeometryInstances(lines, polygons, zoom, tileBounds) {
     const instances = [];
     const height = getStyleRuleHeightOffset(this.styleRule);
 
@@ -196,10 +205,17 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
       );
     }
 
+    this._appendPolygonOutlineGeometryInstances(
+      instances,
+      polygons,
+      zoom,
+      false,
+      tileBounds,
+    );
     return instances;
   }
 
-  _createGroundLineGeometryInstances(lines, zoom) {
+  _createGroundLineGeometryInstances(lines, polygons, zoom, tileBounds) {
     const instances = [];
 
     for (let i = 0; i + 1 < lines.offsets.length; ++i) {
@@ -246,7 +262,96 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
       );
     }
 
+    this._appendPolygonOutlineGeometryInstances(
+      instances,
+      polygons,
+      zoom,
+      true,
+      tileBounds,
+    );
     return instances;
+  }
+
+  _appendPolygonOutlineGeometryInstances(
+    instances,
+    polygons,
+    zoom,
+    useGroundPath,
+    tileBounds,
+  ) {
+    if (!polygons || (polygons.polygonOffsets?.length ?? 0) <= 1) {
+      return;
+    }
+
+    const height = useGroundPath
+      ? 0.0
+      : getStyleRuleHeightOffset(this.styleRule);
+    for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
+      const metadata = polygons.metadata?.[i];
+      if (
+        !doesStyleRuleMatchMetadata(metadata, 3, this.styleRule, zoom, {
+          ignoreZoomRange: true,
+        })
+      ) {
+        continue;
+      }
+
+      const firstRing = polygons.polygonOffsets[i];
+      const lastRing = polygons.polygonOffsets[i + 1];
+      for (let ringIndex = firstRing; ringIndex < lastRing; ++ringIndex) {
+        const outlineLines = createOutlineCartesianLines(
+          polygons,
+          ringIndex,
+          height,
+          tileBounds,
+        );
+        for (let lineIndex = 0; lineIndex < outlineLines.length; ++lineIndex) {
+          const ring = outlineLines[lineIndex];
+          if (ring.length < 2) {
+            continue;
+          }
+
+          instances.push(
+            new Cesium.GeometryInstance({
+              id: this._allowPicking ? metadata : undefined,
+              geometry: useGroundPath
+                ? new Cesium.GroundPolylineGeometry({
+                    positions: ring,
+                    width: evaluateFiniteStyleNumber(
+                      this.styleRule.paint?.["line-width"],
+                      metadata,
+                      zoom,
+                      2,
+                    ),
+                    arcType:
+                      this.styleRule.paint?.arcType ?? Cesium.ArcType.GEODESIC,
+                  })
+                : new Cesium.PolylineGeometry({
+                    positions: ring,
+                    width: evaluateFiniteStyleNumber(
+                      this.styleRule.paint?.["line-width"],
+                      metadata,
+                      zoom,
+                      2,
+                    ),
+                    arcType:
+                      this.styleRule.paint?.arcType ?? Cesium.ArcType.GEODESIC,
+                  }),
+              attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+                  evaluateColorStyleValue(
+                    this.styleRule.paint?.["line-color"],
+                    metadata,
+                    zoom,
+                    "#ffff00ff",
+                  ),
+                ),
+              },
+            }),
+          );
+        }
+      }
+    }
   }
 }
 

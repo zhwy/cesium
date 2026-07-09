@@ -1,4 +1,8 @@
 import { getWebMercatorTileBounds } from "./VectorTileGeometryUtils.js";
+import {
+  createPolygonCenterPoints,
+  getStyleRuleSymbolPlacement,
+} from "./VectorTileGeometryPlacement.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileFillBucket from "./VectorTileFillBucket.js";
 import VectorTileLineBucket from "./VectorTileLineBucket.js";
@@ -26,10 +30,17 @@ export function createVectorTilePrimitiveBucket(
     bucket = new VectorTileLineBucket(styleRule, options).build(
       packedLayer.lines,
       zoom,
+      {
+        polygons: packedLayer.polygons,
+        tileBounds,
+      },
     );
   } else if (styleRule.type === "symbol") {
+    const symbolPlacement = getStyleRuleSymbolPlacement(styleRule);
     bucket = new VectorTileSymbolBucket(styleRule, options).build(
-      packedLayer.points,
+      symbolPlacement === "polygon-center"
+        ? createPolygonCenterPoints(packedLayer.polygons)
+        : packedLayer.points,
       zoom,
     );
   }

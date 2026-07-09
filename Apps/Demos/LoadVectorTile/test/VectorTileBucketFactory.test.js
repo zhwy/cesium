@@ -239,6 +239,56 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
 }
 
 {
+  const diagnostics = createDiagnostics();
+  const styleRule = normalizeStyleDocument({
+    version: 1,
+    sources: {
+      demo: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        id: "region-symbol",
+        type: "symbol",
+        source: "demo",
+        sourceLayer: "region",
+        layout: {
+          "symbol-placement": "polygon-center",
+          "icon-image": "capital",
+          "text-field": ["get", "name"],
+        },
+      },
+    ],
+  }).layers[0];
+
+  const bucket = createVectorTilePrimitiveBucket(
+    createDecodedRegionLayer(),
+    styleRule,
+    4,
+    {
+      scene: {},
+      iconResolver: (name) => (name === "capital" ? "capital.png" : name),
+      diagnostics,
+    },
+  );
+
+  assert.equal(bucket.primitives.length, 2);
+  assert.ok(bucket.primitives[0] instanceof FakeBillboardCollection);
+  assert.ok(bucket.primitives[1] instanceof FakeLabelCollection);
+  assert.deepEqual(bucket.primitives[0].items[0].position, {
+    longitude: 1,
+    latitude: 1,
+    height: 0,
+  });
+  assert.equal(bucket.primitives[1].items[0].text, "Center Label");
+  console.log(
+    "✓ route polygon-center symbol placement through polygon-derived points",
+  );
+}
+
+{
   const vectorTile = {
     primitives: {},
     primitiveStyleRules: {},
@@ -353,6 +403,26 @@ function createDecodedPlaceLayer() {
       ringOffsets: new Uint32Array([0]),
       polygonOffsets: new Uint32Array([0]),
       metadata: [],
+    },
+  };
+}
+
+function createDecodedRegionLayer() {
+  return {
+    points: {
+      positions: new Float64Array(),
+      metadata: [],
+    },
+    lines: {
+      positions: new Float64Array(),
+      offsets: new Uint32Array([0]),
+      metadata: [],
+    },
+    polygons: {
+      positions: new Float64Array([0, 0, 2, 0, 2, 2, 0, 2, 0, 0]),
+      ringOffsets: new Uint32Array([0, 5]),
+      polygonOffsets: new Uint32Array([0, 1]),
+      metadata: [{ properties: { name: "Center Label" } }],
     },
   };
 }

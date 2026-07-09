@@ -74,20 +74,20 @@
 
 每个 `layers[]` 元素都支持以下通用字段：
 
-| 字段          | 必填 | 说明                                      |
-| ------------- | ---- | ----------------------------------------- |
-| `id`          | 是   | 当前样式图层唯一 id。                     |
-| `type`        | 是   | `fill`、`line` 或 `symbol`。              |
-| `source`      | 是   | 关联的 source id。                        |
-| `sourceLayer` | 是   | PBF 内部 source-layer 名称。              |
-| `minzoom`     | 否   | 当前图层的最小可见 zoom。                 |
-| `maxzoom`     | 否   | 当前图层的最大可见 zoom，语义为排他上界。 |
-| `filter`      | 否   | 可序列化过滤表达式。                      |
-| `layout`      | 否   | 主要放几何布局和 symbol 相关字段。        |
-| `paint`       | 否   | 主要放颜色、宽度、文字外观等字段。        |
-| `terrain`     | 否   | Cesium 三维扩展，控制贴地和高度偏移。     |
-| `visibility`  | 否   | `false` 时图层不会参与解码和建桶。        |
-| `metadata`    | 否   | 自定义透传数据。                          |
+| 字段          | 必填 | 说明                                                                     |
+| ------------- | ---- | ------------------------------------------------------------------------ |
+| `id`          | 是   | 当前样式图层唯一 id。                                                    |
+| `type`        | 是   | 当前可用值为 `fill`、`line` 或 `symbol`。`circle` 为预留类型，尚未实现。 |
+| `source`      | 是   | 关联的 source id。                                                       |
+| `sourceLayer` | 是   | PBF 内部 source-layer 名称。                                             |
+| `minzoom`     | 否   | 当前图层的最小可见 zoom。                                                |
+| `maxzoom`     | 否   | 当前图层的最大可见 zoom，语义为排他上界。                                |
+| `filter`      | 否   | 可序列化过滤表达式。                                                     |
+| `layout`      | 否   | 主要放几何布局和 symbol 相关字段。                                       |
+| `paint`       | 否   | 主要放颜色、宽度、文字外观等字段。                                       |
+| `terrain`     | 否   | Cesium 三维扩展，控制贴地和高度偏移。                                    |
+| `visibility`  | 否   | `false` 时图层不会参与解码和建桶。                                       |
+| `metadata`    | 否   | 自定义透传数据。                                                         |
 
 ## 4. fill 图层
 
@@ -124,17 +124,33 @@
 ### 5.2 行为说明
 
 - `line` 当前由 `VectorTileLineBucket` 负责。
+- `line` 图层会自动绘制 source layer 中所有可线化几何：
+  - line / multiline 按原始线要素绘制；
+  - polygon / multipolygon 按 polygon outline 绘制。
 - 当 `terrain.clampToGround: true` 且 `heightOffset === 0` 时，使用 `GroundPolylinePrimitive`。
+- 当 `clipToTile: true` 且存在瓦片边界信息时，由 polygon 派生的 outline 会跳过落在瓦片边界上的线段，避免相邻瓦片重复描边。
 - 当 source 配置 `renderBackend: "packed"`，且满足以下条件时，线会走 packed 后端：
   - `allowPicking === false`
   - 线数量达到 `packedMinimumInstances`
   - `line-color` 和 `line-width` 不是表达式
   - 当前不是贴地线
+- 当当前图层需要同时绘制 polygon outline 时，会回退到普通 instances 后端。
 - 不满足条件时会自动回退到普通 instances 后端。
 
 ## 6. symbol 图层
 
 `type: "symbol"` 用于绘制点图标和文字。
+
+### 6.0 placement
+
+| 字段               | 类型   | 默认值  | 说明                                                                         |
+| ------------------ | ------ | ------- | ---------------------------------------------------------------------------- |
+| `symbol-placement` | 字符串 | `point` | 控制 symbol 从哪类源几何派生位置。第一阶段支持 `point` 和 `polygon-center`。 |
+
+`symbol-placement` 语义：
+
+- `point`：读取点要素，保持当前 point symbol 行为。
+- `polygon-center`：读取面要素，基于每个已解码 polygon 片段计算中心点，然后在该中心点绘制图标和文字。
 
 ### 6.1 icon layout
 
@@ -195,8 +211,55 @@
   - 没有默认值的字段会被省略。
 - 未配置 `icon-width` / `icon-height` 时，Cesium 会使用源图像尺寸。
 - `text-font` 优先级高于 `text-font-family`。
+- `symbol-placement: "polygon-center"` 时，`icon-*` 和 `text-*` 字段仍按普通 symbol 规则求值，只是位置来自 polygon center。
 
-## 7. terrain 三维扩展
+## 7. circle 图层（预留，当前未实现）
+
+Mapbox Style 中的 `circle` 图层通常表示“以点要素为中心绘制屏幕空间圆点”。LoadVectorTile 当前还没有实现 `type: "circle"`，因此 style document 中配置 `circle` 图层会被校验拒绝；本节仅记录后续实现方向，方便样式设计时对齐语义。
+
+推荐的未来配置形态：
+
+```js
+{
+  id: "city-circle",
+  type: "circle",
+  source: "base",
+  sourceLayer: "places",
+  filter: ["==", ["get", "kind"], "city"],
+  paint: {
+    "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 8],
+    "circle-color": "#ff6600cc",
+    "circle-outline-color": "#ffffffff",
+    "circle-outline-width": 1,
+  },
+  terrain: {
+    clampToGround: true,
+    heightOffset: 0,
+  },
+}
+```
+
+### 7.1 预留 `paint` 字段
+
+| 字段                   | 类型         | 建议默认值  | 说明                                        |
+| ---------------------- | ------------ | ----------- | ------------------------------------------- |
+| `circle-radius`        | 数字或表达式 | `5`         | 圆点半径，单位像素。                        |
+| `circle-color`         | 颜色或表达式 | `#000000ff` | 圆点填充色。                                |
+| `circle-opacity`       | 数字或表达式 | `1`         | 圆点填充透明度。                            |
+| `circle-outline-color` | 颜色或表达式 | 无          | 圆点描边色。                                |
+| `circle-outline-width` | 数字或表达式 | `0`         | 圆点描边宽度，单位像素。                    |
+| `circle-blur`          | 数字或表达式 | `0`         | 预留字段；Cesium 实现可能不会第一阶段支持。 |
+
+### 7.2 Cesium 实现取舍
+
+`circle` 在 Cesium 中有两条可选路径：
+
+- `BillboardCollection` + 动态生成圆形 canvas：贴地能力更好，可以复用 billboard 的 `HeightReference`，更适合作为第一版实现。
+- `PointPrimitiveCollection`：更接近“点 primitive”，但贴地和地形高度偏移需要额外处理，不适合作为默认第一版。
+
+如果后续使用 `PointPrimitive` 实现贴地圆点，需要明确高程策略，例如只在创建时采样一次、相机停止后低频采样，或完全不做动态高程采样。每帧批量采样地形高程成本较高，不建议作为默认行为。
+
+## 8. terrain 三维扩展
 
 每个样式图层都可以配置：
 
@@ -222,7 +285,7 @@ terrain: {
 | `line`   | 普通 `Primitive + PolylineGeometry`       | `GroundPolylinePrimitive`              | 回退到普通高度线，并记录诊断             |
 | `symbol` | `BillboardCollection` / `LabelCollection` | `HeightReference.CLAMP_TO_GROUND`      | `HeightReference.RELATIVE_TO_GROUND`     |
 
-## 8. 表达式
+## 9. 表达式
 
 当前样式值支持和 demo 现有实现一致的可序列化表达式子集，例如：
 
@@ -261,7 +324,7 @@ terrain: {
 - `packed` 线后端要求 `line-color` 和 `line-width` 为常量，表达式会让该图层自动回退到 instances。
 - `text-background-padding`、`icon-offset`、`text-offset` 的数组值当前建议直接写常量数组。
 
-## 9. filter
+## 10. filter
 
 `filter` 使用可序列化过滤表达式。常见示例：
 
@@ -273,7 +336,14 @@ terrain: {
 
 过滤在 worker 可支持时会尽量前移；如果表达式不在 worker 支持范围内，会回退到主线程过滤。
 
-## 10. 图标注册
+几何类型和 filter 的组合规则：
+
+- `fill` 图层只匹配 polygon 要素。
+- `line` 图层匹配 line 要素，也匹配 polygon 要素并将其渲染为 outline。
+- `symbol-placement: "point"` 匹配 point 要素。
+- `symbol-placement: "polygon-center"` 匹配 polygon 要素。
+
+## 11. 图标注册
 
 `icon-image` 可以直接写 URL，也可以写注册名。
 
@@ -301,9 +371,9 @@ layer.registerIconImage("capital", imageOrCanvasOrUrl);
 - `HTMLImageElement`
 - `HTMLCanvasElement`
 
-## 11. 完整示例
+## 12. 完整示例
 
-下面的示例覆盖面、线、图标、文字、背景、锚点、尺寸、表达式、过滤和 terrain：
+下面的示例覆盖面、线、polygon outline、图标、文字、背景、锚点、尺寸、表达式、过滤和 terrain：
 
 ```js
 manager.setStyle({
@@ -360,6 +430,17 @@ manager.setStyle({
       },
     },
     {
+      id: "country-boundary-line",
+      type: "line",
+      source: "base",
+      sourceLayer: "countries",
+      filter: ["==", ["get", "kind"], "land"],
+      paint: {
+        "line-color": "#ffffffaa",
+        "line-width": 1,
+      },
+    },
+    {
       id: "capital-symbol",
       type: "symbol",
       source: "base",
@@ -391,13 +472,32 @@ manager.setStyle({
         disableDepthTestDistance: 1000000,
       },
     },
+    {
+      id: "country-label",
+      type: "symbol",
+      source: "base",
+      sourceLayer: "countries",
+      filter: ["has", "name"],
+      layout: {
+        "symbol-placement": "polygon-center",
+        "text-field": ["get", "name"],
+        "text-size": 12,
+      },
+      paint: {
+        "text-color": "#dde8ffff",
+        "text-halo-color": "#102030ff",
+        "text-halo-width": 2,
+      },
+    },
   ],
 });
 ```
 
-## 12. 已知限制
+## 13. 已知限制
 
 - 已支持 symbol 的图标锚点、图标宽高、文字锚点、文字背景和文字背景 padding。
+- `symbol-placement: "polygon-center"` 当前使用瓦片内 polygon 片段中心；跨瓦片大面可能出现重复标注。
+- `symbol-placement: "polygon-center"` 当前使用面积 centroid，凹多边形时中心点可能落在面外部。
 - 当前仍未实现碰撞避让、沿线文字、复杂文本 shaping、sprite atlas 打包和完整字体栈管理。
 - `fill` / `line` 在 `clampToGround: true` 且 `heightOffset != 0` 时会回退到普通高度渲染。
 - `packed` 当前只优化大量常量样式线，不支持逐要素拾取。

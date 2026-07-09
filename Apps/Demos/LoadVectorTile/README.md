@@ -30,6 +30,7 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTileStyleRule.js
 │   ├── VectorTilePrimitiveBucket.js
 │   ├── VectorTileBucketUtils.js
+│   ├── VectorTileGeometryPlacement.js
 │   ├── VectorTileBucketFactory.js
 │   ├── VectorTileFillBucket.js
 │   ├── VectorTileLineBucket.js
@@ -47,6 +48,7 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTilePrimitiveBucket.test.js
 │   ├── VectorTileBucketUtils.test.js
 │   ├── VectorTileBucketFactory.test.js
+│   ├── VectorTileGeometryPlacement.test.js
 │   ├── VectorTileFillBucket.test.js
 │   ├── VectorTileLineBucket.test.js
 │   ├── VectorTileStyleZoom.test.js
@@ -160,10 +162,11 @@ READY
 | `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。            |
 | `VectorTilePrimitiveBucket.js`   | 管理一个 style rule 在单个瓦片上的 Primitive/Collection 生命周期。                                |
 | `VectorTileBucketUtils.js`       | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                      |
+| `VectorTileGeometryPlacement.js` | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。    |
 | `VectorTileBucketFactory.js`     | 按样式类型把 style rule 路由到对应 bucket，并保持 primitive 存储形状不变。                        |
 | `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive。                                                          |
-| `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive。                                              |
-| `VectorTileSymbolBucket.js`      | 基于点要素创建 `BillboardCollection` 和 `LabelCollection`。                                       |
+| `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。         |
+| `VectorTileSymbolBucket.js`      | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。       |
 | `VectorStyleExpression.js`       | 执行样式表达式子集，例如 `get`、`match`、`case`、`interpolate`、`zoom`。                          |
 | `VectorStyleFilter.js`           | 执行和校验可序列化 filter 表达式，拒绝函数 filter。                                               |
 | `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                     |
@@ -228,7 +231,7 @@ const layer = manager.addLayer({
 
 推荐的新入口是 `manager.setStyle(styleDocument)` 或 `manager.addLayer({ styleDocument })`。外部配置沿用易理解的 `sources + layers` 结构，但内部不会照搬 Mapbox 的类名，而是映射到 Cesium 风格的 `VectorTileDataProvider`、`VectorTileStyleRule` 和 `PrimitiveBucket`。
 
-完整字段、symbol 文字/图标配置、锚点映射、terrain 语义、表达式和完整示例，请直接查看 [STYLE.md](./STYLE.md)。
+完整字段、`symbol-placement`、polygon center、polygon outline line、`circle` 预留语义、symbol 文字/图标配置、锚点映射、terrain 语义、表达式和完整示例，请直接查看 [STYLE.md](./STYLE.md)。
 
 ```js
 manager.setStyle({
@@ -306,7 +309,7 @@ manager.setStyle({
 - `sourceLayer` 指向 PBF 内部 source-layer 名称；名称不匹配时当前 layer 合法但为空。
 - `filter` 在 worker 或建桶前尽早剔除不需要的要素。
 - `minzoom/maxzoom` 使用相机离地高度估算出的全局 style zoom 控制 layer 可见性，语义为 `minzoom <= zoom < maxzoom`，同一帧内所有瓦片一致。
-- `paint/layout/terrain` 按 style rule 独立生效，因此同一份 PBF 可以同时画面、画线框、画文字。
+- `paint/layout/terrain` 按 style rule 独立生效，因此同一份 PBF 可以同时画面、画 polygon outline 线、画点标注，或通过 `symbol-placement: "polygon-center"` 在面中心画文字/图标。
 
 旧版 `styles` 仍兼容，内部会转换为等价 style document；后续新示例建议优先使用 `sources/layers`。
 
@@ -600,9 +603,11 @@ passesAdoptionThreshold
 
 ## 15. 已知限制
 
-- symbol 已支持图标和文字，并补齐了图标锚点、图标宽高、文字锚点、文字背景和背景 padding，但尚未实现碰撞避让、沿线文字、图标旋转对齐和完整字体栈管理；
+- symbol 已支持图标和文字，并补齐了图标锚点、图标宽高、文字锚点、文字背景和背景 padding；同时支持 `symbol-placement: "polygon-center"` 在面中心绘制标注，但当前仍未实现碰撞避让、沿线文字、图标旋转对齐和完整字体栈管理；
+- `symbol-placement: "polygon-center"` 当前按瓦片内 polygon 片段计算中心，跨瓦片大面可能出现重复标注；
+- `circle` 图层当前只是样式文档中的预留设计，尚未实现；后续第一版更适合用 Billboard 生成圆形纹理来保留贴地能力，PointPrimitive 方案需要额外高程策略；
 - `clampToGround: true` 与非零 `heightOffset` 在线/面上不能同时严格满足，当前会降级为普通高度渲染；
-- packed 当前只优化大量同色线，不支持逐要素拾取；
+- packed 当前只优化大量同色线，不支持逐要素拾取；当 `line` 图层同时需要绘制 polygon outline 时会自动回退到 instances；
 - Worker 当前为单实例，`maximumDecodeTasks` 限制提交链路，但 Worker 内仍串行执行消息；
 - 面裁剪按单环执行，不能修复源数据中的自相交、重复面或复杂拓扑错误；
 - 源数据本身重叠时，客户端不会自动 dissolve；

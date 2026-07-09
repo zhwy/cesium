@@ -8,7 +8,7 @@ import {
   isPointInRectangle,
   projectPoint,
 } from "./VectorTileGeometryUtils.js";
-import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
+import { doesFeatureMatchAnyStyleRule as matchFeatureAgainstStyleRules } from "./VectorTileGeometryPlacement.js";
 
 function createPackedLayer() {
   return {
@@ -272,30 +272,11 @@ function groupStyleRulesBySourceLayer(styleRules) {
 
 function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
   const zoom = tile.styleZoom ?? tile.level;
-  for (let i = 0; i < styleRules.length; ++i) {
-    const styleRule = styleRules[i];
-    if (!doesGeometryTypeMatchStyleRule(feature.type, styleRule.type)) {
-      continue;
-    }
-    if (
-      evaluateVectorStyleFilter(styleRule.filter, feature, {
-        zoom,
-        level: zoom,
-        sourceLevel: tile.sourceLevel ?? tile.level,
-      })
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function doesGeometryTypeMatchStyleRule(featureType, styleRuleType) {
-  return (
-    (featureType === 1 && styleRuleType === "symbol") ||
-    (featureType === 2 && styleRuleType === "line") ||
-    (featureType === 3 && styleRuleType === "fill")
-  );
+  return matchFeatureAgainstStyleRules(feature, feature.type, styleRules, {
+    zoom,
+    level: zoom,
+    sourceLevel: tile.sourceLevel ?? tile.level,
+  });
 }
 
 export function getTransferableBuffers(result) {

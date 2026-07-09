@@ -18,11 +18,9 @@ import {
   createStyleDocumentFromLegacyOptions,
   normalizeStyleDocument,
 } from "./VectorTileStyle.js";
+import { filterPackedLayerByStyleRules } from "./VectorTileGeometryPlacement.js";
 import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
-import {
-  evaluateVectorStyleFilter,
-  isWorkerSupportedVectorStyleFilter,
-} from "./VectorStyleFilter.js";
+import { isWorkerSupportedVectorStyleFilter } from "./VectorStyleFilter.js";
 
 const defaultOptions = {
   tilingScheme: "WebMercatorTilingScheme",
@@ -536,6 +534,10 @@ function getStyleRulesForDecode(styleDocument) {
       type: layer.type,
       sourceLayer: layer.sourceLayer,
       filter: layer.filter,
+      layout:
+        layer.type === "symbol"
+          ? { "symbol-placement": layer.layout?.["symbol-placement"] }
+          : undefined,
       visibility: layer.visibility,
     }));
 }
@@ -578,7 +580,12 @@ function applyMainThreadStyleFilters(
     const packedLayer = decodedTile.layers[sourceLayer];
     const layerStyleRules = styleRulesBySourceLayer.get(sourceLayer);
     layers[sourceLayer] = layerStyleRules
-      ? filterPackedLayer(packedLayer, layerStyleRules, zoom, diagnostics)
+      ? filterPackedLayerByStyleRules(
+          packedLayer,
+          layerStyleRules,
+          zoom,
+          diagnostics,
+        )
       : packedLayer;
   });
   return { ...decodedTile, layers };
@@ -595,150 +602,6 @@ function groupStyleRulesBySourceLayer(styleRules) {
     rules.push(styleRule);
   });
   return result;
-}
-
-function filterPackedLayer(packedLayer, styleRules, zoom, diagnostics) {
-  const points = filterPoints(packedLayer.points, styleRules, zoom);
-  const lines = filterLines(packedLayer.lines, styleRules, zoom);
-  const polygons = filterPolygons(packedLayer.polygons, styleRules, zoom);
-  const positionCount =
-    points.positions.length / 2 +
-    lines.positions.length / 2 +
-    polygons.positions.length / 2;
-  const featureCount =
-    points.metadata.length + lines.metadata.length + polygons.metadata.length;
-  const styleFilteredFeatureCount = Math.max(
-    0,
-    (packedLayer.featureCount ?? 0) - featureCount,
-  );
-
-  if (styleFilteredFeatureCount > 0) {
-    diagnostics?.increment("mainThreadStyleFilteredFeatures");
-  }
-
-  return {
-    ...packedLayer,
-    featureCount,
-    positionCount,
-    styleFilteredFeatureCount:
-      (packedLayer.styleFilteredFeatureCount ?? 0) + styleFilteredFeatureCount,
-    points,
-    lines,
-    polygons,
-  };
-}
-
-function filterPoints(points, styleRules, zoom) {
-  const metadata = points.metadata ?? [];
-  if (metadata.length === 0 && points.positions.length > 0) {
-    return points;
-  }
-
-  const positions = [];
-  const filteredMetadata = [];
-  for (let i = 0; i < points.positions.length / 2; ++i) {
-    if (!doesFeatureMatchAnyStyleRule(metadata[i], 1, styleRules, zoom)) {
-      continue;
-    }
-    positions.push(points.positions[i * 2], points.positions[i * 2 + 1]);
-    filteredMetadata.push(metadata[i]);
-  }
-  return {
-    positions: new Float64Array(positions),
-    metadata: filteredMetadata,
-  };
-}
-
-function filterLines(lines, styleRules, zoom) {
-  const metadata = lines.metadata ?? [];
-  if (metadata.length === 0 && lines.positions.length > 0) {
-    return lines;
-  }
-
-  const positions = [];
-  const offsets = [0];
-  const filteredMetadata = [];
-  for (let i = 0; i + 1 < lines.offsets.length; ++i) {
-    if (!doesFeatureMatchAnyStyleRule(metadata[i], 2, styleRules, zoom)) {
-      continue;
-    }
-    const start = lines.offsets[i];
-    const end = lines.offsets[i + 1];
-    for (let j = start * 2; j < end * 2; ++j) {
-      positions.push(lines.positions[j]);
-    }
-    offsets.push(positions.length / 2);
-    filteredMetadata.push(metadata[i]);
-  }
-  return {
-    positions: new Float64Array(positions),
-    offsets: new Uint32Array(offsets),
-    metadata: filteredMetadata,
-  };
-}
-
-function filterPolygons(polygons, styleRules, zoom) {
-  const metadata = polygons.metadata ?? [];
-  if (metadata.length === 0 && polygons.positions.length > 0) {
-    return polygons;
-  }
-
-  const positions = [];
-  const ringOffsets = [0];
-  const polygonOffsets = [0];
-  const filteredMetadata = [];
-  for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
-    if (!doesFeatureMatchAnyStyleRule(metadata[i], 3, styleRules, zoom)) {
-      continue;
-    }
-    const firstRing = polygons.polygonOffsets[i];
-    const lastRing = polygons.polygonOffsets[i + 1];
-    for (let ringIndex = firstRing; ringIndex < lastRing; ++ringIndex) {
-      const start = polygons.ringOffsets[ringIndex];
-      const end = polygons.ringOffsets[ringIndex + 1];
-      if (end <= start) {
-        continue;
-      }
-      for (let j = start * 2; j < end * 2; ++j) {
-        positions.push(polygons.positions[j]);
-      }
-      ringOffsets.push(positions.length / 2);
-    }
-    polygonOffsets.push(ringOffsets.length - 1);
-    filteredMetadata.push(metadata[i]);
-  }
-  return {
-    positions: new Float64Array(positions),
-    ringOffsets: new Uint32Array(ringOffsets),
-    polygonOffsets: new Uint32Array(polygonOffsets),
-    metadata: filteredMetadata,
-  };
-}
-
-function doesFeatureMatchAnyStyleRule(
-  metadata,
-  geometryType,
-  styleRules,
-  zoom,
-) {
-  for (let i = 0; i < styleRules.length; ++i) {
-    const styleRule = styleRules[i];
-    if (!doesGeometryTypeMatchStyleRule(geometryType, styleRule.type)) {
-      continue;
-    }
-    if (evaluateVectorStyleFilter(styleRule.filter, metadata, { zoom })) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function doesGeometryTypeMatchStyleRule(geometryType, styleRuleType) {
-  return (
-    (geometryType === 1 && styleRuleType === "symbol") ||
-    (geometryType === 2 && styleRuleType === "line") ||
-    (geometryType === 3 && styleRuleType === "fill")
-  );
 }
 
 function countDecodedTile(decodedTile) {

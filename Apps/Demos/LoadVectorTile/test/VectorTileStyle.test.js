@@ -183,6 +183,53 @@ import {
 }
 
 {
+  const style = normalizeStyleDocument({
+    sources: {
+      org: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        id: "org-symbol-default",
+        type: "symbol",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          "text-field": ["get", "name"],
+        },
+      },
+      {
+        id: "org-symbol-polygon",
+        type: "symbol",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          "symbol-placement": "polygon-center",
+          "text-field": ["get", "name"],
+        },
+      },
+      {
+        id: "org-symbol-invalid",
+        type: "symbol",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          "symbol-placement": "polygon-visual-center",
+          "text-field": ["get", "name"],
+        },
+      },
+    ],
+  });
+
+  assert.equal(style.layers[0].layout["symbol-placement"], "point");
+  assert.equal(style.layers[1].layout["symbol-placement"], "polygon-center");
+  assert.equal(style.layers[2].layout["symbol-placement"], "point");
+  console.log("✓ normalize symbol-placement values with default point");
+}
+
+{
   assert.deepEqual(CESIUM_STYLE_IMPLEMENTATION_TERMS, [
     "VectorTileDataProvider",
     "VectorTileStyleRule",

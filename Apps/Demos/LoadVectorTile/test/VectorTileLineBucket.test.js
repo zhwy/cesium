@@ -49,6 +49,10 @@ const Cesium = {
       latitude,
       height,
     }),
+    equals: (left, right) =>
+      left.longitude === right.longitude &&
+      left.latitude === right.latitude &&
+      left.height === right.height,
   },
   PolylineGeometry: FakePolylineGeometry,
   GroundPolylineGeometry: FakeGroundPolylineGeometry,
@@ -277,6 +281,69 @@ const { default: VectorTileLineBucket } =
   assert.equal(diagnostics.counts.packedLineBuckets ?? 0, 0);
   console.log(
     "✓ skip packed path and record fallback when ground offset is unsupported",
+  );
+}
+
+{
+  const diagnostics = createDiagnostics();
+  const bucket = new VectorTileLineBucket(
+    {
+      id: "regions-outline",
+      type: "line",
+      sourceLayer: "regions",
+      paint: {
+        "line-color": "#ffcc00ff",
+        "line-width": 5,
+      },
+      terrain: {
+        heightOffset: 10,
+      },
+    },
+    {
+      allowPicking: true,
+      asynchronous: false,
+      diagnostics,
+    },
+  ).build(
+    {
+      positions: new Float64Array([100, 20, 101, 21]),
+      offsets: new Uint32Array([0, 2]),
+      metadata: [{ id: 1, properties: {} }],
+    },
+    5,
+    {
+      polygons: {
+        positions: new Float64Array([0, 0, 1, 0, 1, 1, 0, 1, 0, 0]),
+        ringOffsets: new Uint32Array([0, 5]),
+        polygonOffsets: new Uint32Array([0, 1]),
+        metadata: [{ id: 2, properties: {} }],
+      },
+    },
+  );
+
+  assert.equal(bucket.length, 1);
+  assert.ok(bucket.primitives[0] instanceof FakePrimitive);
+  assert.equal(bucket.primitives[0].options.geometryInstances.length, 2);
+  assert.equal(
+    bucket.primitives[0].options.geometryInstances[1].geometry.options.width,
+    5,
+  );
+  assert.deepEqual(
+    bucket.primitives[0].options.geometryInstances[1].geometry.options
+      .positions[0],
+    {
+      longitude: 0,
+      latitude: 0,
+      height: 10,
+    },
+  );
+  assert.equal(
+    bucket.primitives[0].options.geometryInstances[1].attributes.color.color
+      .css,
+    "#ffcc00ff",
+  );
+  console.log(
+    "✓ render polygon outline instances alongside ordinary line geometry",
   );
 }
 

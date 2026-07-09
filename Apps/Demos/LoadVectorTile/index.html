@@ -406,6 +406,31 @@
             },
           },
           {
+            id: "res_org_gr-level4-text",
+            type: "symbol",
+            source: "res_org_gr",
+            sourceLayer: "res_org_gr",
+            minzoom: 13,
+            maxzoom: 15,
+            layout: {
+              "symbol-placement": "polygon-center",
+              "text-field": ["get", "org_name"],
+            },
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "#000000",
+              "text-halo-width": 3,
+            },
+            filter: [
+              "all",
+              ["==", ["get", "year"], 2025],
+              ["==", ["get", "org_level"], "4"],
+            ],
+            terrain: {
+              clampToGround: true,
+            },
+          },
+          {
             id: "res_parent_plot_boundary-line",
             type: "line",
             source: "res_parent_plot_boundary",
@@ -467,14 +492,13 @@
           },
           {
             id: "countries",
-            type: "fill",
+            type: "line",
             source: "globe",
             sourceLayer: "countries",
             maxzoom: 5,
             paint: {
-              "fill-color": "#ff00ff77",
-              "fill-outline-color": "#ff00ff",
-              "fill-outline-width": 2,
+              "line-color": "#ff00ff",
+              "line-width": 2,
             },
             terrain: {
               heightOffset: 10,
