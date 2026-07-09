@@ -131,10 +131,20 @@ export default class VectorTileLayerManager {
   }
 
   removeFromScene(scene) {
+    this._removeLayerAddedListener?.();
+    this._removeLayerRemovedListener?.();
+    this._removeLayerVisibilityListener?.();
+    this._removeLayerChangedListener?.();
+    this._removeLayerAddedListener = undefined;
+    this._removeLayerRemovedListener = undefined;
+    this._removeLayerVisibilityListener = undefined;
+    this._removeLayerChangedListener = undefined;
+
     this._removePreUpdateListener?.();
     this._removePostRenderListener?.();
     this._removePreUpdateListener = undefined;
     this._removePostRenderListener = undefined;
+
     scene.primitives.remove(this.quadtreePrimitive);
   }
 
@@ -176,10 +186,39 @@ export default class VectorTileLayerManager {
     return this._vectorTileLayers.addLayerProvider(provider);
   }
 
+  removeLayer(layerId, destroy = true) {
+    const layer = this.getLayer(layerId);
+    if (!layer) {
+      return false;
+    }
+
+    const sourceId = getManagedLayerSourceId(layer);
+    const removed = this._vectorTileLayers.remove(layer, destroy);
+    if (removed && sourceId && !this._hasLayerUsingSourceId(sourceId)) {
+      this._dataProviders.delete(sourceId);
+    }
+
+    return removed;
+  }
+
+  removeAll(destroy = true) {
+    this._dataProviders.clear();
+    this._vectorTileLayers.removeAll(destroy);
+  }
+
+  getLayer(layerId) {
+    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
+      const layer = this._vectorTileLayers.get(i);
+      if (isManagedLayerIdMatch(layer, layerId)) {
+        return layer;
+      }
+    }
+    return undefined;
+  }
+
   setStyle(styleDocument) {
     const normalizedStyle = normalizeStyleDocument(styleDocument);
-    this._dataProviders.clear();
-    this._vectorTileLayers.removeAll();
+    this.removeAll();
 
     Object.keys(normalizedStyle.sources).forEach((sourceId) => {
       const source = normalizedStyle.sources[sourceId];
@@ -320,4 +359,21 @@ export default class VectorTileLayerManager {
       this._vectorTileLayers.get(i).setScene(scene);
     }
   }
+
+  _hasLayerUsingSourceId(sourceId) {
+    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
+      if (getManagedLayerSourceId(this._vectorTileLayers.get(i)) === sourceId) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+function getManagedLayerSourceId(layer) {
+  return layer?._option?.sourceId ?? layer?._option?.styleSourceId;
+}
+
+function isManagedLayerIdMatch(layer, layerId) {
+  return layer?._option?.id === layerId;
 }
