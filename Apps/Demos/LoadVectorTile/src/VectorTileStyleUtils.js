@@ -1,13 +1,14 @@
 import { validateVectorStyleFilter } from "./VectorTileStyleExpression.js";
 import { normalizeSymbolPlacement } from "./VectorTileGeometryPlacement.js";
 
-const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol"]);
+const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol", "circle"]);
 
 const CESIUM_STYLE_IMPLEMENTATION_TERMS = Object.freeze([
   "VectorTileDataProvider",
   "VectorTileStyleRule",
   "VectorTilePrimitiveBucket",
   "VectorTileSymbolBucket",
+  "VectorTileCircleBucket",
 ]);
 
 /**
@@ -108,7 +109,7 @@ export function createLegacyLayerOptionsFromStyleDocument(styleDocument) {
 
   normalized.layers.forEach((layer) => {
     const entry = bySource.get(layer.source);
-    if (!entry || layer.type === "symbol") {
+    if (!entry || layer.type === "symbol" || layer.type === "circle") {
       return;
     }
 

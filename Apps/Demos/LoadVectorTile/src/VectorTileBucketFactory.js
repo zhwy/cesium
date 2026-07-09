@@ -3,6 +3,7 @@ import {
   createPolygonCenterPoints,
   getStyleRuleSymbolPlacement,
 } from "./VectorTileGeometryPlacement.js";
+import VectorTileCircleBucket from "./VectorTileCircleBucket.js";
 import VectorTileFillBucket from "./VectorTileFillBucket.js";
 import VectorTileLineBucket from "./VectorTileLineBucket.js";
 import VectorTileSymbolBucket from "./VectorTileSymbolBucket.js";
@@ -57,6 +58,11 @@ export function createVectorTilePrimitiveBucket(
       packedLayer.polygons,
       zoom,
       { tileBounds },
+    );
+  } else if (styleRule.type === "circle") {
+    bucket = new VectorTileCircleBucket(styleRule, options).build(
+      packedLayer.points,
+      zoom,
     );
   } else if (styleRule.type === "line") {
     bucket = new VectorTileLineBucket(styleRule, options).build(

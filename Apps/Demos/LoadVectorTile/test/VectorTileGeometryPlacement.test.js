@@ -29,6 +29,9 @@ import {
     }),
     [3],
   );
+  assert.deepEqual(getStyleRuleGeometryTypes({ type: "circle" }), [1]);
+  assert.equal(doesStyleRuleUseGeometryType({ type: "circle" }, 1), true);
+  assert.equal(doesStyleRuleUseGeometryType({ type: "circle" }, 2), false);
   assert.deepEqual(getStyleRuleGeometryTypes({ type: "line" }), [2, 3]);
   assert.equal(doesStyleRuleUseGeometryType({ type: "line" }, 3), true);
   assert.equal(
@@ -82,7 +85,7 @@ import {
       offsets: new Uint32Array([0, 2, 4]),
       metadata: [
         { properties: { kind: "main" } },
-        { properties: { kind: "minor" } },
+        { properties: { kind: "poi" } },
       ],
     },
     polygons: {
@@ -93,11 +96,17 @@ import {
       polygonOffsets: new Uint32Array([0, 1, 2]),
       metadata: [
         { properties: { label: true, kind: "region" } },
-        { properties: { label: false, kind: "main" } },
+        { properties: { label: false, kind: "poi" } },
       ],
     },
   };
   const styleRules = [
+    {
+      id: "poi-circle",
+      type: "circle",
+      sourceLayer: "demo",
+      filter: ["==", ["get", "kind"], "poi"],
+    },
     {
       id: "point-symbol",
       type: "symbol",
@@ -129,8 +138,10 @@ import {
 
   assert.equal(filtered.points.metadata.length, 1);
   assert.equal(filtered.lines.metadata.length, 1);
-  assert.equal(filtered.polygons.metadata.length, 2);
-  assert.equal(filtered.featureCount, 4);
+  assert.equal(filtered.polygons.metadata.length, 1);
+  assert.equal(filtered.featureCount, 3);
+  assert.equal(filtered.lines.metadata[0].properties.kind, "main");
+  assert.equal(filtered.polygons.metadata[0].properties.kind, "region");
   assert.equal(diagnostics.counts.mainThreadStyleFilteredFeatures, 1);
   console.log(
     "✓ preserve required point, line and polygon source geometries while filtering",

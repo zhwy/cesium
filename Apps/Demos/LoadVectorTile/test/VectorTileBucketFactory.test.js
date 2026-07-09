@@ -207,6 +207,19 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
           "text-background-color": "#00000088",
         },
       },
+      {
+        id: "place-circle",
+        type: "circle",
+        source: "demo",
+        sourceLayer: "place",
+        filter: ["==", ["get", "kind"], "city"],
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "#ff6600cc",
+          "circle-outline-color": "#ffffffff",
+          "circle-outline-width": 1,
+        },
+      },
     ],
   }).layers.map((styleRule) =>
     createVectorTilePrimitiveBucket(
@@ -232,9 +245,13 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
   assert.equal(buckets[2].primitives.length, 2);
   assert.ok(buckets[2].primitives[0] instanceof FakeBillboardCollection);
   assert.ok(buckets[2].primitives[1] instanceof FakeLabelCollection);
-  assert.equal(diagnostics.counts.primitiveBuckets, 3);
+  assert.equal(buckets[3].primitives.length, 1);
+  assert.ok(buckets[3].primitives[0] instanceof FakeBillboardCollection);
+  assert.equal(buckets[3].primitives[0].items[0].width, 16);
+  assert.equal(buckets[3].primitives[0].items[0].height, 16);
+  assert.equal(diagnostics.counts.primitiveBuckets, 4);
   console.log(
-    "✓ route fill, line and symbol style rules to geometry-specific buckets",
+    "✓ route fill, line, symbol and circle style rules to geometry-specific buckets",
   );
 }
 
@@ -391,7 +408,7 @@ function createDecodedPlaceLayer() {
   return {
     points: {
       positions: new Float64Array([116, 40]),
-      metadata: [{ properties: { name: "Beijing" } }],
+      metadata: [{ properties: { kind: "city", name: "Beijing" } }],
     },
     lines: {
       positions: new Float64Array(),

@@ -1,4 +1,5 @@
 import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
+const Cesium = globalThis.Cesium ?? CesiumModule;
 import { VectorTilePrimitiveBucket } from "./VectorTileBucketFactory.js";
 import {
   createCartesianLine,
@@ -15,8 +16,6 @@ import {
   requiresGroundHeightOffsetFallback,
   shouldUseGroundPath,
 } from "./VectorTileBucketUtils.js";
-
-const Cesium = globalThis.Cesium ?? CesiumModule;
 
 export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {

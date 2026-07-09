@@ -4,6 +4,7 @@ const SYMBOL_PLACEMENT_POINT = "point";
 const SYMBOL_PLACEMENT_POLYGON_CENTER = "polygon-center";
 
 const GEOMETRY_TYPES_BY_STYLE_RULE = Object.freeze({
+  circle: Object.freeze([1]),
   fill: Object.freeze([3]),
   line: Object.freeze([2, 3]),
   symbolPoint: Object.freeze([1]),
@@ -27,6 +28,10 @@ export function getStyleRuleGeometryTypes(styleRule) {
 
   if (styleRule.type === "fill") {
     return GEOMETRY_TYPES_BY_STYLE_RULE.fill;
+  }
+
+  if (styleRule.type === "circle") {
+    return GEOMETRY_TYPES_BY_STYLE_RULE.circle;
   }
 
   if (styleRule.type === "line") {

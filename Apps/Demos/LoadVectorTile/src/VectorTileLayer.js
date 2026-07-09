@@ -550,6 +550,7 @@ function getStyleRulesForBuild(styleDocument) {
     (layer) =>
       layer.visibility !== false &&
       (layer.type === "fill" ||
+        layer.type === "circle" ||
         layer.type === "line" ||
         layer.type === "symbol"),
   );

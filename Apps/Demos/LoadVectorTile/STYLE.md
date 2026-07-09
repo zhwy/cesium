@@ -22,7 +22,7 @@
   layers: [
     {
       id: "layer-id",
-      type: "fill" | "line" | "symbol",
+      type: "fill" | "line" | "symbol" | "circle",
       source: "sourceId",
       sourceLayer: "pbf-source-layer-name",
       minzoom: 0,
@@ -74,20 +74,20 @@
 
 每个 `layers[]` 元素都支持以下通用字段：
 
-| 字段          | 必填 | 说明                                                                     |
-| ------------- | ---- | ------------------------------------------------------------------------ |
-| `id`          | 是   | 当前样式图层唯一 id。                                                    |
-| `type`        | 是   | 当前可用值为 `fill`、`line` 或 `symbol`。`circle` 为预留类型，尚未实现。 |
-| `source`      | 是   | 关联的 source id。                                                       |
-| `sourceLayer` | 是   | PBF 内部 source-layer 名称。                                             |
-| `minzoom`     | 否   | 当前图层的最小可见 zoom。                                                |
-| `maxzoom`     | 否   | 当前图层的最大可见 zoom，语义为排他上界。                                |
-| `filter`      | 否   | 可序列化过滤表达式。                                                     |
-| `layout`      | 否   | 主要放几何布局和 symbol 相关字段。                                       |
-| `paint`       | 否   | 主要放颜色、宽度、文字外观等字段。                                       |
-| `terrain`     | 否   | Cesium 三维扩展，控制贴地和高度偏移。                                    |
-| `visibility`  | 否   | `false` 时图层不会参与解码和建桶。                                       |
-| `metadata`    | 否   | 自定义透传数据。                                                         |
+| 字段          | 必填 | 说明                                                |
+| ------------- | ---- | --------------------------------------------------- |
+| `id`          | 是   | 当前样式图层唯一 id。                               |
+| `type`        | 是   | 当前可用值为 `fill`、`line`、`symbol` 或 `circle`。 |
+| `source`      | 是   | 关联的 source id。                                  |
+| `sourceLayer` | 是   | PBF 内部 source-layer 名称。                        |
+| `minzoom`     | 否   | 当前图层的最小可见 zoom。                           |
+| `maxzoom`     | 否   | 当前图层的最大可见 zoom，语义为排他上界。           |
+| `filter`      | 否   | 可序列化过滤表达式。                                |
+| `layout`      | 否   | 主要放几何布局和 symbol 相关字段。                  |
+| `paint`       | 否   | 主要放颜色、宽度、文字外观等字段。                  |
+| `terrain`     | 否   | Cesium 三维扩展，控制贴地和高度偏移。               |
+| `visibility`  | 否   | `false` 时图层不会参与解码和建桶。                  |
+| `metadata`    | 否   | 自定义透传数据。                                    |
 
 ## 4. fill 图层
 
@@ -213,11 +213,11 @@
 - `text-font` 优先级高于 `text-font-family`。
 - `symbol-placement: "polygon-center"` 时，`icon-*` 和 `text-*` 字段仍按普通 symbol 规则求值，只是位置来自 polygon center。
 
-## 7. circle 图层（预留，当前未实现）
+## 7. circle 图层
 
-Mapbox Style 中的 `circle` 图层通常表示“以点要素为中心绘制屏幕空间圆点”。LoadVectorTile 当前还没有实现 `type: "circle"`，因此 style document 中配置 `circle` 图层会被校验拒绝；本节仅记录后续实现方向，方便样式设计时对齐语义。
+`type: "circle"` 用于绘制点要素的屏幕空间圆点。当前实现使用 `BillboardCollection + 动态圆形 canvas`，因此可以复用 billboard 的贴地能力。
 
-推荐的未来配置形态：
+推荐配置形态：
 
 ```js
 {
@@ -239,25 +239,30 @@ Mapbox Style 中的 `circle` 图层通常表示“以点要素为中心绘制屏
 }
 ```
 
-### 7.1 预留 `paint` 字段
+### 7.1 `paint`
 
-| 字段                   | 类型         | 建议默认值  | 说明                                        |
-| ---------------------- | ------------ | ----------- | ------------------------------------------- |
-| `circle-radius`        | 数字或表达式 | `5`         | 圆点半径，单位像素。                        |
-| `circle-color`         | 颜色或表达式 | `#000000ff` | 圆点填充色。                                |
-| `circle-opacity`       | 数字或表达式 | `1`         | 圆点填充透明度。                            |
-| `circle-outline-color` | 颜色或表达式 | 无          | 圆点描边色。                                |
-| `circle-outline-width` | 数字或表达式 | `0`         | 圆点描边宽度，单位像素。                    |
-| `circle-blur`          | 数字或表达式 | `0`         | 预留字段；Cesium 实现可能不会第一阶段支持。 |
+| 字段                   | 别名            | 类型              | 默认值      | 说明                           |
+| ---------------------- | --------------- | ----------------- | ----------- | ------------------------------ |
+| `circle-radius`        | `pixelSize / 2` | 数字或表达式      | `5`         | 圆点半径，单位像素。           |
+| `circle-color`         | `color`         | 颜色或表达式      | `#000000ff` | 圆点填充色。                   |
+| `circle-outline-color` | `outlineColor`  | 颜色或表达式      | 无          | 圆点描边色。                   |
+| `circle-outline-width` | `outlineWidth`  | 数字或表达式      | `0`         | 圆点描边宽度，单位像素。       |
+| `circle-offset`        | `offset`        | `[x, y]` 或表达式 | 无          | billboard 像素偏移，单位像素。 |
 
-### 7.2 Cesium 实现取舍
+说明：
 
-`circle` 在 Cesium 中有两条可选路径：
+- 主字段和别名同时存在时，优先使用 `circle-*` 主字段。
+- `pixelSize` 别名表示直径；如果只配置 `pixelSize`，内部会按 `radius = pixelSize / 2` 解释。
+- 创建圆点图像时始终使用 `pixelSize = radius * 2`。
+- 当前未实现 `circle-opacity`、`circle-blur` 等附加字段。
 
-- `BillboardCollection` + 动态生成圆形 canvas：贴地能力更好，可以复用 billboard 的 `HeightReference`，更适合作为第一版实现。
-- `PointPrimitiveCollection`：更接近“点 primitive”，但贴地和地形高度偏移需要额外处理，不适合作为默认第一版。
+### 7.2 行为说明
 
-如果后续使用 `PointPrimitive` 实现贴地圆点，需要明确高程策略，例如只在创建时采样一次、相机停止后低频采样，或完全不做动态高程采样。每帧批量采样地形高程成本较高，不建议作为默认行为。
+- `circle` 当前由 `VectorTileCircleBucket` 负责。
+- `circle` 图层只匹配 point / multipoint 要素，不读取 line 或 polygon。
+- `circle` 的颜色、尺寸、描边和 offset 都支持常量、属性表达式和动态 zoom 表达式。
+- 圆点图像会按求值后的尺寸和颜色缓存复用，避免同一瓦片内重复创建相同 canvas。
+- 描边绘制在圆点主体内部，因此 `circle-radius` 的外径语义保持稳定，不把描边额外计入 `pixelSize`。
 
 ## 8. terrain 三维扩展
 
@@ -275,7 +280,7 @@ terrain: {
 
 - `clampToGround`：是否尽量贴地。
 - `heightOffset`：高度偏移。
-- `disableDepthTestDistance`：当前主要对 symbol 生效，透传到 Cesium label / billboard。
+- `disableDepthTestDistance`：当前对 `symbol` 和 `circle` 生效，透传到 Cesium billboard / label。
 
 几何类型行为如下：
 
@@ -284,6 +289,7 @@ terrain: {
 | `fill`   | 普通 `Primitive + PolygonGeometry`        | `GroundPrimitive`                      | 回退到普通高度面，并记录诊断             |
 | `line`   | 普通 `Primitive + PolylineGeometry`       | `GroundPolylinePrimitive`              | 回退到普通高度线，并记录诊断             |
 | `symbol` | `BillboardCollection` / `LabelCollection` | `HeightReference.CLAMP_TO_GROUND`      | `HeightReference.RELATIVE_TO_GROUND`     |
+| `circle` | `BillboardCollection`                     | `HeightReference.CLAMP_TO_GROUND`      | `HeightReference.RELATIVE_TO_GROUND`     |
 
 ## 9. 表达式
 
@@ -318,6 +324,16 @@ terrain: {
 - `text-halo-width`
 - `text-background-color`
 - `text-background-padding`
+- `circle-radius`
+- `circle-color`
+- `circle-outline-color`
+- `circle-outline-width`
+- `circle-offset`
+- `pixelSize`
+- `color`
+- `outlineColor`
+- `outlineWidth`
+- `offset`
 
 说明：
 
@@ -342,6 +358,7 @@ terrain: {
 - `line` 图层匹配 line 要素，也匹配 polygon 要素并将其渲染为 outline。
 - `symbol-placement: "point"` 匹配 point 要素。
 - `symbol-placement: "polygon-center"` 匹配 polygon 要素。
+- `circle` 图层只匹配 point 要素。
 
 ## 11. 图标注册
 
@@ -441,6 +458,25 @@ manager.setStyle({
       },
     },
     {
+      id: "city-circle",
+      type: "circle",
+      source: "base",
+      sourceLayer: "places",
+      filter: ["==", ["get", "kind"], "city"],
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 8],
+        "circle-color": ["get", "color"],
+        "circle-outline-color": "#ffffffff",
+        "circle-outline-width": 1,
+        "circle-offset": [0, 4],
+      },
+      terrain: {
+        clampToGround: true,
+        heightOffset: 0,
+        disableDepthTestDistance: 1000000,
+      },
+    },
+    {
       id: "capital-symbol",
       type: "symbol",
       source: "base",
@@ -495,6 +531,8 @@ manager.setStyle({
 
 ## 13. 已知限制
 
+- `circle` 当前使用 billboard + canvas 路径，而不是 Cesium `PointPrimitiveCollection`。
+- `circle` 的描边绘制在主体半径内部，`circle-radius` 语义保持为外径的一半。
 - 已支持 symbol 的图标锚点、图标宽高、文字锚点、文字背景和文字背景 padding。
 - `symbol-placement: "polygon-center"` 当前使用瓦片内 polygon 片段中心；跨瓦片大面可能出现重复标注。
 - `symbol-placement: "polygon-center"` 当前使用面积 centroid，凹多边形时中心点可能落在面外部。

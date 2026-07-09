@@ -55,6 +55,33 @@ import {
 }
 
 {
+  const style = normalizeStyleDocument({
+    sources: {
+      org: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        id: "org-circle",
+        type: "circle",
+        source: "org",
+        sourceLayer: "places",
+        paint: {
+          "circle-radius": 6,
+        },
+      },
+    ],
+  });
+
+  assert.equal(style.layers.length, 1);
+  assert.equal(style.layers[0].type, "circle");
+  assert.equal(style.layers[0].paint["circle-radius"], 6);
+  console.log("✓ normalize circle layer style documents");
+}
+
+{
   assert.throws(
     () =>
       normalizeStyleDocument({
@@ -100,6 +127,27 @@ import {
     /references missing source/,
   );
   console.log("✓ reject missing source");
+}
+
+{
+  assert.throws(
+    () =>
+      normalizeStyleDocument({
+        sources: {
+          org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
+        },
+        layers: [
+          {
+            id: "missing-circle-source",
+            type: "circle",
+            source: "missing",
+            sourceLayer: "places",
+          },
+        ],
+      }),
+    /references missing source/,
+  );
+  console.log("✓ reject missing source for circle layer");
 }
 
 {
@@ -235,6 +283,7 @@ import {
     "VectorTileStyleRule",
     "VectorTilePrimitiveBucket",
     "VectorTileSymbolBucket",
+    "VectorTileCircleBucket",
   ]);
   console.log("✓ Cesium-oriented implementation terms");
 }
