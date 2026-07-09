@@ -209,41 +209,43 @@ const {
   );
 
   assert.equal(bucket.length, 2);
-  assert.equal(bucket.primitives[0].ready, true);
-  assert.equal(bucket.primitives[0].items.length, 1);
-  assert.equal(bucket.primitives[0].items[0].image, "city.png");
-  assert.equal(bucket.primitives[0].items[0].scale, 1.5);
-  assert.equal(bucket.primitives[0].items[0].width, 32);
-  assert.equal(bucket.primitives[0].items[0].height, 24);
-  assert.equal(bucket.primitives[0].items[0].pixelOffset.x, 8);
-  assert.equal(bucket.primitives[0].items[0].pixelOffset.y, 10);
-  assert.equal(bucket.primitives[0].items[0].horizontalOrigin, "right");
-  assert.equal(bucket.primitives[0].items[0].verticalOrigin, "bottom");
+  assert.equal(bucket.primitives.length, 0);
+  assert.equal(bucket.pointDescriptors.billboards.length, 1);
+  assert.equal(bucket.pointDescriptors.billboards[0].image, "city.png");
+  assert.equal(bucket.pointDescriptors.billboards[0].scale, 1.5);
+  assert.equal(bucket.pointDescriptors.billboards[0].width, 32);
+  assert.equal(bucket.pointDescriptors.billboards[0].height, 24);
+  assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.x, 8);
+  assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.y, 10);
+  assert.equal(bucket.pointDescriptors.billboards[0].horizontalOrigin, "right");
+  assert.equal(bucket.pointDescriptors.billboards[0].verticalOrigin, "bottom");
   assert.equal(
-    bucket.primitives[0].items[0].heightReference,
+    bucket.pointDescriptors.billboards[0].heightReference,
     "relative-to-ground",
   );
-  assert.deepEqual(bucket.primitives[0].items[0].position, {
+  assert.deepEqual(bucket.pointDescriptors.billboards[0].position, {
     longitude: 116,
     latitude: 40,
     height: 3,
   });
 
-  assert.equal(bucket.primitives[1].ready, true);
-  assert.equal(bucket.primitives[1].items.length, 1);
-  assert.equal(bucket.primitives[1].items[0].text, "Beijing");
-  assert.equal(bucket.primitives[1].items[0].font, '600 18px "Fira Sans"');
-  assert.equal(bucket.primitives[1].items[0].style, "fill-and-outline");
-  assert.equal(bucket.primitives[1].items[0].showBackground, true);
-  assert.equal(bucket.primitives[1].items[0].backgroundColor.css, "#11223344");
-  assert.equal(bucket.primitives[1].items[0].backgroundPadding.x, 6);
-  assert.equal(bucket.primitives[1].items[0].backgroundPadding.y, 4);
-  assert.equal(bucket.primitives[1].items[0].pixelOffset.x, 4);
-  assert.equal(bucket.primitives[1].items[0].pixelOffset.y, -6);
-  assert.equal(bucket.primitives[1].items[0].horizontalOrigin, "left");
-  assert.equal(bucket.primitives[1].items[0].verticalOrigin, "top");
+  assert.equal(bucket.pointDescriptors.labels.length, 1);
+  assert.equal(bucket.pointDescriptors.labels[0].text, "Beijing");
+  assert.equal(bucket.pointDescriptors.labels[0].font, '600 18px "Fira Sans"');
+  assert.equal(bucket.pointDescriptors.labels[0].style, "fill-and-outline");
+  assert.equal(bucket.pointDescriptors.labels[0].showBackground, true);
   assert.equal(
-    bucket.primitives[1].items[0].heightReference,
+    bucket.pointDescriptors.labels[0].backgroundColor.css,
+    "#11223344",
+  );
+  assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding.x, 6);
+  assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding.y, 4);
+  assert.equal(bucket.pointDescriptors.labels[0].pixelOffset.x, 4);
+  assert.equal(bucket.pointDescriptors.labels[0].pixelOffset.y, -6);
+  assert.equal(bucket.pointDescriptors.labels[0].horizontalOrigin, "left");
+  assert.equal(bucket.pointDescriptors.labels[0].verticalOrigin, "top");
+  assert.equal(
+    bucket.pointDescriptors.labels[0].heightReference,
     "relative-to-ground",
   );
   console.log(
@@ -279,14 +281,14 @@ const {
   );
 
   assert.equal(bucket.length, 1);
-  assert.ok(bucket.primitives[0] instanceof FakeLabelCollection);
-  assert.equal(bucket.primitives[0].items[0].style, "fill");
-  assert.equal(bucket.primitives[0].items[0].heightReference, "none");
-  assert.equal(bucket.primitives[0].items[0].font, "16px serif");
-  assert.equal(bucket.primitives[0].items[0].pixelOffset, undefined);
-  assert.equal(bucket.primitives[0].items[0].backgroundPadding, undefined);
-  assert.equal(bucket.primitives[0].items[0].horizontalOrigin, "center");
-  assert.equal(bucket.primitives[0].items[0].verticalOrigin, "center");
+  assert.equal(bucket.pointDescriptors.labels.length, 1);
+  assert.equal(bucket.pointDescriptors.labels[0].style, "fill");
+  assert.equal(bucket.pointDescriptors.labels[0].heightReference, "none");
+  assert.equal(bucket.pointDescriptors.labels[0].font, "16px serif");
+  assert.equal(bucket.pointDescriptors.labels[0].pixelOffset, undefined);
+  assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding, undefined);
+  assert.equal(bucket.pointDescriptors.labels[0].horizontalOrigin, "center");
+  assert.equal(bucket.pointDescriptors.labels[0].verticalOrigin, "center");
   console.log(
     "✓ fallback invalid symbol numbers and preserve stable default anchor",
   );
@@ -318,17 +320,17 @@ const {
   );
 
   assert.equal(bucket.length, 1);
-  assert.ok(bucket.primitives[0] instanceof FakeBillboardCollection);
+  assert.equal(bucket.pointDescriptors.billboards.length, 1);
   assert.equal(
-    bucket.primitives[0].items[0].image,
+    bucket.pointDescriptors.billboards[0].image,
     "https://example.com/poi.png",
   );
   assert.equal(
-    bucket.primitives[0].items[0].heightReference,
+    bucket.pointDescriptors.billboards[0].heightReference,
     "clamp-to-ground",
   );
-  assert.equal(bucket.primitives[0].items[0].width, undefined);
-  assert.equal(bucket.primitives[0].items[0].height, undefined);
+  assert.equal(bucket.pointDescriptors.billboards[0].width, undefined);
+  assert.equal(bucket.pointDescriptors.billboards[0].height, undefined);
   console.log(
     "✓ omit invalid explicit icon sizes and keep source image dimensions",
   );
@@ -361,7 +363,7 @@ const {
     ignoreZoomRange: true,
   }).build(points, 4);
   assert.equal(buildBucket.length, 1);
-  assert.equal(buildBucket.primitives[0].items[0].text, "HiddenAtMaxZoom");
+  assert.equal(buildBucket.pointDescriptors.labels[0].text, "HiddenAtMaxZoom");
   console.log("✓ maxzoom is exclusive and can be ignored while building");
 }
 

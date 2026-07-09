@@ -86,7 +86,10 @@ export default class VectorTileLayerManager {
         this._quadtreePrimitive.clearLayerRenderState(layer);
       });
     this._removeLayerChangedListener =
-      this._vectorTileLayers.layerChanged.addEventListener(invalidateTiles);
+      this._vectorTileLayers.layerChanged.addEventListener((layer) => {
+        invalidateTiles();
+        this._quadtreePrimitive.clearLayerRenderState(layer);
+      });
 
     this._removePreUpdateListener = undefined;
     this._removePostRenderListener = undefined;

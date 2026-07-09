@@ -14,6 +14,10 @@ export function VectorTilePrimitiveBucket(styleRule) {
   this.sourceLayer = styleRule.sourceLayer;
   this.styleRule = styleRule;
   this.primitives = [];
+  this.pointDescriptors = {
+    billboards: [],
+    labels: [],
+  };
 }
 
 VectorTilePrimitiveBucket.prototype.addPrimitive = function (primitive) {
@@ -26,9 +30,32 @@ VectorTilePrimitiveBucket.prototype.addPrimitives = function (primitives) {
   primitives.forEach((primitive) => this.addPrimitive(primitive));
 };
 
+VectorTilePrimitiveBucket.prototype.addBillboardDescriptor = function (
+  descriptor,
+) {
+  if (descriptor) {
+    this.pointDescriptors.billboards.push(descriptor);
+  }
+};
+
+VectorTilePrimitiveBucket.prototype.addLabelDescriptor = function (descriptor) {
+  if (descriptor) {
+    this.pointDescriptors.labels.push(descriptor);
+  }
+};
+
+Object.defineProperty(VectorTilePrimitiveBucket.prototype, "pointCount", {
+  get: function () {
+    return (
+      this.pointDescriptors.billboards.length +
+      this.pointDescriptors.labels.length
+    );
+  },
+});
+
 Object.defineProperty(VectorTilePrimitiveBucket.prototype, "length", {
   get: function () {
-    return this.primitives.length;
+    return this.primitives.length + this.pointCount;
   },
 });
 
@@ -39,6 +66,8 @@ VectorTilePrimitiveBucket.prototype.destroy = function () {
     }
   });
   this.primitives.length = 0;
+  this.pointDescriptors.billboards.length = 0;
+  this.pointDescriptors.labels.length = 0;
 };
 
 export function createVectorTilePrimitiveBucket(
@@ -94,7 +123,17 @@ export function storeVectorTileBucket(vectorTile, bucket, styleRule) {
     return false;
   }
 
-  vectorTile.primitives[bucket.id] = bucket.primitives;
-  vectorTile.primitiveStyleRules[bucket.id] = styleRule;
+  if (bucket.primitives.length > 0) {
+    vectorTile.primitives[bucket.id] = bucket.primitives;
+    vectorTile.primitiveStyleRules[bucket.id] = styleRule;
+  }
+
+  if (bucket.pointCount > 0) {
+    vectorTile.pointBuckets ??= {};
+    vectorTile.pointBuckets[bucket.id] = {
+      styleRule,
+      descriptors: bucket.pointDescriptors,
+    };
+  }
   return true;
 }

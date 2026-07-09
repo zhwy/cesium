@@ -7,6 +7,7 @@ import {
   createVectorTilePrimitiveBucket,
   storeVectorTileBucket,
 } from "./VectorTileBucketFactory.js";
+import SharedPointCollections from "./SharedPointCollections.js";
 import { createVectorTileIconResolver } from "./VectorTileSymbolBucket.js";
 import VectorTileTaskScheduler, {
   VectorTileTaskCancelledError,
@@ -75,6 +76,10 @@ export default class VectorTileLayer {
     return this._option.renderBackend;
   }
 
+  get sharedPointCollections() {
+    return this._sharedPointCollections;
+  }
+
   constructor(vectorTileProvider, options) {
     this._show = true;
     this._destroyed = false;
@@ -95,6 +100,10 @@ export default class VectorTileLayer {
       options.buildScheduler ?? new VectorTileTaskScheduler(1);
     this._vectorTileCache = new VectorTileCache({
       maximumBytes: this._option.cacheBytes,
+      diagnostics: this._diagnostics,
+    });
+    this._sharedPointCollections = new SharedPointCollections({
+      scene: this._scene,
       diagnostics: this._diagnostics,
     });
     this._iconImages = {
@@ -325,7 +334,9 @@ export default class VectorTileLayer {
           if (!wasBuilt || vectorTile.released) {
             return;
           }
-          const hasPrimitives = Object.keys(vectorTile.primitives).length > 0;
+          const hasPrimitives =
+            Object.keys(vectorTile.primitives).length > 0 ||
+            Object.keys(vectorTile.pointBuckets).length > 0;
           vectorTile.state = Cesium.ImageryState.READY;
           vectorTile.cacheable = true;
           if (hasPrimitives) {
@@ -369,6 +380,7 @@ export default class VectorTileLayer {
     const buildStartTime = this._diagnostics?.startTimer();
     vectorTile.primitives = {};
     vectorTile.primitiveStyleRules = {};
+    vectorTile.pointBuckets = {};
     const styleRules = getStyleRulesForBuild(this._styleDocument);
     if (styleRules.length > 0) {
       styleRules.forEach((styleRule) => {
@@ -483,6 +495,7 @@ export default class VectorTileLayer {
       return;
     }
     this._scene = scene;
+    this._sharedPointCollections.setScene(scene);
     this.clearCache();
   }
 
@@ -516,6 +529,7 @@ export default class VectorTileLayer {
     }
     this._destroyed = true;
     this._vectorTileCache.clear();
+    this._sharedPointCollections.destroy();
   }
 }
 

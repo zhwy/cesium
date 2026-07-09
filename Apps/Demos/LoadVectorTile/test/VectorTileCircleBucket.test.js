@@ -211,37 +211,42 @@ const {
     4,
   );
 
-  assert.equal(bucket.length, 1);
-  assert.ok(bucket.primitives[0] instanceof FakeBillboardCollection);
-  assert.equal(bucket.primitives[0].ready, true);
-  assert.equal(bucket.primitives[0].items.length, 2);
-  assert.equal(bucket.primitives[0].items[0].width, 16);
-  assert.equal(bucket.primitives[0].items[0].height, 16);
+  assert.equal(bucket.length, 2);
+  assert.equal(bucket.primitives.length, 0);
+  assert.equal(bucket.pointDescriptors.billboards.length, 2);
+  assert.equal(bucket.pointDescriptors.billboards[0].width, 16);
+  assert.equal(bucket.pointDescriptors.billboards[0].height, 16);
   assert.equal(
-    bucket.primitives[0].items[0].heightReference,
+    bucket.pointDescriptors.billboards[0].heightReference,
     "relative-to-ground",
   );
-  assert.equal(bucket.primitives[0].items[0].disableDepthTestDistance, 1000);
-  assert.equal(bucket.primitives[0].items[0].pixelOffset.x, 5);
-  assert.equal(bucket.primitives[0].items[0].pixelOffset.y, 7);
-  assert.deepEqual(bucket.primitives[0].items[0].position, {
+  assert.equal(
+    bucket.pointDescriptors.billboards[0].disableDepthTestDistance,
+    1000,
+  );
+  assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.x, 5);
+  assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.y, 7);
+  assert.deepEqual(bucket.pointDescriptors.billboards[0].position, {
     longitude: 116,
     latitude: 40,
     height: 3,
   });
   assert.equal(
-    bucket.primitives[0].items[0].image._vectorTileCircle.fillColor,
+    bucket.pointDescriptors.billboards[0].image._vectorTileCircle.fillColor,
     "#ff6600cc",
   );
   assert.equal(
-    bucket.primitives[0].items[0].image._vectorTileCircle.outlineWidth,
+    bucket.pointDescriptors.billboards[0].image._vectorTileCircle.outlineWidth,
     2,
   );
   assert.equal(
-    bucket.primitives[0].items[0].image,
-    bucket.primitives[0].items[1].image,
+    bucket.pointDescriptors.billboards[0].image,
+    bucket.pointDescriptors.billboards[1].image,
   );
-  assert.equal(bucket.primitives[0].items[0].id.properties.kind, "city");
+  assert.equal(
+    bucket.pointDescriptors.billboards[0].id.properties.kind,
+    "city",
+  );
   console.log(
     "✓ build circle billboards with terrain, picking, alias precedence and cache reuse",
   );

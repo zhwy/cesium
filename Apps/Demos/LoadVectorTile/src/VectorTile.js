@@ -1,5 +1,6 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
+import { createSharedPointEntryKey } from "./SharedPointCollections.js";
 const { defined, destroyObject, ImageryState } = Cesium;
 
 /**
@@ -36,6 +37,7 @@ function VectorTile(vectorTileLayer, x, y, level, rectangle) {
   this.arrayBufferBytes = 0;
   this.primitives = undefined;
   this.primitiveStyleRules = undefined;
+  this.pointBuckets = undefined;
   this.terminalReason = undefined;
   this.released = false;
   this.priority = 0;
@@ -133,6 +135,16 @@ VectorTile.prototype.destroyResources = function () {
   }
   this.released = true;
   this.cancelPendingTasks();
+
+  if (defined(this.pointBuckets)) {
+    Object.keys(this.pointBuckets).forEach((bucketId) => {
+      this.vectorTileLayer.sharedPointCollections.removeTileEntries(
+        createSharedPointEntryKey(this, bucketId),
+      );
+      delete this.pointBuckets[bucketId];
+    });
+    this.pointBuckets = undefined;
+  }
 
   if (defined(this.parent)) {
     this.parent.releaseReference();

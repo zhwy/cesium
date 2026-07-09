@@ -32,8 +32,6 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   build(points, zoom) {
     const positions = points?.positions ?? [];
     const metadata = points?.metadata ?? [];
-    let billboards;
-    let labels;
     let billboardCount = 0;
     let labelCount = 0;
 
@@ -63,10 +61,7 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
         this._allowPicking,
       );
       if (billboardOptions) {
-        billboards ??= markCollectionReady(
-          new Cesium.BillboardCollection({ scene: this._scene }),
-        );
-        billboards.add(billboardOptions);
+        this.addBillboardDescriptor(billboardOptions);
         billboardCount++;
       }
 
@@ -79,16 +74,11 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
         this._allowPicking,
       );
       if (labelOptions) {
-        labels ??= markCollectionReady(
-          new Cesium.LabelCollection({ scene: this._scene }),
-        );
-        labels.add(labelOptions);
+        this.addLabelDescriptor(labelOptions);
         labelCount++;
       }
     }
 
-    this.addPrimitive(billboards);
-    this.addPrimitive(labels);
     this._diagnostics?.increment("symbolBillboards", billboardCount);
     this._diagnostics?.increment("symbolLabels", labelCount);
     return this;
@@ -343,13 +333,6 @@ function getSymbolDisableDepthTestDistance(styleRule) {
   return Number.isNaN(Number(styleRule.terrain?.disableDepthTestDistance))
     ? undefined
     : Number(styleRule.terrain.disableDepthTestDistance);
-}
-
-function markCollectionReady(collection) {
-  if (collection.ready === undefined) {
-    collection.ready = true;
-  }
-  return collection;
 }
 
 function createLabelFont(styleRule, metadata, zoom, textSize) {

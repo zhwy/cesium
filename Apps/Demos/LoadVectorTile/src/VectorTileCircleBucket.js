@@ -25,7 +25,6 @@ export default class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
   build(points, zoom) {
     const positions = points?.positions ?? [];
     const metadata = points?.metadata ?? [];
-    let billboards;
     let billboardCount = 0;
 
     for (let i = 0; i < positions.length / 2; ++i) {
@@ -57,14 +56,10 @@ export default class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
         continue;
       }
 
-      billboards ??= markCollectionReady(
-        new Cesium.BillboardCollection({ scene: this._scene }),
-      );
-      billboards.add(billboardOptions);
+      this.addBillboardDescriptor(billboardOptions);
       billboardCount++;
     }
 
-    this.addPrimitive(billboards);
     this._diagnostics?.increment("circleBillboards", billboardCount);
     return this;
   }
@@ -325,13 +320,6 @@ function fillCircle(context, center, radius, color) {
   context.arc(center, center, radius, 0, Math.PI * 2);
   context.closePath();
   context.fill();
-}
-
-function markCollectionReady(collection) {
-  if (collection.ready === undefined) {
-    collection.ready = true;
-  }
-  return collection;
 }
 
 function normalizeCircleRadius(radius, fallback) {

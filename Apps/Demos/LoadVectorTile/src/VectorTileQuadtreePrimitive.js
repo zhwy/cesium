@@ -3,6 +3,7 @@ import {
   selectByCoverage,
   isAncestorOrSame,
 } from "./VectorTileLodSelection.js";
+import { createSharedPointEntryKey } from "./SharedPointCollections.js";
 
 /**
  * Returns whether all of a tile's primitives are actually drawable this frame.
@@ -51,6 +52,8 @@ export default class VectorTileQuadtreePrimitive
      *   committedRenderSet – Set of VectorTiles actually drawn; members hold
      *                        a reference so the cache cannot evict them while
      *                        they are still on screen.
+     *   committedPointEntries – Map of shared point-entry keys currently
+     *                           present in the layer-owned shared collections.
      */
     this._layerRenderStates = new Map();
   }
@@ -63,6 +66,7 @@ export default class VectorTileQuadtreePrimitive
   clearLayerRenderState(layer) {
     const state = this._layerRenderStates.get(layer);
     if (state) {
+      this._clearCommittedPointEntries(layer, state);
       for (const tile of state.committedRenderSet) {
         tile.releaseReference?.();
       }
@@ -78,6 +82,7 @@ export default class VectorTileQuadtreePrimitive
   removeLayerRenderState(layer) {
     const state = this._layerRenderStates.get(layer);
     if (state) {
+      this._clearCommittedPointEntries(layer, state);
       for (const tile of state.committedRenderSet) {
         tile.releaseReference?.();
       }
@@ -114,10 +119,67 @@ export default class VectorTileQuadtreePrimitive
     if (!state) {
       state = {
         committedRenderSet: new Set(),
+        committedPointEntries: new Map(),
       };
       this._layerRenderStates.set(layer, state);
     }
     return state;
+  }
+
+  _clearCommittedPointEntries(layer, state) {
+    const sharedPointCollections = layer.sharedPointCollections;
+    if (!sharedPointCollections) {
+      state.committedPointEntries = new Map();
+      return;
+    }
+    for (const pointKey of state.committedPointEntries.keys()) {
+      sharedPointCollections.removeTileEntries(pointKey);
+    }
+    state.committedPointEntries = new Map();
+  }
+
+  _syncLayerPointCollections(layer, state, styleZoom) {
+    const sharedPointCollections = layer.sharedPointCollections;
+    if (!sharedPointCollections) {
+      state.committedPointEntries = new Map();
+      return;
+    }
+
+    const nextPointEntries = new Map();
+    for (const tile of state.committedRenderSet) {
+      const pointBuckets = tile.pointBuckets || {};
+      const bucketIds = Object.keys(pointBuckets);
+      for (let i = 0; i < bucketIds.length; ++i) {
+        const bucketId = bucketIds[i];
+        const pointBucket = pointBuckets[bucketId];
+        if (!isStyleRuleVisibleForZoom(pointBucket.styleRule, styleZoom)) {
+          continue;
+        }
+
+        const pointKey = createSharedPointEntryKey(tile, bucketId);
+        nextPointEntries.set(pointKey, pointBucket);
+      }
+    }
+
+    for (const [pointKey, pointBucket] of nextPointEntries) {
+      if (
+        !state.committedPointEntries.has(pointKey) ||
+        !sharedPointCollections.hasTileEntries(pointKey)
+      ) {
+        sharedPointCollections.addTileEntries(
+          pointKey,
+          pointBucket.descriptors,
+        );
+      }
+    }
+
+    for (const pointKey of state.committedPointEntries.keys()) {
+      if (!nextPointEntries.has(pointKey)) {
+        sharedPointCollections.removeTileEntries(pointKey);
+      }
+    }
+
+    state.committedPointEntries = nextPointEntries;
   }
 
   update(frameState) {
@@ -157,6 +219,11 @@ export default class VectorTileQuadtreePrimitive
     const startTime = this._diagnostics?.startTimer();
     const tilesToRender = this._tilesToRender;
     const isRenderPass = frameState.passes.render === true;
+
+    if (isRenderPass) {
+      this._diagnostics?.setGauge("sharedPointAddsThisFrame", 0);
+      this._diagnostics?.setGauge("sharedPointRemovesThisFrame", 0);
+    }
 
     // ----------------------------------------------------------------
     // Phase 1 (render pass only): per layer, collect from _tilesToRender:
@@ -283,6 +350,11 @@ export default class VectorTileQuadtreePrimitive
 
         retainedTileCount += retained.length;
         this._commitRenderSet(state, [...merged, ...retained]);
+        this._syncLayerPointCollections(
+          layer,
+          state,
+          layer.getFrameStyleZoom(frameState),
+        );
       }
 
       // Diagnostic gauges (render pass only)
@@ -310,6 +382,19 @@ export default class VectorTileQuadtreePrimitive
         continue;
       }
       const styleZoom = layer.getFrameStyleZoom(frameState);
+      const sharedPrimitives =
+        layer.sharedPointCollections?.getPrimitives() ?? [];
+      for (let i = 0; i < sharedPrimitives.length; ++i) {
+        const primitive = sharedPrimitives[i];
+        primitiveCandidates++;
+        if (submittedPrimitives.has(primitive)) {
+          preventedDuplicatePrimitives++;
+          continue;
+        }
+        submittedPrimitives.add(primitive);
+        primitive.show = true;
+        primitive.update(frameState);
+      }
       for (const tile of state.committedRenderSet) {
         const layerPrimitives = tile.primitives || {};
         const primitiveKeys = Object.keys(layerPrimitives);
