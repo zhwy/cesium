@@ -1,5 +1,8 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 
+/**
+ * Counterpart to Cesium's `GlobeSurfaceTile` in the vector-tile stack.
+ */
 export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
   constructor() {
     super();

@@ -1,4 +1,4 @@
-import { createLegacyLayerOptionsFromStyleDocument } from "./VectorTileStyle.js";
+import { createLegacyLayerOptionsFromStyleDocument } from "./VectorTileStyleUtils.js";
 
 /**
  * A Cesium-oriented data-provider wrapper for one external style document

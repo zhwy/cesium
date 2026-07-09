@@ -1,4 +1,4 @@
-import { validateVectorStyleFilter } from "./VectorStyleFilter.js";
+import { validateVectorStyleFilter } from "./VectorTileStyleExpression.js";
 import { normalizeSymbolPlacement } from "./VectorTileGeometryPlacement.js";
 
 const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol"]);

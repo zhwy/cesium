@@ -1,6 +1,4 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import VectorTileCoverageState from "./VectorTileCoverageState.js";
-import TileType from "./TileType.js";
 import VectorTile from "./VectorTile.js";
 import TileVectorTile from "./TileVectorTile.js";
 import VectorTileDecoder from "./VectorTileDecoder.js";
@@ -17,10 +15,12 @@ import {
   createLegacyLayerOptionsFromStyleDocument,
   createStyleDocumentFromLegacyOptions,
   normalizeStyleDocument,
-} from "./VectorTileStyle.js";
+} from "./VectorTileStyleUtils.js";
 import { filterPackedLayerByStyleRules } from "./VectorTileGeometryPlacement.js";
+import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
+import { TileType } from "./VectorTileProvider.js";
 import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
-import { isWorkerSupportedVectorStyleFilter } from "./VectorStyleFilter.js";
+import { isWorkerSupportedVectorStyleFilter } from "./VectorTileStyleExpression.js";
 
 const defaultOptions = {
   tilingScheme: "WebMercatorTilingScheme",

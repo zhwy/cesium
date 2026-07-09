@@ -1,4 +1,4 @@
-import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
+import { evaluateVectorStyleFilter } from "./VectorTileStyleExpression.js";
 
 const SYMBOL_PLACEMENT_POINT = "point";
 const SYMBOL_PLACEMENT_POLYGON_CENTER = "polygon-center";

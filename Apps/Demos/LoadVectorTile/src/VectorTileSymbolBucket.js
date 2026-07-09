@@ -1,6 +1,6 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
-import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
+import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
+import { evaluateVectorStyleFilter } from "./VectorTileStyleExpression.js";
+import { VectorTilePrimitiveBucket } from "./VectorTileBucketFactory.js";
 import {
   evaluateColorStyleValue,
   evaluateFiniteStyleNumber,
@@ -9,6 +9,8 @@ import {
   isDefined,
   parseCesiumColor,
 } from "./VectorTileBucketUtils.js";
+
+const Cesium = globalThis.Cesium ?? CesiumModule;
 
 /**
  * Cesium-oriented render bucket for one symbol style rule on one vector tile.

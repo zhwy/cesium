@@ -2,13 +2,17 @@ import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import VectorTileQuadtreePrimitive from "./VectorTileQuadtreePrimitive.js";
 import VectorTileQuadtreeProvider from "./VectorTileQuadtreeProvider.js";
 import VectorTileLayerCollection from "./VectorTileLayerCollection.js";
-import createProvider from "./createProvider.js";
-import TileType from "./TileType.js";
 import VectorTileDiagnostics from "./VectorTileDiagnostics.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 import VectorTileDataProvider from "./VectorTileDataProvider.js";
+import {
+  TileType,
+  WMTSGeoVectorTileProvider,
+  WMTSVectorTileProvider,
+  XYZVectorTileProvider,
+} from "./VectorTileProvider.js";
 import VectorTileStyleRule from "./VectorTileStyleRule.js";
-import { normalizeStyleDocument } from "./VectorTileStyle.js";
+import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
 
 export default class VectorTileLayerManager {
   get quadtreePrimitive() {
@@ -157,7 +161,7 @@ export default class VectorTileLayerManager {
       },
     };
 
-    const provider = createProvider({
+    const provider = this._createProvider({
       ...defaultOptions,
       ...options,
       tilingScheme: this.tilingScheme,
@@ -233,7 +237,7 @@ export default class VectorTileLayerManager {
   }
 
   _createDataProvider(sourceId, source, styleRules) {
-    const provider = createProvider({
+    const provider = this._createProvider({
       dataTypeField: "type",
       dataIdField: "id",
       minimumLevel: source.minimumLevel ?? 0,
@@ -291,6 +295,24 @@ export default class VectorTileLayerManager {
     };
     const layer = this._vectorTileLayers.addLayerProvider(dataProvider);
     return layer;
+  }
+
+  _createProvider(options) {
+    if (options.tileType === TileType.WMTS) {
+      if (options.format === "application/vnd.mapbox-vector-tile") {
+        return new WMTSVectorTileProvider({
+          ...options,
+        });
+      } else if (options.format === "application/json;type=geojson") {
+        return new WMTSGeoVectorTileProvider({
+          ...options,
+        });
+      }
+    } else if (options.tileType === TileType.XYZ) {
+      return new XYZVectorTileProvider({
+        ...options,
+      });
+    }
   }
 
   _setSceneOnLayers(scene) {

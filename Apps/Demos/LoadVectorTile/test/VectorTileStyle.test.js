@@ -1,5 +1,5 @@
 /**
- * Unit tests for VectorTileStyle.js
+ * Unit tests for VectorTileStyleUtils.js
  *
  * Run with:
  *   node Apps/Demos/LoadVectorTile/src_test/VectorTileStyle.test.js
@@ -10,7 +10,7 @@ import {
   createLegacyLayerOptionsFromStyleDocument,
   createStyleDocumentFromLegacyOptions,
   normalizeStyleDocument,
-} from "../src/VectorTileStyle.js";
+} from "../src/VectorTileStyleUtils.js";
 
 {
   const style = normalizeStyleDocument({

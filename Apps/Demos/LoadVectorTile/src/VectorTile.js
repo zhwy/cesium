@@ -1,8 +1,9 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import VectorTileCoverageState from "./VectorTileCoverageState.js";
+import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
 const { defined, destroyObject, ImageryState } = Cesium;
 
 /**
+ * Counterpart to Cesium's `Imagery` in the vector-tile stack.
  * Stores details about a tile of vector.
  *
  * @alias VectorTile

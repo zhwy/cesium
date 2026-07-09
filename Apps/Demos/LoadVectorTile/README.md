@@ -23,24 +23,36 @@ Apps/Demos/LoadVectorTile/
 ├── README.md               # 当前说明文档
 ├── STYLE.md                # 完整样式参考
 ├── TODO.txt                # 临时待办记录
-├── src/                    # 运行时代码
+├── src/                    # 29 个运行时文件（整套 Demo 共 33 个顶层/运行时文件）
 │   ├── VectorTileLayerManager.js
+│   ├── VectorTileLayerCollection.js
+│   ├── VectorTileLayer.js
 │   ├── VectorTileDataProvider.js
-│   ├── VectorTileStyle.js
+│   ├── VectorTileStyleUtils.js
 │   ├── VectorTileStyleRule.js
-│   ├── VectorTilePrimitiveBucket.js
-│   ├── VectorTileBucketUtils.js
+│   ├── VectorTileStyleExpression.js
+│   ├── VectorTileStyleZoom.js
+│   ├── VectorTileProvider.js
+│   ├── VectorTileQuadtreePrimitive.js
+│   ├── VectorTileQuadtreeProvider.js
+│   ├── VectorSurfaceTile.js
+│   ├── TileVectorTile.js
+│   ├── VectorTile.js
+│   ├── VectorTileLodSelection.js
+│   ├── VectorTileDecoder.js
+│   ├── VectorTileDecodeWorker.js
+│   ├── decodeVectorTile.js
+│   ├── VectorTileGeometryUtils.js
 │   ├── VectorTileGeometryPlacement.js
 │   ├── VectorTileBucketFactory.js
+│   ├── VectorTileBucketUtils.js
 │   ├── VectorTileFillBucket.js
 │   ├── VectorTileLineBucket.js
 │   ├── VectorTileSymbolBucket.js
-│   ├── VectorStyleExpression.js
-│   ├── VectorStyleFilter.js
-│   ├── VectorTileQuadtreePrimitive.js
-│   ├── VectorTileQuadtreeProvider.js
-│   ├── VectorTileDecodeWorker.js
-│   └── ...
+│   ├── VectorTileTaskScheduler.js
+│   ├── VectorTileCache.js
+│   ├── VectorTileDiagnostics.js
+│   └── VectorTileBenchmark.js
 ├── test/                   # 轻量 Node 单元测试
 │   ├── VectorTileStyle.test.js
 │   ├── VectorStyleExpression.test.js
@@ -48,9 +60,11 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTilePrimitiveBucket.test.js
 │   ├── VectorTileBucketUtils.test.js
 │   ├── VectorTileBucketFactory.test.js
+│   ├── VectorTileGeometry.test.js
 │   ├── VectorTileGeometryPlacement.test.js
 │   ├── VectorTileFillBucket.test.js
 │   ├── VectorTileLineBucket.test.js
+│   ├── VectorTileLodSelection.test.js
 │   ├── VectorTileStyleZoom.test.js
 │   └── VectorTileSymbolBucket.test.js
 └── src_old/                # 旧实验版本备份，仅作对照
@@ -65,13 +79,15 @@ index.html
         │
         ▼
 VectorTileLayerManager
+        ├── _createProvider()
         ├── VectorTileLayerCollection
-        │       └── VectorTileLayer
-        │               ├── VectorTileProvider
-        │               │       ├── XYZVectorTileProvider
-        │               │       └── WMTSVectorTileProvider
-        │               ├── VectorTileCache
-        │               └── network/decode/build 调度器
+        │       ├── VectorTileLayer
+        │       │       ├── VectorTileProvider
+        │       │       │       ├── TileType / MVTLoader
+        │       │       │       └── XYZ / WMTS / WMTSGeo
+        │       │       ├── VectorTileCache
+        │       │       └── network/decode/build 调度器
+        │       └── VectorTileDataProvider
         │
         └── VectorTileQuadtreePrimitive
                 └── VectorTileQuadtreeProvider
@@ -80,7 +96,7 @@ VectorTileLayerManager
                                         └── VectorTile
 
 网络请求
-  → MVTLoader
+  → VectorTileProvider.requestTile()（内部 MVTLoader）
   → VectorTileDecoder
   → VectorTileDecodeWorker
   → decodeVectorTile
@@ -158,34 +174,28 @@ READY
 | `VectorTileLayerCollection.js`   | 管理图层顺序、增删、显隐和样式变化事件。                                                          |
 | `VectorTileLayer.js`             | 单个数据 Provider 对应的请求、解码、建桶、缓存和后端选择。                                        |
 | `VectorTileDataProvider.js`      | 封装一个外部 `sources` 数据源，复用请求、解码和 source-level 缓存。                               |
-| `VectorTileStyle.js`             | 解析、校验 style document，并提供旧 `styles` 兼容转换。                                           |
+| `VectorTileStyleUtils.js`        | 解析、校验 style document，并提供旧 `styles` 兼容转换。                                           |
 | `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。            |
-| `VectorTilePrimitiveBucket.js`   | 管理一个 style rule 在单个瓦片上的 Primitive/Collection 生命周期。                                |
+| `VectorTileStyleExpression.js`   | 统一执行和校验样式表达式与可序列化 filter 表达式。                                                |
 | `VectorTileBucketUtils.js`       | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                      |
 | `VectorTileGeometryPlacement.js` | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。    |
-| `VectorTileBucketFactory.js`     | 按样式类型把 style rule 路由到对应 bucket，并保持 primitive 存储形状不变。                        |
+| `VectorTileBucketFactory.js`     | 包含 `VectorTilePrimitiveBucket` 基类，并按样式类型把 style rule 路由到 fill/line/symbol bucket。 |
 | `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive。                                                          |
 | `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。         |
 | `VectorTileSymbolBucket.js`      | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。       |
-| `VectorStyleExpression.js`       | 执行样式表达式子集，例如 `get`、`match`、`case`、`interpolate`、`zoom`。                          |
-| `VectorStyleFilter.js`           | 执行和校验可序列化 filter 表达式，拒绝函数 filter。                                               |
 | `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                     |
 | `VectorTileQuadtreeProvider.js`  | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                  |
-| `VectorSurfaceTile.js`           | 挂载到 Cesium 四叉树瓦片上的矢量数据容器。                                                        |
-| `TileVectorTile.js`              | 连接四叉树瓦片和矢量瓦片，管理加载对象、就绪对象和父级回退。                                      |
-| `VectorTile.js`                  | 保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。                             |
-| `VectorTileProvider.js`          | Provider 基类，约束层级并发起瓦片请求。                                                           |
-| `XYZVectorTileProvider.js`       | 解析 `{z}/{x}/{y}`、`{-y}`、`{s}` 等 XYZ/TMS 模板变量。                                           |
-| `WMTSGeoVectorTileProvider.js`   | 解析 WMTS GeoJSON 实验分支的 TileMatrix、TileRow、TileCol 等模板变量。                            |
-| `WMTSVectorTileProvider.js`      | 解析 WMTS MVT 的 TileMatrix、TileRow、TileCol 等模板变量。                                        |
-| `MVTLoader.js`                   | 使用 Cesium `Resource.fetchArrayBuffer()` 下载 PBF。                                              |
+| `VectorSurfaceTile.js`           | 对标 Cesium `GlobeSurfaceTile`，挂载到四叉树瓦片上的矢量数据容器。                                |
+| `TileVectorTile.js`              | 对标 Cesium `TileImagery`，连接四叉树瓦片和矢量瓦片，管理加载对象、就绪对象和父级回退。           |
+| `VectorTile.js`                  | 对标 Cesium `Imagery`，保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。      |
+| `VectorTileProvider.js`          | 集中 Provider 基类、`TileType`、内部 `MVTLoader` 与 XYZ/WMTS/WMTSGeo 寻址实现，并发起瓦片请求。   |
 | `VectorTileTaskScheduler.js`     | 有界优先级任务队列，支持排队、调整优先级和取消。                                                  |
 | `VectorTileDecoder.js`           | 管理 Worker 请求和异步响应。                                                                      |
 | `VectorTileDecodeWorker.js`      | Worker 入口。                                                                                     |
 | `decodeVectorTile.js`            | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                       |
 | `VectorTileGeometryUtils.js`     | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。              |
 | `VectorTileCache.js`             | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                    |
-| `VectorTileLodSelection.js`      | 在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                                       |
+| `VectorTileLodSelection.js`      | 包含 `VectorTileCoverageState` 枚举，并在父子瓦片同时就绪时选择不重叠的 LOD 集合。                |
 | `VectorTileDiagnostics.js`       | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                               |
 | `VectorTileBenchmark.js`         | 固定视角采样，以及 instances/packed A/B 测试。                                                    |
 
@@ -369,7 +379,7 @@ terrain: {
 
 ### XYZ/TMS 模板变量
 
-`XYZVectorTileProvider` 支持：
+`VectorTileProvider.js` 内部的 `XYZVectorTileProvider` 支持：
 
 - `{z}`：层级；
 - `{x}`：列号；

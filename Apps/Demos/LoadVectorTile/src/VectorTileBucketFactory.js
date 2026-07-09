@@ -3,10 +3,42 @@ import {
   createPolygonCenterPoints,
   getStyleRuleSymbolPlacement,
 } from "./VectorTileGeometryPlacement.js";
-import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileFillBucket from "./VectorTileFillBucket.js";
 import VectorTileLineBucket from "./VectorTileLineBucket.js";
 import VectorTileSymbolBucket from "./VectorTileSymbolBucket.js";
+
+export function VectorTilePrimitiveBucket(styleRule) {
+  this.id = styleRule.id;
+  this.type = styleRule.type;
+  this.sourceLayer = styleRule.sourceLayer;
+  this.styleRule = styleRule;
+  this.primitives = [];
+}
+
+VectorTilePrimitiveBucket.prototype.addPrimitive = function (primitive) {
+  if (primitive) {
+    this.primitives.push(primitive);
+  }
+};
+
+VectorTilePrimitiveBucket.prototype.addPrimitives = function (primitives) {
+  primitives.forEach((primitive) => this.addPrimitive(primitive));
+};
+
+Object.defineProperty(VectorTilePrimitiveBucket.prototype, "length", {
+  get: function () {
+    return this.primitives.length;
+  },
+});
+
+VectorTilePrimitiveBucket.prototype.destroy = function () {
+  this.primitives.forEach((primitive) => {
+    if (!primitive.isDestroyed()) {
+      primitive.destroy();
+    }
+  });
+  this.primitives.length = 0;
+};
 
 export function createVectorTilePrimitiveBucket(
   packedLayer,

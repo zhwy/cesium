@@ -1,5 +1,14 @@
 const MAX_COVERAGE_DEPTH = 4;
 
+export const VectorTileCoverageState = Object.freeze({
+  PENDING: "pending",
+  READY: "ready",
+  READY_EMPTY: "ready-empty",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+  UNAVAILABLE: "unavailable",
+});
+
 /**
  * Returns a string key that uniquely identifies a tile coordinate.
  *

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   createStyleDocumentFromLegacyOptions,
   normalizeStyleDocument,
-} from "../src/VectorTileStyle.js";
+} from "../src/VectorTileStyleUtils.js";
 
 class FakePrimitive {
   constructor(options) {

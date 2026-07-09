@@ -1,5 +1,5 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
+import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
+import { VectorTilePrimitiveBucket } from "./VectorTileBucketFactory.js";
 import {
   createCartesianRing,
   createGroundPolylinePrimitive,
@@ -14,6 +14,8 @@ import {
   requiresGroundHeightOffsetFallback,
   shouldUseGroundPath,
 } from "./VectorTileBucketUtils.js";
+
+const Cesium = globalThis.Cesium ?? CesiumModule;
 
 export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {

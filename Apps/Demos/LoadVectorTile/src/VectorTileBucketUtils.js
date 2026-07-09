@@ -1,8 +1,12 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
-import { evaluateVectorStyleExpression } from "./VectorStyleExpression.js";
+import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
+import {
+  evaluateVectorStyleExpression,
+  evaluateVectorStyleFilter,
+} from "./VectorTileStyleExpression.js";
 import { doesStyleRuleUseGeometryType } from "./VectorTileGeometryPlacement.js";
 import { isTileBoundarySegment } from "./VectorTileGeometryUtils.js";
+
+const Cesium = globalThis.Cesium ?? CesiumModule;
 
 export function isDefined(value) {
   return value !== undefined && value !== null;

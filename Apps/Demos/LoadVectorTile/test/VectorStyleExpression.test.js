@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 
 import {
   evaluateVectorStyleExpression,
-  validateVectorStyleExpression,
-} from "../src/VectorStyleExpression.js";
-import {
   evaluateVectorStyleFilter,
+  validateVectorStyleExpression,
   validateVectorStyleFilter,
-} from "../src/VectorStyleFilter.js";
+} from "../src/VectorTileStyleExpression.js";
 
 const context = {
   zoom: 6,
@@ -102,4 +100,4 @@ assert.throws(
   /unsupported/,
 );
 
-console.log("VectorStyleExpression tests passed.");
+console.log("VectorTileStyleExpression tests passed.");
