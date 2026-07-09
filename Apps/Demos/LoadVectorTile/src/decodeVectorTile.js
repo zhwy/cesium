@@ -7,7 +7,7 @@ import {
   countOutOfBoundsPoints,
   isPointInRectangle,
   projectPoint,
-} from "./VectorTileGeometryUtil.js";
+} from "./VectorTileGeometryUtils.js";
 import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
 
 function createPackedLayer() {

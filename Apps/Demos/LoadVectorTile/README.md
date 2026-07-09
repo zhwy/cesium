@@ -21,6 +21,7 @@
 Apps/Demos/LoadVectorTile/
 ├── index.html              # Demo 页面入口
 ├── README.md               # 当前说明文档
+├── STYLE.md                # 完整样式参考
 ├── TODO.txt                # 临时待办记录
 ├── src/                    # 运行时代码
 │   ├── VectorTileLayerManager.js
@@ -28,6 +29,10 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTileStyle.js
 │   ├── VectorTileStyleRule.js
 │   ├── VectorTilePrimitiveBucket.js
+│   ├── VectorTileBucketUtils.js
+│   ├── VectorTileBucketFactory.js
+│   ├── VectorTileFillBucket.js
+│   ├── VectorTileLineBucket.js
 │   ├── VectorTileSymbolBucket.js
 │   ├── VectorStyleExpression.js
 │   ├── VectorStyleFilter.js
@@ -40,6 +45,10 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorStyleExpression.test.js
 │   ├── VectorTileDataProvider.test.js
 │   ├── VectorTilePrimitiveBucket.test.js
+│   ├── VectorTileBucketUtils.test.js
+│   ├── VectorTileBucketFactory.test.js
+│   ├── VectorTileFillBucket.test.js
+│   ├── VectorTileLineBucket.test.js
 │   ├── VectorTileStyleZoom.test.js
 │   └── VectorTileSymbolBucket.test.js
 └── src_old/                # 旧实验版本备份，仅作对照
@@ -150,6 +159,10 @@ READY
 | `VectorTileStyle.js`             | 解析、校验 style document，并提供旧 `styles` 兼容转换。                                           |
 | `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。            |
 | `VectorTilePrimitiveBucket.js`   | 管理一个 style rule 在单个瓦片上的 Primitive/Collection 生命周期。                                |
+| `VectorTileBucketUtils.js`       | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                      |
+| `VectorTileBucketFactory.js`     | 按样式类型把 style rule 路由到对应 bucket，并保持 primitive 存储形状不变。                        |
+| `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive。                                                          |
+| `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive。                                              |
 | `VectorTileSymbolBucket.js`      | 基于点要素创建 `BillboardCollection` 和 `LabelCollection`。                                       |
 | `VectorStyleExpression.js`       | 执行样式表达式子集，例如 `get`、`match`、`case`、`interpolate`、`zoom`。                          |
 | `VectorStyleFilter.js`           | 执行和校验可序列化 filter 表达式，拒绝函数 filter。                                               |
@@ -167,7 +180,7 @@ READY
 | `VectorTileDecoder.js`           | 管理 Worker 请求和异步响应。                                                                      |
 | `VectorTileDecodeWorker.js`      | Worker 入口。                                                                                     |
 | `decodeVectorTile.js`            | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                       |
-| `VectorTileGeometryUtil.js`      | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。              |
+| `VectorTileGeometryUtils.js`     | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。              |
 | `VectorTileCache.js`             | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                    |
 | `VectorTileLodSelection.js`      | 在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                                       |
 | `VectorTileDiagnostics.js`       | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                               |
@@ -214,6 +227,8 @@ const layer = manager.addLayer({
 ### 新 style document 配置
 
 推荐的新入口是 `manager.setStyle(styleDocument)` 或 `manager.addLayer({ styleDocument })`。外部配置沿用易理解的 `sources + layers` 结构，但内部不会照搬 Mapbox 的类名，而是映射到 Cesium 风格的 `VectorTileDataProvider`、`VectorTileStyleRule` 和 `PrimitiveBucket`。
+
+完整字段、symbol 文字/图标配置、锚点映射、terrain 语义、表达式和完整示例，请直接查看 [STYLE.md](./STYLE.md)。
 
 ```js
 manager.setStyle({
@@ -585,7 +600,7 @@ passesAdoptionThreshold
 
 ## 15. 已知限制
 
-- symbol 已支持图标和文字，但尚未实现碰撞避让、沿线文字、图标旋转对齐和字体栈管理；
+- symbol 已支持图标和文字，并补齐了图标锚点、图标宽高、文字锚点、文字背景和背景 padding，但尚未实现碰撞避让、沿线文字、图标旋转对齐和完整字体栈管理；
 - `clampToGround: true` 与非零 `heightOffset` 在线/面上不能同时严格满足，当前会降级为普通高度渲染；
 - packed 当前只优化大量同色线，不支持逐要素拾取；
 - Worker 当前为单实例，`maximumDecodeTasks` 限制提交链路，但 Worker 内仍串行执行消息；

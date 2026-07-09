@@ -1,3 +1,1 @@
 Cesium源码中MVTDataProvider、createVectorTileGeometries等能否复用？
-图层minzoom、maxzoom支持
-目前瓦片数据结构是参考地形瓦片的四叉树，是否要改成参考影像瓦片？

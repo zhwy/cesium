@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   getWebMercatorTileBounds,
   isTileBoundarySegment,
-} from "../src/VectorTileGeometryUtil.js";
+} from "../src/VectorTileGeometryUtils.js";
 
 const tileBounds = getWebMercatorTileBounds({ x: 1, y: 1, level: 2 });
 
@@ -37,4 +37,4 @@ assert.equal(
   false,
 );
 
-console.log("VectorTileGeometryUtil tests passed.");
+console.log("VectorTileGeometryUtils tests passed.");

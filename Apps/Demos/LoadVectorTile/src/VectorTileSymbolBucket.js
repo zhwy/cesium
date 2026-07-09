@@ -1,6 +1,14 @@
+import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import { evaluateVectorStyleFilter } from "./VectorStyleFilter.js";
-import { evaluateVectorStyleExpression } from "./VectorStyleExpression.js";
+import {
+  evaluateColorStyleValue,
+  evaluateFiniteStyleNumber,
+  evaluateStyleValue,
+  getStyleRuleHeightOffset,
+  isDefined,
+  parseCesiumColor,
+} from "./VectorTileBucketUtils.js";
 
 /**
  * Cesium-oriented render bucket for one symbol style rule on one vector tile.
@@ -12,7 +20,6 @@ import { evaluateVectorStyleExpression } from "./VectorStyleExpression.js";
 export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule);
-    this._Cesium = options.Cesium;
     this._scene = options.scene;
     this._iconResolver = options.iconResolver ?? createVectorTileIconResolver();
     this._allowPicking = options.allowPicking ?? false;
@@ -21,11 +28,6 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   }
 
   build(points, zoom) {
-    if (!this._Cesium) {
-      throw new Error("VectorTileSymbolBucket requires a Cesium namespace.");
-    }
-
-    const Cesium = this._Cesium;
     const positions = points?.positions ?? [];
     const metadata = points?.metadata ?? [];
     let billboards;
@@ -50,7 +52,6 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
       );
 
       const billboardOptions = createBillboardOptions(
-        Cesium,
         this._scene,
         position,
         pointMetadata,
@@ -68,7 +69,6 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
       }
 
       const labelOptions = createLabelOptions(
-        Cesium,
         this._scene,
         position,
         pointMetadata,
@@ -113,22 +113,59 @@ export function resolveVectorTileIconResource(iconImage, registry = {}) {
 }
 
 export function evaluateSymbolStyleValue(value, metadata, zoom, fallback) {
-  if (!isDefined(value)) {
-    return fallback;
+  return evaluateStyleValue(value, metadata, zoom, fallback);
+}
+
+export function translateSymbolAnchor(anchorValue, fallback = "center") {
+  const anchor =
+    typeof anchorValue === "string" &&
+    Object.prototype.hasOwnProperty.call(SYMBOL_ANCHOR_MAP, anchorValue)
+      ? anchorValue
+      : fallback;
+  const origins = SYMBOL_ANCHOR_MAP[anchor] ?? SYMBOL_ANCHOR_MAP.center;
+  return {
+    horizontalOrigin: Cesium.HorizontalOrigin[origins.horizontalOrigin],
+    verticalOrigin: Cesium.VerticalOrigin[origins.verticalOrigin],
+  };
+}
+
+export function createSymbolPixelOffset(value, metadata, zoom) {
+  const offset = evaluateSymbolStyleValue(value, metadata, zoom);
+  if (!Array.isArray(offset) || offset.length < 2) {
+    return undefined;
   }
-  const result = isVectorStyleExpression(value)
-    ? evaluateVectorStyleExpression(value, {
-        properties: metadata?.properties ?? {},
-        id: metadata?.id,
-        zoom,
-        level: zoom,
-      })
-    : value;
-  return isDefined(result) ? result : fallback;
+
+  const x = Number(offset[0]);
+  const y = Number(offset[1]);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return undefined;
+  }
+  return new Cesium.Cartesian2(x, y);
+}
+
+export function createSymbolBackgroundPadding(value, metadata, zoom) {
+  const padding = evaluateSymbolStyleValue(value, metadata, zoom);
+  if (!isDefined(padding)) {
+    return undefined;
+  }
+
+  if (Array.isArray(padding)) {
+    const x = Number(padding[0]);
+    const y = Number(padding[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return undefined;
+    }
+    return new Cesium.Cartesian2(x, y);
+  }
+
+  const uniform = Number(padding);
+  if (!Number.isFinite(uniform)) {
+    return undefined;
+  }
+  return new Cesium.Cartesian2(uniform, uniform);
 }
 
 function createBillboardOptions(
-  Cesium,
   scene,
   position,
   metadata,
@@ -150,14 +187,37 @@ function createBillboardOptions(
   return {
     position,
     image,
-    heightReference: getSymbolHeightReference(Cesium, scene, styleRule),
+    heightReference: getSymbolHeightReference(scene, styleRule),
     disableDepthTestDistance: getSymbolDisableDepthTestDistance(styleRule),
-    scale: Number(
+    scale: evaluateFiniteStyleNumber(
+      styleRule.layout?.["icon-size"],
+      metadata,
+      zoom,
+      1,
+    ),
+    width: evaluateFiniteStyleNumber(
+      styleRule.layout?.["icon-width"],
+      metadata,
+      zoom,
+      undefined,
+    ),
+    height: evaluateFiniteStyleNumber(
+      styleRule.layout?.["icon-height"],
+      metadata,
+      zoom,
+      undefined,
+    ),
+    pixelOffset: createSymbolPixelOffset(
+      styleRule.layout?.["icon-offset"],
+      metadata,
+      zoom,
+    ),
+    ...translateSymbolAnchor(
       evaluateSymbolStyleValue(
-        styleRule.layout?.["icon-size"],
+        styleRule.layout?.["icon-anchor"],
         metadata,
         zoom,
-        1,
+        "center",
       ),
     ),
     id: allowPicking ? metadata : undefined,
@@ -165,7 +225,6 @@ function createBillboardOptions(
 }
 
 function createLabelOptions(
-  Cesium,
   scene,
   position,
   metadata,
@@ -182,64 +241,72 @@ function createLabelOptions(
     return undefined;
   }
 
-  const textSize = Number(
-    evaluateSymbolStyleValue(
-      styleRule.layout?.["text-size"],
-      metadata,
-      zoom,
-      16,
-    ),
+  const textSize = evaluateFiniteStyleNumber(
+    styleRule.layout?.["text-size"],
+    metadata,
+    zoom,
+    16,
   );
-  const outlineWidth = Number(
-    evaluateSymbolStyleValue(
-      styleRule.paint?.["text-halo-width"],
-      metadata,
-      zoom,
-      0,
-    ),
+  const outlineWidth = evaluateFiniteStyleNumber(
+    styleRule.paint?.["text-halo-width"],
+    metadata,
+    zoom,
+    0,
+  );
+  const backgroundColorValue = evaluateSymbolStyleValue(
+    styleRule.paint?.["text-background-color"],
+    metadata,
+    zoom,
+  );
+  const anchorValue = evaluateSymbolStyleValue(
+    styleRule.layout?.["text-anchor"],
+    metadata,
+    zoom,
+    "center",
   );
 
   return {
     position,
     text: String(textValue),
-    font: `${Number.isFinite(textSize) ? textSize : 16}px sans-serif`,
-    fillColor: parseCesiumColor(
-      Cesium,
-      evaluateSymbolStyleValue(
-        styleRule.paint?.["text-color"],
-        metadata,
-        zoom,
-        "#ffffffff",
-      ),
+    font: createLabelFont(styleRule, metadata, zoom, textSize),
+    fillColor: evaluateColorStyleValue(
+      styleRule.paint?.["text-color"],
+      metadata,
+      zoom,
       "#ffffffff",
     ),
-    outlineColor: parseCesiumColor(
-      Cesium,
-      evaluateSymbolStyleValue(
-        styleRule.paint?.["text-halo-color"],
-        metadata,
-        zoom,
-        "#000000ff",
-      ),
+    outlineColor: evaluateColorStyleValue(
+      styleRule.paint?.["text-halo-color"],
+      metadata,
+      zoom,
       "#000000ff",
     ),
-    outlineWidth: Number.isFinite(outlineWidth) ? outlineWidth : 0,
+    outlineWidth,
     style:
       outlineWidth > 0
         ? Cesium.LabelStyle.FILL_AND_OUTLINE
         : Cesium.LabelStyle.FILL,
-    heightReference: getSymbolHeightReference(Cesium, scene, styleRule),
+    heightReference: getSymbolHeightReference(scene, styleRule),
     disableDepthTestDistance: getSymbolDisableDepthTestDistance(styleRule),
-    verticalOrigin: Cesium.VerticalOrigin.CENTER,
+    pixelOffset: createSymbolPixelOffset(
+      styleRule.layout?.["text-offset"],
+      metadata,
+      zoom,
+    ),
+    showBackground:
+      isDefined(backgroundColorValue) && backgroundColorValue !== "",
+    backgroundColor:
+      isDefined(backgroundColorValue) && backgroundColorValue !== ""
+        ? parseCesiumColor(backgroundColorValue, "#00000000")
+        : undefined,
+    backgroundPadding: createSymbolBackgroundPadding(
+      styleRule.paint?.["text-background-padding"],
+      metadata,
+      zoom,
+    ),
+    ...translateSymbolAnchor(anchorValue),
     id: allowPicking ? metadata : undefined,
   };
-}
-
-function parseCesiumColor(Cesium, value, fallback) {
-  return (
-    Cesium.Color.fromCssColorString(value) ??
-    Cesium.Color.fromCssColorString(fallback)
-  );
 }
 
 function doesSymbolStyleRuleMatchMetadata(
@@ -261,12 +328,7 @@ function isZoomInRange(zoom, styleRule) {
   );
 }
 
-function getStyleRuleHeightOffset(styleRule) {
-  const heightOffset = Number(styleRule.terrain?.heightOffset ?? 0.0);
-  return Number.isFinite(heightOffset) ? heightOffset : 0.0;
-}
-
-function getSymbolHeightReference(Cesium, scene, styleRule) {
+function getSymbolHeightReference(scene, styleRule) {
   if (styleRule.terrain?.clampToGround !== true || !isDefined(scene)) {
     return Cesium.HeightReference.NONE;
   }
@@ -288,10 +350,64 @@ function markCollectionReady(collection) {
   return collection;
 }
 
-function isVectorStyleExpression(value) {
-  return Array.isArray(value) && typeof value[0] === "string";
+function createLabelFont(styleRule, metadata, zoom, textSize) {
+  const explicitFont = evaluateSymbolStyleValue(
+    styleRule.layout?.["text-font"],
+    metadata,
+    zoom,
+  );
+  if (typeof explicitFont === "string" && explicitFont.trim().length > 0) {
+    return explicitFont;
+  }
+
+  const fontFamily = evaluateSymbolStyleValue(
+    styleRule.layout?.["text-font-family"],
+    metadata,
+    zoom,
+    "sans-serif",
+  );
+  return `${textSize}px ${
+    typeof fontFamily === "string" && fontFamily.trim().length > 0
+      ? fontFamily
+      : "sans-serif"
+  }`;
 }
 
-function isDefined(value) {
-  return value !== undefined && value !== null;
-}
+const SYMBOL_ANCHOR_MAP = Object.freeze({
+  center: {
+    horizontalOrigin: "CENTER",
+    verticalOrigin: "CENTER",
+  },
+  left: {
+    horizontalOrigin: "LEFT",
+    verticalOrigin: "CENTER",
+  },
+  right: {
+    horizontalOrigin: "RIGHT",
+    verticalOrigin: "CENTER",
+  },
+  top: {
+    horizontalOrigin: "CENTER",
+    verticalOrigin: "TOP",
+  },
+  bottom: {
+    horizontalOrigin: "CENTER",
+    verticalOrigin: "BOTTOM",
+  },
+  "top-left": {
+    horizontalOrigin: "LEFT",
+    verticalOrigin: "TOP",
+  },
+  "top-right": {
+    horizontalOrigin: "RIGHT",
+    verticalOrigin: "TOP",
+  },
+  "bottom-left": {
+    horizontalOrigin: "LEFT",
+    verticalOrigin: "BOTTOM",
+  },
+  "bottom-right": {
+    horizontalOrigin: "RIGHT",
+    verticalOrigin: "BOTTOM",
+  },
+});
