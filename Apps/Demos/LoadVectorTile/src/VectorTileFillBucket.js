@@ -135,7 +135,9 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
 
       instances.push(
         new Cesium.GeometryInstance({
-          id: this._allowPicking ? metadata : undefined,
+          id: this._allowPicking
+            ? { ...metadata, layerId: this.styleRule.id }
+            : undefined,
           geometry: new Cesium.PolygonGeometry(polygonOptions),
           attributes: {
             color: Cesium.ColorGeometryInstanceAttribute.fromColor(
@@ -211,7 +213,9 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
             : new Cesium.PolylineGeometry(polylineOptions);
           lineInstances.push(
             new Cesium.GeometryInstance({
-              id: this._allowPicking ? metadata : undefined,
+              id: this._allowPicking
+                ? { ...metadata, layerId: this.styleRule.id }
+                : undefined,
               geometry: polyline,
               attributes: {
                 color: Cesium.ColorGeometryInstanceAttribute.fromColor(

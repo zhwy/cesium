@@ -212,7 +212,7 @@ function createBillboardOptions(
         "center",
       ),
     ),
-    id: allowPicking ? metadata : undefined,
+    id: allowPicking ? { ...metadata, layerId: styleRule.id } : undefined,
   };
 }
 
@@ -297,7 +297,7 @@ function createLabelOptions(
       zoom,
     ),
     ...translateSymbolAnchor(anchorValue),
-    id: allowPicking ? metadata : undefined,
+    id: allowPicking ? { ...metadata, layerId: styleRule.id } : undefined,
   };
 }
 

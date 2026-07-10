@@ -190,7 +190,9 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
       });
       instances.push(
         new Cesium.GeometryInstance({
-          id: this._allowPicking ? metadata : undefined,
+          id: this._allowPicking
+            ? { ...metadata, layerId: this.styleRule.id }
+            : undefined,
           geometry: polyline,
           attributes: {
             color: Cesium.ColorGeometryInstanceAttribute.fromColor(
@@ -247,7 +249,9 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
       });
       instances.push(
         new Cesium.GeometryInstance({
-          id: this._allowPicking ? metadata : undefined,
+          id: this._allowPicking
+            ? { ...metadata, layerId: this.styleRule.id }
+            : undefined,
           geometry: polyline,
           attributes: {
             color: Cesium.ColorGeometryInstanceAttribute.fromColor(
@@ -314,7 +318,9 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
 
           instances.push(
             new Cesium.GeometryInstance({
-              id: this._allowPicking ? metadata : undefined,
+              id: this._allowPicking
+                ? { ...metadata, layerId: this.styleRule.id }
+                : undefined,
               geometry: useGroundPath
                 ? new Cesium.GroundPolylineGeometry({
                     positions: ring,

@@ -270,7 +270,7 @@ function createCircleBillboardOptions(
       metadata,
       zoom,
     ),
-    id: allowPicking ? metadata : undefined,
+    id: allowPicking ? { ...metadata, layerId: styleRule.id } : undefined,
   };
 }
 
