@@ -196,7 +196,7 @@
               type: "vector",
               url: "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_parent_plot_boundary/{z}/{x}/{y}.pbf",
               minimumLevel: 11,
-              maximumLevel: 18,
+              maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
             },
@@ -329,6 +329,23 @@
               },
               filter: ["all", ["==", ["get", "year"], 2025]],
             },
+            // {
+            //   id: "res_parent_plot_boundary-fill",
+            //   type: "fill",
+            //   source: "res_parent_plot_boundary",
+            //   sourceLayer: "res_parent_plot_boundary",
+            //   minzoom: 15,
+            //   maxzoom: 22,
+            //   paint: {
+            //     "fill-color": "#0077ff77",
+            //     "fill-outline-color": "#0077ff",
+            //     "fill-outline-width": 2,
+            //   },
+            //   terrain: {
+            //     clampToGround: true,
+            //   },
+            //   filter: ["all", ["==", ["get", "year"], 2025]],
+            // },
             {
               id: "globe-text",
               type: "symbol",

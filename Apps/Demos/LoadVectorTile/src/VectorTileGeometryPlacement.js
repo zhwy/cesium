@@ -5,7 +5,7 @@ const SYMBOL_PLACEMENT_POLYGON_CENTER = "polygon-center";
 
 const GEOMETRY_TYPES_BY_STYLE_RULE = Object.freeze({
   circle: Object.freeze([1]),
-  fill: Object.freeze([3]),
+  fill: Object.freeze([2, 3]),
   line: Object.freeze([2, 3]),
   symbolPoint: Object.freeze([1]),
   symbolPolygonCenter: Object.freeze([3]),

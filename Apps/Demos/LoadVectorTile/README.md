@@ -180,7 +180,7 @@ READY
 | `VectorTileBucketUtils.js`       | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                      |
 | `VectorTileGeometryPlacement.js` | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。    |
 | `VectorTileBucketFactory.js`     | 包含 `VectorTilePrimitiveBucket` 基类，并按样式类型把 style rule 路由到 fill/line/symbol bucket。 |
-| `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive。                                                          |
+| `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive，并支持将线绘制为强制闭合的单环面。                        |
 | `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。         |
 | `VectorTileSymbolBucket.js`      | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。       |
 | `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                     |

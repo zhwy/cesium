@@ -31,9 +31,13 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
       this._diagnostics?.increment("groundHeightOffsetFallbacks");
     }
 
+    const fillPolygons = createFillPolygonsFromLines(
+      polygons,
+      tileContext.lines,
+    );
     const useGroundPath = shouldUseGroundPath(this.styleRule);
     const polygonInstances = this._createPolygonGeometryInstances(
-      polygons,
+      fillPolygons,
       zoom,
       useGroundPath,
     );
@@ -58,7 +62,7 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
     }
 
     const outlineInstances = this._createFillOutlineGeometryInstances(
-      polygons,
+      fillPolygons,
       zoom,
       useGroundPath,
       tileContext.tileBounds,
@@ -235,4 +239,118 @@ function isFillStyleTranslucent(styleRule) {
     return true;
   }
   return parseCesiumColor(fillColor ?? "#ff000077", "#ff000077").alpha < 1.0;
+}
+
+function createFillPolygonsFromLines(polygons, lines) {
+  const lineRingCount = countLineRings(lines);
+  if (lineRingCount === 0) {
+    return polygons;
+  }
+
+  const polygonPositionCount = polygons?.positions?.length ?? 0;
+  const polygonRingCount = Math.max(
+    0,
+    (polygons?.ringOffsets?.length ?? 0) - 1,
+  );
+  const polygonCount = Math.max(0, (polygons?.polygonOffsets?.length ?? 0) - 1);
+  const linePositionCount = countLineRingPositionValues(lines);
+  const positions = new Float64Array(polygonPositionCount + linePositionCount);
+  const ringOffsets = new Uint32Array(polygonRingCount + lineRingCount + 1);
+  const polygonOffsets = new Uint32Array(polygonCount + lineRingCount + 1);
+  const metadata = [];
+
+  if (polygonPositionCount > 0) {
+    positions.set(polygons.positions);
+  }
+  for (let i = 0; i < polygonRingCount; ++i) {
+    ringOffsets[i] = polygons.ringOffsets[i];
+  }
+  ringOffsets[polygonRingCount] =
+    polygons?.ringOffsets?.[polygonRingCount] ?? polygonPositionCount / 2;
+  for (let i = 0; i < polygonCount; ++i) {
+    polygonOffsets[i] = polygons.polygonOffsets[i];
+    metadata.push(polygons.metadata?.[i]);
+  }
+  polygonOffsets[polygonCount] =
+    polygons?.polygonOffsets?.[polygonCount] ?? polygonRingCount;
+
+  let positionCursor = polygonPositionCount;
+  let ringCursor = polygonRingCount;
+  let polygonCursor = polygonCount;
+  for (let i = 0; i + 1 < lines.offsets.length; ++i) {
+    const linePositionValueCount = getLineRingPositionValueCount(lines, i);
+    if (linePositionValueCount === 0) {
+      continue;
+    }
+
+    const start = lines.offsets[i];
+    const end = lines.offsets[i + 1];
+    polygonOffsets[polygonCursor] = ringCursor;
+    ringOffsets[ringCursor] = positionCursor / 2;
+    positions.set(lines.positions.subarray(start * 2, end * 2), positionCursor);
+    positionCursor += (end - start) * 2;
+    if (!isLineClosed(lines, i)) {
+      positions[positionCursor] = lines.positions[start * 2];
+      positions[positionCursor + 1] = lines.positions[start * 2 + 1];
+      positionCursor += 2;
+    }
+    ringCursor++;
+    polygonCursor++;
+    polygonOffsets[polygonCursor] = ringCursor;
+    ringOffsets[ringCursor] = positionCursor / 2;
+    metadata.push(lines.metadata?.[i]);
+  }
+
+  return {
+    positions,
+    ringOffsets,
+    polygonOffsets,
+    metadata,
+  };
+}
+
+function countLineRings(lines) {
+  let count = 0;
+  for (let i = 0; i + 1 < (lines?.offsets?.length ?? 0); ++i) {
+    if (getLineRingPositionValueCount(lines, i) > 0) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function countLineRingPositionValues(lines) {
+  let count = 0;
+  for (let i = 0; i + 1 < (lines?.offsets?.length ?? 0); ++i) {
+    count += getLineRingPositionValueCount(lines, i);
+  }
+  return count;
+}
+
+function getLineRingPositionValueCount(lines, lineIndex) {
+  const start = lines?.offsets?.[lineIndex];
+  const end = lines?.offsets?.[lineIndex + 1];
+  if (start === undefined || end === undefined) {
+    return 0;
+  }
+
+  const pointCount = end - start;
+  if (isLineClosed(lines, lineIndex)) {
+    return pointCount >= 4 ? pointCount * 2 : 0;
+  }
+  return pointCount >= 3 ? (pointCount + 1) * 2 : 0;
+}
+
+function isLineClosed(lines, lineIndex) {
+  const start = lines?.offsets?.[lineIndex];
+  const end = lines?.offsets?.[lineIndex + 1];
+  if (start === undefined || end === undefined || end <= start) {
+    return false;
+  }
+  const firstIndex = start * 2;
+  const lastIndex = (end - 1) * 2;
+  return (
+    lines.positions[firstIndex] === lines.positions[lastIndex] &&
+    lines.positions[firstIndex + 1] === lines.positions[lastIndex + 1]
+  );
 }

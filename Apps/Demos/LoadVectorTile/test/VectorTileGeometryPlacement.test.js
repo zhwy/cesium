@@ -32,6 +32,9 @@ import {
   assert.deepEqual(getStyleRuleGeometryTypes({ type: "circle" }), [1]);
   assert.equal(doesStyleRuleUseGeometryType({ type: "circle" }, 1), true);
   assert.equal(doesStyleRuleUseGeometryType({ type: "circle" }, 2), false);
+  assert.deepEqual(getStyleRuleGeometryTypes({ type: "fill" }), [2, 3]);
+  assert.equal(doesStyleRuleUseGeometryType({ type: "fill" }, 2), true);
+  assert.equal(doesStyleRuleUseGeometryType({ type: "fill" }, 3), true);
   assert.deepEqual(getStyleRuleGeometryTypes({ type: "line" }), [2, 3]);
   assert.equal(doesStyleRuleUseGeometryType({ type: "line" }, 3), true);
   assert.equal(

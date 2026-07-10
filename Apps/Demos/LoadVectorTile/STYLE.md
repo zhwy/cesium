@@ -105,6 +105,7 @@
 ### 4.2 行为说明
 
 - `fill` 当前由 `VectorTileFillBucket` 负责。
+- `fill` 会绘制 polygon / multipolygon；当 source layer 中是 line / multiline 时，会把至少 3 个点的线作为单环面绘制，不闭合的线会自动追加起点强制闭合。
 - 当 `terrain.clampToGround: true` 且 `heightOffset === 0` 时，使用 `GroundPrimitive`。
 - 当配置 `fill-outline-color` 时，会额外生成 outline primitive。
 - `clipToTile: true` 且存在瓦片边界信息时，落在瓦片边界上的 outline 线段会被跳过，避免相邻瓦片重复描边。
@@ -354,7 +355,7 @@ terrain: {
 
 几何类型和 filter 的组合规则：
 
-- `fill` 图层只匹配 polygon 要素。
+- `fill` 图层匹配 polygon 要素，也匹配 line 要素；line 要素至少 3 个点时会被填充为面，不闭合时会自动补闭合点。
 - `line` 图层匹配 line 要素，也匹配 polygon 要素并将其渲染为 outline。
 - `symbol-placement: "point"` 匹配 point 要素。
 - `symbol-placement: "polygon-center"` 匹配 polygon 要素。

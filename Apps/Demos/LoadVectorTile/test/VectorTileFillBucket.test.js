@@ -222,6 +222,51 @@ const { default: VectorTileFillBucket } =
   );
 }
 
+{
+  const diagnostics = createDiagnostics();
+  const bucket = new VectorTileFillBucket(
+    {
+      id: "closed-line-fill",
+      type: "fill",
+      sourceLayer: "line_regions",
+      paint: {
+        "fill-color": "#00ffff77",
+      },
+    },
+    {
+      diagnostics,
+    },
+  ).build(createEmptyPolygons(), 4, {
+    lines: createLineRings(),
+  });
+
+  assert.equal(bucket.length, 1);
+  assert.ok(bucket.primitives[0] instanceof FakePrimitive);
+  assert.equal(bucket.primitives[0].options.geometryInstances.length, 2);
+  assert.equal(
+    bucket.primitives[0].options.geometryInstances[0].geometry.options
+      .polygonHierarchy.positions.length,
+    5,
+  );
+  assert.deepEqual(
+    bucket.primitives[0].options.geometryInstances[0].geometry.options
+      .polygonHierarchy.positions[0],
+    {
+      longitude: 0,
+      latitude: 0,
+      height: 0,
+    },
+  );
+  const openLinePositions =
+    bucket.primitives[0].options.geometryInstances[1].geometry.options
+      .polygonHierarchy.positions;
+  assert.equal(openLinePositions.length, 4);
+  assert.deepEqual(openLinePositions[3], openLinePositions[0]);
+  console.log(
+    "✓ build fill primitives from line rings and force open rings closed",
+  );
+}
+
 console.log("VectorTileFillBucket tests passed.");
 
 function createPolygons() {
@@ -256,6 +301,28 @@ function createPolygonsOnTileBoundary() {
     ringOffsets: new Uint32Array([0, 5]),
     polygonOffsets: new Uint32Array([0, 1]),
     metadata: [{ properties: {} }],
+  };
+}
+
+function createEmptyPolygons() {
+  return {
+    positions: new Float64Array(),
+    ringOffsets: new Uint32Array([0]),
+    polygonOffsets: new Uint32Array([0]),
+    metadata: [],
+  };
+}
+
+function createLineRings() {
+  return {
+    positions: new Float64Array([
+      0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 10, 10, 11, 10, 11, 11,
+    ]),
+    offsets: new Uint32Array([0, 5, 8]),
+    metadata: [
+      { id: 1, properties: { kind: "closed" } },
+      { id: 2, properties: { kind: "open" } },
+    ],
   };
 }
 
