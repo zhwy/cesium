@@ -1,7 +1,7 @@
 /**
  * Cesium-oriented runtime representation of one external style document layer.
  * The external document keeps Mapbox-like `layers`; internally we treat each
- * entry as a style rule that can be attached to a VectorTileDataProvider.
+ * entry as a style rule that can be attached to a VectorTileProvider.
  */
 export default class VectorTileStyleRule {
   constructor(layer) {

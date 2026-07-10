@@ -4,7 +4,6 @@ import VectorTileQuadtreeProvider from "./VectorTileQuadtreeProvider.js";
 import VectorTileLayerCollection from "./VectorTileLayerCollection.js";
 import VectorTileDiagnostics from "./VectorTileDiagnostics.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
-import VectorTileDataProvider from "./VectorTileDataProvider.js";
 import {
   TileType,
   WMTSGeoVectorTileProvider,
@@ -50,7 +49,7 @@ export default class VectorTileLayerManager {
       ...(options.iconImages ?? {}),
     };
     this._scene = options.scene;
-    this._dataProviders = new Map();
+    this._providersBySourceId = new Map();
 
     this._vectorTileLayers = new VectorTileLayerCollection();
     // The same maximumScreenSpaceError must be used by both the quadtree
@@ -151,72 +150,99 @@ export default class VectorTileLayerManager {
     scene.primitives.remove(this.quadtreePrimitive);
   }
 
-  addLayer(options) {
-    const defaultOptions = {
-      dataTypeField: "type",
-      dataIdField: "id",
-      minimumLevel: 0,
-      maximumLevel: 20,
-      tileType: TileType.XYZ,
-      format: "application/vnd.mapbox-vector-tile",
-      url: "",
-      layer: "",
-      allowPicking: false,
-      asynchronous: true,
-      shadows: Cesium.ShadowMode.DISABLED,
-      polygonHeight: 1.0,
-      clipToTile: true,
-      renderBackend: "instances",
-      packedMinimumInstances: 200,
-      cacheBytes: 64 * 1024 * 1024,
-      colors: {
-        DEFAULT: "#FF0000",
-      },
-    };
+  addLayer(sourceId, layerOptions = {}) {
+    if (typeof sourceId !== "string" || sourceId.length === 0) {
+      throw new Cesium.DeveloperError("sourceId must be a non-empty string.");
+    }
 
-    const provider = this._createProvider({
-      ...defaultOptions,
-      ...options,
-      tilingScheme: this.tilingScheme,
+    const provider = this.getProvider(sourceId);
+    if (!provider) {
+      throw new Cesium.DeveloperError(
+        `provider for source "${sourceId}" does not exist.`,
+      );
+    }
+
+    const runtimeLayer = this._getRuntimeLayerForProvider(provider);
+    const currentStyle = runtimeLayer?.getStyle();
+    const mergedStyleDocument = normalizeStyleDocument({
+      version: 1,
+      sources: {
+        [sourceId]: provider.source,
+      },
+      layers: [
+        ...(currentStyle?.layers ?? []),
+        { ...layerOptions, source: sourceId },
+      ],
+      metadata: currentStyle?.metadata ?? {},
+    });
+    runtimeLayer?.setStyle(mergedStyleDocument);
+    return runtimeLayer;
+  }
+
+  addLayerProvider(provider, index) {
+    //>>includeStart('debug', pragmas.debug);
+    if (!Cesium.defined(provider)) {
+      throw new Cesium.DeveloperError("provider is required.");
+    }
+    if (
+      provider.sourceId &&
+      this._providersBySourceId.has(provider.sourceId) &&
+      this._providersBySourceId.get(provider.sourceId) !== provider
+    ) {
+      throw new Cesium.DeveloperError(
+        `provider for source "${provider.sourceId}" already exists.`,
+      );
+    }
+    //>>includeEnd('debug');
+
+    provider._options = {
+      ...provider._options,
+      sourceId: provider.sourceId,
+      styleSourceId: provider.sourceId,
+      styleDocument: provider._options.styleDocument,
+      scene: this._scene,
+      iconImages: this._iconImages,
       diagnostics: this._diagnostics,
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
-      scene: this._scene,
-      iconImages: this._iconImages,
-    });
-
-    return this._vectorTileLayers.addLayerProvider(provider);
+    };
+    if (provider.sourceId) {
+      this._providersBySourceId.set(provider.sourceId, provider);
+    }
+    return this._vectorTileLayers.addLayerProvider(provider, index);
   }
 
   removeLayer(layerId, destroy = true) {
-    const layer = this.getLayer(layerId);
-    if (!layer) {
+    const runtimeLayer = this._findLayerByStyleRuleId(layerId);
+    if (!runtimeLayer) {
       return false;
     }
 
-    const sourceId = getManagedLayerSourceId(layer);
-    const removed = this._vectorTileLayers.remove(layer, destroy);
-    if (removed && sourceId && !this._hasLayerUsingSourceId(sourceId)) {
-      this._dataProviders.delete(sourceId);
+    const currentStyle = runtimeLayer.getStyle();
+    const remainingLayers = currentStyle.layers.filter(
+      (layer) => layer.id !== layerId,
+    );
+    if (remainingLayers.length === currentStyle.layers.length) {
+      return false;
     }
 
-    return removed;
+    if (remainingLayers.length === 0) {
+      this._deleteProvider(runtimeLayer.vectorTileProvider);
+      return this._vectorTileLayers.remove(runtimeLayer, destroy);
+    }
+
+    runtimeLayer.setStyle({ ...currentStyle, layers: remainingLayers });
+    return true;
   }
 
   removeAll(destroy = true) {
-    this._dataProviders.clear();
+    this._providersBySourceId.clear();
     this._vectorTileLayers.removeAll(destroy);
   }
 
-  getLayer(layerId) {
-    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
-      const layer = this._vectorTileLayers.get(i);
-      if (isManagedLayerIdMatch(layer, layerId)) {
-        return layer;
-      }
-    }
-    return undefined;
+  getProvider(sourceId) {
+    return this._providersBySourceId.get(sourceId);
   }
 
   setStyle(styleDocument) {
@@ -232,9 +258,12 @@ export default class VectorTileLayerManager {
         return;
       }
 
-      const provider = this._createDataProvider(sourceId, source, styleRules);
-      this._dataProviders.set(sourceId, provider);
-      this._addDataProviderLayer(provider);
+      const provider = this._createManagedProvider(
+        sourceId,
+        source,
+        styleRules,
+      );
+      this.addLayerProvider(provider);
     });
 
     this._quadtreePrimitive.invalidateAllTiles();
@@ -243,12 +272,14 @@ export default class VectorTileLayerManager {
   getStyle() {
     const sources = {};
     const layers = [];
-    this._dataProviders.forEach((dataProvider, sourceId) => {
-      sources[sourceId] = dataProvider.source;
-      dataProvider.styleRules.forEach((styleRule) => {
-        layers.push(styleRule.toJSON());
-      });
-    });
+    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
+      const styleDocument = this._vectorTileLayers.get(i).getStyle();
+      if (!styleDocument) {
+        continue;
+      }
+      Object.assign(sources, styleDocument.sources);
+      layers.push(...styleDocument.layers);
+    }
     if (Object.keys(sources).length === 0) {
       return undefined;
     }
@@ -278,8 +309,8 @@ export default class VectorTileLayerManager {
     this._quadtreePrimitive.invalidateAllTiles();
   }
 
-  _createDataProvider(sourceId, source, styleRules) {
-    const provider = this._createProvider({
+  _createManagedProvider(sourceId, source, styleRules) {
+    return this._createProvider({
       dataTypeField: "type",
       dataIdField: "id",
       minimumLevel: source.minimumLevel ?? 0,
@@ -313,30 +344,6 @@ export default class VectorTileLayerManager {
       scene: this._scene,
       iconImages: this._iconImages,
     });
-    return new VectorTileDataProvider({
-      sourceId,
-      source,
-      provider,
-      styleRules,
-    });
-  }
-
-  _addDataProviderLayer(dataProvider) {
-    const styleDocument = dataProvider.toStyleDocument();
-    dataProvider._options = {
-      ...dataProvider._options,
-      sourceId: dataProvider.sourceId,
-      styleSourceId: dataProvider.sourceId,
-      styleDocument,
-      scene: this._scene,
-      iconImages: this._iconImages,
-      diagnostics: this._diagnostics,
-      networkScheduler: this._networkScheduler,
-      decodeScheduler: this._decodeScheduler,
-      buildScheduler: this._buildScheduler,
-    };
-    const layer = this._vectorTileLayers.addLayerProvider(dataProvider);
-    return layer;
   }
 
   _createProvider(options) {
@@ -363,20 +370,33 @@ export default class VectorTileLayerManager {
     }
   }
 
-  _hasLayerUsingSourceId(sourceId) {
+  _findLayerByStyleRuleId(layerId) {
     for (let i = 0; i < this._vectorTileLayers.length; ++i) {
-      if (getManagedLayerSourceId(this._vectorTileLayers.get(i)) === sourceId) {
-        return true;
+      const layer = this._vectorTileLayers.get(i);
+      const styleDocument = layer.getStyle();
+      if (styleDocument?.layers.some((rule) => rule.id === layerId)) {
+        return layer;
       }
     }
-    return false;
+    return undefined;
   }
-}
 
-function getManagedLayerSourceId(layer) {
-  return layer?._option?.sourceId ?? layer?._option?.styleSourceId;
-}
+  _getRuntimeLayerForProvider(provider) {
+    for (let i = 0; i < this._vectorTileLayers.length; ++i) {
+      const layer = this._vectorTileLayers.get(i);
+      if (layer.vectorTileProvider === provider) {
+        return layer;
+      }
+    }
+    return undefined;
+  }
 
-function isManagedLayerIdMatch(layer, layerId) {
-  return layer?._option?.id === layerId;
+  _deleteProvider(provider) {
+    if (!provider?.sourceId) {
+      return;
+    }
+    if (this._providersBySourceId.get(provider.sourceId) === provider) {
+      this._providersBySourceId.delete(provider.sourceId);
+    }
+  }
 }

@@ -12,18 +12,14 @@ import { createVectorTileIconResolver } from "./VectorTileSymbolBucket.js";
 import VectorTileTaskScheduler, {
   VectorTileTaskCancelledError,
 } from "./VectorTileTaskScheduler.js";
-import {
-  createLegacyLayerOptionsFromStyleDocument,
-  createStyleDocumentFromLegacyOptions,
-  normalizeStyleDocument,
-} from "./VectorTileStyleUtils.js";
+import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
 import { filterPackedLayerByStyleRules } from "./VectorTileGeometryPlacement.js";
 import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
 import { TileType } from "./VectorTileProvider.js";
 import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
 import { isWorkerSupportedVectorStyleFilter } from "./VectorTileStyleExpression.js";
 
-const defaultOptions = {
+const DEFAULT_OPTIONS = {
   tilingScheme: "WebMercatorTilingScheme",
   dataTypeField: "type",
   dataIdField: "id",
@@ -83,15 +79,12 @@ export default class VectorTileLayer {
   constructor(vectorTileProvider, options) {
     this._show = true;
     this._destroyed = false;
-    this._option = { ...defaultOptions, ...options };
+    this._option = { ...DEFAULT_OPTIONS, ...options };
     this._styleLayer = (this._option.layer || "").replace(/(.*:)/g, "");
-    this._styles = options.styles || {};
     this._scene = options.scene;
     this._styleDocument = options.styleDocument
       ? normalizeStyleDocument(options.styleDocument)
-      : options.styles
-        ? createStyleDocumentFromLegacyOptions(options)
-        : undefined;
+      : undefined;
     this._vectorTileProvider = vectorTileProvider;
     this._diagnostics = options.diagnostics;
     this._decodeScheduler =
@@ -264,10 +257,7 @@ export default class VectorTileLayer {
               sourceLevel: vectorTile.level,
               styleZoom: vectorTile.level,
             },
-            styledLayerNames: getStyledLayerNames(
-              this._styleDocument,
-              this._styles,
-            ),
+            styledLayerNames: getStyledLayerNames(this._styleDocument),
             styleRules: workerStyleRules,
             includeProperties:
               this._option.allowPicking ||
@@ -448,25 +438,10 @@ export default class VectorTileLayer {
     });
   }
 
-  setStyles(styles) {
-    this._styles = styles || {};
-    this._option.styles = this._styles;
-    this._styleDocument = createStyleDocumentFromLegacyOptions(this._option);
-    this.clearCache();
-  }
-
   setStyle(styleDocument) {
     const normalizedStyle = normalizeStyleDocument(styleDocument);
-    const legacyLayerOptions =
-      createLegacyLayerOptionsFromStyleDocument(normalizedStyle);
-    const sourceId = this._option.sourceId ?? this._option.styleSourceId;
-    const legacyOptions =
-      legacyLayerOptions.find((options) => options.sourceId === sourceId) ??
-      legacyLayerOptions[0];
-
     this._styleDocument = normalizedStyle;
-    this._styles = legacyOptions?.styles || {};
-    this._option.styles = this._styles;
+    this._option.styleDocument = normalizedStyle;
     this.clearCache();
   }
 
@@ -570,7 +545,7 @@ function getStyleRulesForBuild(styleDocument) {
   );
 }
 
-function getStyledLayerNames(styleDocument, styles) {
+function getStyledLayerNames(styleDocument) {
   if (styleDocument?.layers?.length > 0) {
     return [
       ...new Set(
@@ -580,7 +555,7 @@ function getStyledLayerNames(styleDocument, styles) {
       ),
     ];
   }
-  return Object.keys(styles);
+  return [];
 }
 
 function applyMainThreadStyleFilters(

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 
-import {
-  createStyleDocumentFromLegacyOptions,
-  normalizeStyleDocument,
-} from "../src/VectorTileStyleUtils.js";
+import { normalizeStyleDocument } from "../src/VectorTileStyleUtils.js";
 
 class FakePrimitive {
   constructor(options) {
@@ -359,18 +356,35 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
 }
 
 {
-  const styleDocument = createStyleDocumentFromLegacyOptions({
-    sourceId: "legacy",
-    url: "https://example.com/{z}/{x}/{y}.pbf",
-    styles: {
-      land: {
-        fillColor: "#00ff0077",
-      },
-      road: {
-        lineColor: "#ff0000ff",
-        lineWidth: 2,
+  const styleDocument = normalizeStyleDocument({
+    version: 1,
+    sources: {
+      demo: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
       },
     },
+    layers: [
+      {
+        id: "demo-land-fill",
+        type: "fill",
+        source: "demo",
+        sourceLayer: "land",
+        paint: {
+          "fill-color": "#00ff0077",
+        },
+      },
+      {
+        id: "demo-road-line",
+        type: "line",
+        source: "demo",
+        sourceLayer: "road",
+        paint: {
+          "line-color": "#ff0000ff",
+          "line-width": 2,
+        },
+      },
+    ],
   });
 
   const bucketIds = styleDocument.layers.map(
@@ -386,10 +400,8 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
       ).id,
   );
 
-  assert.deepEqual(bucketIds.sort(), ["legacy-land-fill", "legacy-road-line"]);
-  console.log(
-    "✓ keep legacy styles rendering through the new bucket-based style path",
-  );
+  assert.deepEqual(bucketIds.sort(), ["demo-land-fill", "demo-road-line"]);
+  console.log("✓ keep bucket ids stable for source-backed style documents");
 }
 
 console.log("VectorTileBucketFactory tests passed.");

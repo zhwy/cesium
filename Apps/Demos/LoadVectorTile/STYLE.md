@@ -68,7 +68,7 @@
 | `asynchronous`           | instances 后端是否允许 Cesium 异步建模。 |
 | `shadows`                | 是否参与阴影。                           |
 
-这些字段和 `manager.addLayer()` 旧配置里的同名项一致；当你用 style document 时，它们仍然放在 `source` 上。
+这些字段写在 `manager.setStyle(styleDocument)` 的 `sources[sourceId]` 中；如果你已经创建了自定义 `VectorTileProvider`，也可以直接通过 `manager.addLayerProvider(provider)` 注入。`manager.addLayer(sourceId, layerOptions)` 只追加单个样式图层，不负责 source 配置。
 
 ## 3. 图层通用字段
 
@@ -368,13 +368,14 @@ terrain: {
 ### 10.1 初始化时传入
 
 ```js
-const layer = manager.addLayer({
-  styleDocument,
+const manager = new VectorTileLayerManager({
   iconImages: {
     capital: "http://localhost:10101/icons/capital.png",
   },
 });
 ```
+
+`manager.addLayer(sourceId, layerOptions)` 用于向现有 source 对应的 layer 追加单个样式图层（样式由 layer 持有，provider 只负责数据源）；多 source 组合初始化请使用 `manager.setStyle(styleDocument)`。如果你已经手里有自定义 `VectorTileProvider`，可以直接调用 `manager.addLayerProvider(provider)`。
 
 ### 10.2 运行时注册
 

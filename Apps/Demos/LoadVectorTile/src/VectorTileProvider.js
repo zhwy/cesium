@@ -1,5 +1,6 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
+import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
 
 export const TileType = Object.freeze({
   XYZ: "XYZ",
@@ -42,22 +43,45 @@ MVTLoader.instance();
 
 export default class VectorTileProvider {
   constructor(options = {}) {
-    this._options = options;
+    const sourceState = getProviderSourceState(options);
+    this._sourceId = sourceState.sourceId;
+    this._source = sourceState.source;
+    this._options = {
+      ...(this._source ?? {}),
+      ...options,
+    };
+    if (this._sourceId) {
+      this._options.sourceId = this._sourceId;
+      this._options.styleSourceId = this._sourceId;
+    }
+    if (sourceState.styleDocument) {
+      this._options.styleDocument = sourceState.styleDocument;
+    }
 
     this._tilingScheme =
-      options.tilingScheme ?? new Cesium.WebMercatorTilingScheme();
-    this._minimumLevel = options.minimumLevel ?? 0;
-    this._maximumLevel = options.maximumLevel ?? 18;
+      this._options.tilingScheme ?? new Cesium.WebMercatorTilingScheme();
+    this._minimumLevel = this._options.minimumLevel ?? 0;
+    this._maximumLevel = this._options.maximumLevel ?? 18;
     this._networkScheduler =
-      options.networkScheduler ?? new VectorTileTaskScheduler(8);
+      this._options.networkScheduler ?? new VectorTileTaskScheduler(8);
 
     this._resource = new Cesium.Resource({
-      url: options.url,
+      url: this._options.url,
     });
   }
 }
 
 Object.defineProperties(VectorTileProvider.prototype, {
+  sourceId: {
+    get: function () {
+      return this._sourceId;
+    },
+  },
+  source: {
+    get: function () {
+      return this._source;
+    },
+  },
   minimumLevel: {
     get: function () {
       return this._minimumLevel;
@@ -233,4 +257,102 @@ export class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
       tile.state = Cesium.QuadtreeTileLoadState.LOADING;
     }
   }
+}
+
+function getProviderSourceState(options) {
+  if (!options.styleDocument) {
+    const sourceId = options.sourceId ?? options.styleSourceId;
+    const source = isPlainObject(options.source)
+      ? cloneValue(options.source)
+      : undefined;
+    const styleRules = (options.styleRules ?? []).map(cloneStyleRule);
+    return {
+      sourceId,
+      source,
+      styleDocument:
+        sourceId && source
+          ? {
+              version: 1,
+              sources: {
+                [sourceId]: cloneValue(source),
+              },
+              layers: styleRules,
+              metadata: {},
+            }
+          : undefined,
+    };
+  }
+
+  const normalizedStyle = normalizeStyleDocument(options.styleDocument);
+  const sourceId = resolveProviderSourceId(options, normalizedStyle);
+  const source = cloneValue(normalizedStyle.sources[sourceId]);
+  const styleRules = normalizedStyle.layers
+    .filter((layer) => layer.source === sourceId)
+    .map(cloneStyleRule);
+  return {
+    sourceId,
+    source,
+    styleDocument: {
+      version: normalizedStyle.version,
+      sources: {
+        [sourceId]: cloneValue(source),
+      },
+      layers: styleRules,
+      metadata: cloneValue(normalizedStyle.metadata ?? {}),
+    },
+  };
+}
+
+function resolveProviderSourceId(options, styleDocument) {
+  const explicitSourceId = options.sourceId ?? options.styleSourceId;
+  if (explicitSourceId) {
+    if (!styleDocument.sources[explicitSourceId]) {
+      throw new Cesium.DeveloperError(
+        `styleDocument does not contain source "${explicitSourceId}".`,
+      );
+    }
+    return explicitSourceId;
+  }
+
+  const sourceIds = Object.keys(styleDocument.sources);
+  if (sourceIds.length !== 1) {
+    throw new Cesium.DeveloperError(
+      "styleDocument must contain exactly one source when sourceId is not provided.",
+    );
+  }
+  return sourceIds[0];
+}
+
+function cloneStyleRule(styleRule) {
+  return styleRuleToJSON(styleRule);
+}
+
+function styleRuleToJSON(styleRule) {
+  if (typeof styleRule?.toJSON === "function") {
+    return styleRule.toJSON();
+  }
+  return cloneValue(styleRule);
+}
+
+function isPlainObject(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (Object.getPrototypeOf(value) === Object.prototype ||
+      Object.getPrototypeOf(value) === null)
+  );
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(cloneValue);
+  }
+  if (isPlainObject(value)) {
+    const result = {};
+    Object.keys(value).forEach((key) => {
+      result[key] = cloneValue(value[key]);
+    });
+    return result;
+  }
+  return value;
 }

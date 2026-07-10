@@ -1,2 +1,2 @@
+更加Cesium like的样式配置
 Cesium源码中decodeMVT等能否复用？
-VectorTilePrimitiveBucket中独立创建collection，图层应该统一创建collection，在tile间共享
