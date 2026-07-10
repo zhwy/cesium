@@ -132,7 +132,7 @@ export default class VectorTileLayerManager {
     }
   }
 
-  removeFromScene(scene) {
+  removeFromScene() {
     this._removeLayerAddedListener?.();
     this._removeLayerRemovedListener?.();
     this._removeLayerVisibilityListener?.();
@@ -147,7 +147,8 @@ export default class VectorTileLayerManager {
     this._removePreUpdateListener = undefined;
     this._removePostRenderListener = undefined;
 
-    scene.primitives.remove(this.quadtreePrimitive);
+    this._scene?.primitives.remove(this.quadtreePrimitive);
+    this._scene = undefined;
   }
 
   addLayer(sourceId, layerOptions = {}) {
@@ -291,6 +292,36 @@ export default class VectorTileLayerManager {
     });
   }
 
+  getLayerStyle(layerId) {
+    const runtimeLayer = this._findLayerByStyleRuleId(layerId);
+    if (runtimeLayer) {
+      const currentStyle = runtimeLayer.getStyle();
+      return currentStyle.layers.find((layer) => layer.id === layerId);
+    }
+
+    return undefined;
+  }
+
+  setLayerStyle(layerId, newStyle, merged = true) {
+    const runtimeLayer = this._findLayerByStyleRuleId(layerId);
+    if (!runtimeLayer) {
+      return false;
+    }
+
+    const currentStyle = runtimeLayer.getStyle();
+    const layerIndex = currentStyle.layers.findIndex(
+      (layer) => layer.id === layerId,
+    );
+    const updatedLayer = merged
+      ? mergeStyleValue(currentStyle.layers[layerIndex], newStyle)
+      : newStyle;
+    const updatedLayers = currentStyle.layers.slice();
+    updatedLayers[layerIndex] = updatedLayer;
+
+    runtimeLayer.setStyle({ ...currentStyle, layers: updatedLayers });
+    return true;
+  }
+
   registerIconImage(name, image) {
     this._iconImages[name] = image;
     for (let i = 0; i < this._vectorTileLayers.length; ++i) {
@@ -399,4 +430,39 @@ export default class VectorTileLayerManager {
       this._providersBySourceId.delete(provider.sourceId);
     }
   }
+}
+
+function mergeStyleValue(currentValue, newValue) {
+  if (!isPlainObject(currentValue) || !isPlainObject(newValue)) {
+    return cloneStyleValue(newValue);
+  }
+
+  const result = cloneStyleValue(currentValue);
+  Object.keys(newValue).forEach((key) => {
+    result[key] = mergeStyleValue(currentValue[key], newValue[key]);
+  });
+  return result;
+}
+
+function cloneStyleValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(cloneStyleValue);
+  }
+  if (isPlainObject(value)) {
+    const result = {};
+    Object.keys(value).forEach((key) => {
+      result[key] = cloneStyleValue(value[key]);
+    });
+    return result;
+  }
+  return value;
+}
+
+function isPlainObject(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (Object.getPrototypeOf(value) === Object.prototype ||
+      Object.getPrototypeOf(value) === null)
+  );
 }

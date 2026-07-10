@@ -132,6 +132,75 @@ const { default: VectorTileLayerManager } =
   console.log("✓ removeLayer leaves providers unchanged for unknown ids");
 }
 
+{
+  const fillRule = createFillRule("org-fill", "org");
+  fillRule.paint = {
+    "fill-color": "#000000",
+    "fill-opacity": 0.5,
+  };
+  fillRule.metadata = {
+    state: {
+      selected: false,
+      category: "country",
+    },
+  };
+  const provider = createProviderStub("org", [fillRule]);
+  const runtimeLayer = createRuntimeLayer(provider);
+  const manager = createManager([provider], [runtimeLayer]);
+
+  assert.equal(
+    manager.setLayerStyle("org-fill", {
+      paint: {
+        "fill-color": "#ff0000",
+      },
+      metadata: {
+        state: {
+          selected: true,
+        },
+      },
+    }),
+    true,
+  );
+  assert.equal(runtimeLayer.setStyleCalls.length, 1);
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0], {
+    ...fillRule,
+    paint: {
+      "fill-color": "#ff0000",
+      "fill-opacity": 0.5,
+    },
+    metadata: {
+      state: {
+        selected: true,
+        category: "country",
+      },
+    },
+  });
+  console.log("✓ setLayerStyle recursively merges a partial layer style");
+}
+
+{
+  const provider = createProviderStub("org", [
+    createFillRule("org-fill", "org"),
+  ]);
+  const runtimeLayer = createRuntimeLayer(provider);
+  const manager = createManager([provider], [runtimeLayer]);
+  const replacement = {
+    id: "org-fill",
+    type: "line",
+    source: "org",
+    sourceLayer: "borders",
+    paint: {
+      "line-width": 3,
+    },
+  };
+
+  assert.equal(manager.setLayerStyle("org-fill", replacement, false), true);
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0], replacement);
+  assert.equal(manager.setLayerStyle("missing", replacement), false);
+  assert.equal(runtimeLayer.setStyleCalls.length, 1);
+  console.log("✓ setLayerStyle supports replacement and unknown layer ids");
+}
+
 console.log("VectorTileLayerManager tests passed.");
 
 function createManager(providers, runtimeLayers) {
