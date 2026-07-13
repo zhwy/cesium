@@ -1,32 +1,29 @@
+import createTaskProcessorWorker from "../../../../Build/CesiumUnminified/Workers/createTaskProcessorWorker.js";
 import {
   decodeVectorTile,
   getTransferableBuffers,
 } from "./decodeVectorTile.js";
 
-globalThis.onmessage = function (event) {
+function decodeVectorTileTask(parameters, transferableObjects) {
   const {
-    id,
     arrayBuffer,
     tile,
     styledLayerNames,
     includeProperties,
     clipToTile,
     styleRules,
-  } = event.data;
-  try {
-    const result = decodeVectorTile(
-      arrayBuffer,
-      tile,
-      styledLayerNames,
-      includeProperties,
-      clipToTile,
-      styleRules,
-    );
-    globalThis.postMessage({ id, result }, getTransferableBuffers(result));
-  } catch (error) {
-    globalThis.postMessage({
-      id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-};
+  } = parameters;
+
+  const result = decodeVectorTile(
+    arrayBuffer,
+    tile,
+    styledLayerNames,
+    includeProperties,
+    clipToTile,
+    styleRules,
+  );
+  transferableObjects.push(...getTransferableBuffers(result));
+  return result;
+}
+
+export default createTaskProcessorWorker(decodeVectorTileTask);
