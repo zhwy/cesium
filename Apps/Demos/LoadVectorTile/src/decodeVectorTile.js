@@ -167,7 +167,35 @@ function finalizePackedLayer(layer) {
   };
 }
 
-export function decodeVectorTile(
+function groupStyleRulesBySourceLayer(styleRules) {
+  const result = new Map();
+  if (!Array.isArray(styleRules) || styleRules.length === 0) {
+    return result;
+  }
+  styleRules.forEach((styleRule) => {
+    if (!styleRule?.sourceLayer || styleRule.visibility === false) {
+      return;
+    }
+    let rules = result.get(styleRule.sourceLayer);
+    if (!rules) {
+      rules = [];
+      result.set(styleRule.sourceLayer, rules);
+    }
+    rules.push(styleRule);
+  });
+  return result;
+}
+
+function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
+  const zoom = tile.styleZoom ?? tile.level;
+  return matchFeatureAgainstStyleRules(feature, feature.type, styleRules, {
+    zoom,
+    level: zoom,
+    sourceLevel: tile.sourceLevel ?? tile.level,
+  });
+}
+
+export default function decodeVectorTile(
   arrayBuffer,
   tile,
   styledLayerNames,
@@ -249,47 +277,4 @@ export function decodeVectorTile(
     layers[layerName] = finalizePackedLayer(packedLayer);
   }
   return { layers };
-}
-
-function groupStyleRulesBySourceLayer(styleRules) {
-  const result = new Map();
-  if (!Array.isArray(styleRules) || styleRules.length === 0) {
-    return result;
-  }
-  styleRules.forEach((styleRule) => {
-    if (!styleRule?.sourceLayer || styleRule.visibility === false) {
-      return;
-    }
-    let rules = result.get(styleRule.sourceLayer);
-    if (!rules) {
-      rules = [];
-      result.set(styleRule.sourceLayer, rules);
-    }
-    rules.push(styleRule);
-  });
-  return result;
-}
-
-function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
-  const zoom = tile.styleZoom ?? tile.level;
-  return matchFeatureAgainstStyleRules(feature, feature.type, styleRules, {
-    zoom,
-    level: zoom,
-    sourceLevel: tile.sourceLevel ?? tile.level,
-  });
-}
-
-export function getTransferableBuffers(result) {
-  const buffers = [];
-  Object.values(result.layers).forEach((layer) => {
-    buffers.push(
-      layer.points.positions.buffer,
-      layer.lines.positions.buffer,
-      layer.lines.offsets.buffer,
-      layer.polygons.positions.buffer,
-      layer.polygons.ringOffsets.buffer,
-      layer.polygons.polygonOffsets.buffer,
-    );
-  });
-  return buffers;
 }

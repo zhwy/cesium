@@ -3,14 +3,6 @@ import { normalizeSymbolPlacement } from "./VectorTileGeometryPlacement.js";
 
 const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol", "circle"]);
 
-const CESIUM_STYLE_IMPLEMENTATION_TERMS = Object.freeze([
-  "VectorTileProvider",
-  "VectorTileStyleRule",
-  "VectorTilePrimitiveBucket",
-  "VectorTileSymbolBucket",
-  "VectorTileCircleBucket",
-]);
-
 /**
  * 规范化并校验外部矢量瓦片样式文档。
  * 文档层仍保留类似 Mapbox 的 `sources` / `layers` 字段命名，便于配置迁移；
@@ -34,8 +26,6 @@ export function normalizeStyleDocument(styleDocument) {
     metadata: cloneValue(styleDocument.metadata ?? {}),
   };
 }
-
-export { CESIUM_STYLE_IMPLEMENTATION_TERMS };
 
 function normalizeSources(sources) {
   if (!isPlainObject(sources)) {

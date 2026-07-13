@@ -3,10 +3,8 @@ import VectorTile from "./VectorTile.js";
 import TileVectorTile from "./TileVectorTile.js";
 import VectorTileDecoder from "./VectorTileDecoder.js";
 import VectorTileCache from "./VectorTileCache.js";
-import {
-  createVectorTilePrimitiveBucket,
-  storeVectorTileBucket,
-} from "./VectorTileBucketFactory.js";
+import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
+import createVectorTilePrimitiveBucket from "./createVectorTilePrimitiveBucket.js";
 import SharedPointCollections from "./SharedPointCollections.js";
 import { createVectorTileIconResolver } from "./VectorTileSymbolBucket.js";
 import VectorTileTaskScheduler, {
@@ -463,7 +461,11 @@ export default class VectorTileLayer {
             vectorTile,
           },
         );
-        storeVectorTileBucket(vectorTile, bucket, styleRule);
+        VectorTilePrimitiveBucket.storeVectorTileBucket(
+          vectorTile,
+          bucket,
+          styleRule,
+        );
       });
     }
     this._diagnostics?.recordDuration("primitiveBuild", buildStartTime);

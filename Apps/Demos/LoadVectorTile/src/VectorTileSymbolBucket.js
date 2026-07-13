@@ -1,6 +1,6 @@
 import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
 import { evaluateVectorStyleFilter } from "./VectorTileStyleExpression.js";
-import { VectorTilePrimitiveBucket } from "./VectorTileBucketFactory.js";
+import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import {
   evaluateColorStyleValue,
   evaluateFiniteStyleNumber,

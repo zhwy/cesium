@@ -1,6 +1,6 @@
 import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
 const Cesium = globalThis.Cesium ?? CesiumModule;
-import { VectorTilePrimitiveBucket } from "./VectorTileBucketFactory.js";
+import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import {
   createCartesianLine,
   createOutlineCartesianLines,
