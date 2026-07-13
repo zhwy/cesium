@@ -1,5 +1,8 @@
 let instance;
 
+/**
+ * 统一管理矢量瓦片解码 Worker，将主线程请求分发到后台线程并收集结果。
+ */
 export default class VectorTileDecoder {
   constructor() {
     this._worker = undefined;

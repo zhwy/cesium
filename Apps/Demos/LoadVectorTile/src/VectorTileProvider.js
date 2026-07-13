@@ -9,9 +9,13 @@ export const TileType = Object.freeze({
 
 let mvtLoaderInstance;
 
+/**
+ * 统一封装 MVT 二进制请求调度的轻量级加载器单例。
+ *
+ * @param {*} [cacheStore] 预留的缓存存储对象，当前实现未启用。
+ */
 function MVTLoader(cacheStore) {
-  // this.cacheStore = cacheStore;
-  // this.cacheStore.init();
+  // 预留外部缓存存储接入点，当前版本尚未启用。
 }
 
 MVTLoader.prototype.load = function (resource, scheduler, priority) {
@@ -23,24 +27,35 @@ MVTLoader.prototype.load = function (resource, scheduler, priority) {
 };
 
 MVTLoader.prototype.clearCache = function () {
-  // this.cacheStore.reset();
+  // 预留缓存清理入口，当前版本尚未启用。
 };
 
 MVTLoader.instance = function () {
   if (!mvtLoaderInstance) {
     mvtLoaderInstance = new MVTLoader();
-    // new IndexDbKvCacheStore(
-    //   "wdvt-cache-store",
-    //   window.YJ3D_MVT_CACHE_MAX_SIZE_MB || 512,
-    //   calculateSize,
-    // ),
+    // 这里预留了接入 IndexedDB 缓存的扩展位置，当前默认关闭。
   }
   return mvtLoaderInstance;
 };
 
-// init
+// 初始化加载器单例。
 MVTLoader.instance();
 
+/**
+ * 矢量瓦片数据源的基类，负责统一管理来源配置、层级范围和网络请求入口。
+ *
+ * @param {object} [options={}] 构造参数。
+ * @param {string} [options.url] 瓦片服务地址模板。
+ * @param {object} [options.tilingScheme] Cesium 瓦片切片方案。
+ * @param {number} [options.minimumLevel=0] 可请求的最小层级。
+ * @param {number} [options.maximumLevel=18] 可请求的最大层级。
+ * @param {object} [options.networkScheduler] 网络调度器。
+ * @param {string} [options.sourceId] 数据源标识。
+ * @param {string} [options.styleSourceId] 样式文档中的数据源标识。
+ * @param {object} [options.source] 单个数据源定义。
+ * @param {object} [options.styleDocument] 完整样式文档；提供后会自动抽取当前 source 对应内容。
+ * @param {object[]} [options.styleRules] 当未传入 `styleDocument` 时，可直接提供样式规则数组。
+ */
 export default class VectorTileProvider {
   constructor(options = {}) {
     const sourceState = getProviderSourceState(options);
@@ -147,6 +162,12 @@ VectorTileProvider.readVectorTile = function (tile, vectorTile) {
   return layerFeatures;
 };
 
+/**
+ * 基于 XYZ URL 模板请求矢量瓦片的 provider。
+ *
+ * 构造参数继承自 `VectorTileProvider`，并额外支持：
+ * `options.subdomains`、`options.layer`、`options.workspace`。
+ */
 export class XYZVectorTileProvider extends VectorTileProvider {
   getTileResource(tile) {
     const subdomains = this._options.subdomains || [];
@@ -178,10 +199,12 @@ export class XYZVectorTileProvider extends VectorTileProvider {
   }
 }
 
-XYZVectorTileProvider.prototype.isUndergroundVisible = function () {
-  return true;
-};
-
+/**
+ * 基于 WMTS URL 模板请求 MVT 瓦片的 provider。
+ *
+ * 构造参数继承自 `VectorTileProvider`，并额外支持：
+ * `options.tileMatrixSetID`、`options.tileMatrixLabels`、`options.subdomains`。
+ */
 export class WMTSVectorTileProvider extends VectorTileProvider {
   getTileResource(tile) {
     const labels = this._options.tileMatrixLabels;
@@ -215,6 +238,11 @@ export class WMTSVectorTileProvider extends VectorTileProvider {
   }
 }
 
+/**
+ * 面向 GeoJSON WMTS 服务的 provider，直接请求并挂接 `features` 数据。
+ *
+ * 构造参数与 `WMTSVectorTileProvider` 一致。
+ */
 export class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
   loadTile(frameState, tile) {
     if (tile.state === Cesium.QuadtreeTileLoadState.START) {

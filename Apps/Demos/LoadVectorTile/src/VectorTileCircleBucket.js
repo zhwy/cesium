@@ -12,6 +12,16 @@ const Cesium = globalThis.Cesium ?? CesiumModule;
 const DEFAULT_CIRCLE_RADIUS = 5;
 const DEFAULT_CIRCLE_COLOR = "#000000ff";
 
+/**
+ * 为 `circle` 类型样式规则构建点图元描述，输出可复用的公告牌配置。
+ *
+ * @param {object} styleRule 当前桶对应的样式规则。
+ * @param {object} [options={}] 构造参数。
+ * @param {Cesium.Scene} [options.scene] Cesium 场景，用于创建圆点贴图资源。
+ * @param {boolean} [options.allowPicking=false] 是否为生成的图元启用拾取。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录圆点桶指标。
+ * @param {boolean} [options.ignoreZoomRange=false] 是否忽略样式规则中的缩放级别限制。
+ */
 export default class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule);

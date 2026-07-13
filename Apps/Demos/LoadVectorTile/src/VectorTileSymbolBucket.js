@@ -13,11 +13,19 @@ import {
 const Cesium = globalThis.Cesium ?? CesiumModule;
 
 /**
- * Cesium-oriented render bucket for one symbol style rule on one vector tile.
+ * 面向 Cesium 的 `symbol` 渲染桶，对单条样式规则在单个矢量瓦片上的结果进行收集。
  *
- * The bucket creates Cesium collections instead of geometry instances:
- * BillboardCollection for icons and LabelCollection for text.  It intentionally
- * keeps collision/declutter out of scope for this first symbol pass.
+ * 该桶不会生成几何实例，而是输出 Cesium 集合描述：
+ * 图标走 `BillboardCollection`，文本走 `LabelCollection`。当前实现刻意不处理
+ * 碰撞检测与避让逻辑。
+ *
+ * @param {object} styleRule 当前桶对应的样式规则。
+ * @param {object} [options={}] 构造参数。
+ * @param {Cesium.Scene} [options.scene] Cesium 场景，用于解析图标尺寸等上下文。
+ * @param {Function} [options.iconResolver] 图标解析函数，负责把样式中的图标引用映射到资源。
+ * @param {boolean} [options.allowPicking=false] 是否为生成的图元启用拾取。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录符号桶指标。
+ * @param {boolean} [options.ignoreZoomRange=false] 是否忽略样式规则中的缩放级别限制。
  */
 export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {

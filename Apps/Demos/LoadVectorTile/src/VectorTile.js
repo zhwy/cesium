@@ -4,8 +4,8 @@ import { createSharedPointEntryKey } from "./SharedPointCollections.js";
 const { defined, destroyObject, ImageryState } = Cesium;
 
 /**
- * Counterpart to Cesium's `Imagery` in the vector-tile stack.
- * Stores details about a tile of vector.
+ * 矢量瓦片栈中与 Cesium `Imagery` 对应的数据对象，
+ * 保存单个矢量瓦片的请求、解码、构建、缓存与父子层级状态。
  *
  * @alias VectorTile
  * @private
@@ -112,9 +112,9 @@ VectorTile.prototype.processStateMachine = function (
   skipLoading,
   priority,
 ) {
-  // Renewal stamp: tiles still wanted by the quadtree are processed every
-  // frame. In-flight requests whose stamp goes stale are cancelled by
-  // VectorTileLayer.cancelStaleRequests.
+  // 续租标记：仍被四叉树需要的瓦片会在每帧继续推进状态机。
+  // 长时间未被续租的在途请求会由 `VectorTileLayer.cancelStaleRequests`
+  // 主动取消。
   this.lastNeededFrame = frameState.frameNumber;
   this.priority = Number.isFinite(priority) ? priority : this.priority;
   this.networkTask?.setPriority(this.priority);

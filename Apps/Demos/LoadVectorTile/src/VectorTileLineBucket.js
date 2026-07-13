@@ -17,6 +17,18 @@ import {
   shouldUseGroundPath,
 } from "./VectorTileBucketUtils.js";
 
+/**
+ * 为 `line` 类型样式规则构建线图元，按配置选择普通实例路径或打包渲染路径。
+ *
+ * @param {object} styleRule 当前桶对应的样式规则。
+ * @param {object} [options={}] 构造参数。
+ * @param {boolean} [options.allowPicking=false] 是否为生成的图元启用拾取。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录线图元构建指标。
+ * @param {string} [options.renderBackend="instances"] 线渲染后端，支持普通实例或 packed 路径。
+ * @param {number} [options.packedMinimumInstances=200] 启用 packed 路径所需的最小实例数。
+ * @param {Cesium.ShadowMode} [options.shadows] Cesium 阴影模式配置。
+ * @param {boolean} [options.asynchronous=true] 是否启用 Cesium 异步几何构建。
+ */
 export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule);

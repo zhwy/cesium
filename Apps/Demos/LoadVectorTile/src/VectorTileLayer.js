@@ -39,6 +39,36 @@ const DEFAULT_OPTIONS = {
   tileSize: 512,
 };
 
+/**
+ * 运行时矢量图层对象，负责单个 provider 的请求、解码、构建、缓存与样式版本切换。
+ *
+ * @param {object} vectorTileProvider 底层矢量瓦片 provider。
+ * @param {object} options 图层构造参数。
+ * @param {string} [options.tilingScheme="WebMercatorTilingScheme"] 切片方案名称。
+ * @param {string} [options.dataTypeField="type"] 要素类型字段名。
+ * @param {string} [options.dataIdField="id"] 要素标识字段名。
+ * @param {number} [options.minimumTerrainLevel=0] 地形层级下限。
+ * @param {number} [options.maximumTerrainLevel=18] 地形层级上限。
+ * @param {string} [options.tileType="XYZ"] 瓦片服务类型。
+ * @param {string} [options.format="application/vnd.mapbox-vector-tile"] 数据格式。
+ * @param {string} [options.url=""] 服务地址模板。
+ * @param {boolean} [options.allowPicking=false] 是否启用拾取。
+ * @param {boolean} [options.asynchronous=true] 是否异步构建 Cesium 图元。
+ * @param {Cesium.ShadowMode} [options.shadows=Cesium.ShadowMode.DISABLED] 阴影模式。
+ * @param {number} [options.polygonHeight=1.0] 面要素默认高度。
+ * @param {number} [options.cacheBytes=64*1024*1024] 图层缓存字节数上限。
+ * @param {boolean} [options.clipToTile=true] 是否按瓦片边界裁剪。
+ * @param {string} [options.renderBackend="instances"] 线渲染后端类型。
+ * @param {number} [options.packedMinimumInstances=200] packed 线渲染的最小实例数。
+ * @param {number} [options.tileSize=512] 样式缩放与误差计算使用的瓦片宽度。
+ * @param {Cesium.Scene} [options.scene] Cesium 场景。
+ * @param {object} [options.styleDocument] 当前图层样式文档。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
+ * @param {VectorTileTaskScheduler} [options.decodeScheduler] 解码任务调度器。
+ * @param {VectorTileTaskScheduler} [options.buildScheduler] 构建任务调度器。
+ * @param {object} [options.iconResources] 图标资源注册表。
+ * @param {object} [options.iconImages] 图标资源注册表的别名配置。
+ */
 export default class VectorTileLayer {
   get show() {
     return this._show;
@@ -110,8 +140,8 @@ export default class VectorTileLayer {
     };
     this._iconResolver = createVectorTileIconResolver(this._iconImages);
     /**
-     * VectorTiles with an in-flight network request, checked each frame by
-     * {@link VectorTileLayer#cancelStaleRequests}.
+     * 当前仍处于网络请求中的 `VectorTile` 集合，
+     * 每帧由 {@link VectorTileLayer#cancelStaleRequests} 检查是否过期。
      * @type {Set<VectorTile>}
      */
     this._inFlightTiles = new Set();
@@ -214,8 +244,7 @@ export default class VectorTileLayer {
             return;
           }
           if (e instanceof VectorTileTaskCancelledError) {
-            // Reset instead of terminal INVALID so the tile can be
-            // re-requested if it scrolls back into view.
+            // 重置为未加载，而不是终态 INVALID，这样瓦片重新进入视野时仍可再次请求。
             vectorTile.terminalReason = undefined;
             vectorTile.coverageState = VectorTileCoverageState.PENDING;
             vectorTile.state = Cesium.ImageryState.UNLOADED;
@@ -232,15 +261,14 @@ export default class VectorTileLayer {
   }
 
   /**
-   * Cancels in-flight network requests for tiles the quadtree no longer
-   * needs. A tile is stale when its renewal stamp (set every frame by
-   * VectorTile.processStateMachine while the quadtree still wants it) is
-   * older than `staleFrames` frames — mirroring Cesium RequestScheduler's
-   * cancel-unless-renewed model. Cancelled tiles reset to UNLOADED and can
-   * be re-requested when they come back into view.
+   * 取消四叉树已经不再需要的在途网络请求。
+   * 当某个瓦片的续租标记长期没有被 `VectorTile.processStateMachine`
+   * 刷新，并且早于 `staleFrames` 帧之前时，就视为过期。这个行为与
+   * Cesium `RequestScheduler` 的“续租则保留，否则取消”模型保持一致。
+   * 被取消的瓦片会回到 `UNLOADED`，在重新进入视野时可以再次发起请求。
    *
-   * @param {number} currentFrame  frameState.frameNumber.
-   * @param {number} [staleFrames=10]  Frames without renewal before cancelling.
+   * @param {number} currentFrame 当前 `frameState.frameNumber`。
+   * @param {number} [staleFrames=10] 允许连续多少帧未续租后再执行取消。
    */
   cancelStaleRequests(currentFrame, staleFrames = 10) {
     for (const vectorTile of this._inFlightTiles) {

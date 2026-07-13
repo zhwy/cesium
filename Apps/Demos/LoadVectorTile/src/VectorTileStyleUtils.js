@@ -12,11 +12,9 @@ const CESIUM_STYLE_IMPLEMENTATION_TERMS = Object.freeze([
 ]);
 
 /**
- * Normalizes and validates the external vector tile style document.  The
- * document intentionally keeps Mapbox-like `sources` / `layers` field names for
- * configuration familiarity, while the runtime implementation maps those
- * entries onto Cesium-oriented provider, style-rule, and primitive-bucket
- * concepts.
+ * 规范化并校验外部矢量瓦片样式文档。
+ * 文档层仍保留类似 Mapbox 的 `sources` / `layers` 字段命名，便于配置迁移；
+ * 运行时则会把这些定义映射到偏 Cesium 的 provider、style rule 与 primitive bucket 概念上。
  *
  * @param {object} styleDocument
  * @returns {object}

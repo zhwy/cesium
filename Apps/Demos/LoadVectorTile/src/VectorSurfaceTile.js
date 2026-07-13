@@ -1,13 +1,14 @@
 import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 
 /**
- * Counterpart to Cesium's `GlobeSurfaceTile` in the vector-tile stack.
+ * 矢量瓦片栈中与 Cesium `GlobeSurfaceTile` 对应的地表瓦片对象，
+ * 负责挂接当前四叉树瓦片关联的 `TileVectorTile` 集合并驱动其状态流转。
  */
 export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
   constructor() {
     super();
     /**
-     * The {@link TileVectorTile} attached to this tile.
+     * 当前地表瓦片挂接的 `TileVectorTile` 列表。
      * @type {TileVectorTile[]}
      * @default []
      */
@@ -27,7 +28,7 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
     let isAnyTileLoaded = false;
     let isDoneLoading = true;
 
-    // Transition imagery states
+    // 推进各矢量瓦片的影像状态机。
     const tileVectorTiles = surfaceTile.tileVectorTiles;
     let i, len;
     for (i = 0, len = tileVectorTiles.length; i < len; ++i) {
@@ -44,7 +45,7 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
       );
       isDoneLoading = isDoneLoading && thisTileDoneLoading;
 
-      // The imagery is renderable as soon as we have any renderable imagery for this region.
+      // 只要这个区域内任一图层已有可渲染结果，就允许当前瓦片进入可绘制状态。
       isAnyTileLoaded =
         isAnyTileLoaded ||
         thisTileDoneLoading ||
@@ -61,10 +62,9 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
 
     tile.upsampledFromParent = isUpsampledOnly;
 
-    // Renderable as soon as any layer for this region is loaded (or there is
-    // nothing left to load). Assign directly rather than AND-ing with the
-    // previous value, whose initial `false` would otherwise lock the tile
-    // permanently unrenderable and stall the quadtree load queue.
+    // 只要这个区域的任一图层已完成，或已经没有剩余加载工作，就应视为可渲染。
+    // 这里直接赋值，而不是与旧值做 AND；否则初始 `false` 会把瓦片永久锁成
+    // 不可渲染状态，进而卡住四叉树加载队列。
     tile.renderable = isAnyTileLoaded || isDoneLoading;
 
     return isDoneLoading;

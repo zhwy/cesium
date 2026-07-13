@@ -8,6 +8,11 @@ import VectorTileFillBucket from "./VectorTileFillBucket.js";
 import VectorTileLineBucket from "./VectorTileLineBucket.js";
 import VectorTileSymbolBucket from "./VectorTileSymbolBucket.js";
 
+/**
+ * 单条样式规则在单个矢量瓦片上的基础渲染桶，负责收集图元与共享点描述。
+ *
+ * @param {VectorTileStyleRule} styleRule 当前渲染桶对应的样式规则。
+ */
 export function VectorTilePrimitiveBucket(styleRule) {
   this.id = styleRule.id;
   this.type = styleRule.type;

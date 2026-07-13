@@ -51,7 +51,7 @@ const rectangleIntersectionScratch = new Rectangle();
 const splitCartographicLimitRectangleScratch = new Rectangle();
 const rectangleCenterScratch = new Cartographic();
 
-// cartographicLimitRectangle may span the IDL, but tiles never will.
+// `cartographicLimitRectangle` 可能跨越日期变更线，但单个瓦片自身不会。
 function clipRectangleAntimeridian(tileRectangle, cartographicLimitRectangle) {
   if (cartographicLimitRectangle.west < cartographicLimitRectangle.east) {
     return cartographicLimitRectangle;
@@ -85,17 +85,15 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
       maximumHeight: options.maximumHeight,
     });
     surfaceTile.tileBoundingRegion.computeBoundingVolumes(ellipsoid);
-    // Heights are fixed constants for vector tiles, so this tile's bounding
-    // region is always authoritative. Without this, computeTileVisibility
-    // bails out with Visibility.PARTIAL for every tile — no frustum or
-    // horizon culling at all — flooding _tilesToRender with the whole-globe
-    // tile pyramid (~900 tiles top-down) and starving the load queue.
+    // 矢量瓦片的高度在这里是固定常量，因此当前瓦片的包围区域始终是权威值。
+    // 如果不这样处理，`computeTileVisibility` 会对所有瓦片都直接返回
+    // `Visibility.PARTIAL`，导致既没有视锥裁剪也没有地平线裁剪，
+    // 进而把整颗全球瓦片金字塔都塞进 `_tilesToRender`，并拖垮加载队列。
     surfaceTile.boundingVolumeSourceTile = tile;
-    // GlobeSurfaceTile initialises occludeePointInScaledSpace to a zero
-    // vector, which horizon culling treats as "never visible" and would cull
-    // every tile. Compute the real horizon culling point from the tile
-    // rectangle; for huge rectangles (e.g. root tiles) this returns
-    // undefined, which correctly skips horizon culling.
+    // `GlobeSurfaceTile` 默认会把 `occludeePointInScaledSpace` 初始化成零向量，
+    // 地平线裁剪会把它视为“永远不可见”，从而错误剔除所有瓦片。
+    // 这里根据瓦片矩形重新计算真实的地平线裁剪点；对于过大的矩形
+    // （例如根瓦片）该值会返回 `undefined`，从而正确跳过地平线裁剪。
     let occluder = tileProvider._ellipsoidalOccluder;
     if (!defined(occluder)) {
       occluder = tileProvider._ellipsoidalOccluder = new EllipsoidalOccluder(
@@ -111,28 +109,25 @@ function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
 }
 
 /**
- * Computes the level-zero geometric error that makes the quadtree's LOD
- * switch points exactly match map-style (mapbox) zoom levels, instead of
- * relying on Cesium's terrain-heightmap default (65-vertex grid × 0.25
- * quality factor) coincidentally lining up.
+ * 计算零层级几何误差，使四叉树的 LOD 切换点能够与地图样式
+ * （Mapbox 风格）的缩放级别精确对齐，而不是碰巧依赖 Cesium
+ * 默认地形高度图参数（65 顶点网格乘 0.25 质量因子）凑巧接近。
  *
- * Derivation: QuadtreePrimitive renders level L when
+ * 推导如下：当满足以下条件时，`QuadtreePrimitive` 会渲染层级 `L`：
  *   SSE(L) = error(L) / metersPerDevicePixel <= maximumScreenSpaceError.
- * A map style advances to zoom L when the CSS-pixel resolution reaches the
- * tile texel spacing:
+ * 而地图样式会在 CSS 像素分辨率达到瓦片像素间距时切换到缩放级别 `L`：
  *   metersPerCssPixel = C / (N * 2^L * tileWidth)
- * where C is the tiling scheme's equatorial circumference, N the number of
- * X tiles at level zero, and tileWidth the map tile width in CSS pixels.
- * With metersPerDevicePixel = metersPerCssPixel / pixelRatio, equating the
- * two switch points gives:
+ * 其中 `C` 是切片方案对应椭球的赤道周长，`N` 是零层级 X 方向瓦片数，
+ * `tileWidth` 是地图样式中的瓦片宽度（CSS 像素）。
+ * 令 `metersPerDevicePixel = metersPerCssPixel / pixelRatio`，把两类切换点对齐后可得：
  *   error(L) = maximumScreenSpaceError * C / (N * 2^L * tileWidth * pixelRatio)
  *
  * @param {TilingScheme} tilingScheme
- * @param {number} tileWidth Map tile width in CSS pixels (512 = mapbox).
- * @param {number} maximumScreenSpaceError The quadtree's SSE threshold.
- * @param {number} pixelRatio Device pixels per CSS pixel used by the
- *        drawing buffer. 1 keeps Cesium's device-pixel LOD; pass
- *        window.devicePixelRatio for exact CSS-pixel mapbox parity.
+ * @param {number} tileWidth 地图样式里的瓦片宽度（CSS 像素，Mapbox 常用 512）。
+ * @param {number} maximumScreenSpaceError 四叉树的屏幕空间误差阈值。
+ * @param {number} pixelRatio 绘制缓冲区所用的设备像素比。
+ *        传 1 时保持 Cesium 默认的设备像素 LOD；传 `window.devicePixelRatio`
+ *        时可以获得与 CSS 像素口径严格一致的 Mapbox 缩放对齐效果。
  * @returns {number}
  */
 function computeMapAlignedLevelZeroGeometricError(
@@ -148,6 +143,20 @@ function computeMapAlignedLevelZeroGeometricError(
   );
 }
 
+/**
+ * 为矢量瓦片四叉树提供可见性、距离和加载入口的 provider。
+ *
+ * @param {object} [options={}] 构造参数。
+ * @param {VectorTileLayerCollection} [options.vectorTileLayers] 当前参与渲染的图层集合。
+ * @param {Cesium.TilingScheme} [options.tilingScheme] Cesium 切片方案。
+ * @param {number} [options.minimumHeight=0] 瓦片包围体最小高度。
+ * @param {number} [options.maximumHeight=0] 瓦片包围体最大高度。
+ * @param {number} [options.minimumLevel=0] 最小四叉树层级。
+ * @param {number} [options.maximumLevel=20] 最大四叉树层级。
+ * @param {number} [options.tileSize=512] 样式缩放和误差对齐使用的瓦片宽度。
+ * @param {number} [options.maximumScreenSpaceError=2] 四叉树 LOD 屏幕误差阈值。
+ * @param {number} [options.pixelRatio=1] 设备像素比。
+ */
 export default class VectorTileQuadtreeProvider {
   constructor(options = {}) {
     this._quadtree = undefined;
@@ -237,7 +246,7 @@ VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
 
   if (frameState.fog.enabled && !undergroundVisible) {
     if (CesiumMath.fog(distance, frameState.fog.density) >= 1.0) {
-      // Tile is completely in fog so return that it is not visible.
+      // 瓦片已经完全淹没在雾中，直接视为不可见。
       return Visibility.NONE;
     }
   }
@@ -246,7 +255,7 @@ VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
   const tileBoundingRegion = surfaceTile.tileBoundingRegion;
 
   if (surfaceTile.boundingVolumeSourceTile === undefined) {
-    // We have no idea where this tile is, so let's just call it partially visible.
+    // 当前还无法可靠确定瓦片空间位置，保守起见视为部分可见。
     return Visibility.PARTIAL;
   }
 
@@ -257,7 +266,7 @@ VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
     boundingVolume = tileBoundingRegion.boundingSphere;
   }
 
-  // Check if the tile is outside the limit area in cartographic space
+  // 检查瓦片是否落在经纬度限制区域之外。
   surfaceTile.clippedByBoundaries = false;
   const clippedCartographicLimitRectangle = clipRectangleAntimeridian(
     tile.rectangle,
@@ -324,8 +333,7 @@ VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
         tileBoundingRegion,
       );
     tile.isClipped = polygonIntersection !== Intersect.OUTSIDE;
-    // Polygon clipping intersections are determined by outer rectangles, therefore we cannot
-    // preemptively determine if a tile is completely clipped or not here.
+    // 多边形裁剪的相交关系是按外接矩形估算的，因此这里无法提前断言瓦片是否被完全裁掉。
   }
 
   let visibility;
@@ -398,33 +406,24 @@ VectorTileQuadtreeProvider.prototype.showTileThisFrame = function (
   tile,
   frameState,
 ) {
-  // this._availability && (this._state = this.isAvailable(t.time)),
-  // e.data.geometryPrimitive && this._state && this._client && "function" === typeof e.data.geometryPrimitive.update && (e.data.geometryPrimitive instanceof Cesium3DTileset || e.data.geometryPrimitive.update(t, i, a))
-  // if (this._availability) {
-  //   this._state = this.isAvailable(frameState.time);
-  // }
-  // if (this._state && this._client && tile.data && tile.data.geometryPrimitive) {
-  //   tile.data.geometryPrimitive.update(t, i, a)
-  // }
+  // 预留与外部几何 primitive 集成的更新钩子，当前矢量瓦片实现暂未使用。
 };
 
 VectorTileQuadtreeProvider.prototype.computeDistanceToTile = function (
   tile,
   frameState,
 ) {
-  // The distance should be:
-  // 1. the actual distance to the tight-fitting bounding volume, or
-  // 2. a distance that is equal to or greater than the actual distance to the tight-fitting bounding volume.
+  // 距离值应满足以下任一条件：
+  // 1. 等于到紧包围体的真实距离；
+  // 2. 或者至少不小于这个真实距离。
   //
-  // When we don't know the min/max heights for a tile, but we do know the min/max of an ancestor tile, we can
-  // build a tight-fitting bounding volume horizontally, but not vertically. The min/max heights from the
-  // ancestor will likely form a volume that is much bigger than it needs to be. This means that the volume may
-  // be deemed to be much closer to the camera than it really is, causing us to select tiles that are too detailed.
-  // Loading too-detailed tiles is super expensive, so we don't want to do that. We don't know where the child
-  // tile really lies within the parent range of heights, but we _do_ know the child tile can't be any closer than
-  // the ancestor height surface (min or max) that is _farthest away_ from the camera. So if we compute distance
-  // based on that conservative metric, we may end up loading tiles that are not detailed enough, but that's much
-  // better (faster) than loading tiles that are too detailed.
+  // 当我们不知道当前瓦片自身的最小/最大高度，但知道某个祖先瓦片的高度范围时，
+  // 可以在水平方向构造紧包围体，却无法在垂直方向做到同样精确。祖先高度范围
+  // 往往会形成一个远大于实际需要的体积，使系统误以为当前瓦片离相机更近，
+  // 从而选出过细的瓦片层级。加载过细瓦片代价很高，因此这里宁可保守估算得更远一些。
+  // 虽然我们不知道子瓦片具体落在父瓦片高度范围中的什么位置，但至少知道它不可能
+  // 比离相机更远的那一侧祖先高度面还要更近。基于这个保守距离来计算，最多会让
+  // 选出的瓦片细节略显不足，但这比过细加载带来的性能成本要可控得多。
 
   updateTileBoundingRegion(tile, this, frameState, {
     minimumHeight: this._minimumHeight,
@@ -432,13 +431,8 @@ VectorTileQuadtreeProvider.prototype.computeDistanceToTile = function (
   });
 
   const surfaceTile = tile.data;
-  // const boundingVolumeSourceTile = surfaceTile.boundingVolumeSourceTile;
-  // if (boundingVolumeSourceTile === undefined) {
-  //   // Can't find any min/max heights anywhere? Ok, let's just say the
-  //   // tile is really far away so we'll load and render it rather than
-  //   // refining.
-  //   return 9999999999.0;
-  // }
+  // 这里保留了“缺失包围体来源时直接返回超远距离”的思路，
+  // 但当前实现会在更早阶段通过 PARTIAL 可见性分支做保守处理。
 
   const tileBoundingRegion = surfaceTile.tileBoundingRegion;
   const min = tileBoundingRegion.minimumHeight;

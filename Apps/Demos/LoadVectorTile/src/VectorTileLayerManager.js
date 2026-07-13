@@ -13,6 +13,23 @@ import {
 import VectorTileStyleRule from "./VectorTileStyleRule.js";
 import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
 
+/**
+ * 协调整个矢量瓦片图层系统：管理 provider、运行时图层、四叉树 primitive 与调度器。
+ *
+ * @param {object} [options={}] 构造参数。
+ * @param {*} [options.diagnostics] 诊断配置，传给 `VectorTileDiagnostics`。
+ * @param {number} [options.maximumNetworkTasks=8] 网络请求最大并发数。
+ * @param {number} [options.maximumDecodeTasks=2] 解码任务最大并发数。
+ * @param {number} [options.maximumBuildTasks=1] 构建任务最大并发数。
+ * @param {string} [options.tilingScheme="WebMercatorTilingScheme"] Cesium 切片方案类型名。
+ * @param {object} [options.scene] 初始 Cesium 场景。
+ * @param {object} [options.iconResources] 图标资源注册表。
+ * @param {object} [options.iconImages] 图标资源注册表的别名配置。
+ * @param {number} [options.maximumScreenSpaceError=2] 四叉树 LOD 切换阈值。
+ * @param {number} [options.tileSize=512] 样式缩放与误差计算使用的瓦片宽度。
+ * @param {number} [options.pixelRatio=1] 设备像素比。
+ * @param {number} [options.tileCacheSize=100] 四叉树 primitive 的瓦片缓存大小。
+ */
 export default class VectorTileLayerManager {
   get quadtreePrimitive() {
     return this._quadtreePrimitive;
@@ -52,9 +69,9 @@ export default class VectorTileLayerManager {
     this._providersBySourceId = new Map();
 
     this._vectorTileLayers = new VectorTileLayerCollection();
-    // The same maximumScreenSpaceError must be used by both the quadtree
-    // (refinement threshold) and the provider (geometric-error calibration)
-    // so tile.level stays exactly aligned with map-style zoom.
+    // 四叉树与 provider 必须共用同一个 maximumScreenSpaceError：
+    // 前者用于细化阈值，后者用于几何误差校准，这样 `tile.level`
+    // 才能与地图样式缩放级别严格对齐。
     const maximumScreenSpaceError = options.maximumScreenSpaceError ?? 2;
     const tileProvider = new VectorTileQuadtreeProvider({
       vectorTileLayers: this._vectorTileLayers,

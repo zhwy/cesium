@@ -2,6 +2,13 @@ import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
 
 const Cesium = globalThis.Cesium ?? CesiumModule;
 
+/**
+ * 管理跨瓦片复用的点要素集合，统一维护 BillboardCollection 与 LabelCollection 的增删生命周期。
+ *
+ * @param {object} [options={}] 构造参数。
+ * @param {Cesium.Scene} [options.scene] Cesium 场景，用于创建 `BillboardCollection` 和 `LabelCollection`。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于累计共享点集合相关指标。
+ */
 export default class SharedPointCollections {
   constructor(options = {}) {
     this._scene = options.scene;

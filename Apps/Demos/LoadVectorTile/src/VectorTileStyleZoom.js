@@ -4,14 +4,13 @@ const WEB_MERCATOR_CIRCUMFERENCE =
   2.0 * Math.PI * WEB_MERCATOR_EQUATORIAL_RADIUS;
 
 /**
- * Computes one frame-wide style zoom from camera height, this does not depend on any data tile
- * or fallback tile LOD, so layer visibility is stable across near/far tiles in
- * the same frame.
+ * 根据相机高度计算当前帧统一使用的样式缩放级别。
+ * 该值不依赖具体数据瓦片或回退瓦片的 LOD，因此同一帧中远近瓦片的图层可见性保持一致。
  *
- * @param {object} frameState Cesium frameState.
+ * @param {object} frameState Cesium 的 `frameState`。
  * @param {object} [options]
- * @param {number} [options.tileSize=512] Map-style tile width.
- * @param {object} [options.scene] Cesium scene, used to query terrain height.
+ * @param {number} [options.tileSize=512] 地图库风格使用的瓦片宽度。
+ * @param {object} [options.scene] Cesium 场景，用于查询地形高度。
  * @returns {number}
  */
 export function computeCameraVectorTileStyleZoom(frameState, options = {}) {

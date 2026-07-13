@@ -1,3 +1,8 @@
+/**
+ * 表示矢量瓦片任务被主动取消时抛出的错误类型。
+ *
+ * @param {string} [message="Vector tile task cancelled."] 错误消息。
+ */
 export class VectorTileTaskCancelledError extends Error {
   constructor(message = "Vector tile task cancelled.") {
     super(message);
@@ -5,6 +10,11 @@ export class VectorTileTaskCancelledError extends Error {
   }
 }
 
+/**
+ * 控制异步任务的并发数、优先级与取消行为，供下载、解码和构建阶段复用。
+ *
+ * @param {number} [maximumActiveTasks=1] 允许同时执行的最大任务数。
+ */
 export default class VectorTileTaskScheduler {
   constructor(maximumActiveTasks = 1) {
     this.maximumActiveTasks = Math.max(1, maximumActiveTasks);

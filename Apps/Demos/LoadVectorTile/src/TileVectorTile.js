@@ -3,11 +3,8 @@ import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
 const { defined, ImageryState } = Cesium;
 
 /**
- * Counterpart to Cesium's `TileImagery` in the vector-tile stack.
- * The assocation between a terrain tile and a vector tile.
- *
- * @alias TileVectorTile
- * @private
+ * 矢量瓦片栈中与 Cesium `TileImagery` 对应的关联对象，
+ * 用于把一个地形四叉树瓦片与其当前使用的矢量瓦片连接起来。
  */
 function TileVectorTile(vectorTile) {
   this.readyVectorTile = undefined;
@@ -15,7 +12,7 @@ function TileVectorTile(vectorTile) {
 }
 
 /**
- * Frees the resources held by this instance.
+ * 释放当前实例持有的资源引用。
  */
 TileVectorTile.prototype.freeResources = function () {
   if (defined(this.readyVectorTile)) {
@@ -28,14 +25,13 @@ TileVectorTile.prototype.freeResources = function () {
 };
 
 /**
- * Processes the load state machine for this instance.
+ * 推进当前实例的加载状态机。
  *
- * @param {Tile} tile The tile to which this instance belongs.
- * @param {FrameState} frameState The frameState.
- * @param {boolean} skipLoading True to skip loading, e.g. new requests, creating textures. This function will
- *                  still synchronously process imagery that's already mostly ready to go, e.g. use textures
- *                  already loaded on ancestor tiles.
- * @returns {boolean} True if this instance is done loading; otherwise, false.
+ * @param {Tile} tile 当前实例所属的四叉树瓦片。
+ * @param {FrameState} frameState 当前帧状态。
+ * @param {boolean} skipLoading 是否跳过新的加载动作，例如发起请求或创建纹理。
+ *                  即使为 `true`，也仍会同步推进那些已经基本就绪的祖先瓦片状态。
+ * @returns {boolean} 若当前实例已完成加载则返回 `true`，否则返回 `false`。
  */
 TileVectorTile.prototype.processStateMachine = function (
   tile,
@@ -63,7 +59,7 @@ TileVectorTile.prototype.processStateMachine = function (
         this.readyVectorTile = readyAncestor;
         readyAncestor.addReference();
       }
-      return true; // exact tile is loaded, but keep drawing the parent fallback
+      return true; // 精确瓦片已经完成，但继续沿用父级回退结果进行绘制。
     }
   }
 
@@ -73,10 +69,10 @@ TileVectorTile.prototype.processStateMachine = function (
     }
     this.readyVectorTile = this.loadingVectorTile;
     this.loadingVectorTile = undefined;
-    return true; // done loading
+    return true; // 加载完成。
   }
 
-  // Find some ancestor imagery we can use while this imagery is still loading.
+  // 当前瓦片尚未完成时，尝试查找可用于回退显示的祖先瓦片。
   let ancestor = loadingVectorTile.parent;
   let closestAncestorThatNeedsLoading;
   while (defined(ancestor) && ancestor.state !== ImageryState.READY) {
@@ -84,7 +80,7 @@ TileVectorTile.prototype.processStateMachine = function (
       ancestor.state !== ImageryState.FAILED &&
       ancestor.state !== ImageryState.INVALID
     ) {
-      // ancestor is still loading
+      // 该祖先瓦片仍在加载中。
       closestAncestorThatNeedsLoading =
         closestAncestorThatNeedsLoading || ancestor;
     }
@@ -107,22 +103,21 @@ TileVectorTile.prototype.processStateMachine = function (
     loadingVectorTile.state === ImageryState.FAILED ||
     loadingVectorTile.state === ImageryState.INVALID
   ) {
-    // The imagery tile is failed or invalid, so we'd like to use an ancestor instead.
+    // 当前瓦片失败或无效时，优先回退到可用的祖先瓦片。
     if (defined(closestAncestorThatNeedsLoading)) {
-      // Push the ancestor's load process along a bit.  This is necessary because some ancestor imagery
-      // tiles may not be attached directly to a terrain tile.  Such tiles will never load if
-      // we don't do it here.
+      // 继续推进祖先瓦片的加载流程。某些祖先影像瓦片可能并未直接挂到地形瓦片上，
+      // 如果这里不主动推进，它们可能永远不会进入完成状态。
       closestAncestorThatNeedsLoading.processStateMachine(
         frameState,
         skipLoading,
       );
-      return false; // not done loading
+      return false; // 尚未完成加载。
     }
-    // This imagery tile is failed or invalid, and we have the "best available" substitute.
-    return true; // done loading
+    // 当前瓦片失败或无效，但已经找到了当前能提供的最佳替代结果。
+    return true; // 加载完成。
   }
 
-  return false; // not done loading
+  return false; // 尚未完成加载。
 };
 
 function findReadyAncestor(vectorTile) {

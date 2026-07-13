@@ -6,6 +6,9 @@ import {
 } from "../../../../Build/CesiumUnminified/index.js";
 import VectorTileLayer from "./VectorTileLayer.js";
 
+/**
+ * 维护 `VectorTileLayer` 的有序集合，并向外转发图层增删改与显隐事件。
+ */
 export default class VectorTileLayerCollection {
   get length() {
     return this._layers.length;

@@ -18,11 +18,10 @@ const SUPPORTED_OPERATORS = new Set([
 ]);
 
 /**
- * Evaluates the serializable expression subset used by the vector tile demo.
- * The syntax intentionally follows the familiar Mapbox expression shape, but
- * only implements the small subset needed by the current Cesium experiment.
+ * 计算矢量瓦片示例中使用的可序列化表达式子集。
+ * 语法有意保持与 Mapbox 表达式相近，但这里只实现当前 Cesium 实验所需的最小子集。
  *
- * @param {*} expression Constant value or expression array.
+ * @param {*} expression 常量值或表达式数组。
  * @param {object} [context]
  * @param {object} [context.properties]
  * @param {number} [context.zoom]

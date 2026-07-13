@@ -27,6 +27,12 @@ function summarize(samples) {
   };
 }
 
+/**
+ * 汇总矢量瓦片管线中的计数器、时长采样与仪表盘指标。
+ *
+ * @param {boolean|object} [options={}] 构造参数。
+ * @param {boolean} [options.enabled] 是否启用诊断；直接传 `true` 时效果等同于 `{ enabled: true }`。
+ */
 export default class VectorTileDiagnostics {
   constructor(options = {}) {
     this.enabled = options === true || options?.enabled === true;

@@ -17,6 +17,16 @@ import {
 
 const Cesium = globalThis.Cesium ?? CesiumModule;
 
+/**
+ * 为 `fill` 类型样式规则构建面与边界图元。
+ *
+ * @param {object} styleRule 当前桶对应的样式规则。
+ * @param {object} [options={}] 构造参数。
+ * @param {boolean} [options.allowPicking=false] 是否为生成的图元启用拾取。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录面要素构建指标。
+ * @param {Cesium.ShadowMode} [options.shadows] Cesium 阴影模式配置。
+ * @param {boolean} [options.asynchronous=true] 是否启用 Cesium 异步几何构建。
+ */
 export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule);
