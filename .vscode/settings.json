@@ -34,4 +34,5 @@
         "--ignore-revs-file",
         "${workspaceFolder}/.git-blame-ignore-revs"
     ],
+    "chat.byokUtilityModelDefault": "mainAgent",
 }

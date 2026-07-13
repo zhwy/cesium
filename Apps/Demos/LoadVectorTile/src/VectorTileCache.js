@@ -15,6 +15,28 @@ export default class VectorTileCache {
     return this._entries.size;
   }
 
+  getStatistics(currentContentRevision) {
+    let staleTiles = 0;
+    let retiredTiles = 0;
+    for (const tile of this._entries.values()) {
+      if (tile.cacheStale) {
+        staleTiles++;
+      }
+      if (
+        currentContentRevision !== undefined &&
+        tile.contentRevision !== currentContentRevision
+      ) {
+        retiredTiles++;
+      }
+    }
+    return {
+      tiles: this._entries.size,
+      bytes: this._totalBytes,
+      staleTiles,
+      retiredTiles,
+    };
+  }
+
   get(key) {
     const tile = this._entries.get(key);
     if (tile) {

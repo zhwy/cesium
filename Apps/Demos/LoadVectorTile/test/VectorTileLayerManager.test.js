@@ -201,6 +201,45 @@ const { default: VectorTileLayerManager } =
   console.log("✓ setLayerStyle supports replacement and unknown layer ids");
 }
 
+{
+  const manager = new VectorTileLayerManager();
+  const calls = {
+    invalidate: 0,
+    clear: 0,
+    remove: 0,
+  };
+  manager._quadtreePrimitive.invalidateAllTiles = () => {
+    calls.invalidate++;
+  };
+  manager._quadtreePrimitive.clearLayerRenderState = () => {
+    calls.clear++;
+  };
+  manager._quadtreePrimitive.removeLayerRenderState = () => {
+    calls.remove++;
+  };
+  const layer = {};
+
+  manager._vectorTileLayers.layerChanged.raiseEvent(layer, 0);
+  assert.equal(calls.invalidate, 1);
+  assert.equal(calls.clear, 0);
+
+  manager._vectorTileLayers.layerShownOrHidden.raiseEvent(layer, 0, false);
+  assert.equal(calls.invalidate, 1);
+  assert.equal(calls.clear, 0);
+
+  manager._vectorTileLayers.layerShownOrHidden.raiseEvent(layer, 0, true);
+  assert.equal(calls.invalidate, 2);
+  assert.equal(calls.clear, 0);
+
+  manager._vectorTileLayers.layerRemoved.raiseEvent(layer, 0);
+  assert.equal(calls.invalidate, 3);
+  assert.equal(calls.remove, 1);
+  manager.removeFromScene();
+  console.log(
+    "✓ manager preserves committed render state for refresh and hide",
+  );
+}
+
 console.log("VectorTileLayerManager tests passed.");
 
 function createManager(providers, runtimeLayers) {

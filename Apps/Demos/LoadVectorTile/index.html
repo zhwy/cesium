@@ -141,7 +141,12 @@
       viewer.scene.debugShowFramesPerSecond = true;
       window._viewer = viewer;
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(0, 0, 1e8),
+        destination: {
+          west: -0.4689341203726429,
+          south: -0.2324597787212113,
+          east: 1.3142529214458865,
+          north: 0.47479581081789896,
+        },
         duration: 0,
       });
 
@@ -435,13 +440,11 @@
             },
             {
               id: "countries",
-              type: "line",
+              type: "fill",
               source: "globe",
               sourceLayer: "countries",
-              maxzoom: 5,
               paint: {
-                "line-color": "#ff00ff",
-                "line-width": 2,
+                "fill-color": "#ff00ff",
               },
               terrain: {
                 heightOffset: 10,

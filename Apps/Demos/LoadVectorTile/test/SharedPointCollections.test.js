@@ -38,6 +38,8 @@ globalThis.Cesium = {
 
 const { default: SharedPointCollections } =
   await import("../src/SharedPointCollections.js");
+const { createSharedPointEntryKey } =
+  await import("../src/SharedPointCollections.js");
 
 {
   const diagnostics = createDiagnostics();
@@ -79,6 +81,27 @@ const { default: SharedPointCollections } =
   assert.equal(diagnostics.gauges.liveSharedBillboards, 0);
   assert.equal(diagnostics.gauges.liveSharedLabels, 0);
   console.log("✓ shared point collections keep add/remove handles consistent");
+}
+
+{
+  const oldTile = {
+    cacheKey: "[0,4,5,6]",
+    x: 4,
+    y: 5,
+    level: 6,
+  };
+  const newTile = {
+    cacheKey: "[1,4,5,6]",
+    x: 4,
+    y: 5,
+    level: 6,
+  };
+
+  assert.notEqual(
+    createSharedPointEntryKey(oldTile, "labels"),
+    createSharedPointEntryKey(newTile, "labels"),
+  );
+  console.log("✓ shared point entry keys include the revisioned tile key");
 }
 
 console.log("SharedPointCollections tests passed.");

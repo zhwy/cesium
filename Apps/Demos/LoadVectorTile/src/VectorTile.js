@@ -10,12 +10,23 @@ const { defined, destroyObject, ImageryState } = Cesium;
  * @alias VectorTile
  * @private
  */
-function VectorTile(vectorTileLayer, x, y, level, rectangle) {
+function VectorTile(
+  vectorTileLayer,
+  x,
+  y,
+  level,
+  rectangle,
+  contentRevision,
+  styleDocument,
+) {
   this.vectorTileLayer = vectorTileLayer;
   this.cache = vectorTileLayer._vectorTileCache;
   this.x = x;
   this.y = y;
   this.level = level;
+  this.contentRevision =
+    contentRevision ?? vectorTileLayer.contentRevision ?? 0;
+  this.styleDocument = styleDocument;
 
   const minimumLevel = vectorTileLayer.vectorTileProvider.minimumLevel;
   if (level > minimumLevel) {

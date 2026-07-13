@@ -97,8 +97,9 @@ export default class VectorTileQuadtreePrimitive
    * reference; tiles leaving the committed set release theirs.
    * @param {object} state
    * @param {Iterable<object>} tiles
+   * @param {Function} [beforeRelease]
    */
-  _commitRenderSet(state, tiles) {
+  _commitRenderSet(state, tiles, beforeRelease) {
     const next = new Set(tiles);
     const prev = state.committedRenderSet;
     for (const tile of next) {
@@ -106,12 +107,13 @@ export default class VectorTileQuadtreePrimitive
         tile.addReference?.();
       }
     }
+    state.committedRenderSet = next;
+    beforeRelease?.();
     for (const tile of prev) {
       if (!next.has(tile)) {
         tile.releaseReference?.();
       }
     }
-    state.committedRenderSet = next;
   }
 
   _getOrCreateLayerState(layer) {
@@ -236,6 +238,7 @@ export default class VectorTileQuadtreePrimitive
     let idealTileCount = 0;
     let suppressedLodVectorTiles = 0;
     let retainedTileCount = 0;
+    let refreshRetainedTileCount = 0;
     const warmupTiles = new Set();
 
     if (isRenderPass) {
@@ -278,8 +281,18 @@ export default class VectorTileQuadtreePrimitive
             entry.regions.push(exact);
           }
 
-          const vt = tileVectorTile.readyVectorTile;
-          if (vt?.state === Cesium.ImageryState.READY && !warmupTiles.has(vt)) {
+          // READY_EMPTY exact tiles complete coverage even when their
+          // readyVectorTile still points at a drawable ancestor fallback.
+          const exactCoverage =
+            exact.state === Cesium.ImageryState.READY && exact.coverageComplete
+              ? exact
+              : undefined;
+          const vt = exactCoverage ?? tileVectorTile.readyVectorTile;
+          if (
+            vt?.state === Cesium.ImageryState.READY &&
+            layer.isCurrentContentRevision?.(vt) !== false &&
+            !warmupTiles.has(vt)
+          ) {
             if (entry.candidates.has(vt)) {
               continue;
             }
@@ -349,22 +362,49 @@ export default class VectorTileQuadtreePrimitive
               );
 
         retainedTileCount += retained.length;
-        this._commitRenderSet(state, [...merged, ...retained]);
-        this._syncLayerPointCollections(
-          layer,
-          state,
-          layer.getFrameStyleZoom(frameState),
+        refreshRetainedTileCount += retained.filter(
+          (tile) => layer.isCurrentContentRevision?.(tile) === false,
+        ).length;
+        const styleZoom = layer.getFrameStyleZoom(frameState);
+        this._commitRenderSet(state, [...merged, ...retained], () =>
+          this._syncLayerPointCollections(layer, state, styleZoom),
         );
       }
 
       // Diagnostic gauges (render pass only)
       let committedTileCount = 0;
+      let retiredResidentTiles = 0;
+      let staleResidentTiles = 0;
+      let currentContentRevision = 0;
       for (const state of this._layerRenderStates.values()) {
         committedTileCount += state.committedRenderSet.size;
+      }
+      const layers = this._tileProvider.vectorTileLayers;
+      if (layers) {
+        for (let i = 0; i < layers.length; ++i) {
+          const layer = layers.get(i);
+          const statistics = layer.getCacheStatistics?.();
+          retiredResidentTiles += statistics?.retiredTiles ?? 0;
+          staleResidentTiles += statistics?.staleTiles ?? 0;
+          currentContentRevision = Math.max(
+            currentContentRevision,
+            layer.contentRevision ?? 0,
+          );
+        }
       }
       this._diagnostics?.setGauge("idealTiles", idealTileCount);
       this._diagnostics?.setGauge("committedRenderTiles", committedTileCount);
       this._diagnostics?.setGauge("ancestorFallbackTiles", retainedTileCount);
+      this._diagnostics?.setGauge(
+        "refreshRetainedTiles",
+        refreshRetainedTileCount,
+      );
+      this._diagnostics?.setGauge("retiredResidentTiles", retiredResidentTiles);
+      this._diagnostics?.setGauge("staleResidentTiles", staleResidentTiles);
+      this._diagnostics?.setGauge(
+        "currentContentRevision",
+        currentContentRevision,
+      );
       this._diagnostics?.setGauge("warmingUpTiles", warmupTiles.size);
     }
 

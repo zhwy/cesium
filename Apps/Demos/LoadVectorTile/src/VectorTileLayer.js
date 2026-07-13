@@ -76,6 +76,10 @@ export default class VectorTileLayer {
     return this._sharedPointCollections;
   }
 
+  get contentRevision() {
+    return this._contentRevision;
+  }
+
   constructor(vectorTileProvider, options) {
     this._show = true;
     this._destroyed = false;
@@ -85,6 +89,7 @@ export default class VectorTileLayer {
     this._styleDocument = options.styleDocument
       ? normalizeStyleDocument(options.styleDocument)
       : undefined;
+    this._contentRevision = 0;
     this._vectorTileProvider = vectorTileProvider;
     this._diagnostics = options.diagnostics;
     this._decodeScheduler =
@@ -118,11 +123,20 @@ export default class VectorTileLayer {
   }
 
   getVectorTileFromCache(x, y, level, rectangle) {
-    const cacheKey = getVectorTileCacheKey(x, y, level);
+    const contentRevision = this._contentRevision;
+    const cacheKey = getVectorTileCacheKey(contentRevision, x, y, level);
     let vectorTile = this._vectorTileCache.get(cacheKey);
 
     if (!Cesium.defined(vectorTile)) {
-      vectorTile = new VectorTile(this, x, y, level, rectangle);
+      vectorTile = new VectorTile(
+        this,
+        x,
+        y,
+        level,
+        rectangle,
+        contentRevision,
+        snapshotStyleDocument(this._styleDocument),
+      );
       this._vectorTileCache.set(cacheKey, vectorTile);
     } else {
       this._vectorTileCache.recordHit(vectorTile);
@@ -130,6 +144,14 @@ export default class VectorTileLayer {
 
     vectorTile.addReference();
     return vectorTile;
+  }
+
+  isCurrentContentRevision(vectorTile) {
+    return vectorTile?.contentRevision === this._contentRevision;
+  }
+
+  getCacheStatistics() {
+    return this._vectorTileCache.getStatistics(this._contentRevision);
   }
 
   _requestTile(vectorTile) {
@@ -153,7 +175,10 @@ export default class VectorTileLayer {
           vectorTile.networkTask = undefined;
           this._inFlightTiles.delete(vectorTile);
           this._diagnostics?.recordDuration("request", startTime);
-          if (vectorTile.released) {
+          if (
+            vectorTile.released ||
+            !this.isCurrentContentRevision(vectorTile)
+          ) {
             return;
           }
           if (!arrayBuffer || arrayBuffer.byteLength === 0) {
@@ -182,7 +207,10 @@ export default class VectorTileLayer {
           vectorTile.networkTask = undefined;
           this._inFlightTiles.delete(vectorTile);
           this._diagnostics?.recordDuration("request", startTime);
-          if (vectorTile.released) {
+          if (
+            vectorTile.released ||
+            !this.isCurrentContentRevision(vectorTile)
+          ) {
             return;
           }
           if (e instanceof VectorTileTaskCancelledError) {
@@ -234,7 +262,8 @@ export default class VectorTileLayer {
         -arrayBufferBytes,
       );
 
-      const styleRules = getStyleRulesForDecode(this._styleDocument);
+      const styleDocument = vectorTile.styleDocument;
+      const styleRules = getStyleRulesForDecode(styleDocument);
       const hasUnsupportedWorkerFilter = styleRules.some(
         (styleRule) => !isWorkerSupportedVectorStyleFilter(styleRule.filter),
       );
@@ -257,7 +286,7 @@ export default class VectorTileLayer {
               sourceLevel: vectorTile.level,
               styleZoom: vectorTile.level,
             },
-            styledLayerNames: getStyledLayerNames(this._styleDocument),
+            styledLayerNames: getStyledLayerNames(styleDocument),
             styleRules: workerStyleRules,
             includeProperties:
               this._option.allowPicking ||
@@ -275,7 +304,10 @@ export default class VectorTileLayer {
             "workerDecodeRoundTrip",
             decodeStartTime,
           );
-          if (vectorTile.released) {
+          if (
+            vectorTile.released ||
+            !this.isCurrentContentRevision(vectorTile)
+          ) {
             return;
           }
 
@@ -321,7 +353,11 @@ export default class VectorTileLayer {
         })
         .then((wasBuilt) => {
           vectorTile.buildTask = undefined;
-          if (!wasBuilt || vectorTile.released) {
+          if (
+            !wasBuilt ||
+            vectorTile.released ||
+            !this.isCurrentContentRevision(vectorTile)
+          ) {
             return;
           }
           const hasPrimitives =
@@ -344,7 +380,10 @@ export default class VectorTileLayer {
             "workerDecodeRoundTrip",
             decodeStartTime,
           );
-          if (vectorTile.released) {
+          if (
+            vectorTile.released ||
+            !this.isCurrentContentRevision(vectorTile)
+          ) {
             return;
           }
           if (error instanceof VectorTileTaskCancelledError) {
@@ -364,14 +403,14 @@ export default class VectorTileLayer {
   }
 
   _buildTilePrimitives(vectorTile, decodedTile, styleZoom) {
-    if (vectorTile.released) {
+    if (vectorTile.released || !this.isCurrentContentRevision(vectorTile)) {
       return false;
     }
     const buildStartTime = this._diagnostics?.startTimer();
     vectorTile.primitives = {};
     vectorTile.primitiveStyleRules = {};
     vectorTile.pointBuckets = {};
-    const styleRules = getStyleRulesForBuild(this._styleDocument);
+    const styleRules = getStyleRulesForBuild(vectorTile.styleDocument);
     if (styleRules.length > 0) {
       styleRules.forEach((styleRule) => {
         const packedLayer = decodedTile.layers[styleRule.sourceLayer];
@@ -488,6 +527,11 @@ export default class VectorTileLayer {
   }
 
   clearCache(raiseChangedEvent = true) {
+    this._contentRevision++;
+    this._diagnostics?.setGauge(
+      "currentContentRevision",
+      this._contentRevision,
+    );
     this._vectorTileCache.clear();
     if (raiseChangedEvent) {
       this.changedEvent.raiseEvent(this);
@@ -508,8 +552,12 @@ export default class VectorTileLayer {
   }
 }
 
-function getVectorTileCacheKey(x, y, level) {
-  return JSON.stringify([x, y, level]);
+function getVectorTileCacheKey(contentRevision, x, y, level) {
+  return JSON.stringify([contentRevision, x, y, level]);
+}
+
+function snapshotStyleDocument(styleDocument) {
+  return styleDocument ? normalizeStyleDocument(styleDocument) : undefined;
 }
 
 function getStyleRulesForDecode(styleDocument) {

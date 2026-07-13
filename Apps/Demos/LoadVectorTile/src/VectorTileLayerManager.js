@@ -80,14 +80,16 @@ export default class VectorTileLayerManager {
         this._quadtreePrimitive.removeLayerRenderState(layer);
       });
     this._removeLayerVisibilityListener =
-      this._vectorTileLayers.layerShownOrHidden.addEventListener((layer) => {
-        invalidateTiles();
-        this._quadtreePrimitive.clearLayerRenderState(layer);
-      });
+      this._vectorTileLayers.layerShownOrHidden.addEventListener(
+        (layer, _index, show) => {
+          if (show) {
+            invalidateTiles();
+          }
+        },
+      );
     this._removeLayerChangedListener =
-      this._vectorTileLayers.layerChanged.addEventListener((layer) => {
+      this._vectorTileLayers.layerChanged.addEventListener(() => {
         invalidateTiles();
-        this._quadtreePrimitive.clearLayerRenderState(layer);
       });
 
     this._removePreUpdateListener = undefined;

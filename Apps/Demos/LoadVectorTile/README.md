@@ -10,7 +10,7 @@
 - Web Worker MVT 解码；
 - 瓦片 buffer 线面裁剪；
 - `GeometryInstance` 和实验性 packed Geometry 两种线渲染后端；
-- 父级回退、LOD 去重、字节预算 LRU 缓存；
+- 父级回退、LOD 去重、无缝样式刷新和字节预算 LRU 缓存；
 - 性能诊断和 A/B 基准测试。
 
 ## 文件结构与入口
@@ -23,7 +23,7 @@ Apps/Demos/LoadVectorTile/
 ├── README.md               # 当前说明文档
 ├── STYLE.md                # 完整样式参考
 ├── TODO.txt                # 临时待办记录
-├── src/                    # 29 个运行时文件（整套 Demo 共 33 个顶层/运行时文件）
+├── src/                    # 30 个运行时文件（整套 Demo 共 34 个顶层/运行时文件）
 │   ├── VectorTileLayerManager.js
 │   ├── VectorTileLayerCollection.js
 │   ├── VectorTileLayer.js
@@ -48,23 +48,30 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTileFillBucket.js
 │   ├── VectorTileLineBucket.js
 │   ├── VectorTileSymbolBucket.js
+│   ├── SharedPointCollections.js
 │   ├── VectorTileTaskScheduler.js
 │   ├── VectorTileCache.js
 │   ├── VectorTileDiagnostics.js
 │   └── VectorTileBenchmark.js
 ├── test/                   # 轻量 Node 单元测试
-│   ├── VectorTileLayerManager.test.js
-│   ├── VectorTileProvider.test.js
-│   ├── VectorTileStyle.test.js
+│   ├── SharedPointCollections.test.js
 │   ├── VectorStyleExpression.test.js
-│   ├── VectorTilePrimitiveBucket.test.js
-│   ├── VectorTileBucketUtils.test.js
+│   ├── VectorTile.test.js
 │   ├── VectorTileBucketFactory.test.js
+│   ├── VectorTileBucketUtils.test.js
+│   ├── VectorTileCache.test.js
+│   ├── VectorTileCircleBucket.test.js
+│   ├── VectorTileFillBucket.test.js
 │   ├── VectorTileGeometry.test.js
 │   ├── VectorTileGeometryPlacement.test.js
-│   ├── VectorTileFillBucket.test.js
+│   ├── VectorTileLayer.test.js
+│   ├── VectorTileLayerManager.test.js
 │   ├── VectorTileLineBucket.test.js
 │   ├── VectorTileLodSelection.test.js
+│   ├── VectorTilePrimitiveBucket.test.js
+│   ├── VectorTileProvider.test.js
+│   ├── VectorTileQuadtreePrimitive.test.js
+│   ├── VectorTileStyle.test.js
 │   ├── VectorTileStyleZoom.test.js
 │   └── VectorTileSymbolBucket.test.js
 └── src_old/                # 旧实验版本备份，仅作对照
@@ -171,7 +178,7 @@ READY
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `VectorTileLayerManager.js`      | 创建四叉树、图层集合、任务调度器和诊断器，对外提供 `addLayer(sourceId, layerOptions)`、`addLayerProvider()`、`addToScene()`、`clearCache()`。 |
 | `VectorTileLayerCollection.js`   | 管理图层顺序、增删、显隐和样式变化事件。                                                                                                      |
-| `VectorTileLayer.js`             | 单个 source 对应的请求、解码、建桶、缓存和后端选择，并持有该图层的 style document（样式唯一真源）。                                           |
+| `VectorTileLayer.js`             | 单个 source 对应的请求、解码、建桶、缓存和后端选择，并持有该图层的 style document、内容代和样式快照。                                         |
 | `VectorTileStyleUtils.js`        | 解析、校验 style document。                                                                                                                   |
 | `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。                                                        |
 | `VectorTileStyleExpression.js`   | 统一执行和校验样式表达式与可序列化 filter 表达式。                                                                                            |
@@ -181,6 +188,7 @@ READY
 | `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive，并支持将线绘制为强制闭合的单环面。                                                                    |
 | `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。                                                     |
 | `VectorTileSymbolBucket.js`      | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。                                                   |
+| `SharedPointCollections.js`      | 统一管理 symbol/circle 共享点集合条目，按版本化瓦片 key 隔离跨代 billboard/label。                                                            |
 | `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                                                                 |
 | `VectorTileQuadtreeProvider.js`  | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                                                              |
 | `VectorSurfaceTile.js`           | 对标 Cesium `GlobeSurfaceTile`，挂载到四叉树瓦片上的矢量数据容器。                                                                            |
@@ -516,6 +524,14 @@ layer.setRenderBackend("instances");
 
 这解决父子瓦片重复绘制。相邻同级瓦片的 buffer 重叠由 Worker 裁剪解决。
 
+### 样式刷新和显隐切换
+
+运行时调用 `setLayerStyle()`、`VectorTileLayer.setStyle()` 或 `clearCache()` 时，图层会推进 `contentRevision` 并为后续瓦片绑定使用新的内容代。相同 `(x, y, level)` 的新旧瓦片因此可以短暂并存：旧代由上一帧 `committedRenderSet` 持有，继续作为已覆盖区域的兜底；当前代瓦片完成请求、解码、建桶并且 Primitive 实际可绘制后，才按 coverage 规则接管对应区域。
+
+隐藏图层时不清空 committed render state，而是依赖 `_show` 在提交阶段立即停止绘制；重新显示时会重新失效四叉树绑定，并可在先前覆盖区域使用保留内容避免空白切换。图层删除、销毁和全量移除仍会清理 render state 和资源。
+
+这个策略会在刷新窗口内提高短时内存/GPU 资源峰值，但只保留 committed set 所需旧代；旧代引用释放后仍走缓存 stale 淘汰和确定性销毁。
+
 ## 10. 任务调度和取消
 
 network、decode、build 使用独立的 `VectorTileTaskScheduler`：
@@ -525,19 +541,19 @@ network、decode、build 使用独立的 `VectorTileTaskScheduler`：
 - 排队任务可重新排序；
 - 瓦片离开视野、图层删除、样式变化和缓存清理会取消旧任务；
 - 网络任务取消会调用 Cesium `Request.cancel()`，终止对应 XHR；
-- 已转交 Worker 的解码不能中断 Worker 当前函数，但结果会被忽略，不会创建 GPU 资源。
+- 已转交 Worker 的解码不能中断 Worker 当前函数，但每个瓦片使用创建时的样式快照；过期内容代的结果会被忽略，不会接管当前画面。
 
 ## 11. 缓存和资源释放
 
 每个 `VectorTileLayer` 拥有独立 `VectorTileCache`。
 
-- key 为 `[x, y, level]`；
+- key 为 `[contentRevision, x, y, level]`；
 - 四叉树引用通过 `referenceCount` 维护；
 - 未完成且引用归零的瓦片立即取消并销毁；
 - READY 且引用归零的瓦片可以保留在 LRU 中复用；
 - 超过 `cacheBytes` 后，从最久未使用且引用为零的瓦片开始淘汰；
 - 淘汰时取消任务、释放父级引用并销毁所有 Primitive；
-- 图层样式和后端变化会把旧缓存标记为 stale，等引用释放后确定性销毁。
+- 图层样式、后端变化和显式缓存刷新会先推进内容代，再把旧缓存标记为 stale，等引用释放后确定性销毁。
 
 常用操作：
 
@@ -578,6 +594,10 @@ result.gauges.residentCacheBytes;
 result.gauges.queuedNetworkTasks;
 result.gauges.queuedDecodeTasks;
 result.gauges.queuedBuildTasks;
+result.gauges.currentContentRevision;
+result.gauges.refreshRetainedTiles;
+result.gauges.retiredResidentTiles;
+result.gauges.staleResidentTiles;
 
 result.counters.clippedFeatures;
 result.counters.outOfBoundsPositions;
