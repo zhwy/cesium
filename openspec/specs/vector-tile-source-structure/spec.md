@@ -246,3 +246,60 @@
 
 - **WHEN** callers need to remove a style document layer
 - **THEN** callers SHALL use `removeLayer(layerId)` rather than removing the source-backed runtime layer directly
+
+### Requirement: Manager owns PBF cache for all sources
+
+`VectorTileLayerManager` SHALL own and manage a shared PBF cache that serves all vector tile sources managed by this instance. The cache SHALL be configured with `pbfCacheBytes` parameter and SHALL provide LRU eviction based on master buffer byte size.
+
+#### Scenario: Manager creates shared cache
+
+- **WHEN** manager is instantiated with `pbfCacheBytes` configuration
+- **THEN** manager SHALL create a shared `VectorTilePbfCache` instance with the specified budget
+
+#### Scenario: Manager injects cache into providers
+
+- **WHEN** manager creates or accepts a provider
+- **THEN** manager SHALL inject the same PBF cache instance into all providers
+
+#### Scenario: Cache budget validation
+
+- **WHEN** `pbfCacheBytes` is invalid (negative, non-finite, non-number)
+- **THEN** manager construction SHALL throw `DeveloperError`
+
+### Requirement: PBF cache provides shared network task coordination
+
+The PBF cache SHALL coordinate concurrent network requests for the same PBF key, merging multiple concurrent misses into a single shared request.
+
+#### Scenario: Cache accepts concurrent requests
+
+- **WHEN** multiple providers request the same PBF key simultaneously
+- **THEN** cache SHALL merge these into a single shared network task
+
+#### Scenario: Cache provides independent handles
+
+- **WHEN** cache handles a shared request
+- **THEN** cache SHALL return independent promise handles to each consumer with separate cancellation capability
+
+#### Scenario: Cache cleans up after all consumers cancel
+
+- **WHEN** all consumers of a shared request cancel
+- **THEN** cache SHALL cancel the underlying network task and remove the pending entry
+
+### Requirement: PBF cache maintains master buffer copies
+
+The PBF cache SHALL maintain immutable master `ArrayBuffer` copies and provide working copies to consumers for Worker transfer.
+
+#### Scenario: Cache saves master on first hit
+
+- **WHEN** network request succeeds for a PBF key
+- **THEN** cache SHALL save the master buffer and provide working copies to consumers
+
+#### Scenario: Working copies are transferable
+
+- **WHEN** consumer needs to transfer PBF data to Worker
+- **THEN** cache SHALL provide a working copy that can be transferred while keeping master
+
+#### Scenario: Master remains available for reuse
+
+- **WHEN** master buffer is saved and new consumers request the same key
+- **THEN** cache SHALL create new working copies from the same master buffer

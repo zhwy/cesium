@@ -10,7 +10,7 @@
 - Web Worker MVT 解码；
 - 瓦片 buffer 线面裁剪；
 - `GeometryInstance` 和实验性 packed Geometry 两种线渲染后端；
-- 父级回退、LOD 去重、无缝样式刷新和字节预算 LRU 缓存；
+- 父级回退、LOD 去重、无缝样式刷新、渲染缓存和 manager 级原始 PBF 内存缓存；
 - 性能诊断和 A/B 基准测试。
 
 ## 文件结构与入口
@@ -23,7 +23,7 @@ Apps/Demos/LoadVectorTile/
 ├── README.md               # 当前说明文档
 ├── STYLE.md                # 完整样式参考
 ├── TODO.txt                # 临时待办记录
-├── src/                    # 30 个运行时文件（整套 Demo 共 34 个顶层/运行时文件）
+├── src/                    # 31 个运行时文件（整套 Demo 共 35 个顶层/运行时文件）
 │   ├── VectorTileLayerManager.js
 │   ├── VectorTileLayerCollection.js
 │   ├── VectorTileLayer.js
@@ -51,6 +51,7 @@ Apps/Demos/LoadVectorTile/
 │   ├── SharedPointCollections.js
 │   ├── VectorTileTaskScheduler.js
 │   ├── VectorTileCache.js
+│   ├── VectorTilePbfCache.js
 │   ├── VectorTileDiagnostics.js
 │   └── VectorTileBenchmark.js
 ├── test/                   # 轻量 Node 单元测试
@@ -60,6 +61,7 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTileBucketFactory.test.js
 │   ├── VectorTileBucketUtils.test.js
 │   ├── VectorTileCache.test.js
+│   ├── VectorTileDiagnostics.test.js
 │   ├── VectorTileCircleBucket.test.js
 │   ├── VectorTileFillBucket.test.js
 │   ├── VectorTileGeometry.test.js
@@ -70,6 +72,7 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTileLodSelection.test.js
 │   ├── VectorTilePrimitiveBucket.test.js
 │   ├── VectorTileProvider.test.js
+│   ├── VectorTilePbfCache.test.js
 │   ├── VectorTileQuadtreePrimitive.test.js
 │   ├── VectorTileStyle.test.js
 │   ├── VectorTileStyleZoom.test.js
@@ -87,6 +90,7 @@ index.html
         ▼
 VectorTileLayerManager
         ├── _createProvider()
+        ├── VectorTilePbfCache（所有 source 共享原始 PBF）
         ├── VectorTileLayerCollection
         │       ├── VectorTileLayer
         │       │       ├── VectorTileProvider
@@ -102,7 +106,8 @@ VectorTileLayerManager
                                         └── VectorTile
 
 网络请求
-  → VectorTileProvider.requestTile()（内部 MVTLoader）
+  → VectorTileProvider.requestTile()
+  → VectorTilePbfCache（ready hit / pending join / MVTLoader miss）
   → VectorTileDecoder
   → VectorTileDecodeWorker
   → decodeVectorTile
@@ -129,7 +134,7 @@ VectorTileQuadtreeProvider.loadTile()
   ↓
 VectorSurfaceTile 为每个可见图层绑定 VectorTile
   ↓
-network 队列请求 ArrayBuffer
+PBF cache 查询：ready 复制 / pending 合并 / network 请求
   ↓
 decode 队列将 ArrayBuffer 转交 Web Worker
   ↓
@@ -174,36 +179,37 @@ READY
 
 ## 3. 核心模块职责
 
-| 模块                             | 职责                                                                                                                                          |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VectorTileLayerManager.js`      | 创建四叉树、图层集合、任务调度器和诊断器，对外提供 `addLayer(sourceId, layerOptions)`、`addLayerProvider()`、`addToScene()`、`clearCache()`。 |
-| `VectorTileLayerCollection.js`   | 管理图层顺序、增删、显隐和样式变化事件。                                                                                                      |
-| `VectorTileLayer.js`             | 单个 source 对应的请求、解码、建桶、缓存和后端选择，并持有该图层的 style document、内容代和样式快照。                                         |
-| `VectorTileStyleUtils.js`        | 解析、校验 style document。                                                                                                                   |
-| `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。                                                        |
-| `VectorTileStyleExpression.js`   | 统一执行和校验样式表达式与可序列化 filter 表达式。                                                                                            |
-| `VectorTileBucketUtils.js`       | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                                                                  |
-| `VectorTileGeometryPlacement.js` | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。                                                |
-| `VectorTileBucketFactory.js`     | 包含 `VectorTilePrimitiveBucket` 基类，并按样式类型把 style rule 路由到 fill/line/symbol bucket。                                             |
-| `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive，并支持将线绘制为强制闭合的单环面。                                                                    |
-| `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。                                                     |
-| `VectorTileSymbolBucket.js`      | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。                                                   |
-| `SharedPointCollections.js`      | 统一管理 symbol/circle 共享点集合条目，按版本化瓦片 key 隔离跨代 billboard/label。                                                            |
-| `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                                                                 |
-| `VectorTileQuadtreeProvider.js`  | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                                                              |
-| `VectorSurfaceTile.js`           | 对标 Cesium `GlobeSurfaceTile`，挂载到四叉树瓦片上的矢量数据容器。                                                                            |
-| `TileVectorTile.js`              | 对标 Cesium `TileImagery`，连接四叉树瓦片和矢量瓦片，管理加载对象、就绪对象和父级回退。                                                       |
-| `VectorTile.js`                  | 对标 Cesium `Imagery`，保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。                                                  |
-| `VectorTileProvider.js`          | 集中 Provider 基类、`TileType`、内部 `MVTLoader` 与 XYZ/WMTS/WMTSGeo 寻址实现，只负责数据源寻址与发起瓦片请求，不持有样式。                   |
-| `VectorTileTaskScheduler.js`     | 有界优先级任务队列，支持排队、调整优先级和取消。                                                                                              |
-| `VectorTileDecoder.js`           | 管理 Worker 请求和异步响应。                                                                                                                  |
-| `VectorTileDecodeWorker.js`      | Worker 入口。                                                                                                                                 |
-| `decodeVectorTile.js`            | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                                                                   |
-| `VectorTileGeometryUtils.js`     | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。                                                          |
-| `VectorTileCache.js`             | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                                                                |
-| `VectorTileLodSelection.js`      | 包含 `VectorTileCoverageState` 枚举，并在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                                            |
-| `VectorTileDiagnostics.js`       | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                                                                           |
-| `VectorTileBenchmark.js`         | 固定视角采样，以及 instances/packed A/B 测试。                                                                                                |
+| 模块                             | 职责                                                                                                                        |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `VectorTileLayerManager.js`      | 创建四叉树、图层集合、任务调度器、共享 PBF cache 和诊断器，对外提供图层、场景及缓存管理 API。                               |
+| `VectorTileLayerCollection.js`   | 管理图层顺序、增删、显隐和样式变化事件。                                                                                    |
+| `VectorTileLayer.js`             | 单个 source 对应的请求、解码、建桶、缓存和后端选择，并持有该图层的 style document、内容代和样式快照。                       |
+| `VectorTileStyleUtils.js`        | 解析、校验 style document。                                                                                                 |
+| `VectorTileStyleRule.js`         | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。                                      |
+| `VectorTileStyleExpression.js`   | 统一执行和校验样式表达式与可序列化 filter 表达式。                                                                          |
+| `VectorTileBucketUtils.js`       | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                                                |
+| `VectorTileGeometryPlacement.js` | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。                              |
+| `VectorTileBucketFactory.js`     | 包含 `VectorTilePrimitiveBucket` 基类，并按样式类型把 style rule 路由到 fill/line/symbol bucket。                           |
+| `VectorTileFillBucket.js`        | 基于面要素创建填充和 outline primitive，并支持将线绘制为强制闭合的单环面。                                                  |
+| `VectorTileLineBucket.js`        | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。                                   |
+| `VectorTileSymbolBucket.js`      | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。                                 |
+| `SharedPointCollections.js`      | 统一管理 symbol/circle 共享点集合条目，按版本化瓦片 key 隔离跨代 billboard/label。                                          |
+| `VectorTileQuadtreePrimitive.js` | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                                               |
+| `VectorTileQuadtreeProvider.js`  | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                                            |
+| `VectorSurfaceTile.js`           | 对标 Cesium `GlobeSurfaceTile`，挂载到四叉树瓦片上的矢量数据容器。                                                          |
+| `TileVectorTile.js`              | 对标 Cesium `TileImagery`，连接四叉树瓦片和矢量瓦片，管理加载对象、就绪对象和父级回退。                                     |
+| `VectorTile.js`                  | 对标 Cesium `Imagery`，保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。                                |
+| `VectorTileProvider.js`          | 集中 Provider 基类、`TileType`、内部 `MVTLoader` 与 XYZ/WMTS/WMTSGeo 寻址实现，只负责数据源寻址与发起瓦片请求，不持有样式。 |
+| `VectorTileTaskScheduler.js`     | 有界优先级任务队列，支持排队、调整优先级和取消。                                                                            |
+| `VectorTileDecoder.js`           | 管理 Worker 请求和异步响应。                                                                                                |
+| `VectorTileDecodeWorker.js`      | Worker 入口。                                                                                                               |
+| `decodeVectorTile.js`            | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                                                 |
+| `VectorTileGeometryUtils.js`     | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。                                        |
+| `VectorTileCache.js`             | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                                              |
+| `VectorTilePbfCache.js`          | 按 manager 总预算保存原始 PBF master、为 Worker 创建副本，并合并同 key 的在途网络请求。                                     |
+| `VectorTileLodSelection.js`      | 包含 `VectorTileCoverageState` 枚举，并在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                          |
+| `VectorTileDiagnostics.js`       | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                                                         |
+| `VectorTileBenchmark.js`         | 固定视角采样，以及 instances/packed A/B 测试。                                                                              |
 
 ## 4. 快速使用
 
@@ -215,6 +221,7 @@ const manager = new VectorTileLayerManager({
   maximumDecodeTasks: 2,
   maximumBuildTasks: 1,
   tileCacheSize: 100,
+  pbfCacheBytes: 64 * 1024 * 1024,
   diagnostics: { enabled: true },
 });
 
@@ -375,7 +382,10 @@ manager.setStyle({
 | `maximumDecodeTasks`  |                       `2` | 同时进入 Worker 解码流程的任务上限。当前 Decoder 使用单 Worker，消息在 Worker 内顺序执行。 |
 | `maximumBuildTasks`   |                       `1` | 主线程 Primitive 建模任务上限。                                                            |
 | `tileCacheSize`       |                     `100` | Cesium 四叉树保留的 surface tile 数量。                                                    |
+| `pbfCacheBytes`       |                  `64 MiB` | 所有 source 共用的 ready 原始 PBF master payload 字节预算；`0` 禁用 ready 驻留。           |
 | `diagnostics`         |                      关闭 | `{ enabled: true }` 时收集性能指标。                                                       |
+
+`tileCacheSize`、source `cacheBytes` 和 `pbfCacheBytes` 不可互换：前者按数量控制 Cesium surface tile 保留，`cacheBytes` 是单 runtime layer 的渲染缓存估算预算，`pbfCacheBytes` 是 manager 下所有 source 共用的压缩 PBF payload 严格预算。
 
 ## 6. Source / Provider 配置
 
@@ -391,7 +401,7 @@ manager.setStyle({
 | `allowPicking`           |               `false` | 是否保留逐要素 ID 和属性用于 `scene.pick()`。                |
 | `renderBackend`          |           `instances` | 线渲染后端：`instances` 或实验性 `packed`。                  |
 | `packedMinimumInstances` |                 `200` | packed 后端启用所需的最少线段/路径数量。                     |
-| `cacheBytes`             |              `64 MiB` | 单图层缓存预算估算值。                                       |
+| `cacheBytes`             |              `64 MiB` | 单 runtime layer 的渲染瓦片缓存预算估算值，不包含原始 PBF。  |
 | `polygonHeight`          |                 `1.0` | 面相对椭球面的高度，减少与地球表面共面闪烁。                 |
 | `asynchronous`           |                `true` | instances 后端是否使用 Cesium 异步 Primitive 构建。          |
 | `shadows`                | `ShadowMode.DISABLED` | 是否参与阴影。                                               |
@@ -526,7 +536,9 @@ layer.setRenderBackend("instances");
 
 ### 样式刷新和显隐切换
 
-运行时调用 `setLayerStyle()`、`VectorTileLayer.setStyle()` 或 `clearCache()` 时，图层会推进 `contentRevision` 并为后续瓦片绑定使用新的内容代。相同 `(x, y, level)` 的新旧瓦片因此可以短暂并存：旧代由上一帧 `committedRenderSet` 持有，继续作为已覆盖区域的兜底；当前代瓦片完成请求、解码、建桶并且 Primitive 实际可绘制后，才按 coverage 规则接管对应区域。
+运行时调用 `setLayerStyle()`、`VectorTileLayer.setStyle()` 或 `VectorTileLayer.clearCache()` 时，图层会推进 `contentRevision` 并为后续瓦片绑定使用新的内容代。相同 `(x, y, level)` 的新旧瓦片因此可以短暂并存：旧代由上一帧 `committedRenderSet` 持有，继续作为已覆盖区域的兜底；当前代瓦片完成请求、解码、建桶并且 Primitive 实际可绘制后，才按 coverage 规则接管对应区域。
+
+样式、filter、图标、scene 和 render backend 变化只清渲染内容，不清 manager 级 PBF。只要 source 数据身份与瓦片坐标未变，新内容代会从 PBF cache 取得独立工作副本并重新解码、建桶，不再重复下载。完整 `manager.setStyle()` 重建 runtime layer 时也遵守这一规则。
 
 隐藏图层时不清空 committed render state，而是依赖 `_show` 在提交阶段立即停止绘制；重新显示时会重新失效四叉树绑定，并可在先前覆盖区域使用保留内容避免空白切换。图层删除、销毁和全量移除仍会清理 render state 和资源。
 
@@ -539,13 +551,15 @@ network、decode、build 使用独立的 `VectorTileTaskScheduler`：
 - 优先级较小的任务先执行；
 - 四叉树根据相机距离设置加载优先级；
 - 排队任务可重新排序；
-- 瓦片离开视野、图层删除、样式变化和缓存清理会取消旧任务；
-- 网络任务取消会调用 Cesium `Request.cancel()`，终止对应 XHR；
+- 瓦片离开视野、图层删除、样式变化和渲染缓存清理会取消对应消费者任务；
+- 相同 PBF key 的消费者共享底层网络任务；单个消费者取消不会影响其他消费者，最后一个消费者取消时才调用 Cesium `Request.cancel()`；
 - 已转交 Worker 的解码不能中断 Worker 当前函数，但每个瓦片使用创建时的样式快照；过期内容代的结果会被忽略，不会接管当前画面。
 
 ## 11. 缓存和资源释放
 
-每个 `VectorTileLayer` 拥有独立 `VectorTileCache`。
+缓存分成两层：每个 `VectorTileLayer` 拥有独立的渲染 `VectorTileCache`，manager 持有所有 source 共享的原始 `VectorTilePbfCache`。
+
+渲染缓存：
 
 - key 为 `[contentRevision, x, y, level]`；
 - 四叉树引用通过 `referenceCount` 维护；
@@ -555,15 +569,28 @@ network、decode、build 使用独立的 `VectorTileTaskScheduler`：
 - 淘汰时取消任务、释放父级引用并销毁所有 Primitive；
 - 图层样式、后端变化和显式缓存刷新会先推进内容代，再把旧缓存标记为 stale，等引用释放后确定性销毁。
 
+原始 PBF 缓存：
+
+- key 包含 source namespace、解析后的资源身份和 `(level, x, y)`，不包含样式、filter 或 `contentRevision`；
+- ready entry 私有保存不可变 master `ArrayBuffer`，每个解码消费者得到独立副本，只有副本会 transfer 给 Worker；
+- 按 master `byteLength` 和 LRU 严格控制在 `pbfCacheBytes` 内；零字节不驻留，单个响应大于预算时直接服务消费者但不挤出已有小 entry；
+- `pbfCacheBytes: 0` 只禁用 ready 驻留，同 key 的 pending 请求仍会合并；
+- 同一 URL 背后的服务端数据原地更新时，应调用 `manager.clearPbfCache()` 或使用版本化 URL。
+
 常用操作：
 
 ```js
 layer.show = false;
 layer.setStyle(newStyleDocument);
 layer.clearCache();
+manager.clearPbfCache(); // 只清 ready PBF，保留当前已绘制 Primitive
 manager.clearCache();
 manager.vectorTileLayers.remove(layer, true);
 ```
+
+`manager.clearCache()` 会同时推进各 layer 的渲染内容代并清除 ready PBF，适用于冷启动测试。两种 manager 清理都会推进 PBF cache generation，清理前已在途的响应仍可服务既有消费者，但不会回填 ready cache。
+
+`pbfCacheBytes` 只限制 ready master payload，不是浏览器进程总内存上限。样式切换期间可能同时存在 master、解码工作副本、Worker 输出及新旧渲染内容代，浏览器任务管理器也可能晚于 JS 引用释放才回落。
 
 ## 12. 性能诊断
 
@@ -591,6 +618,8 @@ result.durations.primitiveBuild;
 result.durations.packedGeometryBuild;
 
 result.gauges.residentCacheBytes;
+result.gauges.residentPbfCacheBytes;
+result.gauges.residentPbfCacheEntries;
 result.gauges.queuedNetworkTasks;
 result.gauges.queuedDecodeTasks;
 result.gauges.queuedBuildTasks;
@@ -603,6 +632,13 @@ result.counters.clippedFeatures;
 result.counters.outOfBoundsPositions;
 result.counters.cacheHits;
 result.counters.cacheEvictions;
+result.counters.pbfCacheHits;
+result.counters.pbfCacheMisses;
+result.counters.pbfCacheEvictions;
+result.counters.pbfCacheCopies;
+result.counters.pbfCacheOversizeSkips;
+result.counters.pbfRequestJoins;
+result.counters.downloadedBytes; // 仅真实 fetch，PBF hit 不重复累计
 result.counters.suppressedLodVectorTiles;
 result.counters.packedLineBuckets;
 ```

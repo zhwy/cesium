@@ -221,10 +221,6 @@ export default class VectorTileLayer {
           vectorTile.arrayBuffer = arrayBuffer;
           vectorTile.arrayBufferBytes = arrayBuffer.byteLength;
           this._vectorTileCache.updateSize(vectorTile, arrayBuffer.byteLength);
-          this._diagnostics?.increment(
-            "downloadedBytes",
-            arrayBuffer.byteLength,
-          );
           this._diagnostics?.addGauge(
             "residentArrayBufferBytes",
             arrayBuffer.byteLength,

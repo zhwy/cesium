@@ -47,6 +47,7 @@ const { default: VectorTileLayerManager } =
   manager._providersBySourceId = new Map();
   manager._vectorTileLayers = collection;
   manager._diagnostics = {};
+  manager._pbfCache = {};
   manager._networkScheduler = {};
   manager._decodeScheduler = {};
   manager._buildScheduler = {};
@@ -62,8 +63,92 @@ const { default: VectorTileLayerManager } =
   assert.equal(collection.addLayerProviderCalls[0].index, 2);
   assert.equal(provider._options.sourceId, "land");
   assert.ok(provider._options.styleDocument);
+  assert.equal(provider._options.pbfCache, manager._pbfCache);
+  assert.equal(provider._pbfCache, manager._pbfCache);
   console.log(
     "✓ addLayerProvider registers provider state and forwards to the collection",
+  );
+}
+
+{
+  const manager = new VectorTileLayerManager({ pbfCacheBytes: 7 });
+  assert.equal(manager.pbfCache.maximumBytes, 7);
+  assert.throws(
+    () => new VectorTileLayerManager({ pbfCacheBytes: -1 }),
+    /finite/,
+  );
+  manager.removeFromScene();
+  console.log("✓ manager owns and validates the shared PBF cache budget");
+}
+
+{
+  const manager = new VectorTileLayerManager({ pbfCacheBytes: 7 });
+  const deferred = createDeferredTask();
+  const consumer = manager.pbfCache.getOrLoad(
+    "pending-before-clear",
+    () => deferred.handle,
+  );
+  manager.clearPbfCache();
+  deferred.resolve(Uint8Array.from([1, 2]).buffer);
+  assert.deepEqual([...new Uint8Array(await consumer.promise)], [1, 2]);
+  assert.equal(manager.pbfCache.length, 0);
+  manager.removeFromScene();
+  console.log("✓ manager clear prevents old pending PBF refill");
+}
+
+{
+  const manager = new VectorTileLayerManager({
+    pbfCacheBytes: 16,
+    diagnostics: true,
+  });
+  const style = {
+    version: 1,
+    sources: {
+      land: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [createFillRule("land-fill", "land")],
+  };
+  const tile = { x: 1, y: 2, level: 3, priority: 0 };
+  manager.setStyle(style);
+  const originalProvider = manager.getProvider("land");
+  const originalResource = originalProvider.getTileResource(tile);
+  const originalKey = originalProvider.getPbfCacheKey(tile, originalResource);
+  await manager.pbfCache.getOrLoad(originalKey, () =>
+    resolvedTask(Uint8Array.from([4, 5, 6]).buffer),
+  ).promise;
+
+  const runtimeLayer = manager.vectorTileLayers.get(0);
+  const originalRevision = runtimeLayer.contentRevision;
+  manager.clearPbfCache();
+  assert.equal(manager.pbfCache.length, 0);
+  assert.equal(runtimeLayer.contentRevision, originalRevision);
+
+  await manager.pbfCache.getOrLoad(originalKey, () =>
+    resolvedTask(Uint8Array.from([4, 5, 6]).buffer),
+  ).promise;
+  manager.setStyle(style);
+  const replacementProvider = manager.getProvider("land");
+  const replacementKey = replacementProvider.getPbfCacheKey(
+    tile,
+    replacementProvider.getTileResource(tile),
+  );
+  const reused = await replacementProvider.requestTile(tile).promise;
+  assert.equal(replacementKey, originalKey);
+  assert.deepEqual([...new Uint8Array(reused)], [4, 5, 6]);
+
+  manager.clearCache();
+  assert.equal(manager.pbfCache.length, 0);
+  assert.equal(
+    manager.vectorTileLayers.get(0).contentRevision,
+    originalRevision + 1,
+  );
+  manager.removeAll();
+  manager.removeFromScene();
+  console.log(
+    "✓ raw-only clear preserves render state and setStyle reuses unchanged source PBF",
   );
 }
 
@@ -332,4 +417,26 @@ function createLineRule(id, source) {
     source,
     sourceLayer: "countries",
   };
+}
+
+function resolvedTask(value) {
+  return {
+    promise: Promise.resolve(value),
+    cancel() {},
+    setPriority() {},
+    cancelled: false,
+  };
+}
+
+function createDeferredTask() {
+  let resolve;
+  const handle = {
+    promise: new Promise((resolvePromise) => {
+      resolve = resolvePromise;
+    }),
+    cancel() {},
+    setPriority() {},
+    cancelled: false,
+  };
+  return { handle, resolve };
 }

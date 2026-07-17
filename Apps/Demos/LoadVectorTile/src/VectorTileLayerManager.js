@@ -3,6 +3,7 @@ import VectorTileQuadtreePrimitive from "./VectorTileQuadtreePrimitive.js";
 import VectorTileQuadtreeProvider from "./VectorTileQuadtreeProvider.js";
 import VectorTileLayerCollection from "./VectorTileLayerCollection.js";
 import VectorTileDiagnostics from "./VectorTileDiagnostics.js";
+import VectorTilePbfCache from "./VectorTilePbfCache.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 import {
   TileType,
@@ -29,6 +30,7 @@ import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
  * @param {number} [options.tileSize=512] 样式缩放与误差计算使用的瓦片宽度。
  * @param {number} [options.pixelRatio=1] 设备像素比。
  * @param {number} [options.tileCacheSize=100] 四叉树 primitive 的瓦片缓存大小。
+ * @param {number} [options.pbfCacheBytes=64*1024*1024] 所有 source 共享的 ready PBF payload 预算。
  */
 export default class VectorTileLayerManager {
   get quadtreePrimitive() {
@@ -47,8 +49,16 @@ export default class VectorTileLayerManager {
     return this._diagnostics;
   }
 
+  get pbfCache() {
+    return this._pbfCache;
+  }
+
   constructor(options = {}) {
     this._diagnostics = new VectorTileDiagnostics(options.diagnostics);
+    this._pbfCache = new VectorTilePbfCache({
+      maximumBytes: options.pbfCacheBytes,
+      diagnostics: this._diagnostics,
+    });
     this._networkScheduler = new VectorTileTaskScheduler(
       options.maximumNetworkTasks ?? 8,
     );
@@ -223,10 +233,16 @@ export default class VectorTileLayerManager {
       scene: this._scene,
       iconImages: this._iconImages,
       diagnostics: this._diagnostics,
+      pbfCache: this._pbfCache,
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
     };
+    provider.setPbfCache?.(this._pbfCache);
+    if (!provider.setPbfCache) {
+      provider._pbfCache = this._pbfCache;
+    }
+    provider._diagnostics = this._diagnostics;
     if (provider.sourceId) {
       this._providersBySourceId.set(provider.sourceId, provider);
     }
@@ -356,7 +372,12 @@ export default class VectorTileLayerManager {
     for (let i = 0; i < this._vectorTileLayers.length; ++i) {
       this._vectorTileLayers.get(i).clearCache(false);
     }
+    this.clearPbfCache();
     this._quadtreePrimitive.invalidateAllTiles();
+  }
+
+  clearPbfCache() {
+    this._pbfCache.clear();
   }
 
   _createManagedProvider(sourceId, source, styleRules) {
@@ -388,6 +409,7 @@ export default class VectorTileLayerManager {
       },
       tilingScheme: this.tilingScheme,
       diagnostics: this._diagnostics,
+      pbfCache: this._pbfCache,
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,

@@ -18,11 +18,21 @@ function MVTLoader(cacheStore) {
   // 预留外部缓存存储接入点，当前版本尚未启用。
 }
 
-MVTLoader.prototype.load = function (resource, scheduler, priority) {
+MVTLoader.prototype.load = function (
+  resource,
+  scheduler,
+  priority,
+  diagnostics,
+) {
   return scheduler.schedule((context) => {
     const promise = resource.fetchArrayBuffer();
-    context.onCancel(() => resource.request.cancel());
-    return promise;
+    context.onCancel(() => resource.request?.cancel());
+    return Promise.resolve(promise).then((arrayBuffer) => {
+      if (arrayBuffer instanceof ArrayBuffer) {
+        diagnostics?.increment("downloadedBytes", arrayBuffer.byteLength);
+      }
+      return arrayBuffer;
+    });
   }, priority);
 };
 
@@ -50,6 +60,8 @@ MVTLoader.instance();
  * @param {number} [options.minimumLevel=0] 可请求的最小层级。
  * @param {number} [options.maximumLevel=18] 可请求的最大层级。
  * @param {object} [options.networkScheduler] 网络调度器。
+ * @param {VectorTilePbfCache} [options.pbfCache] manager 共享的原始 PBF 缓存。
+ * @param {string} [options.pbfCacheNamespace] 自定义 PBF source namespace。
  * @param {string} [options.sourceId] 数据源标识。
  * @param {string} [options.styleSourceId] 样式文档中的数据源标识。
  * @param {object} [options.source] 单个数据源定义。
@@ -79,6 +91,10 @@ export default class VectorTileProvider {
     this._maximumLevel = this._options.maximumLevel ?? 18;
     this._networkScheduler =
       this._options.networkScheduler ?? new VectorTileTaskScheduler(8);
+    this._pbfCache = this._options.pbfCache;
+    this._pbfCacheNamespace =
+      this._options.pbfCacheNamespace ?? this._sourceId ?? "";
+    this._diagnostics = this._options.diagnostics;
 
     this._resource = new Cesium.Resource({
       url: this._options.url,
@@ -132,6 +148,33 @@ VectorTileProvider.prototype.isTileAvailable = function (level) {
   return level >= this._minimumLevel && level <= this._maximumLevel;
 };
 
+/**
+ * 注入 manager 持有的共享 PBF cache。
+ *
+ * @param {VectorTilePbfCache} pbfCache 共享缓存。
+ */
+VectorTileProvider.prototype.setPbfCache = function (pbfCache) {
+  this._pbfCache = pbfCache;
+};
+
+/**
+ * 生成与样式内容代无关的 PBF key。带额外请求身份（例如租户 header）的
+ * 自定义 provider 应覆盖此方法，并把完整数据身份纳入 key。
+ *
+ * @param {object} tile 瓦片坐标对象。
+ * @param {Cesium.Resource} resource 已解析模板值的请求资源。
+ * @returns {string} PBF cache key。
+ */
+VectorTileProvider.prototype.getPbfCacheKey = function (tile, resource) {
+  return JSON.stringify([
+    this._pbfCacheNamespace,
+    resource.url,
+    tile.level,
+    tile.x,
+    tile.y,
+  ]);
+};
+
 VectorTileProvider.prototype.requestTile = function (tile) {
   if (!this.isTileAvailable(tile.level)) {
     return;
@@ -139,11 +182,21 @@ VectorTileProvider.prototype.requestTile = function (tile) {
 
   const resource = this.getTileResource(tile);
   if (Cesium.defined(resource)) {
-    return MVTLoader.instance().load(
-      resource,
-      this._networkScheduler,
-      tile.priority,
-    );
+    const load = (priority) =>
+      MVTLoader.instance().load(
+        resource,
+        this._networkScheduler,
+        priority,
+        this._diagnostics,
+      );
+    if (this._pbfCache) {
+      return this._pbfCache.getOrLoad(
+        this.getPbfCacheKey(tile, resource),
+        load,
+        tile.priority,
+      );
+    }
+    return load(tile.priority);
   }
 };
 

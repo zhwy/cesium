@@ -64,11 +64,13 @@
 | `packedMinimumInstances` | packed 线后端的最少线数量阈值。          |
 | `clipToTile`             | 是否裁剪到瓦片边界。建议保持 `true`。    |
 | `allowPicking`           | 是否保留要素属性用于拾取。               |
-| `cacheBytes`             | 单图层缓存预算。                         |
+| `cacheBytes`             | 单 runtime layer 的渲染缓存预算估算值。  |
 | `asynchronous`           | instances 后端是否允许 Cesium 异步建模。 |
 | `shadows`                | 是否参与阴影。                           |
 
 这些字段写在 `manager.setStyle(styleDocument)` 的 `sources[sourceId]` 中；如果你已经创建了自定义 `VectorTileProvider`，也可以直接通过 `manager.addLayerProvider(provider)` 注入。`manager.addLayer(sourceId, layerOptions)` 只追加单个样式图层，不负责 source 配置。
+
+原始 PBF 缓存使用 `VectorTileLayerManager` 构造参数 `pbfCacheBytes` 配置，它是 manager 下所有 source 共用的 ready PBF master payload 总预算，不属于 `sources[sourceId]` 字段，也不包含在 `cacheBytes` 中。`tileCacheSize` 则单独控制 Cesium 四叉树保留的 surface tile 数量。
 
 ## 3. 图层通用字段
 
