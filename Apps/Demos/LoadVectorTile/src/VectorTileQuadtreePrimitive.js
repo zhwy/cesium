@@ -23,7 +23,7 @@ function arePrimitivesReady(tile) {
   for (let ki = 0; ki < keys.length; ++ki) {
     const primitives = layerPrimitives[keys[ki]];
     for (let pi = 0; pi < primitives.length; ++pi) {
-      if (!primitives[pi].ready) {
+      if (primitives[pi].show !== false && !primitives[pi].ready) {
         return false;
       }
     }
@@ -143,7 +143,7 @@ export default class VectorTileQuadtreePrimitive
     state.committedPointEntries = new Map();
   }
 
-  _syncLayerPointCollections(layer, state, styleZoom) {
+  _syncLayerPointCollections(layer, state) {
     const sharedPointCollections = layer.sharedPointCollections;
     if (!sharedPointCollections) {
       state.committedPointEntries = new Map();
@@ -157,23 +157,35 @@ export default class VectorTileQuadtreePrimitive
       for (let i = 0; i < bucketIds.length; ++i) {
         const bucketId = bucketIds[i];
         const pointBucket = pointBuckets[bucketId];
-        if (!isStyleRuleVisibleForZoom(pointBucket.styleRule, styleZoom)) {
-          continue;
-        }
-
         const pointKey = createSharedPointEntryKey(tile, bucketId);
-        nextPointEntries.set(pointKey, pointBucket);
+        nextPointEntries.set(pointKey, {
+          pointBucket,
+          styleRevision: pointBucket.styleRevision ?? 0,
+        });
       }
     }
 
-    for (const [pointKey, pointBucket] of nextPointEntries) {
-      if (
-        !state.committedPointEntries.has(pointKey) ||
-        !sharedPointCollections.hasTileEntries(pointKey)
-      ) {
+    for (const [pointKey, pointEntry] of nextPointEntries) {
+      const { pointBucket, styleRevision } = pointEntry;
+      const committedEntry = state.committedPointEntries.get(pointKey);
+      if (!committedEntry || !sharedPointCollections.hasTileEntries(pointKey)) {
         sharedPointCollections.addTileEntries(
           pointKey,
           pointBucket.descriptors,
+          pointBucket.pickContext,
+        );
+      } else if (committedEntry.pointBucket !== pointBucket) {
+        sharedPointCollections.removeTileEntries(pointKey);
+        sharedPointCollections.addTileEntries(
+          pointKey,
+          pointBucket.descriptors,
+          pointBucket.pickContext,
+        );
+      } else if (committedEntry.styleRevision !== styleRevision) {
+        sharedPointCollections.updateTileEntries?.(
+          pointKey,
+          pointBucket.descriptors,
+          pointBucket.updateProperties,
         );
       }
     }
@@ -185,6 +197,17 @@ export default class VectorTileQuadtreePrimitive
     }
 
     state.committedPointEntries = nextPointEntries;
+  }
+
+  applyStyleLayerUpdate(layer, layerId, plan) {
+    const state = this._layerRenderStates.get(layer);
+    if (!state) {
+      return;
+    }
+    for (const tile of state.committedRenderSet) {
+      layer.applyStyleLayerToTile?.(tile, layerId, plan);
+    }
+    this._syncLayerPointCollections(layer, state);
   }
 
   update(frameState) {
@@ -264,6 +287,7 @@ export default class VectorTileQuadtreePrimitive
           // 否则在高压加载场景下，可见瓦片可能拿不到时间片，导致无意义的取消与重请求抖动。
           exact.lastNeededFrame = frameState.frameNumber;
           const layer = exact.vectorTileLayer;
+          layer.processBucketRebuilds?.(exact, frameState);
 
           let entry = layerEntries.get(layer);
           if (!entry) {
@@ -288,6 +312,8 @@ export default class VectorTileQuadtreePrimitive
               ? exact
               : undefined;
           const vt = exactCoverage ?? tileVectorTile.readyVectorTile;
+          layer.processBucketRebuilds?.(vt, frameState);
+          layer.applyPendingStyleUpdates?.(vt);
           if (
             vt?.state === Cesium.ImageryState.READY &&
             layer.isCurrentContentRevision?.(vt) !== false &&
@@ -362,9 +388,8 @@ export default class VectorTileQuadtreePrimitive
         refreshRetainedTileCount += retained.filter(
           (tile) => layer.isCurrentContentRevision?.(tile) === false,
         ).length;
-        const styleZoom = layer.getFrameStyleZoom(frameState);
         this._commitRenderSet(state, [...merged, ...retained], () =>
-          this._syncLayerPointCollections(layer, state, styleZoom),
+          this._syncLayerPointCollections(layer, state),
         );
       }
 
@@ -418,7 +443,6 @@ export default class VectorTileQuadtreePrimitive
       if (!layer._show || state.committedRenderSet.size === 0) {
         continue;
       }
-      const styleZoom = layer.getFrameStyleZoom(frameState);
       const sharedPrimitives =
         layer.sharedPointCollections?.getPrimitives() ?? [];
       for (let i = 0; i < sharedPrimitives.length; ++i) {
@@ -433,14 +457,13 @@ export default class VectorTileQuadtreePrimitive
         primitive.update(frameState);
       }
       for (const tile of state.committedRenderSet) {
+        layer.processBucketRebuilds?.(tile, frameState);
+        layer.applyPendingStyleUpdates?.(tile);
         const layerPrimitives = tile.primitives || {};
         const primitiveKeys = Object.keys(layerPrimitives);
         for (let ki = 0; ki < primitiveKeys.length; ++ki) {
-          const styleRule = tile.primitiveStyleRules?.[primitiveKeys[ki]];
-          if (!isStyleRuleVisibleForZoom(styleRule, styleZoom)) {
-            continue;
-          }
           const primitives = layerPrimitives[primitiveKeys[ki]];
+          const bucket = tile.buckets?.[primitiveKeys[ki]];
           for (let pi = 0; pi < primitives.length; ++pi) {
             const primitive = primitives[pi];
             primitiveCandidates++;
@@ -449,7 +472,9 @@ export default class VectorTileQuadtreePrimitive
               continue;
             }
             submittedPrimitives.add(primitive);
-            primitive.show = true;
+            primitive.show =
+              bucket?.isPrimitiveVisible?.(primitive) ??
+              bucket?.styleRule?.visibility !== false;
             primitive.update(frameState);
           }
         }
@@ -472,6 +497,7 @@ export default class VectorTileQuadtreePrimitive
           break;
         }
         warmupBudget--;
+        tile.vectorTileLayer?.applyPendingStyleUpdates?.(tile);
         const layerPrimitives = tile.primitives || {};
         const primitiveKeys = Object.keys(layerPrimitives);
         for (let ki = 0; ki < primitiveKeys.length; ++ki) {
@@ -479,6 +505,9 @@ export default class VectorTileQuadtreePrimitive
           for (let pi = 0; pi < primitives.length; ++pi) {
             const primitive = primitives[pi];
             if (submittedPrimitives.has(primitive)) {
+              continue;
+            }
+            if (primitive.show === false) {
               continue;
             }
             warmUpPrimitive(primitive, frameState);
@@ -507,14 +536,4 @@ function warmUpPrimitive(primitive, frameState) {
   primitive.update(frameState);
   primitive.show = show;
   frameState.commandList.length = commandListLength;
-}
-
-function isStyleRuleVisibleForZoom(styleRule, zoom) {
-  if (!styleRule || !Number.isFinite(zoom)) {
-    return true;
-  }
-  return (
-    (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
-    (styleRule.maxzoom === undefined || zoom < styleRule.maxzoom)
-  );
 }

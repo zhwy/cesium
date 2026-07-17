@@ -117,6 +117,9 @@ const { default: VectorTileFillBucket } =
   assert.equal(bucket.length, 1);
   assert.ok(bucket.primitives[0] instanceof FakePrimitive);
   assert.equal(bucket.primitives[0].options.geometryInstances.length, 1);
+  assert.equal(bucket.primitiveRecords[0].role, "fill");
+  assert.deepEqual([...bucket.primitiveRecords[0].instanceFeatureIndices], [0]);
+  assert.equal(bucket.primitives[0].options.geometryInstances[0].id, 0);
   assert.equal(
     bucket.primitives[0].options.geometryInstances[0].geometry.options.height,
     4,
@@ -155,6 +158,10 @@ const { default: VectorTileFillBucket } =
   assert.equal(bucket.length, 2);
   assert.ok(bucket.primitives[0] instanceof FakeGroundPrimitive);
   assert.ok(bucket.primitives[1] instanceof FakeGroundPolylinePrimitive);
+  assert.deepEqual(
+    bucket.primitiveRecords.map((record) => record.role),
+    ["fill", "fill-outline"],
+  );
   assert.equal(diagnostics.counts.createdGroundPrimitives, 1);
   assert.equal(diagnostics.counts.createdGroundPolylinePrimitives, 1);
   console.log(

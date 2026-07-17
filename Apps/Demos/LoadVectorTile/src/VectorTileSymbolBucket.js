@@ -6,6 +6,8 @@ import {
   evaluateFiniteStyleNumber,
   evaluateStyleValue,
   getStyleRuleHeightOffset,
+  getGeometryFeature,
+  getGeometryFeatureIndex,
   isDefined,
   parseCesiumColor,
 } from "./VectorTileBucketUtils.js";
@@ -29,7 +31,7 @@ const Cesium = globalThis.Cesium ?? CesiumModule;
  */
 export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
-    super(styleRule);
+    super(styleRule, options);
     this._scene = options.scene;
     this._iconResolver = options.iconResolver ?? createVectorTileIconResolver();
     this._allowPicking = options.allowPicking ?? false;
@@ -39,12 +41,12 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
 
   build(points, zoom) {
     const positions = points?.positions ?? [];
-    const metadata = points?.metadata ?? [];
     let billboardCount = 0;
     let labelCount = 0;
 
     for (let i = 0; i < positions.length / 2; ++i) {
-      const pointMetadata = metadata[i];
+      const pointMetadata = getGeometryFeature(this._featureTable, points, i);
+      const featureIndex = getGeometryFeatureIndex(points, i);
       if (
         !doesSymbolStyleRuleMatchMetadata(pointMetadata, this.styleRule, zoom, {
           ignoreZoomRange: this._ignoreZoomRange,
@@ -67,9 +69,10 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
         zoom,
         this._iconResolver,
         this._allowPicking,
+        featureIndex,
       );
       if (billboardOptions) {
-        this.addBillboardDescriptor(billboardOptions);
+        this.addBillboardDescriptor(billboardOptions, featureIndex);
         billboardCount++;
       }
 
@@ -80,9 +83,10 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
         this.styleRule,
         zoom,
         this._allowPicking,
+        featureIndex,
       );
       if (labelOptions) {
-        this.addLabelDescriptor(labelOptions);
+        this.addLabelDescriptor(labelOptions, featureIndex);
         labelCount++;
       }
     }
@@ -90,6 +94,97 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
     this._diagnostics?.increment("symbolBillboards", billboardCount);
     this._diagnostics?.increment("symbolLabels", labelCount);
     return this;
+  }
+
+  getPointStyleValues(styleRule, plan) {
+    const values = [];
+    for (const propertyName of [
+      "text-color",
+      "text-halo-color",
+      "text-background-color",
+    ]) {
+      if (doesPlanChangeProperty(plan, `paint.${propertyName}`)) {
+        values.push(styleRule.paint?.[propertyName]);
+      }
+    }
+    return values;
+  }
+
+  getPointUpdateProperties(plan) {
+    const properties = [];
+    if (doesPlanChangeProperty(plan, "paint.text-color")) {
+      properties.push("fillColor");
+    }
+    if (doesPlanChangeProperty(plan, "paint.text-halo-color")) {
+      properties.push("outlineColor");
+    }
+    if (doesPlanChangeProperty(plan, "paint.text-background-color")) {
+      properties.push("showBackground", "backgroundColor");
+    }
+    if (doesPlanChangeProperty(plan, "visibility")) {
+      properties.push("show");
+    }
+    return properties;
+  }
+
+  updatePointDescriptors(styleRule, _styleRevision, plan) {
+    const updateFill = doesPlanChangeProperty(plan, "paint.text-color");
+    const updateOutline = doesPlanChangeProperty(plan, "paint.text-halo-color");
+    const updateBackground = doesPlanChangeProperty(
+      plan,
+      "paint.text-background-color",
+    );
+    const updateVisibility = doesPlanChangeProperty(plan, "visibility");
+    if (
+      !updateFill &&
+      !updateOutline &&
+      !updateBackground &&
+      !updateVisibility
+    ) {
+      return 0;
+    }
+
+    const visible = styleRule.visibility !== false;
+    for (const descriptor of this.pointDescriptors.billboards) {
+      descriptor.show = visible;
+    }
+    for (const descriptor of this.pointDescriptors.labels) {
+      const feature = this._featureTable[descriptor._vectorTileFeatureIndex];
+      if (updateFill) {
+        descriptor.fillColor = evaluateColorStyleValue(
+          styleRule.paint?.["text-color"],
+          feature,
+          this.buildZoom,
+          "#ffffffff",
+        );
+      }
+      if (updateOutline) {
+        descriptor.outlineColor = evaluateColorStyleValue(
+          styleRule.paint?.["text-halo-color"],
+          feature,
+          this.buildZoom,
+          "#000000ff",
+        );
+      }
+      if (updateBackground) {
+        const backgroundColorValue = evaluateSymbolStyleValue(
+          styleRule.paint?.["text-background-color"],
+          feature,
+          this.buildZoom,
+        );
+        descriptor.showBackground =
+          isDefined(backgroundColorValue) && backgroundColorValue !== "";
+        descriptor.backgroundColor = parseCesiumColor(
+          backgroundColorValue,
+          "#00000000",
+        );
+      }
+      descriptor.show = visible;
+    }
+    return (
+      this.pointDescriptors.billboards.length +
+      this.pointDescriptors.labels.length
+    );
   }
 }
 
@@ -132,13 +227,13 @@ export function translateSymbolAnchor(anchorValue, fallback = "center") {
 export function createSymbolPixelOffset(value, metadata, zoom) {
   const offset = evaluateSymbolStyleValue(value, metadata, zoom);
   if (!Array.isArray(offset) || offset.length < 2) {
-    return undefined;
+    return new Cesium.Cartesian2(0, 0);
   }
 
   const x = Number(offset[0]);
   const y = Number(offset[1]);
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return undefined;
+    return new Cesium.Cartesian2(0, 0);
   }
   return new Cesium.Cartesian2(x, y);
 }
@@ -146,21 +241,21 @@ export function createSymbolPixelOffset(value, metadata, zoom) {
 export function createSymbolBackgroundPadding(value, metadata, zoom) {
   const padding = evaluateSymbolStyleValue(value, metadata, zoom);
   if (!isDefined(padding)) {
-    return undefined;
+    return new Cesium.Cartesian2(0, 0);
   }
 
   if (Array.isArray(padding)) {
     const x = Number(padding[0]);
     const y = Number(padding[1]);
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      return undefined;
+      return new Cesium.Cartesian2(0, 0);
     }
     return new Cesium.Cartesian2(x, y);
   }
 
   const uniform = Number(padding);
   if (!Number.isFinite(uniform)) {
-    return undefined;
+    return new Cesium.Cartesian2(0, 0);
   }
   return new Cesium.Cartesian2(uniform, uniform);
 }
@@ -173,6 +268,7 @@ function createBillboardOptions(
   zoom,
   resolveIcon,
   allowPicking,
+  featureIndex,
 ) {
   const iconImageValue = evaluateSymbolStyleValue(
     styleRule.layout?.["icon-image"],
@@ -220,7 +316,7 @@ function createBillboardOptions(
         "center",
       ),
     ),
-    id: allowPicking ? { ...metadata, layerId: styleRule.id } : undefined,
+    id: allowPicking ? featureIndex : undefined,
   };
 }
 
@@ -231,6 +327,7 @@ function createLabelOptions(
   styleRule,
   zoom,
   allowPicking,
+  featureIndex,
 ) {
   const textValue = evaluateSymbolStyleValue(
     styleRule.layout?.["text-field"],
@@ -295,17 +392,14 @@ function createLabelOptions(
     ),
     showBackground:
       isDefined(backgroundColorValue) && backgroundColorValue !== "",
-    backgroundColor:
-      isDefined(backgroundColorValue) && backgroundColorValue !== ""
-        ? parseCesiumColor(backgroundColorValue, "#00000000")
-        : undefined,
+    backgroundColor: parseCesiumColor(backgroundColorValue, "#00000000"),
     backgroundPadding: createSymbolBackgroundPadding(
       styleRule.paint?.["text-background-padding"],
       metadata,
       zoom,
     ),
     ...translateSymbolAnchor(anchorValue),
-    id: allowPicking ? { ...metadata, layerId: styleRule.id } : undefined,
+    id: allowPicking ? featureIndex : undefined,
   };
 }
 
@@ -404,3 +498,7 @@ const SYMBOL_ANCHOR_MAP = Object.freeze({
     verticalOrigin: "BOTTOM",
   },
 });
+
+function doesPlanChangeProperty(plan, path) {
+  return !plan?.changedPaths || plan.changedPaths.includes(path);
+}

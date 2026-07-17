@@ -13,6 +13,11 @@ import {
 } from "./VectorTileProvider.js";
 import VectorTileStyleRule from "./VectorTileStyleRule.js";
 import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
+import VectorTilePickRegistry from "./VectorTilePickRegistry.js";
+import {
+  createVectorTileStyleUpdatePlan,
+  VectorTileStyleUpdateType,
+} from "./VectorTileStyleUpdateUtils.js";
 
 /**
  * 协调整个矢量瓦片图层系统：管理 provider、运行时图层、四叉树 primitive 与调度器。
@@ -76,6 +81,7 @@ export default class VectorTileLayerManager {
       ...(options.iconImages ?? {}),
     };
     this._scene = options.scene;
+    this._pickRegistry = new VectorTilePickRegistry();
     this._providersBySourceId = new Map();
 
     this._vectorTileLayers = new VectorTileLayerCollection();
@@ -237,6 +243,7 @@ export default class VectorTileLayerManager {
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
+      pickRegistry: this._pickRegistry,
     };
     provider.setPbfCache?.(this._pbfCache);
     if (!provider.setPbfCache) {
@@ -246,7 +253,12 @@ export default class VectorTileLayerManager {
     if (provider.sourceId) {
       this._providersBySourceId.set(provider.sourceId, provider);
     }
-    return this._vectorTileLayers.addLayerProvider(provider, index);
+    const runtimeLayer = this._vectorTileLayers.addLayerProvider(
+      provider,
+      index,
+    );
+    this._installStyleChangedListener(runtimeLayer);
+    return runtimeLayer;
   }
 
   removeLayer(layerId, destroy = true) {
@@ -337,6 +349,16 @@ export default class VectorTileLayerManager {
     return undefined;
   }
 
+  /**
+   * 同步解析该 manager 管理的紧凑矢量瓦片拾取结果。
+   *
+   * @param {object} picked `Scene#pick` 返回值。
+   * @returns {object|undefined} 仍驻留的 feature 信息。
+   */
+  resolvePickedFeature(picked) {
+    return this._pickRegistry?.resolve(picked);
+  }
+
   setLayerStyle(layerId, newStyle, merged = true) {
     const runtimeLayer = this._findLayerByStyleRuleId(layerId);
     if (!runtimeLayer) {
@@ -352,9 +374,70 @@ export default class VectorTileLayerManager {
       : newStyle;
     const updatedLayers = currentStyle.layers.slice();
     updatedLayers[layerIndex] = updatedLayer;
+    const updatedStyle = normalizeStyleDocument({
+      ...currentStyle,
+      layers: updatedLayers,
+    });
+    const normalizedLayer = updatedStyle.layers[layerIndex];
+    let plan = createVectorTileStyleUpdatePlan(
+      currentStyle.layers[layerIndex],
+      normalizedLayer,
+    );
 
-    runtimeLayer.setStyle({ ...currentStyle, layers: updatedLayers });
+    if (plan.type === VectorTileStyleUpdateType.IN_PLACE_APPEARANCE) {
+      plan =
+        runtimeLayer.refineStyleLayerUpdatePlan?.(plan, normalizedLayer) ??
+        plan;
+    }
+
+    if (plan.type === VectorTileStyleUpdateType.NO_OP) {
+      this._diagnostics?.increment?.("styleNoopUpdates");
+      return true;
+    }
+    if (plan.type === VectorTileStyleUpdateType.IN_PLACE_APPEARANCE) {
+      if (runtimeLayer.setStyleLayerAppearance) {
+        runtimeLayer.setStyleLayerAppearance(updatedStyle, layerId, plan);
+      } else {
+        runtimeLayer.setStyle(updatedStyle);
+      }
+      return true;
+    }
+
+    if (plan.type === VectorTileStyleUpdateType.REBUILD_BUCKET) {
+      this._diagnostics?.increment?.("styleBucketRebuilds");
+      if (plan.reason === "MISSING_PROPERTIES") {
+        this._diagnostics?.increment?.("styleBucketPropertyFallbacks");
+      } else if (plan.reason === "RENDER_STATE") {
+        this._diagnostics?.increment?.("styleBucketRenderStateFallbacks");
+      }
+      if (runtimeLayer.setStyleLayerBucketRebuild) {
+        runtimeLayer.setStyleLayerBucketRebuild(updatedStyle, layerId, plan);
+        this._scene?.requestRender?.();
+        return true;
+      }
+    } else {
+      this._diagnostics?.increment?.("styleSourceRebuilds");
+    }
+    runtimeLayer.setStyle(updatedStyle);
     return true;
+  }
+
+  _installStyleChangedListener(runtimeLayer) {
+    if (!runtimeLayer?.styleChangedEvent) {
+      return;
+    }
+    runtimeLayer._removeManagerStyleChangedListener?.();
+    runtimeLayer._removeManagerStyleChangedListener =
+      runtimeLayer.styleChangedEvent.addEventListener(
+        (layer, layerId, plan) => {
+          this._quadtreePrimitive?.applyStyleLayerUpdate?.(
+            layer,
+            layerId,
+            plan,
+          );
+          this._scene?.requestRender?.();
+        },
+      );
   }
 
   registerIconImage(name, image) {
@@ -413,6 +496,7 @@ export default class VectorTileLayerManager {
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
+      pickRegistry: this._pickRegistry,
       scene: this._scene,
       iconImages: this._iconImages,
     });

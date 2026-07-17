@@ -16,6 +16,18 @@ export function isVectorStyleExpression(value) {
   return Array.isArray(value) && typeof value[0] === "string";
 }
 
+export function getGeometryFeature(featureTable, geometry, index) {
+  const featureIndex = geometry?.featureIndices?.[index];
+  if (featureIndex !== undefined) {
+    return featureTable?.[featureIndex];
+  }
+  return geometry?.metadata?.[index];
+}
+
+export function getGeometryFeatureIndex(geometry, index) {
+  return geometry?.featureIndices?.[index] ?? index;
+}
+
 export function evaluateStyleValue(value, metadata, zoom, fallback) {
   if (!isDefined(value)) {
     return fallback;

@@ -1,11 +1,44 @@
 import assert from "node:assert/strict";
 
 import {
+  collectVectorStylePropertyDependencies,
   evaluateVectorStyleExpression,
   evaluateVectorStyleFilter,
   validateVectorStyleExpression,
   validateVectorStyleFilter,
 } from "../src/VectorTileStyleExpression.js";
+
+assert.deepEqual(
+  collectVectorStylePropertyDependencies(
+    ["all", ["has", "kind"], ["==", ["get", "status"], "active"]],
+    ["case", ["get", "rank"], ["literal", ["get", "ignored"]]],
+    [
+      "match",
+      ["get", "category"],
+      ["water", "river"],
+      ["get", "waterColor"],
+      "other",
+      ["get", "fallbackColor"],
+    ],
+    ["interpolate", ["linear"], ["zoom"], 4, ["get", "low"], 8, 5],
+  ),
+  {
+    all: false,
+    properties: [
+      "category",
+      "fallbackColor",
+      "kind",
+      "low",
+      "rank",
+      "status",
+      "waterColor",
+    ],
+  },
+);
+assert.deepEqual(
+  collectVectorStylePropertyDependencies(["get", ["get", "fieldName"]]),
+  { all: true, properties: [] },
+);
 
 const context = {
   zoom: 6,

@@ -149,6 +149,27 @@ export function isWorkerSupportedVectorStyleExpression(expression) {
   }
 }
 
+/**
+ * 静态收集样式表达式读取的 feature property。
+ * `all` 表示表达式包含动态属性名或无法保守分析的表达式结构。
+ *
+ * @param {...*} values 表达式、常量或包含表达式的样式值。
+ * @returns {{all: boolean, properties: string[]}}
+ */
+export function collectVectorStylePropertyDependencies(...values) {
+  const state = {
+    all: false,
+    properties: new Set(),
+  };
+  for (let i = 0; i < values.length && !state.all; ++i) {
+    collectPropertyDependencies(values[i], state);
+  }
+  return {
+    all: state.all,
+    properties: [...state.properties].sort(),
+  };
+}
+
 export function evaluateVectorStyleFilter(filter, feature, context = {}) {
   if (filter === undefined || filter === null) {
     return true;
@@ -186,6 +207,59 @@ function getProperty(expression, context) {
     return undefined;
   }
   return context.properties?.[key];
+}
+
+function collectPropertyDependencies(value, state) {
+  if (!Array.isArray(value) || value.length === 0 || state.all) {
+    return;
+  }
+
+  const operator = value[0];
+  if (operator === "literal") {
+    return;
+  }
+
+  if (typeof operator === "string" && !SUPPORTED_OPERATORS.has(operator)) {
+    state.all = true;
+    return;
+  }
+
+  if (operator === "get" || operator === "has") {
+    const propertyName = value[1];
+    if (typeof propertyName !== "string" || propertyName.length === 0) {
+      state.all = true;
+      return;
+    }
+    state.properties.add(propertyName);
+    for (let i = 2; i < value.length; ++i) {
+      collectPropertyDependencies(value[i], state);
+    }
+    return;
+  }
+
+  if (operator === "match") {
+    collectPropertyDependencies(value[1], state);
+    for (let i = 3; i < value.length && !state.all; i += 2) {
+      collectPropertyDependencies(value[i], state);
+    }
+    if (value.length % 2 === 1) {
+      collectPropertyDependencies(value[value.length - 1], state);
+    }
+    return;
+  }
+
+  if (operator === "interpolate") {
+    collectPropertyDependencies(value[2], state);
+    for (let i = 4; i < value.length && !state.all; i += 2) {
+      collectPropertyDependencies(value[i], state);
+    }
+    return;
+  }
+
+  const startIndex = typeof operator === "string" ? 1 : 0;
+  for (let i = startIndex; i < value.length && !state.all; ++i) {
+    collectPropertyDependencies(value[i], state);
+  }
 }
 
 function hasProperty(expression, context) {

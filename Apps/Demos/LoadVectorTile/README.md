@@ -238,6 +238,8 @@ manager.setStyle({
       tileType: "XYZ",
       clipToTile: true,
       allowPicking: true,
+      // 未配置时拾取返回全部 properties；数组可裁剪公开拾取字段，[] 表示不公开属性。
+      pickProperties: ["name", "kind"],
       renderBackend: "instances",
       cacheBytes: 64 * 1024 * 1024,
     },
@@ -278,7 +280,7 @@ manager.addLayer("land", {
 
 外部配置沿用易理解的 `sources + layers` 结构，但内部会映射到 Cesium 风格的 `VectorTileProvider`、`VectorTileStyleRule` 和 `PrimitiveBucket`。
 
-完整字段、`symbol-placement`、polygon center、polygon outline line、`circle` 预留语义、symbol 文字/图标配置、锚点映射、terrain 语义、表达式和完整示例，请直接查看 [STYLE.md](./STYLE.md)。
+完整字段、`pickProperties`、热更新矩阵、`symbol-placement`、polygon center、polygon outline line、`circle`、symbol 文字/图标配置、锚点映射、terrain 语义、表达式和完整示例，请直接查看 [STYLE.md](./STYLE.md)。
 
 ```js
 manager.setStyle({
@@ -391,20 +393,21 @@ manager.setStyle({
 
 这些字段写在 `styleDocument.sources[sourceId]` 中，或者直接作为自定义 `VectorTileProvider` 的构造参数传入。`manager.addLayer(sourceId, layerOptions)` 只追加样式图层，不负责配置 source/provider 本身。
 
-| 参数                     |                默认值 | 说明                                                         |
-| ------------------------ | --------------------: | ------------------------------------------------------------ |
-| `url`                    |              空字符串 | PBF 地址模板。                                               |
-| `tileType`               |                 `XYZ` | `XYZ` 或 `WMTS`。                                            |
-| `minimumLevel`           |                   `0` | 最低请求层级。                                               |
-| `maximumLevel`           |                  `20` | 最高请求和四叉树细分层级。设为 `0` 时只请求 `0/0/0`。        |
-| `clipToTile`             |                `true` | 将 MVT buffer 几何裁剪到 `[0, extent]`，避免相邻瓦片面重叠。 |
-| `allowPicking`           |               `false` | 是否保留逐要素 ID 和属性用于 `scene.pick()`。                |
-| `renderBackend`          |           `instances` | 线渲染后端：`instances` 或实验性 `packed`。                  |
-| `packedMinimumInstances` |                 `200` | packed 后端启用所需的最少线段/路径数量。                     |
-| `cacheBytes`             |              `64 MiB` | 单 runtime layer 的渲染瓦片缓存预算估算值，不包含原始 PBF。  |
-| `polygonHeight`          |                 `1.0` | 面相对椭球面的高度，减少与地球表面共面闪烁。                 |
-| `asynchronous`           |                `true` | instances 后端是否使用 Cesium 异步 Primitive 构建。          |
-| `shadows`                | `ShadowMode.DISABLED` | 是否参与阴影。                                               |
+| 参数                     |                默认值 | 说明                                                                                                                                        |
+| ------------------------ | --------------------: | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`                    |              空字符串 | PBF 地址模板。                                                                                                                              |
+| `tileType`               |                 `XYZ` | `XYZ` 或 `WMTS`。                                                                                                                           |
+| `minimumLevel`           |                   `0` | 最低请求层级。                                                                                                                              |
+| `maximumLevel`           |                  `20` | 最高请求和四叉树细分层级。设为 `0` 时只请求 `0/0/0`。                                                                                       |
+| `clipToTile`             |                `true` | 将 MVT buffer 几何裁剪到 `[0, extent]`，避免相邻瓦片面重叠。                                                                                |
+| `allowPicking`           |               `false` | 是否保留逐要素 ID 和属性用于 `scene.pick()`。                                                                                               |
+| `pickProperties`         |                未配置 | `allowPicking: true` 时公开拾取属性。未配置返回全部属性；字符串数组只返回指定字段；空数组只返回 feature id、source/style layer 和瓦片定位。 |
+| `renderBackend`          |           `instances` | 线渲染后端：`instances` 或实验性 `packed`。                                                                                                 |
+| `packedMinimumInstances` |                 `200` | packed 后端启用所需的最少线段/路径数量。                                                                                                    |
+| `cacheBytes`             |              `64 MiB` | 单 runtime layer 的渲染瓦片缓存预算估算值，不包含原始 PBF。                                                                                 |
+| `polygonHeight`          |                 `1.0` | 面相对椭球面的高度，减少与地球表面共面闪烁。                                                                                                |
+| `asynchronous`           |                `true` | instances 后端是否使用 Cesium 异步 Primitive 构建。                                                                                         |
+| `shadows`                | `ShadowMode.DISABLED` | 是否参与阴影。                                                                                                                              |
 
 ### `terrain` 贴地与高度偏移
 
@@ -534,15 +537,22 @@ layer.setRenderBackend("instances");
 
 这解决父子瓦片重复绘制。相邻同级瓦片的 buffer 重叠由 Worker 裁剪解决。
 
-### 样式刷新和显隐切换
+### 样式热更新和显隐切换
 
-运行时调用 `setLayerStyle()`、`VectorTileLayer.setStyle()` 或 `VectorTileLayer.clearCache()` 时，图层会推进 `contentRevision` 并为后续瓦片绑定使用新的内容代。相同 `(x, y, level)` 的新旧瓦片因此可以短暂并存：旧代由上一帧 `committedRenderSet` 持有，继续作为已覆盖区域的兜底；当前代瓦片完成请求、解码、建桶并且 Primitive 实际可绘制后，才按 coverage 规则接管对应区域。
+`manager.setLayerStyle(layerId, stylePatch)` 会先比较规范化后的 style layer，再选择不同路径：
 
-样式、filter、图标、scene 和 render backend 变化只清渲染内容，不清 manager 级 PBF。只要 source 数据身份与瓦片坐标未变，新内容代会从 PBF cache 取得独立工作副本并重新解码、建桶，不再重复下载。完整 `manager.setStyle()` 重建 runtime layer 时也遵守这一规则。
+| 更新类型                                                                                            | 路径                                                                                                         |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 无变化                                                                                              | 返回成功，不推进 `contentRevision`，不请求、不解码、不建桶。                                                 |
+| 支持的颜色和 `visibility`                                                                           | 原地更新已有 Primitive attribute、material uniform、Billboard 或 Label，并请求下一帧渲染。                   |
+| 新颜色表达式缺少驻留属性、fill alpha render state 不兼容、显示从未构建或已驱逐的 bucket             | 只通过 PBF cache/request 路径重建目标 style layer 的 bucket；旧 bucket 继续绘制到 replacement 可用后再替换。 |
+| `filter`、`sourceLayer`、几何类型、线宽、高度、layout、图标资源、scene 或 render backend 等结构变化 | 继续走 source 级 rebuild，推进 `contentRevision`。                                                           |
 
-隐藏图层时不清空 committed render state，而是依赖 `_show` 在提交阶段立即停止绘制；重新显示时会重新失效四叉树绑定，并可在先前覆盖区域使用保留内容避免空白切换。图层删除、销毁和全量移除仍会清理 render state 和资源。
+当前支持原地更新的字段包括 `line-color`、`fill-color`、`fill-outline-color`、`circle-color`、`circle-outline-color`、`text-color`、`text-halo-color`、`text-background-color` 和顶层 `visibility`。`layout.visibility` 也可作为兼容输入；如果顶层和 layout 同时设置，以顶层为准。
 
-这个策略会在刷新窗口内提高短时内存/GPU 资源峰值，但只保留 committed set 所需旧代；旧代引用释放后仍走缓存 stale 淘汰和确定性销毁。
+目标 bucket rebuild 会复用现有 provider 与 manager 级 PBF cache。PBF ready hit 只复制 master buffer 给 Worker，不产生真实下载；PBF miss 才发起请求。同一瓦片旧 revision 的 replacement 结果会被丢弃，瓦片销毁或请求过期会取消对应 replacement 消费者。
+
+`VectorTileLayer.setStyle()`、`VectorTileLayer.clearCache()`、`setRenderBackend()` 和完整 `manager.setStyle()` 仍是 source 级刷新：它们推进 `contentRevision`，新旧瓦片可短暂并存，直到当前代瓦片完成请求、解码、建桶并且 Primitive 实际可绘制后，才按 coverage 规则接管对应区域。
 
 ## 10. 任务调度和取消
 
@@ -592,6 +602,8 @@ manager.vectorTileLayers.remove(layer, true);
 
 `pbfCacheBytes` 只限制 ready master payload，不是浏览器进程总内存上限。样式切换期间可能同时存在 master、解码工作副本、Worker 输出及新旧渲染内容代，浏览器任务管理器也可能晚于 JS 引用释放才回落。
 
+当前 Demo 显式使用更保守的驻留预算：`tileCacheSize: 50`，每个示例 vector source 的 `cacheBytes: 16 * 1024 * 1024`。公共默认值仍是 manager `tileCacheSize: 100`、source `cacheBytes: 64 MiB`。
+
 ## 12. 性能诊断
 
 Demo URL 添加 `?diagnostics`：
@@ -620,6 +632,11 @@ result.durations.packedGeometryBuild;
 result.gauges.residentCacheBytes;
 result.gauges.residentPbfCacheBytes;
 result.gauges.residentPbfCacheEntries;
+result.gauges.residentStyleBuckets;
+result.gauges.residentRenderPrimitives;
+result.gauges.residentFeatureTableEntries;
+result.gauges.residentPickPropertyValues;
+result.gauges.offscreenResidentVectorTiles;
 result.gauges.queuedNetworkTasks;
 result.gauges.queuedDecodeTasks;
 result.gauges.queuedBuildTasks;
@@ -641,6 +658,15 @@ result.counters.pbfRequestJoins;
 result.counters.downloadedBytes; // 仅真实 fetch，PBF hit 不重复累计
 result.counters.suppressedLodVectorTiles;
 result.counters.packedLineBuckets;
+result.counters.styleNoopUpdates;
+result.counters.styleInPlaceUpdates;
+result.counters.styleInPlaceInstanceUpdates;
+result.counters.styleInPlacePointUpdates;
+result.counters.styleBucketRebuilds;
+result.counters.styleBucketPropertyFallbacks;
+result.counters.styleBucketRenderStateFallbacks;
+result.counters.styleBucketReplacementCommits;
+result.counters.styleSourceRebuilds;
 ```
 
 ## 13. 基准测试
@@ -672,6 +698,21 @@ const result = await vectorTileBenchmark.compareBackends(
 
 console.table(result.frameCpuP95);
 ```
+
+固定视角测一次样式更新：
+
+```js
+const result = await vectorTileBenchmark.measureStyleUpdate(
+  "globe-coastline-line",
+  { paint: { "line-color": "#ff0000" } },
+  "world",
+);
+
+console.table(result.update.counters);
+console.table(result.update.gauges);
+```
+
+摘要会直接列出 PBF hit/miss、真实下载字节、decode/build 计数、style no-op/in-place/bucket/source rebuild 计数、`currentContentRevision`、Primitive 数、feature/pick 属性驻留和离屏瓦片驻留。稳定视角下，纯颜色或显隐原地更新应保持 `downloadedBytes`、`pbfCacheMisses`、`decodedFeatures` 和 `styleSourceRebuilds` 为 `0`。
 
 结果包含：
 
@@ -707,7 +748,7 @@ passesAdoptionThreshold
 
 - symbol 已支持图标和文字，并补齐了图标锚点、图标宽高、文字锚点、文字背景和背景 padding；同时支持 `symbol-placement: "polygon-center"` 在面中心绘制标注，但当前仍未实现碰撞避让、沿线文字、图标旋转对齐和完整字体栈管理；
 - `symbol-placement: "polygon-center"` 当前按瓦片内 polygon 片段计算中心，跨瓦片大面可能出现重复标注；
-- `circle` 图层当前只是样式文档中的预留设计，尚未实现；后续第一版更适合用 Billboard 生成圆形纹理来保留贴地能力，PointPrimitive 方案需要额外高程策略；
+- `circle` 图层当前使用 Billboard + canvas 圆形纹理，支持颜色、描边、半径、offset 与贴地；尚未实现 `circle-opacity`、`circle-blur` 等附加字段；
 - `clampToGround: true` 与非零 `heightOffset` 在线/面上不能同时严格满足，当前会降级为普通高度渲染；
 - packed 当前只优化大量同色线，不支持逐要素拾取；当 `line` 图层同时需要绘制 polygon outline 时会自动回退到 instances；
 - Worker 当前为单实例，`maximumDecodeTasks` 限制提交链路，但 Worker 内仍串行执行消息；

@@ -19,7 +19,7 @@ export default function createVectorTilePrimitiveBucket(
     options.clipToTile && options.vectorTile
       ? getWebMercatorTileBounds(options.vectorTile)
       : undefined;
-  let bucket = new VectorTilePrimitiveBucket(styleRule);
+  let bucket = new VectorTilePrimitiveBucket(styleRule, options);
 
   if (styleRule.type === "fill") {
     bucket = new VectorTileFillBucket(styleRule, options).build(

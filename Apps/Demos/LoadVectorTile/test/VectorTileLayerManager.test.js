@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+const Cesium = await import("../../../../Build/CesiumUnminified/index.js");
 const { default: VectorTileLayerManager } =
   await import("../src/VectorTileLayerManager.js");
 
@@ -79,6 +80,142 @@ const { default: VectorTileLayerManager } =
   );
   manager.removeFromScene();
   console.log("✓ manager owns and validates the shared PBF cache budget");
+}
+
+{
+  let requestRenderCalls = 0;
+  let appearanceApplyCalls = 0;
+  const manager = new VectorTileLayerManager({
+    diagnostics: true,
+    scene: {
+      requestRender() {
+        requestRenderCalls++;
+      },
+      primitives: {
+        remove() {},
+      },
+    },
+  });
+  manager._quadtreePrimitive.applyStyleLayerUpdate = () => {
+    appearanceApplyCalls++;
+  };
+  manager.setStyle({
+    version: 1,
+    sources: {
+      land: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        ...createFillRule("land-fill", "land"),
+        paint: { "fill-color": "#008800" },
+      },
+    ],
+  });
+  const runtimeLayer = manager.vectorTileLayers.get(0);
+  const contentRevision = runtimeLayer.contentRevision;
+
+  assert.equal(
+    manager.setLayerStyle("land-fill", {
+      paint: { "fill-color": "#008800" },
+    }),
+    true,
+  );
+  assert.equal(requestRenderCalls, 0);
+  assert.equal(appearanceApplyCalls, 0);
+
+  manager.setLayerStyle("land-fill", {
+    paint: { "fill-color": "#ff0000" },
+  });
+  assert.equal(runtimeLayer.contentRevision, contentRevision);
+  assert.equal(requestRenderCalls, 1);
+  assert.equal(appearanceApplyCalls, 1);
+
+  manager.setLayerStyle("land-fill", {
+    paint: { "fill-outline-width": 2 },
+  });
+  assert.equal(runtimeLayer.contentRevision, contentRevision + 1);
+  assert.equal(manager.diagnostics.snapshot().counters.styleNoopUpdates, 1);
+  manager.removeAll();
+  manager.removeFromScene();
+  console.log(
+    "✓ style no-op and appearance updates avoid content invalidation",
+  );
+}
+
+{
+  const manager = new VectorTileLayerManager({ diagnostics: true });
+  manager.setStyle({
+    version: 1,
+    sources: {
+      land: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        ...createFillRule("land-fill", "land"),
+        paint: { "fill-color": "#ffffffff" },
+      },
+    ],
+  });
+  const runtimeLayer = manager.vectorTileLayers.get(0);
+  const tile = runtimeLayer.getVectorTileFromCache(0, 0, 0);
+  tile.state = Cesium.ImageryState.READY;
+  tile.builtStyleLayerIds = new Set(["land-fill"]);
+  tile.buckets = {
+    "land-fill": {
+      getStyleUpdateFallback() {
+        return "RENDER_STATE";
+      },
+      destroy() {},
+    },
+  };
+  tile.primitives = {};
+  const contentRevision = runtimeLayer.contentRevision;
+
+  manager.setLayerStyle("land-fill", {
+    paint: { "fill-color": "#ffffff77" },
+  });
+  const snapshot = manager.diagnostics.snapshot();
+  assert.equal(runtimeLayer.contentRevision, contentRevision);
+  assert.ok(tile.bucketRebuilds["land-fill"]);
+  assert.equal(snapshot.counters.styleBucketRebuilds, 1);
+  assert.equal(snapshot.counters.styleBucketRenderStateFallbacks, 1);
+
+  tile.releaseReference();
+  manager.removeAll();
+  manager.removeFromScene();
+  console.log("✓ incompatible alpha records a bucket render-state fallback");
+}
+
+{
+  const manager = new VectorTileLayerManager();
+  const handle = {};
+  manager._pickRegistry.registerPoint(
+    handle,
+    {
+      featureTable: [
+        { id: 5, sourceFeatureIndex: 2, properties: { name: "Picked" } },
+      ],
+      sourceId: "demo",
+      sourceLayer: "places",
+      styleLayerId: "place-label",
+      tile: { x: 0, y: 1, level: 2 },
+      pickProperties: ["name"],
+    },
+    0,
+  );
+  assert.equal(
+    manager.resolvePickedFeature({ primitive: handle }).properties.name,
+    "Picked",
+  );
+  assert.equal(manager.resolvePickedFeature({ primitive: {} }), undefined);
+  manager.removeFromScene();
+  console.log("✓ manager synchronously resolves compact pick contexts");
 }
 
 {
@@ -247,17 +384,14 @@ const { default: VectorTileLayerManager } =
     true,
   );
   assert.equal(runtimeLayer.setStyleCalls.length, 1);
-  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0], {
-    ...fillRule,
-    paint: {
-      "fill-color": "#ff0000",
-      "fill-opacity": 0.5,
-    },
-    metadata: {
-      state: {
-        selected: true,
-        category: "country",
-      },
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0].paint, {
+    "fill-color": "#ff0000",
+    "fill-opacity": 0.5,
+  });
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0].metadata, {
+    state: {
+      selected: true,
+      category: "country",
     },
   });
   console.log("✓ setLayerStyle recursively merges a partial layer style");
@@ -280,7 +414,11 @@ const { default: VectorTileLayerManager } =
   };
 
   assert.equal(manager.setLayerStyle("org-fill", replacement, false), true);
-  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0], replacement);
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0].paint, {
+    "line-width": 3,
+  });
+  assert.equal(runtimeLayer.setStyleCalls[0].layers[0].type, "line");
+  assert.equal(runtimeLayer.setStyleCalls[0].layers[0].sourceLayer, "borders");
   assert.equal(manager.setLayerStyle("missing", replacement), false);
   assert.equal(runtimeLayer.setStyleCalls.length, 1);
   console.log("✓ setLayerStyle supports replacement and unknown layer ids");

@@ -9,33 +9,26 @@ import {
   projectPoint,
 } from "./VectorTileGeometryUtils.js";
 import { doesFeatureMatchAnyStyleRule as matchFeatureAgainstStyleRules } from "./VectorTileGeometryPlacement.js";
+import { projectVectorTileProperties } from "./VectorTilePropertyProjectionUtils.js";
 
 function createPackedLayer() {
   return {
     featureCount: 0,
     positionCount: 0,
+    features: [],
     pointPositions: [],
-    pointMetadata: [],
+    pointFeatureIndices: [],
     linePositions: [],
     lineOffsets: [],
-    lineMetadata: [],
+    lineFeatureIndices: [],
     polygonPositions: [],
     ringOffsets: [],
     polygonOffsets: [],
-    polygonMetadata: [],
+    polygonFeatureIndices: [],
+    styleFilteredFeatureCount: 0,
     clippedFeatureCount: 0,
     discardedFeatureCount: 0,
     outOfBoundsPositionCount: 0,
-  };
-}
-
-function getMetadata(feature, includeProperties) {
-  if (!includeProperties) {
-    return undefined;
-  }
-  return {
-    id: feature.id,
-    properties: feature.properties,
   };
 }
 
@@ -44,10 +37,9 @@ function addPoints(
   geometry,
   tile,
   packedLayer,
-  includeProperties,
+  featureIndex,
   clipToTile,
 ) {
-  const metadata = getMetadata(feature, includeProperties);
   for (let i = 0; i < geometry.length; ++i) {
     const points = geometry[i];
     for (let j = 0; j < points.length; ++j) {
@@ -55,9 +47,7 @@ function addPoints(
         continue;
       }
       projectPoint(points[j], tile, feature.extent, packedLayer.pointPositions);
-      if (includeProperties) {
-        packedLayer.pointMetadata.push(metadata);
-      }
+      packedLayer.pointFeatureIndices.push(featureIndex);
       packedLayer.positionCount++;
     }
   }
@@ -68,10 +58,9 @@ function addLines(
   geometry,
   tile,
   packedLayer,
-  includeProperties,
+  featureIndex,
   clipToTile,
 ) {
-  const metadata = getMetadata(feature, includeProperties);
   for (let i = 0; i < geometry.length; ++i) {
     const lines = clipToTile
       ? clipLineString(geometry[i], 0, feature.extent)
@@ -87,9 +76,7 @@ function addLines(
         projectPoint(line[j], tile, feature.extent, packedLayer.linePositions);
         packedLayer.positionCount++;
       }
-      if (includeProperties) {
-        packedLayer.lineMetadata.push(metadata);
-      }
+      packedLayer.lineFeatureIndices.push(featureIndex);
     }
   }
 }
@@ -99,10 +86,9 @@ function addPolygons(
   geometry,
   tile,
   packedLayer,
-  includeProperties,
+  featureIndex,
   clipToTile,
 ) {
-  const metadata = getMetadata(feature, includeProperties);
   const rings = clipToTile
     ? geometry
         .map((ring) => clipRingToRectangle(ring, 0, feature.extent))
@@ -132,9 +118,7 @@ function addPolygons(
 
     if (packedLayer.ringOffsets.length > polygonStart) {
       packedLayer.polygonOffsets.push(polygonStart);
-      if (includeProperties) {
-        packedLayer.polygonMetadata.push(metadata);
-      }
+      packedLayer.polygonFeatureIndices.push(featureIndex);
     }
   }
 }
@@ -149,20 +133,22 @@ function finalizePackedLayer(layer) {
     clippedFeatureCount: layer.clippedFeatureCount,
     discardedFeatureCount: layer.discardedFeatureCount,
     outOfBoundsPositionCount: layer.outOfBoundsPositionCount,
+    styleFilteredFeatureCount: layer.styleFilteredFeatureCount,
+    features: layer.features,
     points: {
       positions: new Float64Array(layer.pointPositions),
-      metadata: layer.pointMetadata,
+      featureIndices: new Uint32Array(layer.pointFeatureIndices),
     },
     lines: {
       positions: new Float64Array(layer.linePositions),
       offsets: new Uint32Array(layer.lineOffsets),
-      metadata: layer.lineMetadata,
+      featureIndices: new Uint32Array(layer.lineFeatureIndices),
     },
     polygons: {
       positions: new Float64Array(layer.polygonPositions),
       ringOffsets: new Uint32Array(layer.ringOffsets),
       polygonOffsets: new Uint32Array(layer.polygonOffsets),
-      metadata: layer.polygonMetadata,
+      featureIndices: new Uint32Array(layer.polygonFeatureIndices),
     },
   };
 }
@@ -199,7 +185,7 @@ export default function decodeVectorTile(
   arrayBuffer,
   tile,
   styledLayerNames,
-  includeProperties = false,
+  propertyProjections = undefined,
   clipToTile = true,
   styleRules = undefined,
 ) {
@@ -215,6 +201,10 @@ export default function decodeVectorTile(
 
     const packedLayer = createPackedLayer();
     const layerStyleRules = styleRulesBySourceLayer.get(layerName);
+    const propertyProjection = getPropertyProjection(
+      propertyProjections,
+      layerName,
+    );
     for (
       let featureIndex = 0;
       featureIndex < vectorTileLayer.length;
@@ -231,6 +221,7 @@ export default function decodeVectorTile(
       const geometry = feature.loadGeometry();
       packedLayer.featureCount++;
       const positionCountBefore = packedLayer.positionCount;
+      const packedFeatureIndex = packedLayer.features.length;
       if (clipToTile) {
         const outOfBoundsPositionCount = countOutOfBoundsPoints(
           geometry,
@@ -248,7 +239,7 @@ export default function decodeVectorTile(
           geometry,
           tile,
           packedLayer,
-          includeProperties,
+          packedFeatureIndex,
           clipToTile,
         );
       } else if (feature.type === 2) {
@@ -257,7 +248,7 @@ export default function decodeVectorTile(
           geometry,
           tile,
           packedLayer,
-          includeProperties,
+          packedFeatureIndex,
           clipToTile,
         );
       } else if (feature.type === 3) {
@@ -266,15 +257,39 @@ export default function decodeVectorTile(
           geometry,
           tile,
           packedLayer,
-          includeProperties,
+          packedFeatureIndex,
           clipToTile,
         );
       }
       if (packedLayer.positionCount === positionCountBefore) {
         packedLayer.discardedFeatureCount++;
+      } else {
+        packedLayer.features.push({
+          id: feature.id,
+          sourceFeatureIndex: featureIndex,
+          properties: projectVectorTileProperties(
+            feature.properties,
+            propertyProjection,
+          ),
+        });
       }
     }
     layers[layerName] = finalizePackedLayer(packedLayer);
   }
   return { layers };
+}
+
+function getPropertyProjection(propertyProjections, layerName) {
+  if (typeof propertyProjections === "boolean") {
+    return {
+      retainAll: propertyProjections,
+      properties: [],
+    };
+  }
+  return (
+    propertyProjections?.[layerName] ?? {
+      retainAll: false,
+      properties: [],
+    }
+  );
 }

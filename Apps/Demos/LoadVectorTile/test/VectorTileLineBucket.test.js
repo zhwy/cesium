@@ -236,6 +236,11 @@ const { default: VectorTileLineBucket } =
   );
 
   assert.equal(bucket.length, 2);
+  assert.deepEqual(
+    bucket.primitiveRecords.map((record) => record.role),
+    ["packed-line", "packed-line"],
+  );
+  assert.equal(bucket.primitiveRecords[0].instanceFeatureIndices, undefined);
   assert.equal(diagnostics.counts.packedLineBuckets, 1);
   assert.equal(diagnostics.counts.packedSourceGeometries, 2);
   assert.equal(diagnostics.counts.packedCombinedGeometries, 2);
@@ -324,6 +329,17 @@ const { default: VectorTileLineBucket } =
   assert.equal(bucket.length, 1);
   assert.ok(bucket.primitives[0] instanceof FakePrimitive);
   assert.equal(bucket.primitives[0].options.geometryInstances.length, 2);
+  assert.equal(bucket.primitiveRecords[0].role, "line");
+  assert.deepEqual(
+    [...bucket.primitiveRecords[0].instanceFeatureIndices],
+    [0, 0],
+  );
+  assert.deepEqual(
+    bucket.primitives[0].options.geometryInstances.map(
+      (instance) => instance.id,
+    ),
+    [0, 1],
+  );
   assert.equal(
     bucket.primitives[0].options.geometryInstances[1].geometry.options.width,
     5,

@@ -80,6 +80,52 @@ import {
 }
 
 {
+  const style = normalizeStyleDocument({
+    sources: {
+      org: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        id: "layout-hidden",
+        type: "fill",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          visibility: "none",
+        },
+      },
+      {
+        id: "layout-visible",
+        type: "fill",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          visibility: "visible",
+        },
+      },
+      {
+        id: "top-wins",
+        type: "fill",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        visibility: true,
+        layout: {
+          visibility: "none",
+        },
+      },
+    ],
+  });
+
+  assert.equal(style.layers[0].visibility, false);
+  assert.equal(style.layers[1].visibility, true);
+  assert.equal(style.layers[2].visibility, true);
+  console.log("✓ normalize layout visibility values");
+}
+
+{
   assert.throws(
     () =>
       normalizeStyleDocument({

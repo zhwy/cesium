@@ -147,6 +147,7 @@
           east: 2.3958119516190353,
           north: 0.8892280233096688,
         },
+        // destination: Cesium.Cartesian3.fromRadians(0, 0, 1e8),
         duration: 0,
       });
 
@@ -161,6 +162,7 @@
       const manager = new VectorTileLayerManager({
         diagnostics: { enabled: true },
         pixelRatio: window.devicePixelRatio,
+        tileCacheSize: 50,
         // pbfCacheBytes: 0 * 1024 * 1024,
       });
       manager.addToScene(viewer.scene);
@@ -177,6 +179,7 @@
           sources: {
             gp_res_org_gr: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/gp_res_org_gr/{z}/{x}/{y}.pbf",
               minimumLevel: 5,
               maximumLevel: 15,
@@ -185,6 +188,7 @@
             },
             res_org_gr: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
               minimumLevel: 5,
               maximumLevel: 15,
@@ -193,6 +197,7 @@
             },
             res_parent_plot: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_parent_plot/{z}/{x}/{y}.pbf",
               minimumLevel: 11,
               maximumLevel: 15,
@@ -201,6 +206,7 @@
             },
             res_parent_plot_label: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_parent_plot_label/{z}/{x}/{y}.pbf",
               minimumLevel: 11,
               maximumLevel: 15,
@@ -209,6 +215,7 @@
             },
             globe: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
               // url: "http://localhost:10101/geoserver/ne/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER=ne:world&STYLE=&TILEMATRIX=EPSG:3857:{z}&TILEMATRIXSET=EPSG:3857&FORMAT=application/vnd.mapbox-vector-tile&TILECOL={x}&TILEROW={y}",
               // tileType: "WMTS",
@@ -425,106 +432,106 @@
               },
               filter: ["all", ["==", ["get", "year"], 2025]],
             },
-            // {
-            //   id: "globe-text",
-            //   type: "symbol",
-            //   source: "globe",
-            //   sourceLayer: "populated_places",
-            //   paint: {
-            //     "text-color": "#333333",
-            //     "text-halo-color": "#ff0000",
-            //     "text-halo-width": 3,
-            //     "text-background-color": "#ffffff77",
-            //     "text-background-padding": [6, 4],
-            //   },
-            //   layout: {
-            //     "text-field": ["get", "name"],
-            //     "text-font-family": '"Noto Sans SC", sans-serif',
-            //     "text-anchor": "center",
-            //     "text-offset": [0, 0],
-            //     "icon-image": "http://localhost:8080/Apps/SampleData/fire.png",
-            //     "text-size": [
-            //       "case",
-            //       [">", ["get", "pop_max"], 5000000],
-            //       18,
-            //       14,
-            //     ],
-            //     "icon-anchor": "bottom",
-            //     "icon-width": 32,
-            //     "icon-height": 32,
-            //     "icon-offset": [0, -30],
-            //     "icon-size": [
-            //       "case",
-            //       [">", ["get", "pop_max"], 5000000],
-            //       2.5,
-            //       1,
-            //     ],
-            //   },
-            //   terrain: {
-            //     clampToGround: true,
-            //     heightOffset: 10,
-            //   },
-            //   minzoom: 5,
-            // },
-            // {
-            //   id: "globe-circle",
-            //   type: "circle",
-            //   source: "globe",
-            //   sourceLayer: "populated_places",
-            //   paint: {
-            //     "circle-radius": [
-            //       "interpolate",
-            //       ["linear"],
-            //       ["zoom"],
-            //       1,
-            //       2,
-            //       10,
-            //       10,
-            //     ],
-            //     "circle-color": "#ff6600cc",
-            //     "circle-outline-color": "#ffffffff",
-            //     "circle-outline-width": 2,
-            //   },
-            //   terrain: {
-            //     clampToGround: true,
-            //     heightOffset: 100,
-            //     disableDepthTestDistance: 2e6,
-            //   },
-            // },
-            // {
-            //   id: "globe-coastline-line",
-            //   type: "line",
-            //   source: "globe",
-            //   sourceLayer: "coastlines",
-            //   paint: {
-            //     "line-color": "#0000ff77",
-            //     "line-width": [
-            //       "interpolate",
-            //       ["linear"],
-            //       ["zoom"],
-            //       1,
-            //       1,
-            //       18,
-            //       25,
-            //     ],
-            //   },
-            //   terrain: {
-            //     clampToGround: true,
-            //   },
-            // },
-            // {
-            //   id: "countries",
-            //   type: "fill",
-            //   source: "globe",
-            //   sourceLayer: "countries",
-            //   paint: {
-            //     "fill-color": "#ffff0077",
-            //   },
-            //   maxzoom: 6,
-            //   terrain: {
-            //     heightOffset: 10,
-            //   },
-            // },
+            {
+              id: "globe-text",
+              type: "symbol",
+              source: "globe",
+              sourceLayer: "populated_places",
+              paint: {
+                "text-color": "#333333",
+                "text-halo-color": "#ff0000",
+                "text-halo-width": 3,
+                "text-background-color": "#ffffff77",
+                "text-background-padding": [6, 4],
+              },
+              layout: {
+                "text-field": ["get", "name"],
+                "text-font-family": '"Noto Sans SC", sans-serif',
+                "text-anchor": "center",
+                "text-offset": [0, 0],
+                "icon-image": "http://localhost:8080/Apps/SampleData/fire.png",
+                "text-size": [
+                  "case",
+                  [">", ["get", "pop_max"], 5000000],
+                  18,
+                  14,
+                ],
+                "icon-anchor": "bottom",
+                "icon-width": 32,
+                "icon-height": 32,
+                "icon-offset": [0, -30],
+                "icon-size": [
+                  "case",
+                  [">", ["get", "pop_max"], 5000000],
+                  2.5,
+                  1,
+                ],
+              },
+              terrain: {
+                clampToGround: true,
+                heightOffset: 10,
+              },
+              minzoom: 5,
+            },
+            {
+              id: "globe-circle",
+              type: "circle",
+              source: "globe",
+              sourceLayer: "populated_places",
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  1,
+                  2,
+                  10,
+                  10,
+                ],
+                "circle-color": "#ff6600cc",
+                "circle-outline-color": "#ffffffff",
+                "circle-outline-width": 2,
+              },
+              terrain: {
+                clampToGround: true,
+                heightOffset: 100,
+                disableDepthTestDistance: 2e6,
+              },
+            },
+            {
+              id: "globe-coastline-line",
+              type: "line",
+              source: "globe",
+              sourceLayer: "coastlines",
+              paint: {
+                "line-color": "#0000ff77",
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  1,
+                  1,
+                  18,
+                  25,
+                ],
+              },
+              terrain: {
+                clampToGround: true,
+              },
+            },
+            {
+              id: "countries",
+              type: "fill",
+              source: "globe",
+              sourceLayer: "countries",
+              paint: {
+                "fill-color": "#ffff0077",
+              },
+              maxzoom: 6,
+              terrain: {
+                heightOffset: 10,
+              },
+            },
           ],
         });
 
@@ -561,11 +568,12 @@
 
       function showPickResult(picked) {
         const resultEl = document.getElementById("pickResult");
-        if (!Cesium.defined(picked)) {
+        const feature = manager.resolvePickedFeature(picked);
+        if (!Cesium.defined(feature)) {
           resultEl.textContent = "（未拾取到任何要素）";
           return;
         }
-        resultEl.textContent = JSON.stringify(picked?.id?.properties, null, 2);
+        resultEl.textContent = JSON.stringify(feature, null, 2);
       }
 
       function highlightPosition(cartesian) {

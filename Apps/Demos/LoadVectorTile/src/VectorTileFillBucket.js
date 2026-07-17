@@ -9,6 +9,8 @@ import {
   evaluateColorStyleValue,
   evaluateFiniteStyleNumber,
   getStyleRuleHeightOffset,
+  getGeometryFeature,
+  getGeometryFeatureIndex,
   isVectorStyleExpression,
   parseCesiumColor,
   requiresGroundHeightOffsetFallback,
@@ -29,7 +31,7 @@ const Cesium = globalThis.Cesium ?? CesiumModule;
  */
 export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
-    super(styleRule);
+    super(styleRule, options);
     this._allowPicking = options.allowPicking ?? false;
     this._diagnostics = options.diagnostics;
     this._shadows = options.shadows;
@@ -46,15 +48,15 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
       tileContext.lines,
     );
     const useGroundPath = shouldUseGroundPath(this.styleRule);
-    const polygonInstances = this._createPolygonGeometryInstances(
+    const polygonResult = this._createPolygonGeometryInstances(
       fillPolygons,
       zoom,
       useGroundPath,
     );
-    if (polygonInstances.length > 0) {
+    if (polygonResult.instances.length > 0) {
       this.addPrimitive(
         createPrimitive(
-          polygonInstances,
+          polygonResult.instances,
           "polygon",
           {
             fillColor: this.styleRule.paint?.["fill-color"] ?? "#ff000077",
@@ -68,24 +70,26 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
             shadows: this._shadows,
           },
         ),
+        "fill",
+        polygonResult.featureIndices,
       );
     }
 
-    const outlineInstances = this._createFillOutlineGeometryInstances(
+    const outlineResult = this._createFillOutlineGeometryInstances(
       fillPolygons,
       zoom,
       useGroundPath,
       tileContext.tileBounds,
     );
-    if (outlineInstances.length > 0) {
+    if (outlineResult.instances.length > 0) {
       this.addPrimitive(
         useGroundPath
-          ? createGroundPolylinePrimitive(outlineInstances, {
+          ? createGroundPolylinePrimitive(outlineResult.instances, {
               allowPicking: this._allowPicking,
               diagnostics: this._diagnostics,
             })
           : createPrimitive(
-              outlineInstances,
+              outlineResult.instances,
               "line",
               {},
               {
@@ -95,6 +99,8 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
                 shadows: this._shadows,
               },
             ),
+        "fill-outline",
+        outlineResult.featureIndices,
       );
     }
 
@@ -103,12 +109,14 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
 
   _createPolygonGeometryInstances(polygons, zoom, useGroundPath) {
     const instances = [];
+    const instanceFeatureIndices = [];
     const height = useGroundPath
       ? 0.0
       : getStyleRuleHeightOffset(this.styleRule);
 
     for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
-      const metadata = polygons.metadata?.[i];
+      const metadata = getGeometryFeature(this._featureTable, polygons, i);
+      const featureIndex = getGeometryFeatureIndex(polygons, i);
       if (
         !doesStyleRuleMatchMetadata(metadata, 3, this.styleRule, zoom, {
           ignoreZoomRange: true,
@@ -145,9 +153,7 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
 
       instances.push(
         new Cesium.GeometryInstance({
-          id: this._allowPicking
-            ? { ...metadata, layerId: this.styleRule.id }
-            : undefined,
+          id: instances.length,
           geometry: new Cesium.PolygonGeometry(polygonOptions),
           attributes: {
             color: Cesium.ColorGeometryInstanceAttribute.fromColor(
@@ -161,9 +167,10 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
           },
         }),
       );
+      instanceFeatureIndices.push(featureIndex);
     }
 
-    return instances;
+    return { instances, featureIndices: instanceFeatureIndices };
   }
 
   _createFillOutlineGeometryInstances(
@@ -176,15 +183,17 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
       !this.styleRule.paint ||
       !("fill-outline-color" in this.styleRule.paint)
     ) {
-      return [];
+      return { instances: [], featureIndices: [] };
     }
 
     const lineInstances = [];
+    const instanceFeatureIndices = [];
     const height = useGroundPath
       ? 0.0
       : getStyleRuleHeightOffset(this.styleRule);
     for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
-      const metadata = polygons.metadata?.[i];
+      const metadata = getGeometryFeature(this._featureTable, polygons, i);
+      const featureIndex = getGeometryFeatureIndex(polygons, i);
       if (
         !doesStyleRuleMatchMetadata(metadata, 3, this.styleRule, zoom, {
           ignoreZoomRange: true,
@@ -223,9 +232,7 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
             : new Cesium.PolylineGeometry(polylineOptions);
           lineInstances.push(
             new Cesium.GeometryInstance({
-              id: this._allowPicking
-                ? { ...metadata, layerId: this.styleRule.id }
-                : undefined,
+              id: lineInstances.length,
               geometry: polyline,
               attributes: {
                 color: Cesium.ColorGeometryInstanceAttribute.fromColor(
@@ -239,11 +246,12 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
               },
             }),
           );
+          instanceFeatureIndices.push(featureIndex);
         }
       }
     }
 
-    return lineInstances;
+    return { instances: lineInstances, featureIndices: instanceFeatureIndices };
   }
 }
 
@@ -271,6 +279,7 @@ function createFillPolygonsFromLines(polygons, lines) {
   const positions = new Float64Array(polygonPositionCount + linePositionCount);
   const ringOffsets = new Uint32Array(polygonRingCount + lineRingCount + 1);
   const polygonOffsets = new Uint32Array(polygonCount + lineRingCount + 1);
+  const featureIndices = new Uint32Array(polygonCount + lineRingCount);
   const metadata = [];
 
   if (polygonPositionCount > 0) {
@@ -283,7 +292,10 @@ function createFillPolygonsFromLines(polygons, lines) {
     polygons?.ringOffsets?.[polygonRingCount] ?? polygonPositionCount / 2;
   for (let i = 0; i < polygonCount; ++i) {
     polygonOffsets[i] = polygons.polygonOffsets[i];
-    metadata.push(polygons.metadata?.[i]);
+    featureIndices[i] = getGeometryFeatureIndex(polygons, i);
+    if (polygons.metadata) {
+      metadata.push(polygons.metadata[i]);
+    }
   }
   polygonOffsets[polygonCount] =
     polygons?.polygonOffsets?.[polygonCount] ?? polygonRingCount;
@@ -312,14 +324,18 @@ function createFillPolygonsFromLines(polygons, lines) {
     polygonCursor++;
     polygonOffsets[polygonCursor] = ringCursor;
     ringOffsets[ringCursor] = positionCursor / 2;
-    metadata.push(lines.metadata?.[i]);
+    featureIndices[polygonCursor - 1] = getGeometryFeatureIndex(lines, i);
+    if (lines.metadata) {
+      metadata.push(lines.metadata[i]);
+    }
   }
 
   return {
     positions,
     ringOffsets,
     polygonOffsets,
-    metadata,
+    featureIndices,
+    ...(metadata.length > 0 ? { metadata } : {}),
   };
 }
 

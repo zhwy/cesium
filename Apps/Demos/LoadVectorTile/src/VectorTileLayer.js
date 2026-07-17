@@ -3,9 +3,13 @@ import VectorTile from "./VectorTile.js";
 import TileVectorTile from "./TileVectorTile.js";
 import VectorTileDecoder from "./VectorTileDecoder.js";
 import VectorTileCache from "./VectorTileCache.js";
-import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
+import VectorTilePrimitiveBucket, {
+  VectorTileBucketFallbackReason,
+} from "./VectorTilePrimitiveBucket.js";
 import createVectorTilePrimitiveBucket from "./createVectorTilePrimitiveBucket.js";
-import SharedPointCollections from "./SharedPointCollections.js";
+import SharedPointCollections, {
+  createSharedPointEntryKey,
+} from "./SharedPointCollections.js";
 import { createVectorTileIconResolver } from "./VectorTileSymbolBucket.js";
 import VectorTileTaskScheduler, {
   VectorTileTaskCancelledError,
@@ -16,6 +20,8 @@ import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
 import { TileType } from "./VectorTileProvider.js";
 import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
 import { isWorkerSupportedVectorStyleFilter } from "./VectorTileStyleExpression.js";
+import { createVectorTilePropertyProjections } from "./VectorTilePropertyProjectionUtils.js";
+import { VectorTileStyleUpdateType } from "./VectorTileStyleUpdateUtils.js";
 
 const DEFAULT_OPTIONS = {
   tilingScheme: "WebMercatorTilingScheme",
@@ -51,6 +57,7 @@ const DEFAULT_OPTIONS = {
  * @param {string} [options.format="application/vnd.mapbox-vector-tile"] 数据格式。
  * @param {string} [options.url=""] 服务地址模板。
  * @param {boolean} [options.allowPicking=false] 是否启用拾取。
+ * @param {string[]} [options.pickProperties] 公开拾取结果保留的属性名；未配置时保留全部属性。
  * @param {boolean} [options.asynchronous=true] 是否异步构建 Cesium 图元。
  * @param {Cesium.ShadowMode} [options.shadows=Cesium.ShadowMode.DISABLED] 阴影模式。
  * @param {number} [options.polygonHeight=1.0] 面要素默认高度。
@@ -118,12 +125,14 @@ export default class VectorTileLayer {
       ? normalizeStyleDocument(options.styleDocument)
       : undefined;
     this._contentRevision = 0;
+    this._styleLayerStates = createStyleLayerStates(this._styleDocument);
     this._vectorTileProvider = vectorTileProvider;
     this._diagnostics = options.diagnostics;
     this._decodeScheduler =
       options.decodeScheduler ?? new VectorTileTaskScheduler(2);
     this._buildScheduler =
       options.buildScheduler ?? new VectorTileTaskScheduler(1);
+    this._pickRegistry = options.pickRegistry;
     this._vectorTileCache = new VectorTileCache({
       maximumBytes: this._option.cacheBytes,
       diagnostics: this._diagnostics,
@@ -131,6 +140,7 @@ export default class VectorTileLayer {
     this._sharedPointCollections = new SharedPointCollections({
       scene: this._scene,
       diagnostics: this._diagnostics,
+      pickRegistry: this._pickRegistry,
     });
     this._iconImages = {
       ...(options.iconResources ?? {}),
@@ -148,6 +158,7 @@ export default class VectorTileLayer {
     this._errorEvent = new Cesium.Event();
     this.showChangedEvent = new Cesium.Event();
     this.changedEvent = new Cesium.Event();
+    this.styleChangedEvent = new Cesium.Event();
   }
 
   getVectorTileFromCache(x, y, level, rectangle) {
@@ -285,7 +296,10 @@ export default class VectorTileLayer {
       );
 
       const styleDocument = vectorTile.styleDocument;
-      const styleRules = getStyleRulesForDecode(styleDocument);
+      const styleRules = getStyleRulesForDecode(
+        styleDocument,
+        vectorTile.level,
+      );
       const hasUnsupportedWorkerFilter = styleRules.some(
         (styleRule) => !isWorkerSupportedVectorStyleFilter(styleRule.filter),
       );
@@ -297,6 +311,18 @@ export default class VectorTileLayer {
       }
 
       const styleZoom = vectorTile.level;
+      const pickProperties = getSourcePickProperties(
+        styleDocument,
+        this._vectorTileProvider.sourceId,
+        this._option.pickProperties,
+      );
+      const propertyProjections = createVectorTilePropertyProjections(
+        { layers: styleRules },
+        {
+          allowPicking: this._option.allowPicking,
+          pickProperties,
+        },
+      );
 
       const decodeTask = this._decodeScheduler.schedule(
         () =>
@@ -308,12 +334,9 @@ export default class VectorTileLayer {
               sourceLevel: vectorTile.level,
               styleZoom: vectorTile.level,
             },
-            styledLayerNames: getStyledLayerNames(styleDocument),
+            styledLayerNames: getStyledLayerNames(styleRules),
             styleRules: workerStyleRules,
-            includeProperties:
-              this._option.allowPicking ||
-              hasUnsupportedWorkerFilter ||
-              styleRules.length > 0,
+            propertyProjections,
             clipToTile: this._option.clipToTile,
           }),
         vectorTile.priority,
@@ -367,7 +390,13 @@ export default class VectorTileLayer {
           );
 
           const buildTask = this._buildScheduler.schedule(
-            () => this._buildTilePrimitives(vectorTile, decodedTile, styleZoom),
+            () =>
+              this._buildTilePrimitives(
+                vectorTile,
+                decodedTile,
+                styleZoom,
+                propertyProjections,
+              ),
             vectorTile.priority,
           );
           vectorTile.buildTask = buildTask;
@@ -424,7 +453,12 @@ export default class VectorTileLayer {
     }
   }
 
-  _buildTilePrimitives(vectorTile, decodedTile, styleZoom) {
+  _buildTilePrimitives(
+    vectorTile,
+    decodedTile,
+    styleZoom,
+    propertyProjections,
+  ) {
     if (vectorTile.released || !this.isCurrentContentRevision(vectorTile)) {
       return false;
     }
@@ -432,7 +466,26 @@ export default class VectorTileLayer {
     vectorTile.primitives = {};
     vectorTile.primitiveStyleRules = {};
     vectorTile.pointBuckets = {};
-    const styleRules = getStyleRulesForBuild(vectorTile.styleDocument);
+    vectorTile.buckets = {};
+    adoptDecodedFeatureTables(
+      vectorTile,
+      decodedTile,
+      this._option.allowPicking,
+      getSourcePickProperties(
+        vectorTile.styleDocument,
+        this._vectorTileProvider.sourceId,
+        this._option.pickProperties,
+      ),
+      this._diagnostics,
+      propertyProjections,
+    );
+    const styleRules = getStyleRulesForBuild(
+      vectorTile.styleDocument,
+      vectorTile.level,
+    );
+    vectorTile.builtStyleLayerIds = new Set(
+      styleRules.map((styleRule) => styleRule.id),
+    );
     if (styleRules.length > 0) {
       styleRules.forEach((styleRule) => {
         const packedLayer = decodedTile.layers[styleRule.sourceLayer];
@@ -447,6 +500,13 @@ export default class VectorTileLayer {
             scene: this._scene,
             iconResolver: this._iconResolver,
             allowPicking: this._option.allowPicking,
+            pickProperties: getSourcePickProperties(
+              vectorTile.styleDocument,
+              this._vectorTileProvider.sourceId,
+              this._option.pickProperties,
+            ),
+            pickRegistry: this._pickRegistry,
+            sourceId: this._vectorTileProvider.sourceId,
             diagnostics: this._diagnostics,
             ignoreZoomRange: true,
             renderBackend: this._option.renderBackend,
@@ -455,6 +515,9 @@ export default class VectorTileLayer {
             asynchronous: this._option.asynchronous,
             clipToTile: this._option.clipToTile,
             vectorTile,
+            featureTable: packedLayer.features,
+            propertyProjection: propertyProjections?.[styleRule.sourceLayer],
+            styleRevision: this.getStyleLayerRevision(styleRule.id),
           },
         );
         VectorTilePrimitiveBucket.storeVectorTileBucket(
@@ -507,7 +570,513 @@ export default class VectorTileLayer {
     const normalizedStyle = normalizeStyleDocument(styleDocument);
     this._styleDocument = normalizedStyle;
     this._option.styleDocument = normalizedStyle;
+    this._styleLayerStates = createStyleLayerStates(
+      normalizedStyle,
+      this._styleLayerStates,
+    );
     this.clearCache();
+  }
+
+  setStyleLayerAppearance(styleDocument, layerId, plan) {
+    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const styleRule = normalizedStyle.layers.find(
+      (layer) => layer.id === layerId,
+    );
+    if (!styleRule) {
+      return false;
+    }
+
+    const previousState = this._styleLayerStates.get(layerId);
+    const revision = (previousState?.revision ?? 0) + 1;
+    this._styleDocument = normalizedStyle;
+    this._option.styleDocument = normalizedStyle;
+    this._styleLayerStates.set(layerId, {
+      revision,
+      rule: styleRule,
+    });
+    for (const vectorTile of this._vectorTileCache.values()) {
+      if (this.isCurrentContentRevision(vectorTile)) {
+        vectorTile.styleDocument = snapshotStyleDocument(normalizedStyle);
+      }
+    }
+    this._diagnostics?.increment("styleInPlaceUpdates");
+    this.styleChangedEvent.raiseEvent(this, layerId, plan);
+    return true;
+  }
+
+  setStyleLayerBucketRebuild(styleDocument, layerId, plan) {
+    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const styleRule = normalizedStyle.layers.find(
+      (layer) => layer.id === layerId,
+    );
+    if (!styleRule) {
+      return false;
+    }
+
+    const previousState = this._styleLayerStates.get(layerId);
+    const revision = (previousState?.revision ?? 0) + 1;
+    this._styleDocument = normalizedStyle;
+    this._option.styleDocument = normalizedStyle;
+    this._styleLayerStates.set(layerId, {
+      revision,
+      rule: styleRule,
+    });
+
+    for (const vectorTile of this._vectorTileCache.values()) {
+      if (!this.isCurrentContentRevision(vectorTile)) {
+        continue;
+      }
+      vectorTile.styleDocument = snapshotStyleDocument(normalizedStyle);
+      this._markStyleLayerBucketDirty(vectorTile, layerId, revision, plan);
+      if (vectorTile.referenceCount > 0) {
+        this._scheduleStyleLayerBucketRebuild(
+          vectorTile,
+          layerId,
+          revision,
+          plan,
+        );
+      }
+    }
+    return true;
+  }
+
+  refineStyleLayerUpdatePlan(plan, styleRule) {
+    for (const vectorTile of this._vectorTileCache.values()) {
+      if (!this.isCurrentContentRevision(vectorTile)) {
+        continue;
+      }
+      if (vectorTile.decodeTask || vectorTile.buildTask) {
+        const addsDynamicColorDependency = plan.changedPaths?.some(
+          (path) =>
+            path.startsWith("paint.") &&
+            Array.isArray(styleRule.paint?.[path.slice("paint.".length)]),
+        );
+        if (addsDynamicColorDependency) {
+          return {
+            ...plan,
+            type: VectorTileStyleUpdateType.REBUILD_BUCKET,
+            reason: VectorTileBucketFallbackReason.MISSING_PROPERTIES,
+          };
+        }
+        if (
+          styleRule.visibility !== false &&
+          plan.changedPaths?.includes("visibility")
+        ) {
+          return {
+            ...plan,
+            type: VectorTileStyleUpdateType.REBUILD_BUCKET,
+            reason: VectorTileBucketFallbackReason.MISSING_BUCKET,
+          };
+        }
+      }
+      if (vectorTile.state !== Cesium.ImageryState.READY) {
+        continue;
+      }
+      const bucket = vectorTile.buckets?.[styleRule.id];
+      if (!bucket) {
+        if (
+          styleRule.visibility !== false &&
+          !vectorTile.builtStyleLayerIds?.has(styleRule.id)
+        ) {
+          return {
+            ...plan,
+            type: VectorTileStyleUpdateType.REBUILD_BUCKET,
+            reason: VectorTileBucketFallbackReason.MISSING_BUCKET,
+          };
+        }
+        continue;
+      }
+      const reason = bucket.getStyleUpdateFallback(styleRule, plan);
+      if (reason) {
+        return {
+          ...plan,
+          type: VectorTileStyleUpdateType.REBUILD_BUCKET,
+          reason,
+        };
+      }
+    }
+    return plan;
+  }
+
+  applyStyleLayerToTile(vectorTile, layerId, plan) {
+    if (!this.isCurrentContentRevision(vectorTile)) {
+      return undefined;
+    }
+    const styleState = this.getStyleLayerState(layerId);
+    const bucket = vectorTile.buckets?.[layerId];
+    if (!styleState || !bucket) {
+      return undefined;
+    }
+    const result = bucket.applyStyle(
+      styleState.rule,
+      styleState.revision,
+      plan,
+    );
+    this._diagnostics?.increment(
+      "styleInPlaceInstanceUpdates",
+      result.instanceUpdates,
+    );
+    this._diagnostics?.increment(
+      "styleInPlacePointUpdates",
+      result.pointUpdates,
+    );
+    return result;
+  }
+
+  applyPendingStyleUpdates(vectorTile) {
+    if (!this.isCurrentContentRevision(vectorTile)) {
+      return;
+    }
+    this._scheduleDirtyBucketRebuilds(vectorTile);
+    for (const [layerId, bucket] of Object.entries(vectorTile.buckets ?? {})) {
+      const styleState = this.getStyleLayerState(layerId);
+      if (styleState && bucket.appliedStyleRevision < styleState.revision) {
+        this.applyStyleLayerToTile(vectorTile, layerId);
+      }
+    }
+  }
+
+  processBucketRebuilds(vectorTile, frameState) {
+    if (!vectorTile || !this.isCurrentContentRevision(vectorTile)) {
+      return;
+    }
+    this._scheduleDirtyBucketRebuilds(vectorTile);
+    const rebuilds = vectorTile.bucketRebuilds;
+    if (!rebuilds) {
+      return;
+    }
+    for (const [layerId, rebuild] of Object.entries(rebuilds)) {
+      if (rebuild.replacementBucket) {
+        this._warmReplacementBucket(rebuild.replacementBucket, frameState);
+        if (isBucketDrawable(rebuild.replacementBucket)) {
+          this._commitStyleLayerBucketReplacement(vectorTile, layerId, rebuild);
+        }
+      }
+    }
+  }
+
+  _markStyleLayerBucketDirty(vectorTile, layerId, revision, plan) {
+    vectorTile.bucketRebuilds ??= {};
+    const existing = vectorTile.bucketRebuilds[layerId];
+    if (existing?.revision === revision) {
+      existing.dirty = true;
+      return existing;
+    }
+    existing?.cancel?.();
+    const rebuild = createBucketRebuildState(layerId, revision, plan);
+    vectorTile.bucketRebuilds[layerId] = rebuild;
+    return rebuild;
+  }
+
+  _scheduleDirtyBucketRebuilds(vectorTile) {
+    const rebuilds = vectorTile?.bucketRebuilds;
+    if (!rebuilds || vectorTile.referenceCount === 0) {
+      return;
+    }
+    for (const [layerId, rebuild] of Object.entries(rebuilds)) {
+      if (rebuild.dirty && !rebuild.task && !rebuild.replacementBucket) {
+        this._scheduleStyleLayerBucketRebuild(
+          vectorTile,
+          layerId,
+          rebuild.revision,
+          rebuild.plan,
+        );
+      }
+    }
+  }
+
+  _scheduleStyleLayerBucketRebuild(vectorTile, layerId, revision, plan) {
+    if (
+      vectorTile.released ||
+      !this.isCurrentContentRevision(vectorTile) ||
+      vectorTile.state !== Cesium.ImageryState.READY
+    ) {
+      return false;
+    }
+
+    const styleState = this.getStyleLayerState(layerId);
+    const styleRule = styleState?.rule;
+    if (
+      !styleRule ||
+      styleState.revision !== revision ||
+      styleRule.visibility === false ||
+      !isStyleLayerInBuildZoom(styleRule, vectorTile.level)
+    ) {
+      this._removeStyleLayerBucket(vectorTile, layerId);
+      delete vectorTile.bucketRebuilds?.[layerId];
+      vectorTile.builtStyleLayerIds?.add(layerId);
+      return false;
+    }
+
+    const rebuild = this._markStyleLayerBucketDirty(
+      vectorTile,
+      layerId,
+      revision,
+      plan,
+    );
+    if (rebuild.task || rebuild.replacementBucket) {
+      return true;
+    }
+
+    const vectorTileProvider = this._vectorTileProvider;
+    const startTime = this._diagnostics?.startTimer();
+    const pbfTask = vectorTileProvider.requestTile(vectorTile);
+    if (!pbfTask) {
+      return false;
+    }
+    rebuild.dirty = false;
+    rebuild.task = pbfTask;
+
+    pbfTask.promise
+      .then((arrayBuffer) => {
+        if (
+          !this._isCurrentBucketRebuild(vectorTile, layerId, rebuild) ||
+          !arrayBuffer ||
+          arrayBuffer.byteLength === 0
+        ) {
+          return undefined;
+        }
+        this._diagnostics?.recordDuration("bucketRebuildRequest", startTime);
+        const styleRules = [styleRule];
+        const hasUnsupportedWorkerFilter = !isWorkerSupportedVectorStyleFilter(
+          styleRule.filter,
+        );
+        const workerStyleRules = hasUnsupportedWorkerFilter
+          ? undefined
+          : styleRules;
+        if (hasUnsupportedWorkerFilter) {
+          this._diagnostics?.increment("mainThreadStyleFilterFallbacks");
+        }
+        const propertyProjections = createVectorTilePropertyProjections(
+          { layers: styleRules },
+          {
+            allowPicking: this._option.allowPicking,
+            pickProperties: getSourcePickProperties(
+              this._styleDocument,
+              this._vectorTileProvider.sourceId,
+              this._option.pickProperties,
+            ),
+          },
+        );
+        const decodeTask = this._decodeScheduler.schedule(
+          () =>
+            VectorTileDecoder.instance().decode(arrayBuffer, {
+              tile: {
+                x: vectorTile.x,
+                y: vectorTile.y,
+                level: vectorTile.level,
+                sourceLevel: vectorTile.level,
+                styleZoom: vectorTile.level,
+              },
+              styledLayerNames: [styleRule.sourceLayer],
+              styleRules: workerStyleRules,
+              propertyProjections,
+              clipToTile: this._option.clipToTile,
+            }),
+          vectorTile.priority,
+        );
+        rebuild.task = decodeTask;
+        return decodeTask.promise.then((decodedTile) => ({
+          decodedTile,
+          propertyProjections,
+          hasUnsupportedWorkerFilter,
+        }));
+      })
+      .then((decodeResult) => {
+        if (
+          !decodeResult ||
+          !this._isCurrentBucketRebuild(vectorTile, layerId, rebuild)
+        ) {
+          return undefined;
+        }
+        let { decodedTile } = decodeResult;
+        const { propertyProjections, hasUnsupportedWorkerFilter } =
+          decodeResult;
+        if (hasUnsupportedWorkerFilter) {
+          decodedTile = applyMainThreadStyleFilters(
+            decodedTile,
+            [styleRule],
+            vectorTile.level,
+            this._diagnostics,
+          );
+        }
+        const buildTask = this._buildScheduler.schedule(
+          () =>
+            this._buildReplacementBucket(
+              vectorTile,
+              decodedTile,
+              styleRule,
+              propertyProjections,
+              revision,
+            ),
+          vectorTile.priority,
+        );
+        rebuild.task = buildTask;
+        return buildTask.promise;
+      })
+      .then((bucket) => {
+        rebuild.task = undefined;
+        if (!this._isCurrentBucketRebuild(vectorTile, layerId, rebuild)) {
+          bucket?.destroy?.();
+          return;
+        }
+        rebuild.replacementBucket = bucket;
+        if (isBucketDrawable(bucket)) {
+          this._commitStyleLayerBucketReplacement(vectorTile, layerId, rebuild);
+        } else {
+          this._scene?.requestRender?.();
+        }
+      })
+      .catch((error) => {
+        rebuild.task = undefined;
+        if (!this._isCurrentBucketRebuild(vectorTile, layerId, rebuild)) {
+          return;
+        }
+        if (error instanceof VectorTileTaskCancelledError) {
+          this._diagnostics?.increment("styleBucketRebuildCancelled");
+          return;
+        }
+        this._diagnostics?.increment("styleBucketRebuildFailures");
+        this._errorEvent.raiseEvent(error, vectorTile);
+      });
+    return true;
+  }
+
+  _isCurrentBucketRebuild(vectorTile, layerId, rebuild) {
+    return (
+      !vectorTile.released &&
+      this.isCurrentContentRevision(vectorTile) &&
+      vectorTile.bucketRebuilds?.[layerId] === rebuild &&
+      this.getStyleLayerRevision(layerId) === rebuild.revision &&
+      !rebuild.cancelled
+    );
+  }
+
+  _buildReplacementBucket(
+    vectorTile,
+    decodedTile,
+    styleRule,
+    propertyProjections,
+    styleRevision,
+  ) {
+    if (vectorTile.released || !this.isCurrentContentRevision(vectorTile)) {
+      return undefined;
+    }
+    const packedLayer = decodedTile.layers[styleRule.sourceLayer];
+    if (!packedLayer) {
+      return undefined;
+    }
+    return createVectorTilePrimitiveBucket(
+      packedLayer,
+      styleRule,
+      vectorTile.level,
+      {
+        scene: this._scene,
+        iconResolver: this._iconResolver,
+        allowPicking: this._option.allowPicking,
+        pickProperties: getSourcePickProperties(
+          vectorTile.styleDocument,
+          this._vectorTileProvider.sourceId,
+          this._option.pickProperties,
+        ),
+        pickRegistry: this._pickRegistry,
+        sourceId: this._vectorTileProvider.sourceId,
+        diagnostics: this._diagnostics,
+        ignoreZoomRange: true,
+        renderBackend: this._option.renderBackend,
+        packedMinimumInstances: this._option.packedMinimumInstances,
+        shadows: this._option.shadows,
+        asynchronous: this._option.asynchronous,
+        clipToTile: this._option.clipToTile,
+        vectorTile,
+        featureTable: packedLayer.features,
+        propertyProjection: propertyProjections?.[styleRule.sourceLayer],
+        styleRevision,
+        residentFeatureTableEntries: packedLayer.features?.length ?? 0,
+        residentPickPropertyValues: countPublicPickPropertyValues(
+          packedLayer.features,
+          this._option.allowPicking,
+          getSourcePickProperties(
+            vectorTile.styleDocument,
+            this._vectorTileProvider.sourceId,
+            this._option.pickProperties,
+          ),
+        ),
+      },
+    );
+  }
+
+  _warmReplacementBucket(bucket, frameState) {
+    if (!bucket || !frameState) {
+      return;
+    }
+    for (const primitive of bucket.primitives) {
+      if (!primitive || primitive.ready || primitive.isDestroyed?.()) {
+        continue;
+      }
+      const commandListLength = frameState.commandList?.length ?? 0;
+      const show = primitive.show;
+      primitive.show = true;
+      primitive.update?.(frameState);
+      primitive.show = show;
+      if (frameState.commandList) {
+        frameState.commandList.length = commandListLength;
+      }
+    }
+  }
+
+  _commitStyleLayerBucketReplacement(vectorTile, layerId, rebuild) {
+    if (!this._isCurrentBucketRebuild(vectorTile, layerId, rebuild)) {
+      rebuild.replacementBucket?.destroy?.();
+      return false;
+    }
+    this._removeStyleLayerBucket(vectorTile, layerId);
+    const bucket = rebuild.replacementBucket;
+    if (bucket?.length > 0) {
+      VectorTilePrimitiveBucket.storeVectorTileBucket(
+        vectorTile,
+        bucket,
+        bucket.styleRule,
+      );
+    } else {
+      bucket?.destroy?.();
+    }
+    vectorTile.builtStyleLayerIds ??= new Set();
+    vectorTile.builtStyleLayerIds.add(layerId);
+    delete vectorTile.bucketRebuilds?.[layerId];
+    this._diagnostics?.increment("styleBucketReplacementCommits");
+    this._scene?.requestRender?.();
+    return true;
+  }
+
+  _removeStyleLayerBucket(vectorTile, layerId) {
+    const oldBucket = vectorTile.buckets?.[layerId];
+    if (!oldBucket) {
+      delete vectorTile.primitives?.[layerId];
+      delete vectorTile.primitiveStyleRules?.[layerId];
+      delete vectorTile.pointBuckets?.[layerId];
+      return;
+    }
+    this._sharedPointCollections.removeTileEntries(
+      createSharedPointEntryKey(vectorTile, layerId),
+    );
+    delete vectorTile.buckets[layerId];
+    delete vectorTile.primitives?.[layerId];
+    delete vectorTile.primitiveStyleRules?.[layerId];
+    delete vectorTile.pointBuckets?.[layerId];
+    oldBucket.destroy();
+  }
+
+  getStyleLayerState(layerId) {
+    return this._styleLayerStates.get(layerId);
+  }
+
+  getStyleLayerRule(layerId) {
+    return this.getStyleLayerState(layerId)?.rule;
+  }
+
+  getStyleLayerRevision(layerId) {
+    return this.getStyleLayerState(layerId)?.revision ?? 0;
   }
 
   getStyle() {
@@ -573,9 +1142,23 @@ export default class VectorTileLayer {
       return;
     }
     this._destroyed = true;
-    this._vectorTileCache.clear();
+    this._removeManagerStyleChangedListener?.();
+    this._removeManagerStyleChangedListener = undefined;
+    this._vectorTileCache.destroy();
     this._sharedPointCollections.destroy();
   }
+}
+
+function createStyleLayerStates(styleDocument, previousStates) {
+  const result = new Map();
+  for (const rule of styleDocument?.layers ?? []) {
+    const previous = previousStates?.get(rule.id);
+    result.set(rule.id, {
+      revision: (previous?.revision ?? -1) + 1,
+      rule,
+    });
+  }
+  return result;
 }
 
 function getVectorTileCacheKey(contentRevision, x, y, level) {
@@ -586,50 +1169,69 @@ function snapshotStyleDocument(styleDocument) {
   return styleDocument ? normalizeStyleDocument(styleDocument) : undefined;
 }
 
-function getStyleRulesForDecode(styleDocument) {
+function getSourcePickProperties(styleDocument, sourceId, fallback) {
+  const source = styleDocument?.sources?.[sourceId];
+  return source &&
+    Object.prototype.hasOwnProperty.call(source, "pickProperties")
+    ? source.pickProperties
+    : fallback;
+}
+
+export function getStyleRulesForDecode(styleDocument, buildZoom) {
   if (!styleDocument?.layers) {
     return [];
   }
   return styleDocument.layers
-    .filter((layer) => layer.visibility !== false)
+    .filter(
+      (layer) =>
+        isSupportedStyleLayer(layer) &&
+        layer.visibility !== false &&
+        isStyleLayerInBuildZoom(layer, buildZoom),
+    )
     .map((layer) => ({
       id: layer.id,
       type: layer.type,
       sourceLayer: layer.sourceLayer,
       filter: layer.filter,
-      layout:
-        layer.type === "symbol"
-          ? { "symbol-placement": layer.layout?.["symbol-placement"] }
-          : undefined,
+      layout: layer.layout,
+      paint: layer.paint,
       visibility: layer.visibility,
     }));
 }
 
-function getStyleRulesForBuild(styleDocument) {
+export function getStyleRulesForBuild(styleDocument, buildZoom) {
   if (!styleDocument?.layers) {
     return [];
   }
   return styleDocument.layers.filter(
     (layer) =>
       layer.visibility !== false &&
-      (layer.type === "fill" ||
-        layer.type === "circle" ||
-        layer.type === "line" ||
-        layer.type === "symbol"),
+      isSupportedStyleLayer(layer) &&
+      isStyleLayerInBuildZoom(layer, buildZoom),
   );
 }
 
-function getStyledLayerNames(styleDocument) {
-  if (styleDocument?.layers?.length > 0) {
-    return [
-      ...new Set(
-        styleDocument.layers
-          .filter((layer) => layer.visibility !== false)
-          .map((layer) => layer.sourceLayer),
-      ),
-    ];
+function getStyledLayerNames(styleRules) {
+  return [...new Set(styleRules.map((layer) => layer.sourceLayer))];
+}
+
+function isSupportedStyleLayer(layer) {
+  return (
+    layer.type === "fill" ||
+    layer.type === "circle" ||
+    layer.type === "line" ||
+    layer.type === "symbol"
+  );
+}
+
+function isStyleLayerInBuildZoom(layer, buildZoom) {
+  if (!Number.isFinite(buildZoom)) {
+    return true;
   }
-  return [];
+  return (
+    (layer.minzoom === undefined || buildZoom >= layer.minzoom) &&
+    (layer.maxzoom === undefined || buildZoom < layer.maxzoom)
+  );
 }
 
 function applyMainThreadStyleFilters(
@@ -693,15 +1295,142 @@ function countDecodedTile(decodedTile) {
   };
 }
 
-function getDecodedTileByteLength(decodedTile) {
+export function getDecodedTileByteLength(decodedTile) {
   let byteLength = 0;
   Object.values(decodedTile.layers).forEach((layer) => {
     byteLength += layer.points.positions.byteLength;
+    byteLength += layer.points.featureIndices.byteLength;
     byteLength += layer.lines.positions.byteLength;
     byteLength += layer.lines.offsets.byteLength;
+    byteLength += layer.lines.featureIndices.byteLength;
     byteLength += layer.polygons.positions.byteLength;
     byteLength += layer.polygons.ringOffsets.byteLength;
     byteLength += layer.polygons.polygonOffsets.byteLength;
+    byteLength += layer.polygons.featureIndices.byteLength;
+    byteLength += estimateFeatureTableByteLength(layer.features);
   });
   return byteLength;
+}
+
+export function adoptDecodedFeatureTables(
+  vectorTile,
+  decodedTile,
+  allowPicking,
+  pickProperties,
+  diagnostics,
+  propertyProjections,
+) {
+  const featureTables = {};
+  let featureTableEntries = 0;
+  let pickPropertyValues = 0;
+  Object.entries(decodedTile.layers).forEach(([sourceLayer, packedLayer]) => {
+    const features = packedLayer.features ?? [];
+    featureTables[sourceLayer] = features;
+    featureTableEntries += features.length;
+    if (allowPicking) {
+      for (const feature of features) {
+        pickPropertyValues += countPublicPropertyValues(
+          feature.properties,
+          pickProperties,
+        );
+      }
+    }
+  });
+  vectorTile.features = featureTables;
+  vectorTile.propertyProjections = propertyProjections;
+  vectorTile.residentFeatureTableEntries = featureTableEntries;
+  vectorTile.residentPickPropertyValues = pickPropertyValues;
+  diagnostics?.addGauge("residentFeatureTableEntries", featureTableEntries);
+  diagnostics?.addGauge("residentPickPropertyValues", pickPropertyValues);
+}
+
+function countPublicPropertyValues(properties, pickProperties) {
+  if (pickProperties === undefined) {
+    return Object.keys(properties ?? {}).length;
+  }
+  let count = 0;
+  for (const propertyName of pickProperties) {
+    if (Object.prototype.hasOwnProperty.call(properties ?? {}, propertyName)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function estimateFeatureTableByteLength(features = []) {
+  let byteLength = 0;
+  for (const feature of features) {
+    byteLength += 16;
+    byteLength += estimateValueByteLength(feature.id);
+    byteLength += estimateValueByteLength(feature.properties);
+  }
+  return byteLength;
+}
+
+function estimateValueByteLength(value, visited = new Set()) {
+  if (value === undefined || value === null) {
+    return 0;
+  }
+  if (typeof value === "string") {
+    return value.length * 2;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return 8;
+  }
+  if (typeof value !== "object" || visited.has(value)) {
+    return 0;
+  }
+  visited.add(value);
+  if (Array.isArray(value)) {
+    return value.reduce(
+      (sum, item) => sum + estimateValueByteLength(item, visited),
+      0,
+    );
+  }
+  return Object.entries(value).reduce(
+    (sum, [key, item]) =>
+      sum + key.length * 2 + estimateValueByteLength(item, visited),
+    0,
+  );
+}
+
+function createBucketRebuildState(layerId, revision, plan) {
+  return {
+    layerId,
+    revision,
+    plan,
+    dirty: true,
+    task: undefined,
+    replacementBucket: undefined,
+    cancelled: false,
+    cancel() {
+      this.cancelled = true;
+      this.task?.cancel?.();
+      this.replacementBucket?.destroy?.();
+      this.replacementBucket = undefined;
+    },
+    setPriority(priority) {
+      this.task?.setPriority?.(priority);
+    },
+  };
+}
+
+function isBucketDrawable(bucket) {
+  if (!bucket || bucket.length === 0) {
+    return true;
+  }
+  return bucket.primitives.every(
+    (primitive) => primitive.show === false || primitive.ready !== false,
+  );
+}
+
+function countPublicPickPropertyValues(features, allowPicking, pickProperties) {
+  if (!allowPicking) {
+    return 0;
+  }
+  let count = 0;
+  for (const feature of features ?? []) {
+    count += countPublicPropertyValues(feature.properties, pickProperties);
+  }
+  return count;
 }

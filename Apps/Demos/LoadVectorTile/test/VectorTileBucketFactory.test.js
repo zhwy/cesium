@@ -408,80 +408,84 @@ console.log("VectorTileBucketFactory tests passed.");
 
 function createDecodedLandLayer() {
   return {
+    features: [{ id: 1, properties: {} }],
     points: {
       positions: new Float64Array(),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
     lines: {
       positions: new Float64Array(),
       offsets: new Uint32Array([0]),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
     polygons: {
       positions: new Float64Array([0, 0, 1, 0, 1, 1, 0, 1, 0, 0]),
       ringOffsets: new Uint32Array([0, 5]),
       polygonOffsets: new Uint32Array([0, 1]),
-      metadata: [{ properties: {} }],
+      featureIndices: new Uint32Array([0]),
     },
   };
 }
 
 function createDecodedRoadLayer() {
   return {
+    features: [{ id: 1, properties: {} }],
     points: {
       positions: new Float64Array(),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
     lines: {
       positions: new Float64Array([100, 20, 101, 21]),
       offsets: new Uint32Array([0, 2]),
-      metadata: [{ properties: {} }],
+      featureIndices: new Uint32Array([0]),
     },
     polygons: {
       positions: new Float64Array(),
       ringOffsets: new Uint32Array([0]),
       polygonOffsets: new Uint32Array([0]),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
   };
 }
 
 function createDecodedPlaceLayer() {
   return {
+    features: [{ id: 1, properties: { kind: "city", name: "Beijing" } }],
     points: {
       positions: new Float64Array([116, 40]),
-      metadata: [{ properties: { kind: "city", name: "Beijing" } }],
+      featureIndices: new Uint32Array([0]),
     },
     lines: {
       positions: new Float64Array(),
       offsets: new Uint32Array([0]),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
     polygons: {
       positions: new Float64Array(),
       ringOffsets: new Uint32Array([0]),
       polygonOffsets: new Uint32Array([0]),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
   };
 }
 
 function createDecodedRegionLayer() {
   return {
+    features: [{ id: 1, properties: { name: "Center Label" } }],
     points: {
       positions: new Float64Array(),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
     lines: {
       positions: new Float64Array(),
       offsets: new Uint32Array([0]),
-      metadata: [],
+      featureIndices: new Uint32Array(),
     },
     polygons: {
       positions: new Float64Array([0, 0, 2, 0, 2, 2, 0, 2, 0, 0]),
       ringOffsets: new Uint32Array([0, 5]),
       polygonOffsets: new Uint32Array([0, 1]),
-      metadata: [{ properties: { name: "Center Label" } }],
+      featureIndices: new Uint32Array([0]),
     },
   };
 }

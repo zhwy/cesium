@@ -129,13 +129,19 @@ const {
   assert.ok(createSymbolPixelOffset([12, -4]) instanceof FakeCartesian2);
   assert.equal(createSymbolPixelOffset([12, -4]).x, 12);
   assert.equal(createSymbolPixelOffset([12, -4]).y, -4);
-  assert.equal(createSymbolPixelOffset([undefined, 4]), undefined);
+  assert.deepEqual(
+    createSymbolPixelOffset([undefined, 4]),
+    new FakeCartesian2(0, 0),
+  );
   assert.ok(createSymbolBackgroundPadding([6, 2]) instanceof FakeCartesian2);
   assert.equal(createSymbolBackgroundPadding([6, 2]).x, 6);
   assert.equal(createSymbolBackgroundPadding([6, 2]).y, 2);
   assert.equal(createSymbolBackgroundPadding(3).x, 3);
   assert.equal(createSymbolBackgroundPadding(3).y, 3);
-  assert.equal(createSymbolBackgroundPadding([4, "bad"]), undefined);
+  assert.deepEqual(
+    createSymbolBackgroundPadding([4, "bad"]),
+    new FakeCartesian2(0, 0),
+  );
   console.log("✓ translate anchors and pixel-based symbol offsets");
 }
 
@@ -175,11 +181,7 @@ const {
       scene: {},
       iconResolver: createVectorTileIconResolver({ city: "city.png" }),
       allowPicking: true,
-    },
-  ).build(
-    {
-      positions: new Float64Array([116, 40, 121, 31]),
-      metadata: [
+      featureTable: [
         {
           id: 1,
           properties: {
@@ -205,12 +207,18 @@ const {
         },
       ],
     },
+  ).build(
+    {
+      positions: new Float64Array([116, 40, 121, 31]),
+      featureIndices: new Uint32Array([0, 1]),
+    },
     4,
   );
 
   assert.equal(bucket.length, 2);
   assert.equal(bucket.primitives.length, 0);
   assert.equal(bucket.pointDescriptors.billboards.length, 1);
+  assert.equal(bucket.pointDescriptors.billboards[0].id, 0);
   assert.equal(bucket.pointDescriptors.billboards[0].image, "city.png");
   assert.equal(bucket.pointDescriptors.billboards[0].scale, 1.5);
   assert.equal(bucket.pointDescriptors.billboards[0].width, 32);
@@ -230,6 +238,7 @@ const {
   });
 
   assert.equal(bucket.pointDescriptors.labels.length, 1);
+  assert.equal(bucket.pointDescriptors.labels[0].id, 0);
   assert.equal(bucket.pointDescriptors.labels[0].text, "Beijing");
   assert.equal(bucket.pointDescriptors.labels[0].font, '600 18px "Fira Sans"');
   assert.equal(bucket.pointDescriptors.labels[0].style, "fill-and-outline");
@@ -248,6 +257,33 @@ const {
     bucket.pointDescriptors.labels[0].heightReference,
     "relative-to-ground",
   );
+  const update = bucket.applyStyle(
+    {
+      ...bucket.styleRule,
+      visibility: false,
+      paint: {
+        ...bucket.styleRule.paint,
+        "text-color": "#00ff00ff",
+        "text-halo-color": "#ff00ffff",
+        "text-background-color": "",
+      },
+    },
+    1,
+    {
+      changedPaths: [
+        "paint.text-color",
+        "paint.text-halo-color",
+        "paint.text-background-color",
+        "visibility",
+      ],
+    },
+  );
+  assert.equal(update.pointUpdates, 2);
+  assert.equal(bucket.pointDescriptors.labels[0].fillColor.css, "#00ff00ff");
+  assert.equal(bucket.pointDescriptors.labels[0].outlineColor.css, "#ff00ffff");
+  assert.equal(bucket.pointDescriptors.labels[0].showBackground, false);
+  assert.equal(bucket.pointDescriptors.labels[0].show, false);
+  assert.equal(bucket.pointDescriptors.billboards[0].show, false);
   console.log(
     "✓ build icon+text symbol bucket with anchors, background and expressions",
   );
@@ -285,8 +321,14 @@ const {
   assert.equal(bucket.pointDescriptors.labels[0].style, "fill");
   assert.equal(bucket.pointDescriptors.labels[0].heightReference, "none");
   assert.equal(bucket.pointDescriptors.labels[0].font, "16px serif");
-  assert.equal(bucket.pointDescriptors.labels[0].pixelOffset, undefined);
-  assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding, undefined);
+  assert.deepEqual(
+    bucket.pointDescriptors.labels[0].pixelOffset,
+    new FakeCartesian2(0, 0),
+  );
+  assert.deepEqual(
+    bucket.pointDescriptors.labels[0].backgroundPadding,
+    new FakeCartesian2(0, 0),
+  );
   assert.equal(bucket.pointDescriptors.labels[0].horizontalOrigin, "center");
   assert.equal(bucket.pointDescriptors.labels[0].verticalOrigin, "center");
   console.log(

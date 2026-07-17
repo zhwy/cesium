@@ -131,7 +131,10 @@ const {
   assert.equal(createCirclePixelOffset([4, -2]).y, -2);
   assert.equal(createCirclePixelOffset(undefined, [3, 1]).x, 3);
   assert.equal(createCirclePixelOffset(undefined, [3, 1]).y, 1);
-  assert.equal(createCirclePixelOffset([1, "bad"]), undefined);
+  assert.deepEqual(
+    createCirclePixelOffset([1, "bad"]),
+    new FakeCartesian2(0, 0),
+  );
   console.log("✓ evaluate circle style values and pixel offsets");
 }
 
@@ -172,41 +175,33 @@ const {
   const bucket = new VectorTileCircleBucket(styleRule, {
     scene: {},
     allowPicking: true,
+    featureTable: [
+      {
+        id: 1,
+        properties: {
+          kind: "city",
+          radius: 8,
+          fill: "#ff6600cc",
+          outlineWidth: 2,
+          offset: [5, 7],
+        },
+      },
+      {
+        id: 2,
+        properties: {
+          kind: "city",
+          radius: 8,
+          fill: "#ff6600cc",
+          outlineWidth: 2,
+          offset: [5, 7],
+        },
+      },
+      { id: 3, properties: { kind: "village" } },
+    ],
   }).build(
     {
       positions: new Float64Array([116, 40, 117, 41, 120, 30]),
-      metadata: [
-        {
-          id: 1,
-          properties: {
-            kind: "city",
-            radius: 8,
-            fill: "#ff6600cc",
-            outlineWidth: 2,
-            offset: [5, 7],
-          },
-        },
-        {
-          id: 2,
-          properties: {
-            kind: "city",
-            radius: 8,
-            fill: "#ff6600cc",
-            outlineWidth: 2,
-            offset: [5, 7],
-          },
-        },
-        {
-          id: 3,
-          properties: {
-            kind: "village",
-            radius: 4,
-            fill: "#00ff00ff",
-            outlineWidth: 1,
-            offset: [0, 0],
-          },
-        },
-      ],
+      featureIndices: new Uint32Array([0, 1, 2]),
     },
     4,
   );
@@ -243,10 +238,28 @@ const {
     bucket.pointDescriptors.billboards[0].image,
     bucket.pointDescriptors.billboards[1].image,
   );
+  assert.equal(bucket.pointDescriptors.billboards[0].id, 0);
   assert.equal(
-    bucket.pointDescriptors.billboards[0].id.properties.kind,
-    "city",
+    bucket.pointDescriptors.billboards[0]._vectorTileFeatureIndex,
+    0,
   );
+  const updatedStyleRule = {
+    ...styleRule,
+    visibility: false,
+    paint: {
+      ...styleRule.paint,
+      "circle-color": "#00ffffff",
+    },
+  };
+  const update = bucket.applyStyle(updatedStyleRule, 1, {
+    changedPaths: ["paint.circle-color", "visibility"],
+  });
+  assert.equal(update.pointUpdates, 2);
+  assert.equal(
+    bucket.pointDescriptors.billboards[0].image._vectorTileCircle.fillColor,
+    "#00ffffff",
+  );
+  assert.equal(bucket.pointDescriptors.billboards[0].show, false);
   console.log(
     "✓ build circle billboards with terrain, picking, alias precedence and cache reuse",
   );

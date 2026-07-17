@@ -57,39 +57,37 @@ import {
     ]),
     ringOffsets: new Uint32Array([0, 5, 8]),
     polygonOffsets: new Uint32Array([0, 1, 2]),
-    metadata: [
-      { properties: { name: "square" } },
-      { properties: { name: "degenerate" } },
-    ],
+    featureIndices: new Uint32Array([7, 9]),
   });
 
   assert.equal(points.positions.length, 2);
   assert.equal(points.positions[0], 1);
   assert.equal(points.positions[1], 1);
-  assert.equal(points.metadata.length, 1);
-  assert.equal(points.metadata[0].properties.name, "square");
+  assert.deepEqual([...points.featureIndices], [7]);
   console.log("✓ derive polygon-center points and skip degenerate polygons");
 }
 
 {
   const diagnostics = createDiagnostics();
   const packedLayer = {
-    featureCount: 5,
+    featureCount: 6,
     styleFilteredFeatureCount: 0,
+    features: [
+      { properties: { kind: "poi", name: "point-hit" } },
+      { properties: { kind: "other", name: "point-miss" } },
+      { properties: { kind: "main" } },
+      { properties: { kind: "poi" } },
+      { properties: { label: true, kind: "region" } },
+      { properties: { label: false, kind: "poi" } },
+    ],
     points: {
       positions: new Float64Array([10, 20, 30, 40]),
-      metadata: [
-        { properties: { kind: "poi", name: "point-hit" } },
-        { properties: { kind: "other", name: "point-miss" } },
-      ],
+      featureIndices: new Uint32Array([0, 1]),
     },
     lines: {
       positions: new Float64Array([100, 20, 101, 21, 110, 30, 111, 31]),
       offsets: new Uint32Array([0, 2, 4]),
-      metadata: [
-        { properties: { kind: "main" } },
-        { properties: { kind: "poi" } },
-      ],
+      featureIndices: new Uint32Array([2, 3]),
     },
     polygons: {
       positions: new Float64Array([
@@ -97,10 +95,7 @@ import {
       ]),
       ringOffsets: new Uint32Array([0, 5, 10]),
       polygonOffsets: new Uint32Array([0, 1, 2]),
-      metadata: [
-        { properties: { label: true, kind: "region" } },
-        { properties: { label: false, kind: "poi" } },
-      ],
+      featureIndices: new Uint32Array([4, 5]),
     },
   };
   const styleRules = [
@@ -139,16 +134,62 @@ import {
     diagnostics,
   );
 
-  assert.equal(filtered.points.metadata.length, 1);
-  assert.equal(filtered.lines.metadata.length, 1);
-  assert.equal(filtered.polygons.metadata.length, 1);
+  assert.equal(filtered.points.featureIndices.length, 1);
+  assert.equal(filtered.lines.featureIndices.length, 1);
+  assert.equal(filtered.polygons.featureIndices.length, 1);
   assert.equal(filtered.featureCount, 3);
-  assert.equal(filtered.lines.metadata[0].properties.kind, "main");
-  assert.equal(filtered.polygons.metadata[0].properties.kind, "region");
+  assert.equal(
+    filtered.features[filtered.lines.featureIndices[0]].properties.kind,
+    "main",
+  );
+  assert.equal(
+    filtered.features[filtered.polygons.featureIndices[0]].properties.kind,
+    "region",
+  );
   assert.equal(diagnostics.counts.mainThreadStyleFilteredFeatures, 1);
   console.log(
     "✓ preserve required point, line and polygon source geometries while filtering",
   );
+}
+
+{
+  const highFeatureIndex = 65536;
+  const features = [];
+  features[highFeatureIndex] = {
+    id: 1,
+    properties: { kind: "main" },
+  };
+  const filtered = filterPackedLayerByStyleRules(
+    {
+      featureCount: 1,
+      features,
+      points: {
+        positions: new Float64Array(),
+        featureIndices: new Uint32Array(),
+      },
+      lines: {
+        positions: new Float64Array([0, 0, 1, 1, 2, 2, 3, 3]),
+        offsets: new Uint32Array([0, 2, 4]),
+        featureIndices: new Uint32Array([highFeatureIndex, highFeatureIndex]),
+      },
+      polygons: {
+        positions: new Float64Array(),
+        ringOffsets: new Uint32Array([0]),
+        polygonOffsets: new Uint32Array([0]),
+        featureIndices: new Uint32Array(),
+      },
+    },
+    [
+      {
+        type: "line",
+        filter: ["==", ["get", "kind"], "main"],
+      },
+    ],
+    5,
+  );
+  assert.equal(filtered.features.length, 1);
+  assert.deepEqual([...filtered.lines.featureIndices], [0, 0]);
+  console.log("✓ keep clipped geometry fragments on one feature table row");
 }
 
 console.log("VectorTileGeometryPlacement tests passed.");

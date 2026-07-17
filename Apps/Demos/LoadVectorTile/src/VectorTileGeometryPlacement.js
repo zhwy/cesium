@@ -76,15 +76,17 @@ export function filterPackedLayerByStyleRules(
   zoom,
   diagnostics,
 ) {
-  const points = filterPoints(packedLayer.points, styleRules, zoom);
-  const lines = filterLines(packedLayer.lines, styleRules, zoom);
-  const polygons = filterPolygons(packedLayer.polygons, styleRules, zoom);
+  const points = filterPoints(packedLayer, styleRules, zoom);
+  const lines = filterLines(packedLayer, styleRules, zoom);
+  const polygons = filterPolygons(packedLayer, styleRules, zoom);
   const positionCount =
     points.positions.length / 2 +
     lines.positions.length / 2 +
     polygons.positions.length / 2;
   const featureCount =
-    points.metadata.length + lines.metadata.length + polygons.metadata.length;
+    points.featureIndices.length +
+    lines.featureIndices.length +
+    polygons.featureIndices.length;
   const styleFilteredFeatureCount = Math.max(
     0,
     (packedLayer.featureCount ?? 0) - featureCount,
@@ -94,7 +96,7 @@ export function filterPackedLayerByStyleRules(
     diagnostics?.increment("mainThreadStyleFilteredFeatures");
   }
 
-  return {
+  return compactPackedLayerFeatures({
     ...packedLayer,
     featureCount,
     positionCount,
@@ -103,12 +105,12 @@ export function filterPackedLayerByStyleRules(
     points,
     lines,
     polygons,
-  };
+  });
 }
 
 export function createPolygonCenterPoints(polygons) {
   const positions = [];
-  const metadata = [];
+  const featureIndices = [];
   const polygonOffsets = polygons?.polygonOffsets ?? [];
 
   for (let i = 0; i + 1 < polygonOffsets.length; ++i) {
@@ -118,56 +120,70 @@ export function createPolygonCenterPoints(polygons) {
     }
 
     positions.push(center.longitude, center.latitude);
-    metadata.push(polygons.metadata?.[i]);
+    featureIndices.push(polygons.featureIndices?.[i] ?? 0);
   }
 
   return {
     positions: new Float64Array(positions),
-    metadata,
+    featureIndices: new Uint32Array(featureIndices),
   };
 }
 
-function filterPoints(points, styleRules, zoom) {
-  const metadata = points.metadata ?? [];
-  if (metadata.length === 0 && points.positions.length > 0) {
-    return points;
-  }
+export function getPackedLayerFeature(packedLayer, featureIndex) {
+  return packedLayer?.features?.[featureIndex];
+}
+
+export function getPackedGeometryFeature(packedLayer, geometry, index) {
+  return getPackedLayerFeature(packedLayer, geometry?.featureIndices?.[index]);
+}
+
+function filterPoints(packedLayer, styleRules, zoom) {
+  const points = packedLayer.points;
 
   const positions = [];
-  const filteredMetadata = [];
+  const featureIndices = [];
   for (let i = 0; i < points.positions.length / 2; ++i) {
+    const featureIndex = points.featureIndices[i];
     if (
-      !doesFeatureMatchAnyStyleRule(metadata[i], 1, styleRules, {
-        zoom,
-        level: zoom,
-      })
+      !doesFeatureMatchAnyStyleRule(
+        getPackedLayerFeature(packedLayer, featureIndex),
+        1,
+        styleRules,
+        {
+          zoom,
+          level: zoom,
+        },
+      )
     ) {
       continue;
     }
     positions.push(points.positions[i * 2], points.positions[i * 2 + 1]);
-    filteredMetadata.push(metadata[i]);
+    featureIndices.push(featureIndex);
   }
   return {
     positions: new Float64Array(positions),
-    metadata: filteredMetadata,
+    featureIndices: new Uint32Array(featureIndices),
   };
 }
 
-function filterLines(lines, styleRules, zoom) {
-  const metadata = lines.metadata ?? [];
-  if (metadata.length === 0 && lines.positions.length > 0) {
-    return lines;
-  }
+function filterLines(packedLayer, styleRules, zoom) {
+  const lines = packedLayer.lines;
 
   const positions = [];
   const offsets = [0];
-  const filteredMetadata = [];
+  const featureIndices = [];
   for (let i = 0; i + 1 < lines.offsets.length; ++i) {
+    const featureIndex = lines.featureIndices[i];
     if (
-      !doesFeatureMatchAnyStyleRule(metadata[i], 2, styleRules, {
-        zoom,
-        level: zoom,
-      })
+      !doesFeatureMatchAnyStyleRule(
+        getPackedLayerFeature(packedLayer, featureIndex),
+        2,
+        styleRules,
+        {
+          zoom,
+          level: zoom,
+        },
+      )
     ) {
       continue;
     }
@@ -177,31 +193,34 @@ function filterLines(lines, styleRules, zoom) {
       positions.push(lines.positions[j]);
     }
     offsets.push(positions.length / 2);
-    filteredMetadata.push(metadata[i]);
+    featureIndices.push(featureIndex);
   }
   return {
     positions: new Float64Array(positions),
     offsets: new Uint32Array(offsets),
-    metadata: filteredMetadata,
+    featureIndices: new Uint32Array(featureIndices),
   };
 }
 
-function filterPolygons(polygons, styleRules, zoom) {
-  const metadata = polygons.metadata ?? [];
-  if (metadata.length === 0 && polygons.positions.length > 0) {
-    return polygons;
-  }
+function filterPolygons(packedLayer, styleRules, zoom) {
+  const polygons = packedLayer.polygons;
 
   const positions = [];
   const ringOffsets = [0];
   const polygonOffsets = [0];
-  const filteredMetadata = [];
+  const featureIndices = [];
   for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
+    const featureIndex = polygons.featureIndices[i];
     if (
-      !doesFeatureMatchAnyStyleRule(metadata[i], 3, styleRules, {
-        zoom,
-        level: zoom,
-      })
+      !doesFeatureMatchAnyStyleRule(
+        getPackedLayerFeature(packedLayer, featureIndex),
+        3,
+        styleRules,
+        {
+          zoom,
+          level: zoom,
+        },
+      )
     ) {
       continue;
     }
@@ -219,13 +238,45 @@ function filterPolygons(polygons, styleRules, zoom) {
       ringOffsets.push(positions.length / 2);
     }
     polygonOffsets.push(ringOffsets.length - 1);
-    filteredMetadata.push(metadata[i]);
+    featureIndices.push(featureIndex);
   }
   return {
     positions: new Float64Array(positions),
     ringOffsets: new Uint32Array(ringOffsets),
     polygonOffsets: new Uint32Array(polygonOffsets),
-    metadata: filteredMetadata,
+    featureIndices: new Uint32Array(featureIndices),
+  };
+}
+
+function compactPackedLayerFeatures(packedLayer) {
+  const used = new Set([
+    ...packedLayer.points.featureIndices,
+    ...packedLayer.lines.featureIndices,
+    ...packedLayer.polygons.featureIndices,
+  ]);
+  const remap = new Map();
+  const features = [];
+  [...used]
+    .sort((left, right) => left - right)
+    .forEach((oldIndex) => {
+      remap.set(oldIndex, features.length);
+      features.push(packedLayer.features[oldIndex]);
+    });
+  return {
+    ...packedLayer,
+    features,
+    points: remapGeometryFeatureIndices(packedLayer.points, remap),
+    lines: remapGeometryFeatureIndices(packedLayer.lines, remap),
+    polygons: remapGeometryFeatureIndices(packedLayer.polygons, remap),
+  };
+}
+
+function remapGeometryFeatureIndices(geometry, remap) {
+  return {
+    ...geometry,
+    featureIndices: Uint32Array.from(geometry.featureIndices, (featureIndex) =>
+      remap.get(featureIndex),
+    ),
   };
 }
 

@@ -3,6 +3,14 @@ import { normalizeSymbolPlacement } from "./VectorTileGeometryPlacement.js";
 
 const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol", "circle"]);
 
+export const CESIUM_STYLE_IMPLEMENTATION_TERMS = Object.freeze([
+  "VectorTileProvider",
+  "VectorTileStyleRule",
+  "VectorTilePrimitiveBucket",
+  "VectorTileSymbolBucket",
+  "VectorTileCircleBucket",
+]);
+
 /**
  * 规范化并校验外部矢量瓦片样式文档。
  * 文档层仍保留类似 Mapbox 的 `sources` / `layers` 字段命名，便于配置迁移；
@@ -47,12 +55,41 @@ function normalizeSources(sources) {
     if (type !== "vector") {
       throw new Error(`source "${sourceId}" type must be "vector".`);
     }
+    validatePickProperties(source.pickProperties, sourceId);
     result[sourceId] = {
       ...cloneValue(source),
       type,
+      pickProperties:
+        source.pickProperties === undefined
+          ? undefined
+          : [...source.pickProperties],
     };
   });
   return result;
+}
+
+function validatePickProperties(pickProperties, sourceId) {
+  if (pickProperties === undefined) {
+    return;
+  }
+  if (!Array.isArray(pickProperties)) {
+    throw new Error(`source "${sourceId}" pickProperties must be an array.`);
+  }
+
+  const names = new Set();
+  pickProperties.forEach((propertyName, index) => {
+    if (!isNonEmptyString(propertyName)) {
+      throw new Error(
+        `source "${sourceId}" pickProperties[${index}] must be a non-empty string.`,
+      );
+    }
+    if (names.has(propertyName)) {
+      throw new Error(
+        `source "${sourceId}" pickProperties must not contain duplicate property "${propertyName}".`,
+      );
+    }
+    names.add(propertyName);
+  });
 }
 
 function normalizeLayers(layers, sources) {
@@ -119,10 +156,23 @@ function normalizeLayers(layers, sources) {
         heightOffset: layer.terrain?.heightOffset ?? 0.0,
         ...cloneValue(layer.terrain ?? {}),
       },
-      visibility: layer.visibility ?? layer.layout?.visibility ?? true,
+      visibility: normalizeLayerVisibility(layer, id),
       metadata: cloneValue(layer.metadata ?? {}),
     };
   });
+}
+
+function normalizeLayerVisibility(layer, layerId) {
+  const value = layer.visibility ?? layer.layout?.visibility;
+  if (value === undefined || value === true || value === "visible") {
+    return true;
+  }
+  if (value === false || value === "none") {
+    return false;
+  }
+  throw new Error(
+    `layer "${layerId}" visibility must be true, false, "visible", or "none".`,
+  );
 }
 
 function isPlainObject(value) {
