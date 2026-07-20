@@ -31,15 +31,10 @@ class FakeCollection {
   }
 }
 
-globalThis.Cesium = {
-  BillboardCollection: FakeCollection,
-  LabelCollection: FakeCollection,
-};
-
 const { default: SharedPointCollections } =
   await import("../src/SharedPointCollections.js");
-const { createSharedPointEntryKey } =
-  await import("../src/SharedPointCollections.js");
+const createSharedPointEntryKey =
+  SharedPointCollections.createSharedPointEntryKey;
 
 {
   const diagnostics = createDiagnostics();
@@ -48,6 +43,8 @@ const { createSharedPointEntryKey } =
     scene: {},
     diagnostics,
     pickRegistry,
+    createBillboardCollection: () => new FakeCollection(),
+    createLabelCollection: () => new FakeCollection(),
   });
 
   const pickContext = { sourceId: "demo" };

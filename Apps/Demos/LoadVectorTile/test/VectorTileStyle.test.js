@@ -5,13 +5,13 @@
  *   node Apps/Demos/LoadVectorTile/src_test/VectorTileStyle.test.js
  */
 import assert from "node:assert/strict";
-import {
-  CESIUM_STYLE_IMPLEMENTATION_TERMS,
-  normalizeStyleDocument,
-} from "../src/VectorTileStyleUtils.js";
+import VectorTileStyleUtils from "../src/VectorTileStyleUtils.js";
+
+const CESIUM_STYLE_IMPLEMENTATION_TERMS =
+  VectorTileStyleUtils.CESIUM_STYLE_IMPLEMENTATION_TERMS;
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",
@@ -53,7 +53,7 @@ import {
 }
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",
@@ -89,7 +89,7 @@ import {
 {
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -109,7 +109,7 @@ import {
   );
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -129,7 +129,7 @@ import {
 }
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",
@@ -156,7 +156,7 @@ import {
 }
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",
@@ -204,7 +204,7 @@ import {
 {
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -231,7 +231,7 @@ import {
 {
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -252,7 +252,7 @@ import {
 {
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -271,7 +271,7 @@ import {
 }
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",

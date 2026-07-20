@@ -1,8 +1,10 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
-import { createSharedPointEntryKey } from "./SharedPointCollections.js";
-const { defined, destroyObject, ImageryState } = Cesium;
-
+import {
+  defined,
+  destroyObject,
+  ImageryState,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileCoverageState from "./VectorTileCoverageState.js";
+import SharedPointCollections from "./SharedPointCollections.js";
 /**
  * 矢量瓦片栈中与 Cesium `Imagery` 对应的数据对象，
  * 保存单个矢量瓦片的请求、解码、构建、缓存与父子层级状态。
@@ -169,7 +171,7 @@ VectorTile.prototype.destroyResources = function () {
   if (defined(this.pointBuckets)) {
     Object.keys(this.pointBuckets).forEach((bucketId) => {
       this.vectorTileLayer.sharedPointCollections.removeTileEntries(
-        createSharedPointEntryKey(this, bucketId),
+        SharedPointCollections.createSharedPointEntryKey(this, bucketId),
       );
       delete this.pointBuckets[bucketId];
     });

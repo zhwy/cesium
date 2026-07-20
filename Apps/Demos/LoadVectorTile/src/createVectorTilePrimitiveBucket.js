@@ -1,8 +1,5 @@
-import { getWebMercatorTileBounds } from "./VectorTileGeometryUtils.js";
-import {
-  createPolygonCenterPoints,
-  getStyleRuleSymbolPlacement,
-} from "./VectorTileGeometryPlacement.js";
+import VectorTileGeometryUtils from "./VectorTileGeometryUtils.js";
+import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
 import VectorTileCircleBucket from "./VectorTileCircleBucket.js";
 import VectorTileFillBucket from "./VectorTileFillBucket.js";
 import VectorTileLineBucket from "./VectorTileLineBucket.js";
@@ -17,7 +14,7 @@ export default function createVectorTilePrimitiveBucket(
 ) {
   const tileBounds =
     options.clipToTile && options.vectorTile
-      ? getWebMercatorTileBounds(options.vectorTile)
+      ? VectorTileGeometryUtils.getWebMercatorTileBounds(options.vectorTile)
       : undefined;
   let bucket = new VectorTilePrimitiveBucket(styleRule, options);
 
@@ -42,10 +39,13 @@ export default function createVectorTilePrimitiveBucket(
       },
     );
   } else if (styleRule.type === "symbol") {
-    const symbolPlacement = getStyleRuleSymbolPlacement(styleRule);
+    const symbolPlacement =
+      VectorTileGeometryPlacementUtils.getStyleRuleSymbolPlacement(styleRule);
     bucket = new VectorTileSymbolBucket(styleRule, options).build(
       symbolPlacement === "polygon-center"
-        ? createPolygonCenterPoints(packedLayer.polygons)
+        ? VectorTileGeometryPlacementUtils.createPolygonCenterPoints(
+            packedLayer.polygons,
+          )
         : packedLayer.points,
       zoom,
     );

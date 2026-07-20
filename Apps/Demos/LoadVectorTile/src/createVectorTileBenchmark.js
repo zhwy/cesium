@@ -1,9 +1,9 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import { Rectangle } from "../../../../Build/CesiumUnminified/index.js";
 
 const scenarios = Object.freeze({
-  world: Cesium.Rectangle.fromDegrees(-180.0, -80.0, 180.0, 80.0),
-  regional: Cesium.Rectangle.fromDegrees(-30.0, 15.0, 60.0, 75.0),
-  close: Cesium.Rectangle.fromDegrees(-12.0, 35.0, 12.0, 58.0),
+  world: Rectangle.fromDegrees(-180.0, -80.0, 180.0, 80.0),
+  regional: Rectangle.fromDegrees(-30.0, 15.0, 60.0, 75.0),
+  close: Rectangle.fromDegrees(-12.0, 35.0, 12.0, 58.0),
 });
 
 function wait(milliseconds) {

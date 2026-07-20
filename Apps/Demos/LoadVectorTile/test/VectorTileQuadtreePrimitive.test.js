@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 const Cesium = await import("../../../../Build/CesiumUnminified/index.js");
 const { default: VectorTileQuadtreePrimitive } =
   await import("../src/VectorTileQuadtreePrimitive.js");
-const { createSharedPointEntryKey } =
+const { default: SharedPointCollections } =
   await import("../src/SharedPointCollections.js");
+const createSharedPointEntryKey =
+  SharedPointCollections.createSharedPointEntryKey;
 
 {
   const primitive = createPrimitiveForTest();

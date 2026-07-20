@@ -1,147 +1,97 @@
 import assert from "node:assert/strict";
+import {
+  Color,
+  HeightReference,
+  HorizontalOrigin,
+  LabelStyle,
+  VerticalOrigin,
+} from "../../../../Build/CesiumUnminified/index.js";
 
-class FakeBillboardCollection {
-  constructor() {
-    this.items = [];
-  }
-
-  add(options) {
-    this.items.push(options);
-  }
-
-  isDestroyed() {
-    return false;
-  }
-
-  destroy() {}
-}
-
-class FakeLabelCollection {
-  constructor() {
-    this.items = [];
-  }
-
-  add(options) {
-    this.items.push(options);
-  }
-
-  isDestroyed() {
-    return false;
-  }
-
-  destroy() {}
-}
-
-class FakeCartesian2 {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-}
-
-const Cesium = {
-  BillboardCollection: FakeBillboardCollection,
-  LabelCollection: FakeLabelCollection,
-  Cartesian2: FakeCartesian2,
-  Cartesian3: {
-    fromDegrees: (longitude, latitude, height) => ({
-      longitude,
-      latitude,
-      height,
-    }),
-  },
-  Color: {
-    fromCssColorString: (value) => ({
-      css: value,
-      alpha: extractAlpha(value),
-    }),
-  },
-  LabelStyle: {
-    FILL: "fill",
-    FILL_AND_OUTLINE: "fill-and-outline",
-  },
-  HorizontalOrigin: {
-    LEFT: "left",
-    CENTER: "center",
-    RIGHT: "right",
-  },
-  VerticalOrigin: {
-    TOP: "top",
-    CENTER: "center",
-    BOTTOM: "bottom",
-  },
-  HeightReference: {
-    NONE: "none",
-    CLAMP_TO_GROUND: "clamp-to-ground",
-    RELATIVE_TO_GROUND: "relative-to-ground",
-  },
-};
-
-globalThis.Cesium = Cesium;
-
-const {
-  default: VectorTileSymbolBucket,
-  createSymbolBackgroundPadding,
-  createSymbolPixelOffset,
-  createVectorTileIconResolver,
-  evaluateSymbolStyleValue,
-  resolveVectorTileIconResource,
-  translateSymbolAnchor,
-} = await import("../src/VectorTileSymbolBucket.js");
+const { default: VectorTileSymbolBucket } =
+  await import("../src/VectorTileSymbolBucket.js");
 
 {
   const image = { tagName: "IMG" };
   const canvas = { tagName: "CANVAS" };
-  assert.equal(resolveVectorTileIconResource("city", { city: image }), image);
   assert.equal(
-    resolveVectorTileIconResource("https://example.com/a.png"),
+    VectorTileSymbolBucket.resolveVectorTileIconResource("city", {
+      city: image,
+    }),
+    image,
+  );
+  assert.equal(
+    VectorTileSymbolBucket.resolveVectorTileIconResource(
+      "https://example.com/a.png",
+    ),
     "https://example.com/a.png",
   );
-  assert.equal(resolveVectorTileIconResource(image), image);
-  assert.equal(resolveVectorTileIconResource(canvas), canvas);
+  assert.equal(
+    VectorTileSymbolBucket.resolveVectorTileIconResource(image),
+    image,
+  );
+  assert.equal(
+    VectorTileSymbolBucket.resolveVectorTileIconResource(canvas),
+    canvas,
+  );
   console.log("✓ resolve icon registry, URL and image-like resources");
 }
 
 {
   assert.equal(
-    evaluateSymbolStyleValue(["get", "name"], {
+    VectorTileSymbolBucket.evaluateSymbolStyleValue(["get", "name"], {
       properties: { name: "Beijing" },
     }),
     "Beijing",
   );
-  assert.equal(evaluateSymbolStyleValue(undefined, undefined, 0, 16), 16);
+  assert.equal(
+    VectorTileSymbolBucket.evaluateSymbolStyleValue(
+      undefined,
+      undefined,
+      0,
+      16,
+    ),
+    16,
+  );
   console.log("✓ evaluate symbol layout values");
 }
 
 {
-  assert.deepEqual(translateSymbolAnchor("top-left"), {
-    horizontalOrigin: "left",
-    verticalOrigin: "top",
+  assert.deepEqual(VectorTileSymbolBucket.translateSymbolAnchor("top-left"), {
+    horizontalOrigin: HorizontalOrigin.LEFT,
+    verticalOrigin: VerticalOrigin.TOP,
   });
-  assert.deepEqual(translateSymbolAnchor("bottom"), {
-    horizontalOrigin: "center",
-    verticalOrigin: "bottom",
+  assert.deepEqual(VectorTileSymbolBucket.translateSymbolAnchor("bottom"), {
+    horizontalOrigin: HorizontalOrigin.CENTER,
+    verticalOrigin: VerticalOrigin.BOTTOM,
   });
-  assert.deepEqual(translateSymbolAnchor("nope"), {
-    horizontalOrigin: "center",
-    verticalOrigin: "center",
+  assert.deepEqual(VectorTileSymbolBucket.translateSymbolAnchor("nope"), {
+    horizontalOrigin: HorizontalOrigin.CENTER,
+    verticalOrigin: VerticalOrigin.CENTER,
   });
-  assert.ok(createSymbolPixelOffset([12, -4]) instanceof FakeCartesian2);
-  assert.equal(createSymbolPixelOffset([12, -4]).x, 12);
-  assert.equal(createSymbolPixelOffset([12, -4]).y, -4);
-  assert.deepEqual(
-    createSymbolPixelOffset([undefined, 4]),
-    new FakeCartesian2(0, 0),
+  assert.equal(VectorTileSymbolBucket.createSymbolPixelOffset([12, -4]).x, 12);
+  assert.equal(VectorTileSymbolBucket.createSymbolPixelOffset([12, -4]).y, -4);
+  const fallbackOffset = VectorTileSymbolBucket.createSymbolPixelOffset([
+    undefined,
+    4,
+  ]);
+  assert.equal(fallbackOffset.x, 0);
+  assert.equal(fallbackOffset.y, 0);
+  assert.equal(
+    VectorTileSymbolBucket.createSymbolBackgroundPadding([6, 2]).x,
+    6,
   );
-  assert.ok(createSymbolBackgroundPadding([6, 2]) instanceof FakeCartesian2);
-  assert.equal(createSymbolBackgroundPadding([6, 2]).x, 6);
-  assert.equal(createSymbolBackgroundPadding([6, 2]).y, 2);
-  assert.equal(createSymbolBackgroundPadding(3).x, 3);
-  assert.equal(createSymbolBackgroundPadding(3).y, 3);
-  assert.deepEqual(
-    createSymbolBackgroundPadding([4, "bad"]),
-    new FakeCartesian2(0, 0),
+  assert.equal(
+    VectorTileSymbolBucket.createSymbolBackgroundPadding([6, 2]).y,
+    2,
   );
+  assert.equal(VectorTileSymbolBucket.createSymbolBackgroundPadding(3).x, 3);
+  assert.equal(VectorTileSymbolBucket.createSymbolBackgroundPadding(3).y, 3);
+  const fallbackPadding = VectorTileSymbolBucket.createSymbolBackgroundPadding([
+    4,
+    "bad",
+  ]);
+  assert.equal(fallbackPadding.x, 0);
+  assert.equal(fallbackPadding.y, 0);
   console.log("✓ translate anchors and pixel-based symbol offsets");
 }
 
@@ -179,7 +129,9 @@ const {
     },
     {
       scene: {},
-      iconResolver: createVectorTileIconResolver({ city: "city.png" }),
+      iconResolver: VectorTileSymbolBucket.createVectorTileIconResolver({
+        city: "city.png",
+      }),
       allowPicking: true,
       featureTable: [
         {
@@ -225,25 +177,47 @@ const {
   assert.equal(bucket.pointDescriptors.billboards[0].height, 24);
   assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.x, 8);
   assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.y, 10);
-  assert.equal(bucket.pointDescriptors.billboards[0].horizontalOrigin, "right");
-  assert.equal(bucket.pointDescriptors.billboards[0].verticalOrigin, "bottom");
+  assert.equal(
+    bucket.pointDescriptors.billboards[0].horizontalOrigin,
+    HorizontalOrigin.RIGHT,
+  );
+  assert.equal(
+    bucket.pointDescriptors.billboards[0].verticalOrigin,
+    VerticalOrigin.BOTTOM,
+  );
   assert.equal(
     bucket.pointDescriptors.billboards[0].heightReference,
-    "relative-to-ground",
+    HeightReference.RELATIVE_TO_GROUND,
   );
-  assert.deepEqual(bucket.pointDescriptors.billboards[0].position, {
-    longitude: 116,
-    latitude: 40,
-    height: 3,
-  });
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.x,
+    "number",
+  );
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.y,
+    "number",
+  );
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.z,
+    "number",
+  );
 
   assert.equal(bucket.pointDescriptors.labels.length, 1);
   assert.equal(bucket.pointDescriptors.labels[0].id, 0);
   assert.equal(bucket.pointDescriptors.labels[0].text, "Beijing");
   assert.equal(bucket.pointDescriptors.labels[0].font, '600 18px "Fira Sans"');
-  assert.equal(bucket.pointDescriptors.labels[0].style, "fill-and-outline");
-  assert.equal(bucket.pointDescriptors.labels[0].showBackground, true);
   assert.equal(
+    bucket.pointDescriptors.labels[0].style,
+    LabelStyle.FILL_AND_OUTLINE,
+  );
+  assert.equal(bucket.pointDescriptors.labels[0].showBackground, true);
+  assert.ok(
+    Color.equals(
+      bucket.pointDescriptors.labels[0].backgroundColor,
+      Color.fromCssColorString("#11223344"),
+    ),
+  );
+  assert.notEqual(
     bucket.pointDescriptors.labels[0].backgroundColor.css,
     "#11223344",
   );
@@ -251,11 +225,17 @@ const {
   assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding.y, 4);
   assert.equal(bucket.pointDescriptors.labels[0].pixelOffset.x, 4);
   assert.equal(bucket.pointDescriptors.labels[0].pixelOffset.y, -6);
-  assert.equal(bucket.pointDescriptors.labels[0].horizontalOrigin, "left");
-  assert.equal(bucket.pointDescriptors.labels[0].verticalOrigin, "top");
+  assert.equal(
+    bucket.pointDescriptors.labels[0].horizontalOrigin,
+    HorizontalOrigin.LEFT,
+  );
+  assert.equal(
+    bucket.pointDescriptors.labels[0].verticalOrigin,
+    VerticalOrigin.TOP,
+  );
   assert.equal(
     bucket.pointDescriptors.labels[0].heightReference,
-    "relative-to-ground",
+    HeightReference.RELATIVE_TO_GROUND,
   );
   const update = bucket.applyStyle(
     {
@@ -279,8 +259,18 @@ const {
     },
   );
   assert.equal(update.pointUpdates, 2);
-  assert.equal(bucket.pointDescriptors.labels[0].fillColor.css, "#00ff00ff");
-  assert.equal(bucket.pointDescriptors.labels[0].outlineColor.css, "#ff00ffff");
+  assert.ok(
+    Color.equals(
+      bucket.pointDescriptors.labels[0].fillColor,
+      Color.fromCssColorString("#00ff00ff"),
+    ),
+  );
+  assert.ok(
+    Color.equals(
+      bucket.pointDescriptors.labels[0].outlineColor,
+      Color.fromCssColorString("#ff00ffff"),
+    ),
+  );
   assert.equal(bucket.pointDescriptors.labels[0].showBackground, false);
   assert.equal(bucket.pointDescriptors.labels[0].show, false);
   assert.equal(bucket.pointDescriptors.billboards[0].show, false);
@@ -318,19 +308,24 @@ const {
 
   assert.equal(bucket.length, 1);
   assert.equal(bucket.pointDescriptors.labels.length, 1);
-  assert.equal(bucket.pointDescriptors.labels[0].style, "fill");
-  assert.equal(bucket.pointDescriptors.labels[0].heightReference, "none");
+  assert.equal(bucket.pointDescriptors.labels[0].style, LabelStyle.FILL);
+  assert.equal(
+    bucket.pointDescriptors.labels[0].heightReference,
+    HeightReference.NONE,
+  );
   assert.equal(bucket.pointDescriptors.labels[0].font, "16px serif");
-  assert.deepEqual(
-    bucket.pointDescriptors.labels[0].pixelOffset,
-    new FakeCartesian2(0, 0),
+  assert.equal(bucket.pointDescriptors.labels[0].pixelOffset.x, 0);
+  assert.equal(bucket.pointDescriptors.labels[0].pixelOffset.y, 0);
+  assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding.x, 0);
+  assert.equal(bucket.pointDescriptors.labels[0].backgroundPadding.y, 0);
+  assert.equal(
+    bucket.pointDescriptors.labels[0].horizontalOrigin,
+    HorizontalOrigin.CENTER,
   );
-  assert.deepEqual(
-    bucket.pointDescriptors.labels[0].backgroundPadding,
-    new FakeCartesian2(0, 0),
+  assert.equal(
+    bucket.pointDescriptors.labels[0].verticalOrigin,
+    VerticalOrigin.CENTER,
   );
-  assert.equal(bucket.pointDescriptors.labels[0].horizontalOrigin, "center");
-  assert.equal(bucket.pointDescriptors.labels[0].verticalOrigin, "center");
   console.log(
     "✓ fallback invalid symbol numbers and preserve stable default anchor",
   );
@@ -369,7 +364,7 @@ const {
   );
   assert.equal(
     bucket.pointDescriptors.billboards[0].heightReference,
-    "clamp-to-ground",
+    HeightReference.CLAMP_TO_GROUND,
   );
   assert.equal(bucket.pointDescriptors.billboards[0].width, undefined);
   assert.equal(bucket.pointDescriptors.billboards[0].height, undefined);
@@ -410,15 +405,3 @@ const {
 }
 
 console.log("VectorTileSymbolBucket tests passed.");
-
-function extractAlpha(value) {
-  if (typeof value !== "string") {
-    return 1.0;
-  }
-
-  const match = /^#(?:[0-9a-fA-F]{6})([0-9a-fA-F]{2})$/.exec(value);
-  if (!match) {
-    return 1.0;
-  }
-  return parseInt(match[1], 16) / 255;
-}

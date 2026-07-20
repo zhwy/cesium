@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 
-import VectorTilePrimitiveBucket, {
-  VectorTileBucketFallbackReason,
-} from "../src/VectorTilePrimitiveBucket.js";
+import VectorTilePrimitiveBucket from "../src/VectorTilePrimitiveBucket.js";
+import VectorTileBucketFallbackReason from "../src/VectorTileBucketFallbackReason.js";
 
 {
   const featureTable = [

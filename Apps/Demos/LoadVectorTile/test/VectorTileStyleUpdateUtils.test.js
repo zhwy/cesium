@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 
-import {
-  createVectorTileStyleUpdatePlan,
-  VectorTileStyleUpdateType,
-} from "../src/VectorTileStyleUpdateUtils.js";
+import VectorTileStyleUpdateUtils from "../src/VectorTileStyleUpdateUtils.js";
+import VectorTileStyleUpdateType from "../src/VectorTileStyleUpdateType.js";
 
 const supportedColors = {
   line: ["line-color"],
@@ -18,7 +16,8 @@ for (const [type, propertyNames] of Object.entries(supportedColors)) {
     const next = structuredClone(previous);
     next.paint[propertyName] = "#ff0000";
     assert.equal(
-      createVectorTileStyleUpdatePlan(previous, next).type,
+      VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(previous, next)
+        .type,
       VectorTileStyleUpdateType.IN_PLACE_APPEARANCE,
       `${type}.${propertyName}`,
     );
@@ -30,11 +29,15 @@ for (const [type, propertyNames] of Object.entries(supportedColors)) {
   const next = structuredClone(previous);
   next.visibility = false;
   assert.equal(
-    createVectorTileStyleUpdatePlan(previous, next).type,
+    VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(previous, next)
+      .type,
     VectorTileStyleUpdateType.IN_PLACE_APPEARANCE,
   );
   assert.equal(
-    createVectorTileStyleUpdatePlan(previous, previous).type,
+    VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
+      previous,
+      previous,
+    ).type,
     VectorTileStyleUpdateType.NO_OP,
   );
 }
@@ -60,7 +63,8 @@ for (const mutate of [
   const next = structuredClone(previous);
   mutate(next);
   assert.equal(
-    createVectorTileStyleUpdatePlan(previous, next).type,
+    VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(previous, next)
+      .type,
     VectorTileStyleUpdateType.REBUILD_SOURCE,
   );
 }
@@ -69,9 +73,13 @@ for (const mutate of [
   const previous = createLayer("fill");
   const next = structuredClone(previous);
   next.paint["fill-color"] = "#00ff00";
-  const plan = createVectorTileStyleUpdatePlan(previous, next, {
-    bucketRebuildReason: "MISSING_PROPERTIES",
-  });
+  const plan = VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
+    previous,
+    next,
+    {
+      bucketRebuildReason: "MISSING_PROPERTIES",
+    },
+  );
   assert.equal(plan.type, VectorTileStyleUpdateType.REBUILD_BUCKET);
   assert.equal(plan.reason, "MISSING_PROPERTIES");
 }

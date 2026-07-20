@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import VectorTilePbfCache, {
-  DEFAULT_PBF_CACHE_BYTES,
-} from "../src/VectorTilePbfCache.js";
-import { VectorTileTaskCancelledError } from "../src/VectorTileTaskScheduler.js";
+import VectorTilePbfCache from "../src/VectorTilePbfCache.js";
+import VectorTileTaskCancelledError from "../src/VectorTileTaskCancelledError.js";
+
+const DEFAULT_PBF_CACHE_BYTES = VectorTilePbfCache.DEFAULT_PBF_CACHE_BYTES;
 
 {
   const cache = new VectorTilePbfCache();

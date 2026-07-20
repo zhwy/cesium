@@ -1,14 +1,10 @@
 import assert from "node:assert/strict";
 
-import {
-  createVectorTilePropertyProjections,
-  getPublicPickProperties,
-  projectVectorTileProperties,
-} from "../src/VectorTilePropertyProjectionUtils.js";
-import { normalizeStyleDocument } from "../src/VectorTileStyleUtils.js";
+import VectorTilePropertyProjectionUtils from "../src/VectorTilePropertyProjectionUtils.js";
+import VectorTileStyleUtils from "../src/VectorTileStyleUtils.js";
 
 function createStyle(source = {}) {
-  return normalizeStyleDocument({
+  return VectorTileStyleUtils.normalizeStyleDocument({
     sources: { demo: { type: "vector", ...source } },
     layers: [
       {
@@ -32,7 +28,8 @@ function createStyle(source = {}) {
   original.push("mutated");
   assert.deepEqual(style.sources.demo.pickProperties, ["name", "year"]);
   assert.deepEqual(
-    normalizeStyleDocument(createStyle()).sources.demo.pickProperties,
+    VectorTileStyleUtils.normalizeStyleDocument(createStyle()).sources.demo
+      .pickProperties,
     undefined,
   );
   assert.deepEqual(
@@ -52,10 +49,14 @@ function createStyle(source = {}) {
     ["get", "highlightColor"],
     ["get", "class"],
   ];
-  const projection = createVectorTilePropertyProjections(style, {
-    allowPicking: true,
-    pickProperties: style.sources.demo.pickProperties,
-  }).transport;
+  const projection =
+    VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+      style,
+      {
+        allowPicking: true,
+        pickProperties: style.sources.demo.pickProperties,
+      },
+    ).transport;
   assert.deepEqual(projection.style, {
     all: false,
     properties: ["class", "highlightColor", "kind"],
@@ -72,23 +73,30 @@ function createStyle(source = {}) {
     "name",
   ]);
   assert.deepEqual(
-    projectVectorTileProperties(
+    VectorTilePropertyProjectionUtils.projectVectorTileProperties(
       { class: "a", kind: "road", name: "Main", hidden: 1 },
       projection,
     ),
     { class: "a", kind: "road", name: "Main" },
   );
   assert.deepEqual(
-    getPublicPickProperties({ class: "a", name: "Main" }, ["name"]),
+    VectorTilePropertyProjectionUtils.getPublicPickProperties(
+      { class: "a", name: "Main" },
+      ["name"],
+    ),
     { name: "Main" },
   );
 }
 
 {
   const style = createStyle();
-  const disabled = createVectorTilePropertyProjections(style, {
-    allowPicking: false,
-  }).transport;
+  const disabled =
+    VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+      style,
+      {
+        allowPicking: false,
+      },
+    ).transport;
   assert.equal(disabled.retainAll, false);
   assert.deepEqual(disabled.properties, ["class", "kind"]);
   assert.deepEqual(disabled.pick, {
@@ -97,9 +105,13 @@ function createStyle(source = {}) {
     properties: [],
   });
 
-  const defaultPicking = createVectorTilePropertyProjections(style, {
-    allowPicking: true,
-  }).transport;
+  const defaultPicking =
+    VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+      style,
+      {
+        allowPicking: true,
+      },
+    ).transport;
   assert.equal(defaultPicking.retainAll, true);
   assert.equal(defaultPicking.pick.all, true);
 }
@@ -107,10 +119,14 @@ function createStyle(source = {}) {
 {
   const style = createStyle({ pickProperties: [] });
   style.layers[0].paint["line-color"] = ["get", ["get", "fieldName"]];
-  const projection = createVectorTilePropertyProjections(style, {
-    allowPicking: true,
-    pickProperties: [],
-  }).transport;
+  const projection =
+    VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+      style,
+      {
+        allowPicking: true,
+        pickProperties: [],
+      },
+    ).transport;
   assert.equal(projection.style.all, true);
   assert.equal(projection.retainAll, true);
 }

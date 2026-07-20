@@ -1,4 +1,4 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import { TaskProcessor } from "../../../../Build/CesiumUnminified/index.js";
 
 let instance;
 
@@ -23,8 +23,8 @@ export default class VectorTileDecoder {
 
   _getTaskProcessor() {
     if (!this._taskProcessor) {
-      this._taskProcessor = new Cesium.TaskProcessor(
-        new URL("./src/VectorTileDecodeWorker.js", location.href).href,
+      this._taskProcessor = new TaskProcessor(
+        new URL("./src/createDecodeVectorTileTask.js", location.href).href,
       );
     }
     return this._taskProcessor;

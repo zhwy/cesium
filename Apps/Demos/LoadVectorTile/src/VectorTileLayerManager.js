@@ -1,27 +1,32 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import {
+  defined,
+  DeveloperError,
+  GeographicTilingScheme,
+  ShadowMode,
+  WebMercatorTilingScheme,
+} from "../../../../Build/CesiumUnminified/index.js";
+import CommonUtils from "./CommonUtils.js";
 import VectorTileQuadtreePrimitive from "./VectorTileQuadtreePrimitive.js";
 import VectorTileQuadtreeProvider from "./VectorTileQuadtreeProvider.js";
 import VectorTileLayerCollection from "./VectorTileLayerCollection.js";
 import VectorTileDiagnostics from "./VectorTileDiagnostics.js";
 import VectorTilePbfCache from "./VectorTilePbfCache.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
-import {
-  TileType,
-  WMTSGeoVectorTileProvider,
-  WMTSVectorTileProvider,
-  XYZVectorTileProvider,
-} from "./VectorTileProvider.js";
 import VectorTileStyleRule from "./VectorTileStyleRule.js";
-import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
+import VectorTileStyleUtils from "./VectorTileStyleUtils.js";
 import VectorTilePickRegistry from "./VectorTilePickRegistry.js";
-import {
-  createVectorTileStyleUpdatePlan,
-  VectorTileStyleUpdateType,
-} from "./VectorTileStyleUpdateUtils.js";
-import {
-  isPlainObject as isPlainFeatureStateObject,
-  isValidFeatureStateId,
-} from "./VectorTileFeatureState.js";
+import VectorTileStyleUpdateUtils from "./VectorTileStyleUpdateUtils.js";
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
+import TileType from "./TileType.js";
+import VectorTileStyleUpdateType from "./VectorTileStyleUpdateType.js";
+import XYZVectorTileProvider from "./XYZVectorTileProvider.js";
+import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
+import WMTSGeoVectorTileProvider from "./WMTSGeoVectorTileProvider.js";
+
+const TILING_SCHEME_CONSTRUCTORS = {
+  GeographicTilingScheme,
+  WebMercatorTilingScheme,
+};
 
 /**
  * 协调整个矢量瓦片图层系统：管理 provider、运行时图层、四叉树 primitive 与调度器。
@@ -77,9 +82,14 @@ export default class VectorTileLayerManager {
     this._buildScheduler = new VectorTileTaskScheduler(
       options.maximumBuildTasks ?? 1,
     );
-    this._tilingScheme = new Cesium[
-      options.tilingScheme || "WebMercatorTilingScheme"
-    ]();
+    const TilingSchemeConstructor =
+      TILING_SCHEME_CONSTRUCTORS[
+        options.tilingScheme || "WebMercatorTilingScheme"
+      ];
+    if (!defined(TilingSchemeConstructor)) {
+      throw new DeveloperError("tilingScheme must be a supported type name.");
+    }
+    this._tilingScheme = new TilingSchemeConstructor();
     this._iconImages = {
       ...(options.iconResources ?? {}),
       ...(options.iconImages ?? {}),
@@ -192,19 +202,19 @@ export default class VectorTileLayerManager {
 
   addLayer(sourceId, layerOptions = {}) {
     if (typeof sourceId !== "string" || sourceId.length === 0) {
-      throw new Cesium.DeveloperError("sourceId must be a non-empty string.");
+      throw new DeveloperError("sourceId must be a non-empty string.");
     }
 
     const provider = this.getProvider(sourceId);
     if (!provider) {
-      throw new Cesium.DeveloperError(
+      throw new DeveloperError(
         `provider for source "${sourceId}" does not exist.`,
       );
     }
 
     const runtimeLayer = this._getRuntimeLayerForProvider(provider);
     const currentStyle = runtimeLayer?.getStyle();
-    const mergedStyleDocument = normalizeStyleDocument({
+    const mergedStyleDocument = VectorTileStyleUtils.normalizeStyleDocument({
       version: 1,
       sources: {
         [sourceId]: provider.source,
@@ -221,15 +231,15 @@ export default class VectorTileLayerManager {
 
   addLayerProvider(provider, index) {
     //>>includeStart('debug', pragmas.debug);
-    if (!Cesium.defined(provider)) {
-      throw new Cesium.DeveloperError("provider is required.");
+    if (!defined(provider)) {
+      throw new DeveloperError("provider is required.");
     }
     if (
       provider.sourceId &&
       this._providersBySourceId.has(provider.sourceId) &&
       this._providersBySourceId.get(provider.sourceId) !== provider
     ) {
-      throw new Cesium.DeveloperError(
+      throw new DeveloperError(
         `provider for source "${provider.sourceId}" already exists.`,
       );
     }
@@ -265,6 +275,45 @@ export default class VectorTileLayerManager {
     return runtimeLayer;
   }
 
+  createManagedProvider(sourceId, source, styleRules) {
+    return this._createProvider({
+      dataTypeField: "type",
+      dataIdField: "id",
+      minimumLevel: source.minimumLevel ?? 0,
+      maximumLevel: source.maximumLevel ?? 20,
+      tileType: source.tileType ?? TileType.XYZ,
+      format: source.format ?? "application/vnd.mapbox-vector-tile",
+      layer: source.layer ?? "",
+      allowPicking: source.allowPicking ?? false,
+      asynchronous: source.asynchronous ?? true,
+      shadows: source.shadows ?? ShadowMode.DISABLED,
+      polygonHeight: source.polygonHeight ?? 1.0,
+      clipToTile: source.clipToTile ?? true,
+      renderBackend: source.renderBackend ?? "instances",
+      packedMinimumInstances: source.packedMinimumInstances ?? 200,
+      cacheBytes: source.cacheBytes ?? 64 * 1024 * 1024,
+      ...source,
+      sourceId,
+      styleSourceId: sourceId,
+      styleDocument: {
+        version: 1,
+        sources: {
+          [sourceId]: source,
+        },
+        layers: styleRules.map((styleRule) => styleRule.toJSON()),
+      },
+      tilingScheme: this.tilingScheme,
+      diagnostics: this._diagnostics,
+      pbfCache: this._pbfCache,
+      networkScheduler: this._networkScheduler,
+      decodeScheduler: this._decodeScheduler,
+      buildScheduler: this._buildScheduler,
+      pickRegistry: this._pickRegistry,
+      scene: this._scene,
+      iconImages: this._iconImages,
+    });
+  }
+
   removeLayer(layerId, destroy = true) {
     const runtimeLayer = this._findLayerByStyleRuleId(layerId);
     if (!runtimeLayer) {
@@ -277,11 +326,6 @@ export default class VectorTileLayerManager {
     );
     if (remainingLayers.length === currentStyle.layers.length) {
       return false;
-    }
-
-    if (remainingLayers.length === 0) {
-      this._deleteProvider(runtimeLayer.vectorTileProvider);
-      return this._vectorTileLayers.remove(runtimeLayer, destroy);
     }
 
     runtimeLayer.setStyle({ ...currentStyle, layers: remainingLayers });
@@ -297,8 +341,33 @@ export default class VectorTileLayerManager {
     return this._providersBySourceId.get(sourceId);
   }
 
+  removeProvider(provider, destroy = true) {
+    if (!provider?.sourceId) {
+      return false;
+    }
+    if (this._providersBySourceId.get(provider.sourceId) === provider) {
+      const runtimeLayer = this._getRuntimeLayerForProvider(provider);
+      if (runtimeLayer) {
+        this._vectorTileLayers.remove(runtimeLayer, destroy);
+      }
+      this._providersBySourceId.delete(provider.sourceId);
+      return true;
+    }
+    return false;
+  }
+
+  removeProviderBySourceId(sourceId, destroy = true) {
+    const provider = this._providersBySourceId.get(sourceId);
+    if (!provider) {
+      return false;
+    }
+
+    return this.removeProvider(provider, destroy);
+  }
+
   setStyle(styleDocument) {
-    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const normalizedStyle =
+      VectorTileStyleUtils.normalizeStyleDocument(styleDocument);
     this.removeAll();
 
     Object.keys(normalizedStyle.sources).forEach((sourceId) => {
@@ -310,11 +379,7 @@ export default class VectorTileLayerManager {
         return;
       }
 
-      const provider = this._createManagedProvider(
-        sourceId,
-        source,
-        styleRules,
-      );
+      const provider = this.createManagedProvider(sourceId, source, styleRules);
       this.addLayerProvider(provider);
     });
 
@@ -335,7 +400,7 @@ export default class VectorTileLayerManager {
     if (Object.keys(sources).length === 0) {
       return undefined;
     }
-    return normalizeStyleDocument({
+    return VectorTileStyleUtils.normalizeStyleDocument({
       version: 1,
       sources,
       layers,
@@ -365,8 +430,8 @@ export default class VectorTileLayerManager {
 
   setFeatureState(target, state) {
     const normalizedTarget = validateFeatureStateTarget(target);
-    if (!isPlainFeatureStateObject(state)) {
-      throw new Cesium.DeveloperError("state must be a plain object.");
+    if (!CommonUtils.isPlainObject(state)) {
+      throw new DeveloperError("state must be a plain object.");
     }
     const runtimeLayer = this._findRuntimeLayerBySource(
       normalizedTarget.source,
@@ -385,7 +450,7 @@ export default class VectorTileLayerManager {
   removeFeatureState(target, key) {
     const normalizedTarget = validateFeatureStateTarget(target);
     if (key !== undefined && (typeof key !== "string" || key.length === 0)) {
-      throw new Cesium.DeveloperError("key must be a non-empty string.");
+      throw new DeveloperError("key must be a non-empty string.");
     }
     const runtimeLayer = this._findRuntimeLayerBySource(
       normalizedTarget.source,
@@ -408,12 +473,12 @@ export default class VectorTileLayerManager {
       : newStyle;
     const updatedLayers = currentStyle.layers.slice();
     updatedLayers[layerIndex] = updatedLayer;
-    const updatedStyle = normalizeStyleDocument({
+    const updatedStyle = VectorTileStyleUtils.normalizeStyleDocument({
       ...currentStyle,
       layers: updatedLayers,
     });
     const normalizedLayer = updatedStyle.layers[layerIndex];
-    let plan = createVectorTileStyleUpdatePlan(
+    let plan = VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
       currentStyle.layers[layerIndex],
       normalizedLayer,
     );
@@ -497,45 +562,6 @@ export default class VectorTileLayerManager {
     this._pbfCache.clear();
   }
 
-  _createManagedProvider(sourceId, source, styleRules) {
-    return this._createProvider({
-      dataTypeField: "type",
-      dataIdField: "id",
-      minimumLevel: source.minimumLevel ?? 0,
-      maximumLevel: source.maximumLevel ?? 20,
-      tileType: source.tileType ?? TileType.XYZ,
-      format: source.format ?? "application/vnd.mapbox-vector-tile",
-      layer: source.layer ?? "",
-      allowPicking: source.allowPicking ?? false,
-      asynchronous: source.asynchronous ?? true,
-      shadows: source.shadows ?? Cesium.ShadowMode.DISABLED,
-      polygonHeight: source.polygonHeight ?? 1.0,
-      clipToTile: source.clipToTile ?? true,
-      renderBackend: source.renderBackend ?? "instances",
-      packedMinimumInstances: source.packedMinimumInstances ?? 200,
-      cacheBytes: source.cacheBytes ?? 64 * 1024 * 1024,
-      ...source,
-      sourceId,
-      styleSourceId: sourceId,
-      styleDocument: {
-        version: 1,
-        sources: {
-          [sourceId]: source,
-        },
-        layers: styleRules.map((styleRule) => styleRule.toJSON()),
-      },
-      tilingScheme: this.tilingScheme,
-      diagnostics: this._diagnostics,
-      pbfCache: this._pbfCache,
-      networkScheduler: this._networkScheduler,
-      decodeScheduler: this._decodeScheduler,
-      buildScheduler: this._buildScheduler,
-      pickRegistry: this._pickRegistry,
-      scene: this._scene,
-      iconImages: this._iconImages,
-    });
-  }
-
   _createProvider(options) {
     if (options.tileType === TileType.WMTS) {
       if (options.format === "application/vnd.mapbox-vector-tile") {
@@ -588,71 +614,38 @@ export default class VectorTileLayerManager {
     }
     return this._getRuntimeLayerForProvider(provider);
   }
-
-  _deleteProvider(provider) {
-    if (!provider?.sourceId) {
-      return;
-    }
-    if (this._providersBySourceId.get(provider.sourceId) === provider) {
-      this._providersBySourceId.delete(provider.sourceId);
-    }
-  }
 }
 
 function mergeStyleValue(currentValue, newValue) {
-  if (!isPlainObject(currentValue) || !isPlainObject(newValue)) {
-    return cloneStyleValue(newValue);
+  if (
+    !CommonUtils.isPlainObject(currentValue) ||
+    !CommonUtils.isPlainObject(newValue)
+  ) {
+    return CommonUtils.cloneValue(newValue);
   }
 
-  const result = cloneStyleValue(currentValue);
+  const result = CommonUtils.cloneValue(currentValue);
   Object.keys(newValue).forEach((key) => {
     result[key] = mergeStyleValue(currentValue[key], newValue[key]);
   });
   return result;
 }
 
-function cloneStyleValue(value) {
-  if (Array.isArray(value)) {
-    return value.map(cloneStyleValue);
-  }
-  if (isPlainObject(value)) {
-    const result = {};
-    Object.keys(value).forEach((key) => {
-      result[key] = cloneStyleValue(value[key]);
-    });
-    return result;
-  }
-  return value;
-}
-
-function isPlainObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype ||
-      Object.getPrototypeOf(value) === null)
-  );
-}
-
 function validateFeatureStateTarget(target) {
-  if (!isPlainFeatureStateObject(target)) {
-    throw new Cesium.DeveloperError("target must be a plain object.");
+  if (!CommonUtils.isPlainObject(target)) {
+    throw new DeveloperError("target must be a plain object.");
   }
   if (typeof target.source !== "string" || target.source.length === 0) {
-    throw new Cesium.DeveloperError(
-      "target.source must be a non-empty string.",
-    );
+    throw new DeveloperError("target.source must be a non-empty string.");
   }
   if (
     typeof target.sourceLayer !== "string" ||
     target.sourceLayer.length === 0
   ) {
-    throw new Cesium.DeveloperError(
-      "target.sourceLayer must be a non-empty string.",
-    );
+    throw new DeveloperError("target.sourceLayer must be a non-empty string.");
   }
-  if (!isValidFeatureStateId(target.id)) {
-    throw new Cesium.DeveloperError("target.id must be a string or number.");
+  if (!VectorTileFeatureStateUtils.isValidFeatureStateId(target.id)) {
+    throw new DeveloperError("target.id must be a string or number.");
   }
   return {
     source: target.source,

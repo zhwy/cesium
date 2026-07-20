@@ -1,16 +1,9 @@
 import { VectorTile } from "https://cdn.jsdelivr.net/npm/@mapbox/vector-tile/+esm";
 import { PbfReader } from "https://cdn.jsdelivr.net/npm/pbf/+esm";
-import {
-  classifyRings,
-  clipLineString,
-  clipRingToRectangle,
-  countOutOfBoundsPoints,
-  isPointInRectangle,
-  projectPoint,
-} from "./VectorTileGeometryUtils.js";
-import { doesFeatureMatchAnyStyleRule as matchFeatureAgainstStyleRules } from "./VectorTileGeometryPlacement.js";
-import { resolveFeatureStateId } from "./VectorTileFeatureState.js";
-import { projectVectorTileProperties } from "./VectorTilePropertyProjectionUtils.js";
+import VectorTileGeometryUtils from "./VectorTileGeometryUtils.js";
+import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
+import VectorTilePropertyProjectionUtils from "./VectorTilePropertyProjectionUtils.js";
 
 function createPackedLayer() {
   return {
@@ -44,10 +37,22 @@ function addPoints(
   for (let i = 0; i < geometry.length; ++i) {
     const points = geometry[i];
     for (let j = 0; j < points.length; ++j) {
-      if (clipToTile && !isPointInRectangle(points[j], 0, feature.extent)) {
+      if (
+        clipToTile &&
+        !VectorTileGeometryUtils.isPointInRectangle(
+          points[j],
+          0,
+          feature.extent,
+        )
+      ) {
         continue;
       }
-      projectPoint(points[j], tile, feature.extent, packedLayer.pointPositions);
+      VectorTileGeometryUtils.projectPoint(
+        points[j],
+        tile,
+        feature.extent,
+        packedLayer.pointPositions,
+      );
       packedLayer.pointFeatureIndices.push(featureIndex);
       packedLayer.positionCount++;
     }
@@ -64,7 +69,7 @@ function addLines(
 ) {
   for (let i = 0; i < geometry.length; ++i) {
     const lines = clipToTile
-      ? clipLineString(geometry[i], 0, feature.extent)
+      ? VectorTileGeometryUtils.clipLineString(geometry[i], 0, feature.extent)
       : [geometry[i]];
     for (let lineIndex = 0; lineIndex < lines.length; ++lineIndex) {
       const line = lines[lineIndex];
@@ -74,7 +79,12 @@ function addLines(
 
       packedLayer.lineOffsets.push(packedLayer.linePositions.length / 2);
       for (let j = 0; j < line.length; ++j) {
-        projectPoint(line[j], tile, feature.extent, packedLayer.linePositions);
+        VectorTileGeometryUtils.projectPoint(
+          line[j],
+          tile,
+          feature.extent,
+          packedLayer.linePositions,
+        );
         packedLayer.positionCount++;
       }
       packedLayer.lineFeatureIndices.push(featureIndex);
@@ -92,10 +102,12 @@ function addPolygons(
 ) {
   const rings = clipToTile
     ? geometry
-        .map((ring) => clipRingToRectangle(ring, 0, feature.extent))
+        .map((ring) =>
+          VectorTileGeometryUtils.clipRingToRectangle(ring, 0, feature.extent),
+        )
         .filter((ring) => ring.length >= 4)
     : geometry;
-  const polygons = classifyRings(rings);
+  const polygons = VectorTileGeometryUtils.classifyRings(rings);
   for (let i = 0; i < polygons.length; ++i) {
     const polygon = polygons[i];
     const polygonStart = packedLayer.ringOffsets.length;
@@ -107,7 +119,7 @@ function addPolygons(
 
       packedLayer.ringOffsets.push(packedLayer.polygonPositions.length / 2);
       for (let k = 0; k < ring.length; ++k) {
-        projectPoint(
+        VectorTileGeometryUtils.projectPoint(
           ring[k],
           tile,
           feature.extent,
@@ -176,11 +188,16 @@ function groupStyleRulesBySourceLayer(styleRules) {
 
 function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
   const zoom = tile.styleZoom ?? tile.level;
-  return matchFeatureAgainstStyleRules(feature, feature.type, styleRules, {
-    zoom,
-    level: zoom,
-    sourceLevel: tile.sourceLevel ?? tile.level,
-  });
+  return VectorTileGeometryPlacementUtils.doesFeatureMatchAnyStyleRule(
+    feature,
+    feature.type,
+    styleRules,
+    {
+      zoom,
+      level: zoom,
+      sourceLevel: tile.sourceLevel ?? tile.level,
+    },
+  );
 }
 
 export default function decodeVectorTile(
@@ -226,11 +243,12 @@ export default function decodeVectorTile(
       const positionCountBefore = packedLayer.positionCount;
       const packedFeatureIndex = packedLayer.features.length;
       if (clipToTile) {
-        const outOfBoundsPositionCount = countOutOfBoundsPoints(
-          geometry,
-          0,
-          feature.extent,
-        );
+        const outOfBoundsPositionCount =
+          VectorTileGeometryUtils.countOutOfBoundsPoints(
+            geometry,
+            0,
+            feature.extent,
+          );
         packedLayer.outOfBoundsPositionCount += outOfBoundsPositionCount;
         if (outOfBoundsPositionCount > 0) {
           packedLayer.clippedFeatureCount++;
@@ -267,7 +285,11 @@ export default function decodeVectorTile(
       if (packedLayer.positionCount === positionCountBefore) {
         packedLayer.discardedFeatureCount++;
       } else {
-        const idResult = resolveFeatureStateId(layerName, feature, promoteId);
+        const idResult = VectorTileFeatureStateUtils.resolveFeatureStateId(
+          layerName,
+          feature,
+          promoteId,
+        );
         if (idResult.unaddressable) {
           packedLayer.unaddressableFeatureCount =
             (packedLayer.unaddressableFeatureCount ?? 0) + 1;
@@ -275,10 +297,11 @@ export default function decodeVectorTile(
         packedLayer.features.push({
           id: idResult.id,
           sourceFeatureIndex: featureIndex,
-          properties: projectVectorTileProperties(
-            feature.properties,
-            propertyProjection,
-          ),
+          properties:
+            VectorTilePropertyProjectionUtils.projectVectorTileProperties(
+              feature.properties,
+              propertyProjection,
+            ),
         });
       }
     }

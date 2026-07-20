@@ -1,18 +1,15 @@
-import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
-import { evaluateVectorStyleFilter } from "./VectorTileStyleExpression.js";
-import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import {
-  evaluateColorStyleValue,
-  evaluateFiniteStyleNumber,
-  evaluateStyleValue,
-  getStyleRuleHeightOffset,
-  getGeometryFeature,
-  getGeometryFeatureIndex,
-  isDefined,
-  parseCesiumColor,
-} from "./VectorTileBucketUtils.js";
-
-const Cesium = globalThis.Cesium ?? CesiumModule;
+  Cartesian2,
+  Cartesian3,
+  defined,
+  HeightReference,
+  HorizontalOrigin,
+  LabelStyle,
+  VerticalOrigin,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
+import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
+import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 
 /**
  * 面向 Cesium 的 `symbol` 渲染桶，对单条样式规则在单个矢量瓦片上的结果进行收集。
@@ -23,13 +20,17 @@ const Cesium = globalThis.Cesium ?? CesiumModule;
  *
  * @param {object} styleRule 当前桶对应的样式规则。
  * @param {object} [options={}] 构造参数。
- * @param {Cesium.Scene} [options.scene] Cesium 场景，用于解析图标尺寸等上下文。
+ * @param {Scene} [options.scene] Cesium 场景，用于解析图标尺寸等上下文。
  * @param {Function} [options.iconResolver] 图标解析函数，负责把样式中的图标引用映射到资源。
  * @param {boolean} [options.allowPicking=false] 是否为生成的图元启用拾取。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录符号桶指标。
  * @param {boolean} [options.ignoreZoomRange=false] 是否忽略样式规则中的缩放级别限制。
  */
 export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
+  static createVectorTileIconResolver(...registries) {
+    return createVectorTileIconResolver(...registries);
+  }
+
   constructor(styleRule, options = {}) {
     super(styleRule, options);
     this._scene = options.scene;
@@ -45,8 +46,15 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
     let labelCount = 0;
 
     for (let i = 0; i < positions.length / 2; ++i) {
-      const pointMetadata = getGeometryFeature(this._featureTable, points, i);
-      const featureIndex = getGeometryFeatureIndex(points, i);
+      const pointMetadata = VectorTileBucketUtils.getGeometryFeature(
+        this._featureTable,
+        points,
+        i,
+      );
+      const featureIndex = VectorTileBucketUtils.getGeometryFeatureIndex(
+        points,
+        i,
+      );
       if (
         !doesSymbolStyleRuleMatchMetadata(pointMetadata, this.styleRule, zoom, {
           ignoreZoomRange: this._ignoreZoomRange,
@@ -55,10 +63,10 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
         continue;
       }
 
-      const position = Cesium.Cartesian3.fromDegrees(
+      const position = Cartesian3.fromDegrees(
         positions[i * 2],
         positions[i * 2 + 1],
-        getStyleRuleHeightOffset(this.styleRule),
+        VectorTileBucketUtils.getStyleRuleHeightOffset(this.styleRule),
       );
 
       const billboardOptions = createBillboardOptions(
@@ -151,7 +159,7 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
     for (const descriptor of this.pointDescriptors.labels) {
       const feature = this._featureTable[descriptor._vectorTileFeatureIndex];
       if (updateFill) {
-        descriptor.fillColor = evaluateColorStyleValue(
+        descriptor.fillColor = VectorTileBucketUtils.evaluateColorStyleValue(
           styleRule.paint?.["text-color"],
           feature,
           this.buildZoom,
@@ -159,7 +167,7 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
         );
       }
       if (updateOutline) {
-        descriptor.outlineColor = evaluateColorStyleValue(
+        descriptor.outlineColor = VectorTileBucketUtils.evaluateColorStyleValue(
           styleRule.paint?.["text-halo-color"],
           feature,
           this.buildZoom,
@@ -173,8 +181,8 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
           this.buildZoom,
         );
         descriptor.showBackground =
-          isDefined(backgroundColorValue) && backgroundColorValue !== "";
-        descriptor.backgroundColor = parseCesiumColor(
+          defined(backgroundColorValue) && backgroundColorValue !== "";
+        descriptor.backgroundColor = VectorTileBucketUtils.parseCesiumColor(
           backgroundColorValue,
           "#00000000",
         );
@@ -188,14 +196,14 @@ export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   }
 }
 
-export function createVectorTileIconResolver(...registries) {
+function createVectorTileIconResolver(...registries) {
   const mergedRegistry = Object.assign({}, ...registries.filter(Boolean));
   return (iconImage) =>
     resolveVectorTileIconResource(iconImage, mergedRegistry);
 }
 
-export function resolveVectorTileIconResource(iconImage, registry = {}) {
-  if (!isDefined(iconImage)) {
+function resolveVectorTileIconResource(iconImage, registry = {}) {
+  if (!defined(iconImage)) {
     return undefined;
   }
   if (
@@ -207,11 +215,16 @@ export function resolveVectorTileIconResource(iconImage, registry = {}) {
   return iconImage;
 }
 
-export function evaluateSymbolStyleValue(value, metadata, zoom, fallback) {
-  return evaluateStyleValue(value, metadata, zoom, fallback);
+function evaluateSymbolStyleValue(value, metadata, zoom, fallback) {
+  return VectorTileBucketUtils.evaluateStyleValue(
+    value,
+    metadata,
+    zoom,
+    fallback,
+  );
 }
 
-export function translateSymbolAnchor(anchorValue, fallback = "center") {
+function translateSymbolAnchor(anchorValue, fallback = "center") {
   const anchor =
     typeof anchorValue === "string" &&
     Object.prototype.hasOwnProperty.call(SYMBOL_ANCHOR_MAP, anchorValue)
@@ -219,45 +232,45 @@ export function translateSymbolAnchor(anchorValue, fallback = "center") {
       : fallback;
   const origins = SYMBOL_ANCHOR_MAP[anchor] ?? SYMBOL_ANCHOR_MAP.center;
   return {
-    horizontalOrigin: Cesium.HorizontalOrigin[origins.horizontalOrigin],
-    verticalOrigin: Cesium.VerticalOrigin[origins.verticalOrigin],
+    horizontalOrigin: HorizontalOrigin[origins.horizontalOrigin],
+    verticalOrigin: VerticalOrigin[origins.verticalOrigin],
   };
 }
 
-export function createSymbolPixelOffset(value, metadata, zoom) {
+function createSymbolPixelOffset(value, metadata, zoom) {
   const offset = evaluateSymbolStyleValue(value, metadata, zoom);
   if (!Array.isArray(offset) || offset.length < 2) {
-    return new Cesium.Cartesian2(0, 0);
+    return new Cartesian2(0, 0);
   }
 
   const x = Number(offset[0]);
   const y = Number(offset[1]);
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return new Cesium.Cartesian2(0, 0);
+    return new Cartesian2(0, 0);
   }
-  return new Cesium.Cartesian2(x, y);
+  return new Cartesian2(x, y);
 }
 
-export function createSymbolBackgroundPadding(value, metadata, zoom) {
+function createSymbolBackgroundPadding(value, metadata, zoom) {
   const padding = evaluateSymbolStyleValue(value, metadata, zoom);
-  if (!isDefined(padding)) {
-    return new Cesium.Cartesian2(0, 0);
+  if (!defined(padding)) {
+    return new Cartesian2(0, 0);
   }
 
   if (Array.isArray(padding)) {
     const x = Number(padding[0]);
     const y = Number(padding[1]);
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      return new Cesium.Cartesian2(0, 0);
+      return new Cartesian2(0, 0);
     }
-    return new Cesium.Cartesian2(x, y);
+    return new Cartesian2(x, y);
   }
 
   const uniform = Number(padding);
   if (!Number.isFinite(uniform)) {
-    return new Cesium.Cartesian2(0, 0);
+    return new Cartesian2(0, 0);
   }
-  return new Cesium.Cartesian2(uniform, uniform);
+  return new Cartesian2(uniform, uniform);
 }
 
 function createBillboardOptions(
@@ -276,7 +289,7 @@ function createBillboardOptions(
     zoom,
   );
   const image = resolveIcon(iconImageValue);
-  if (!isDefined(image) || image === "") {
+  if (!defined(image) || image === "") {
     return undefined;
   }
 
@@ -285,19 +298,19 @@ function createBillboardOptions(
     image,
     heightReference: getSymbolHeightReference(scene, styleRule),
     disableDepthTestDistance: getSymbolDisableDepthTestDistance(styleRule),
-    scale: evaluateFiniteStyleNumber(
+    scale: VectorTileBucketUtils.evaluateFiniteStyleNumber(
       styleRule.layout?.["icon-size"],
       metadata,
       zoom,
       1,
     ),
-    width: evaluateFiniteStyleNumber(
+    width: VectorTileBucketUtils.evaluateFiniteStyleNumber(
       styleRule.layout?.["icon-width"],
       metadata,
       zoom,
       undefined,
     ),
-    height: evaluateFiniteStyleNumber(
+    height: VectorTileBucketUtils.evaluateFiniteStyleNumber(
       styleRule.layout?.["icon-height"],
       metadata,
       zoom,
@@ -334,17 +347,17 @@ function createLabelOptions(
     metadata,
     zoom,
   );
-  if (!isDefined(textValue) || textValue === "") {
+  if (!defined(textValue) || textValue === "") {
     return undefined;
   }
 
-  const textSize = evaluateFiniteStyleNumber(
+  const textSize = VectorTileBucketUtils.evaluateFiniteStyleNumber(
     styleRule.layout?.["text-size"],
     metadata,
     zoom,
     16,
   );
-  const outlineWidth = evaluateFiniteStyleNumber(
+  const outlineWidth = VectorTileBucketUtils.evaluateFiniteStyleNumber(
     styleRule.paint?.["text-halo-width"],
     metadata,
     zoom,
@@ -366,23 +379,20 @@ function createLabelOptions(
     position,
     text: String(textValue),
     font: createLabelFont(styleRule, metadata, zoom, textSize),
-    fillColor: evaluateColorStyleValue(
+    fillColor: VectorTileBucketUtils.evaluateColorStyleValue(
       styleRule.paint?.["text-color"],
       metadata,
       zoom,
       "#ffffffff",
     ),
-    outlineColor: evaluateColorStyleValue(
+    outlineColor: VectorTileBucketUtils.evaluateColorStyleValue(
       styleRule.paint?.["text-halo-color"],
       metadata,
       zoom,
       "#000000ff",
     ),
     outlineWidth,
-    style:
-      outlineWidth > 0
-        ? Cesium.LabelStyle.FILL_AND_OUTLINE
-        : Cesium.LabelStyle.FILL,
+    style: outlineWidth > 0 ? LabelStyle.FILL_AND_OUTLINE : LabelStyle.FILL,
     heightReference: getSymbolHeightReference(scene, styleRule),
     disableDepthTestDistance: getSymbolDisableDepthTestDistance(styleRule),
     pixelOffset: createSymbolPixelOffset(
@@ -391,8 +401,11 @@ function createLabelOptions(
       zoom,
     ),
     showBackground:
-      isDefined(backgroundColorValue) && backgroundColorValue !== "",
-    backgroundColor: parseCesiumColor(backgroundColorValue, "#00000000"),
+      defined(backgroundColorValue) && backgroundColorValue !== "",
+    backgroundColor: VectorTileBucketUtils.parseCesiumColor(
+      backgroundColorValue,
+      "#00000000",
+    ),
     backgroundPadding: createSymbolBackgroundPadding(
       styleRule.paint?.["text-background-padding"],
       metadata,
@@ -410,25 +423,23 @@ function doesSymbolStyleRuleMatchMetadata(
   options = {},
 ) {
   return (
-    (options.ignoreZoomRange || isZoomInRange(zoom, styleRule)) &&
-    evaluateVectorStyleFilter(styleRule.filter, metadata, { zoom, level: zoom })
-  );
-}
-
-function isZoomInRange(zoom, styleRule) {
-  return (
-    (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
-    (styleRule.maxzoom === undefined || zoom < styleRule.maxzoom)
+    (options.ignoreZoomRange ||
+      VectorTileBucketUtils.isZoomInRange(zoom, styleRule)) &&
+    VectorTileStyleExpressionUtils.evaluateVectorStyleFilter(
+      styleRule.filter,
+      metadata,
+      { zoom, level: zoom },
+    )
   );
 }
 
 function getSymbolHeightReference(scene, styleRule) {
-  if (styleRule.terrain?.clampToGround !== true || !isDefined(scene)) {
-    return Cesium.HeightReference.NONE;
+  if (styleRule.terrain?.clampToGround !== true || !defined(scene)) {
+    return HeightReference.NONE;
   }
-  return getStyleRuleHeightOffset(styleRule) === 0.0
-    ? Cesium.HeightReference.CLAMP_TO_GROUND
-    : Cesium.HeightReference.RELATIVE_TO_GROUND;
+  return VectorTileBucketUtils.getStyleRuleHeightOffset(styleRule) === 0.0
+    ? HeightReference.CLAMP_TO_GROUND
+    : HeightReference.RELATIVE_TO_GROUND;
 }
 
 function getSymbolDisableDepthTestDistance(styleRule) {

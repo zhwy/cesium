@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import VectorTilePickRegistry from "../src/VectorTilePickRegistry.js";
-import { VectorTileFeatureStateStore } from "../src/VectorTileFeatureState.js";
+import VectorTileFeatureStateStore from "../src/VectorTileFeatureStateStore.js";
 import VectorTilePrimitiveBucket from "../src/VectorTilePrimitiveBucket.js";
 
 const gauges = {};

@@ -1,18 +1,18 @@
 ## ADDED Requirements
 
-### Requirement: Provider 寻址逻辑集中于单一模块
+### Requirement: Provider 寻址逻辑按子类拆分为独立文件
 
-矢量瓦片框架 SHALL 将所有瓦片寻址（URL 模板解析）与 PBF 加载逻辑集中在单一 `VectorTileProvider.js` 模块中，包含 Provider 基类、`XYZ`/`WMTS`/`WMTSGeo` 子类、`TileType` 枚举与 `MVTLoader` 加载器；`src/` 目录 SHALL 不再包含 `XYZVectorTileProvider.js`、`WMTSVectorTileProvider.js`、`WMTSGeoVectorTileProvider.js`、`TileType.js`、`MVTLoader.js` 独立文件。
+矢量瓦片框架 SHALL 将 Provider 基类（含 PBF 加载入口与 `MVTLoader` 单例）保留在 `VectorTileProvider.js` 中，`XYZ`/`WMTS`/`WMTSGeo` 三个具体寻址子类与 `TileType` 枚举 SHALL 拆分为独立文件 `XYZVectorTileProvider.js`、`WMTSVectorTileProvider.js`、`WMTSGeoVectorTileProvider.js`、`TileType.js`；子类文件从对应基类文件默认导入并 `extends`，消费方（如 `VectorTileLayerManager`）直接从这些独立文件导入，不再通过 `VectorTileProvider` 的静态成员转发子类或枚举。
 
 #### Scenario: 请求 XYZ 瓦片
 
 - **WHEN** 图层配置 `tileType` 为 `XYZ` 且发起某 `(x, y, level)` 瓦片请求
-- **THEN** 系统从 `VectorTileProvider.js` 导出的 XYZ 寻址实现生成正确 URL 并完成加载，行为与重构前一致
+- **THEN** 系统使用 `XYZVectorTileProvider.js` 导出的寻址实现生成正确 URL 并完成加载，行为与重构前一致
 
 #### Scenario: 请求 WMTS 瓦片
 
 - **WHEN** 图层配置 `tileType` 为 `WMTS`
-- **THEN** 系统从 `VectorTileProvider.js` 导出的 WMTS 寻址实现生成正确 URL，行为与重构前一致
+- **THEN** 系统使用 `WMTSVectorTileProvider.js`（或 `format` 为 GeoJSON 时的 `WMTSGeoVectorTileProvider.js`）导出的寻址实现生成正确 URL，行为与重构前一致
 
 ### Requirement: Provider 工厂逻辑内联到 Manager
 

@@ -1,10 +1,15 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import {
+  defined,
+  GlobeSurfaceTile,
+  ImageryState,
+  QuadtreeTileLoadState,
+} from "../../../../Build/CesiumUnminified/index.js";
 
 /**
  * 矢量瓦片栈中与 Cesium `GlobeSurfaceTile` 对应的地表瓦片对象，
  * 负责挂接当前四叉树瓦片关联的 `TileVectorTile` 集合并驱动其状态流转。
  */
-export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
+export default class VectorSurfaceTile extends GlobeSurfaceTile {
   constructor() {
     super();
     /**
@@ -33,7 +38,7 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
     let i, len;
     for (i = 0, len = tileVectorTiles.length; i < len; ++i) {
       const tileVectorTile = tileVectorTiles[i];
-      if (!Cesium.defined(tileVectorTile.loadingVectorTile)) {
+      if (!defined(tileVectorTile.loadingVectorTile)) {
         isUpsampledOnly = false;
         continue;
       }
@@ -49,15 +54,13 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
       isAnyTileLoaded =
         isAnyTileLoaded ||
         thisTileDoneLoading ||
-        Cesium.defined(tileVectorTile.readyVectorTile);
+        defined(tileVectorTile.readyVectorTile);
 
       isUpsampledOnly =
         isUpsampledOnly &&
-        Cesium.defined(tileVectorTile.loadingVectorTile) &&
-        (tileVectorTile.loadingVectorTile.state ===
-          Cesium.ImageryState.FAILED ||
-          tileVectorTile.loadingVectorTile.state ===
-            Cesium.ImageryState.INVALID);
+        defined(tileVectorTile.loadingVectorTile) &&
+        (tileVectorTile.loadingVectorTile.state === ImageryState.FAILED ||
+          tileVectorTile.loadingVectorTile.state === ImageryState.INVALID);
     }
 
     tile.upsampledFromParent = isUpsampledOnly;
@@ -72,18 +75,18 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
 
   static initialize(tile, vectorTileLayerCollection) {
     const surfaceTile = tile.data;
-    if (!Cesium.defined(surfaceTile)) {
+    if (!defined(surfaceTile)) {
       tile.data = new VectorSurfaceTile();
     }
 
-    if (tile.state === Cesium.QuadtreeTileLoadState.START) {
+    if (tile.state === QuadtreeTileLoadState.START) {
       for (let i = 0, len = vectorTileLayerCollection.length; i < len; ++i) {
         const layer = vectorTileLayerCollection.get(i);
         if (layer.show) {
           layer._bindQuadtreeTile(tile);
         }
       }
-      tile.state = Cesium.QuadtreeTileLoadState.LOADING;
+      tile.state = QuadtreeTileLoadState.LOADING;
     }
   }
 
@@ -95,7 +98,7 @@ export default class VectorSurfaceTile extends Cesium.GlobeSurfaceTile {
       frameState,
     );
     if (isVectorTileDoneLoading) {
-      tile.state = Cesium.QuadtreeTileLoadState.DONE;
+      tile.state = QuadtreeTileLoadState.DONE;
     }
   }
 }

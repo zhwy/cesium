@@ -1,9 +1,9 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import {
-  selectByCoverage,
-  isAncestorOrSame,
-} from "./VectorTileLodSelection.js";
-import { createSharedPointEntryKey } from "./SharedPointCollections.js";
+  ImageryState,
+  QuadtreePrimitive,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileLodSelectionUtils from "./VectorTileLodSelectionUtils.js";
+import SharedPointCollections from "./SharedPointCollections.js";
 
 /**
  * 判断一个瓦片上的所有图元是否都能在当前帧真正出图。
@@ -38,12 +38,10 @@ function arePrimitivesReady(tile) {
  * @param {object} options 构造参数。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
  * @param {number} [options.warmupTilesPerFrame=4] 每帧允许预热但不直接显示的瓦片数量上限。
- * @param {number} [options.tileCacheSize] 继续透传给 `Cesium.QuadtreePrimitive` 的缓存大小参数。
- * @param {number} [options.maximumScreenSpaceError] 继续透传给 `Cesium.QuadtreePrimitive` 的屏幕误差阈值。
+ * @param {number} [options.tileCacheSize] 继续透传给 `QuadtreePrimitive` 的缓存大小参数。
+ * @param {number} [options.maximumScreenSpaceError] 继续透传给 `QuadtreePrimitive` 的屏幕误差阈值。
  */
-export default class VectorTileQuadtreePrimitive
-  extends Cesium.QuadtreePrimitive
-{
+export default class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
   constructor(options) {
     super(options);
     this._diagnostics = options.diagnostics;
@@ -157,7 +155,10 @@ export default class VectorTileQuadtreePrimitive
       for (let i = 0; i < bucketIds.length; ++i) {
         const bucketId = bucketIds[i];
         const pointBucket = pointBuckets[bucketId];
-        const pointKey = createSharedPointEntryKey(tile, bucketId);
+        const pointKey = SharedPointCollections.createSharedPointEntryKey(
+          tile,
+          bucketId,
+        );
         nextPointEntries.set(pointKey, {
           pointBucket,
           styleRevision: pointBucket.styleRevision ?? 0,
@@ -308,14 +309,14 @@ export default class VectorTileQuadtreePrimitive
           // 即便 `readyVectorTile` 仍指向可绘制的祖先回退结果，
           // `READY_EMPTY` 的精确瓦片也应视为已完成覆盖。
           const exactCoverage =
-            exact.state === Cesium.ImageryState.READY && exact.coverageComplete
+            exact.state === ImageryState.READY && exact.coverageComplete
               ? exact
               : undefined;
           const vt = exactCoverage ?? tileVectorTile.readyVectorTile;
           layer.processBucketRebuilds?.(vt, frameState);
           layer.applyPendingStyleUpdates?.(vt);
           if (
-            vt?.state === Cesium.ImageryState.READY &&
+            vt?.state === ImageryState.READY &&
             layer.isCurrentContentRevision?.(vt) !== false &&
             !warmupTiles.has(vt)
           ) {
@@ -346,12 +347,16 @@ export default class VectorTileQuadtreePrimitive
         const state = this._getOrCreateLayerState(layer);
         const { candidates, regions } = entry;
 
-        const selected = selectByCoverage(candidates);
+        const selected =
+          VectorTileLodSelectionUtils.selectByCoverage(candidates);
         suppressedLodVectorTiles += candidates.size - selected.length;
 
         // 统计本帧仍未被 READY 瓦片覆盖的区域。
         const uncovered = regions.filter(
-          (region) => !selected.some((s) => isAncestorOrSame(s, region)),
+          (region) =>
+            !selected.some((s) =>
+              VectorTileLodSelectionUtils.isAncestorOrSame(s, region),
+            ),
         );
 
         // 从上一次已提交集合中回填未覆盖区域：
@@ -362,8 +367,8 @@ export default class VectorTileQuadtreePrimitive
             if (
               uncovered.some(
                 (region) =>
-                  isAncestorOrSame(old, region) ||
-                  isAncestorOrSame(region, old),
+                  VectorTileLodSelectionUtils.isAncestorOrSame(old, region) ||
+                  VectorTileLodSelectionUtils.isAncestorOrSame(region, old),
               )
             ) {
               retained.push(old);
@@ -371,7 +376,10 @@ export default class VectorTileQuadtreePrimitive
           }
           // 移除那些已被新选中瓦片完全覆盖的保留瓦片。
           retained = retained.filter(
-            (old) => !selected.some((s) => isAncestorOrSame(s, old)),
+            (old) =>
+              !selected.some((s) =>
+                VectorTileLodSelectionUtils.isAncestorOrSame(s, old),
+              ),
           );
         }
 
@@ -381,7 +389,10 @@ export default class VectorTileQuadtreePrimitive
           retained.length === 0
             ? selected
             : selected.filter(
-                (s) => !retained.some((old) => isAncestorOrSame(old, s)),
+                (s) =>
+                  !retained.some((old) =>
+                    VectorTileLodSelectionUtils.isAncestorOrSame(old, s),
+                  ),
               );
 
         retainedTileCount += retained.length;

@@ -1,30 +1,43 @@
 import assert from "node:assert/strict";
 
-import {
-  encodeFeatureStateKey,
-  getPromoteIdPropertyName,
-  normalizePromoteId,
-  resolveFeatureStateId,
-  VectorTileFeatureStateStore,
-} from "../src/VectorTileFeatureState.js";
+import VectorTileFeatureStateUtils from "../src/VectorTileFeatureStateUtils.js";
+import VectorTileFeatureStateStore from "../src/VectorTileFeatureStateStore.js";
 
 {
-  assert.equal(normalizePromoteId("object_id", "demo"), "object_id");
-  assert.deepEqual(normalizePromoteId({ roads: "road_id" }, "demo"), {
-    roads: "road_id",
-  });
   assert.equal(
-    getPromoteIdPropertyName({ roads: "road_id" }, "parcels"),
+    VectorTileFeatureStateUtils.normalizePromoteId("object_id", "demo"),
+    "object_id",
+  );
+  assert.deepEqual(
+    VectorTileFeatureStateUtils.normalizePromoteId(
+      { roads: "road_id" },
+      "demo",
+    ),
+    {
+      roads: "road_id",
+    },
+  );
+  assert.equal(
+    VectorTileFeatureStateUtils.getPromoteIdPropertyName(
+      { roads: "road_id" },
+      "parcels",
+    ),
     undefined,
   );
-  assert.throws(() => normalizePromoteId(["id"], "demo"), /promoteId/);
-  assert.throws(() => normalizePromoteId({ roads: "" }, "demo"), /roads/);
+  assert.throws(
+    () => VectorTileFeatureStateUtils.normalizePromoteId(["id"], "demo"),
+    /promoteId/,
+  );
+  assert.throws(
+    () => VectorTileFeatureStateUtils.normalizePromoteId({ roads: "" }, "demo"),
+    /roads/,
+  );
   console.log("✓ normalize promoteId string and source-layer mappings");
 }
 
 {
   assert.deepEqual(
-    resolveFeatureStateId(
+    VectorTileFeatureStateUtils.resolveFeatureStateId(
       "roads",
       { id: 7, properties: { road_id: "r-1" } },
       "road_id",
@@ -32,7 +45,7 @@ import {
     { id: "r-1", unaddressable: false },
   );
   assert.deepEqual(
-    resolveFeatureStateId(
+    VectorTileFeatureStateUtils.resolveFeatureStateId(
       "parcels",
       { id: 8, properties: { parcel_id: 99 } },
       { roads: "road_id", parcels: "parcel_id" },
@@ -40,7 +53,7 @@ import {
     { id: 99, unaddressable: false },
   );
   assert.deepEqual(
-    resolveFeatureStateId(
+    VectorTileFeatureStateUtils.resolveFeatureStateId(
       "buildings",
       { id: 8, properties: { building_id: "ignored" } },
       { roads: "road_id" },
@@ -48,11 +61,15 @@ import {
     { id: 8, unaddressable: false },
   );
   assert.deepEqual(
-    resolveFeatureStateId("roads", { id: 7, properties: {} }, "road_id"),
+    VectorTileFeatureStateUtils.resolveFeatureStateId(
+      "roads",
+      { id: 7, properties: {} },
+      "road_id",
+    ),
     { id: undefined, unaddressable: true },
   );
   assert.deepEqual(
-    resolveFeatureStateId(
+    VectorTileFeatureStateUtils.resolveFeatureStateId(
       "roads",
       { id: 7, properties: { road_id: true } },
       "road_id",
@@ -64,8 +81,8 @@ import {
 
 {
   assert.notEqual(
-    encodeFeatureStateKey("roads", 1),
-    encodeFeatureStateKey("roads", "1"),
+    VectorTileFeatureStateUtils.encodeFeatureStateKey("roads", 1),
+    VectorTileFeatureStateUtils.encodeFeatureStateKey("roads", "1"),
   );
   console.log("✓ encode numeric and string feature-state ids distinctly");
 }

@@ -1,16 +1,9 @@
 import assert from "node:assert/strict";
 
-import {
-  collectVectorStyleStateDependencies,
-  collectVectorStylePropertyDependencies,
-  evaluateVectorStyleExpression,
-  evaluateVectorStyleFilter,
-  validateVectorStyleExpression,
-  validateVectorStyleFilter,
-} from "../src/VectorTileStyleExpression.js";
+import VectorTileStyleExpressionUtils from "../src/VectorTileStyleExpressionUtils.js";
 
 assert.deepEqual(
-  collectVectorStylePropertyDependencies(
+  VectorTileStyleExpressionUtils.collectVectorStylePropertyDependencies(
     ["all", ["has", "kind"], ["==", ["get", "status"], "active"]],
     ["case", ["get", "rank"], ["literal", ["get", "ignored"]]],
     [
@@ -37,11 +30,14 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
-  collectVectorStylePropertyDependencies(["get", ["get", "fieldName"]]),
+  VectorTileStyleExpressionUtils.collectVectorStylePropertyDependencies([
+    "get",
+    ["get", "fieldName"],
+  ]),
   { all: true, properties: [] },
 );
 assert.deepEqual(
-  collectVectorStylePropertyDependencies(
+  VectorTileStyleExpressionUtils.collectVectorStylePropertyDependencies(
     ["feature-state", "hover"],
     [
       "case",
@@ -53,7 +49,7 @@ assert.deepEqual(
   { all: false, properties: ["a"] },
 );
 assert.deepEqual(
-  collectVectorStyleStateDependencies(
+  VectorTileStyleExpressionUtils.collectVectorStyleStateDependencies(
     ["feature-state", "hover"],
     [
       "case",
@@ -81,31 +77,52 @@ const context = {
 };
 
 assert.equal(
-  evaluateVectorStyleExpression(["get", "name"], context),
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    ["get", "name"],
+    context,
+  ),
   "Central Park",
 );
 
-assert.equal(evaluateVectorStyleExpression(["has", "kind"], context), true);
-assert.equal(evaluateVectorStyleExpression(["has", "missing"], context), false);
-
 assert.equal(
-  evaluateVectorStyleExpression(["==", ["get", "status"], "active"], context),
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    ["has", "kind"],
+    context,
+  ),
   true,
 );
 assert.equal(
-  evaluateVectorStyleExpression([">", ["get", "area"], 100], context),
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    ["has", "missing"],
+    context,
+  ),
+  false,
+);
+
+assert.equal(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    ["==", ["get", "status"], "active"],
+    context,
+  ),
+  true,
+);
+assert.equal(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    [">", ["get", "area"], 100],
+    context,
+  ),
   true,
 );
 
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     ["all", [">", ["get", "area"], 100], ["==", ["get", "kind"], "park"]],
     context,
   ),
   true,
 );
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     ["any", ["==", ["get", "kind"], "water"], ["==", ["get", "rank"], 2]],
     context,
   ),
@@ -113,7 +130,7 @@ assert.equal(
 );
 
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     ["case", ["==", ["get", "status"], "active"], "#00ff00", "#999999"],
     context,
   ),
@@ -121,7 +138,7 @@ assert.equal(
 );
 
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     [
       "match",
       ["get", "kind"],
@@ -137,7 +154,7 @@ assert.equal(
 );
 
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     ["interpolate", ["linear"], ["zoom"], 4, 1, 8, 5],
     context,
   ),
@@ -145,22 +162,28 @@ assert.equal(
 );
 
 assert.equal(
-  evaluateVectorStyleExpression(["feature-state", "hover"], context),
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    ["feature-state", "hover"],
+    context,
+  ),
   true,
 );
 assert.equal(
-  evaluateVectorStyleExpression(["feature-state", "missing"], context),
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
+    ["feature-state", "missing"],
+    context,
+  ),
   null,
 );
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     ["boolean", ["feature-state", "hover"], false],
     context,
   ),
   true,
 );
 assert.equal(
-  evaluateVectorStyleExpression(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(
     ["boolean", ["feature-state", "selected"], false],
     context,
   ),
@@ -168,7 +191,7 @@ assert.equal(
 );
 
 assert.equal(
-  evaluateVectorStyleFilter(
+  VectorTileStyleExpressionUtils.evaluateVectorStyleFilter(
     ["all", [">=", ["get", "area"], 100], ["==", ["get", "kind"], "park"]],
     { properties: context.properties },
     { zoom: 6 },
@@ -177,19 +200,31 @@ assert.equal(
 );
 
 assert.throws(
-  () => validateVectorStyleFilter(() => true),
+  () => VectorTileStyleExpressionUtils.validateVectorStyleFilter(() => true),
   /cannot be a function/,
 );
 assert.throws(
-  () => validateVectorStyleExpression(["unsupported", ["get", "kind"]]),
+  () =>
+    VectorTileStyleExpressionUtils.validateVectorStyleExpression([
+      "unsupported",
+      ["get", "kind"],
+    ]),
   /unsupported/,
 );
 assert.throws(
-  () => validateVectorStyleExpression(["feature-state", ["get", "key"]]),
+  () =>
+    VectorTileStyleExpressionUtils.validateVectorStyleExpression([
+      "feature-state",
+      ["get", "key"],
+    ]),
   /feature-state key/,
 );
 assert.throws(
-  () => validateVectorStyleExpression(["boolean", ["feature-state", "hover"]]),
+  () =>
+    VectorTileStyleExpressionUtils.validateVectorStyleExpression([
+      "boolean",
+      ["feature-state", "hover"],
+    ]),
   /fallback/,
 );
 

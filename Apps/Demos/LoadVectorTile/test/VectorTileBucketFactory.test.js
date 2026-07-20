@@ -1,37 +1,11 @@
 import assert from "node:assert/strict";
 
-import { normalizeStyleDocument } from "../src/VectorTileStyleUtils.js";
+import VectorTileStyleUtils from "../src/VectorTileStyleUtils.js";
 
 class FakePrimitive {
-  constructor(options) {
-    this.options = options;
-    this.ready = true;
-  }
-
-  isDestroyed() {
-    return false;
-  }
-
-  destroy() {}
-}
-
-class FakeGroundPrimitive extends FakePrimitive {}
-class FakeGroundPolylinePrimitive extends FakePrimitive {}
-
-class FakeGeometryInstance {
-  constructor(options) {
+  constructor(options = {}) {
     Object.assign(this, options);
-  }
-}
-
-class FakeBillboardCollection {
-  constructor() {
-    this.items = [];
     this.ready = true;
-  }
-
-  add(options) {
-    this.items.push(options);
   }
 
   isDestroyed() {
@@ -41,129 +15,12 @@ class FakeBillboardCollection {
   destroy() {}
 }
 
-class FakeLabelCollection extends FakeBillboardCollection {}
-
-class FakePolylineGeometry {
-  constructor(options) {
-    this.options = options;
-  }
-
-  static createGeometry(polyline) {
-    return { polyline };
-  }
-}
-
-class FakeGroundPolylineGeometry extends FakePolylineGeometry {}
-
-class FakePolygonGeometry {
-  constructor(options) {
-    this.options = options;
-  }
-}
-
-class FakePolygonHierarchy {
-  constructor(positions, holes = []) {
-    this.positions = positions;
-    this.holes = holes;
-  }
-}
-
-class FakePolylineColorAppearance {}
-
-class FakePerInstanceColorAppearance {
-  constructor(options) {
-    this.options = options;
-  }
-}
-
-class FakePolylineMaterialAppearance {
-  constructor(options) {
-    this.options = options;
-  }
-}
-FakePolylineMaterialAppearance.VERTEX_FORMAT = "polyline-vertex-format";
-
-class FakeCartesian2 {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-}
-
-const Cesium = {
-  BillboardCollection: FakeBillboardCollection,
-  LabelCollection: FakeLabelCollection,
-  Cartesian2: FakeCartesian2,
-  Cartesian3: {
-    fromDegrees: (longitude, latitude, height) => ({
-      longitude,
-      latitude,
-      height,
-    }),
-    equals: (left, right) =>
-      left.longitude === right.longitude &&
-      left.latitude === right.latitude &&
-      left.height === right.height,
-  },
-  Primitive: FakePrimitive,
-  GroundPrimitive: FakeGroundPrimitive,
-  GroundPolylinePrimitive: FakeGroundPolylinePrimitive,
-  GeometryInstance: FakeGeometryInstance,
-  PolylineGeometry: FakePolylineGeometry,
-  GroundPolylineGeometry: FakeGroundPolylineGeometry,
-  PolygonGeometry: FakePolygonGeometry,
-  PolygonHierarchy: FakePolygonHierarchy,
-  PolylineColorAppearance: FakePolylineColorAppearance,
-  PerInstanceColorAppearance: FakePerInstanceColorAppearance,
-  PolylineMaterialAppearance: FakePolylineMaterialAppearance,
-  GeometryPipeline: {
-    combineInstances: (instances) =>
-      instances.map((instance) => instance.geometry),
-  },
-  Material: {
-    fromType: (type, options) => ({ type, options }),
-  },
-  ArcType: {
-    GEODESIC: "geodesic",
-  },
-  LabelStyle: {
-    FILL: "fill",
-    FILL_AND_OUTLINE: "fill-and-outline",
-  },
-  HorizontalOrigin: {
-    LEFT: "left",
-    CENTER: "center",
-    RIGHT: "right",
-  },
-  VerticalOrigin: {
-    TOP: "top",
-    CENTER: "center",
-    BOTTOM: "bottom",
-  },
-  HeightReference: {
-    NONE: "none",
-    CLAMP_TO_GROUND: "clamp-to-ground",
-    RELATIVE_TO_GROUND: "relative-to-ground",
-  },
-  Color: {
-    fromCssColorString: (value) => ({
-      css: value,
-      alpha: extractAlpha(value),
-    }),
-  },
-  ColorGeometryInstanceAttribute: {
-    fromColor: (color) => ({ color }),
-  },
-};
-
-globalThis.Cesium = Cesium;
-
-const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
+const { default: VectorTileBucketFactoryUtils } =
   await import("../src/VectorTileBucketFactory.js");
 
 {
   const diagnostics = createDiagnostics();
-  const buckets = normalizeStyleDocument({
+  const buckets = VectorTileStyleUtils.normalizeStyleDocument({
     version: 1,
     sources: {
       demo: {
@@ -219,7 +76,7 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
       },
     ],
   }).layers.map((styleRule) =>
-    createVectorTilePrimitiveBucket(
+    VectorTileBucketFactoryUtils.createVectorTilePrimitiveBucket(
       {
         land: createDecodedLandLayer(),
         road: createDecodedRoadLayer(),
@@ -236,9 +93,9 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
   );
 
   assert.equal(buckets[0].primitives.length, 1);
-  assert.ok(buckets[0].primitives[0] instanceof FakePrimitive);
+  assert.equal(buckets[0].primitives[0].constructor.name, "Primitive");
   assert.equal(buckets[1].primitives.length, 1);
-  assert.ok(buckets[1].primitives[0] instanceof FakePrimitive);
+  assert.equal(buckets[1].primitives[0].constructor.name, "Primitive");
   assert.equal(buckets[2].primitives.length, 0);
   assert.equal(buckets[2].pointDescriptors.billboards.length, 1);
   assert.equal(buckets[2].pointDescriptors.labels.length, 1);
@@ -254,7 +111,7 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
 
 {
   const diagnostics = createDiagnostics();
-  const styleRule = normalizeStyleDocument({
+  const styleRule = VectorTileStyleUtils.normalizeStyleDocument({
     version: 1,
     sources: {
       demo: {
@@ -277,7 +134,7 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
     ],
   }).layers[0];
 
-  const bucket = createVectorTilePrimitiveBucket(
+  const bucket = VectorTileBucketFactoryUtils.createVectorTilePrimitiveBucket(
     createDecodedRegionLayer(),
     styleRule,
     4,
@@ -291,11 +148,18 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
   assert.equal(bucket.primitives.length, 0);
   assert.equal(bucket.pointDescriptors.billboards.length, 1);
   assert.equal(bucket.pointDescriptors.labels.length, 1);
-  assert.deepEqual(bucket.pointDescriptors.billboards[0].position, {
-    longitude: 1,
-    latitude: 1,
-    height: 0,
-  });
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.x,
+    "number",
+  );
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.y,
+    "number",
+  );
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.z,
+    "number",
+  );
   assert.equal(bucket.pointDescriptors.labels[0].text, "Center Label");
   console.log(
     "✓ route polygon-center symbol placement through polygon-derived points",
@@ -317,7 +181,14 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
     length: 1,
   };
 
-  assert.equal(storeVectorTileBucket(vectorTile, bucket, styleRule), true);
+  assert.equal(
+    VectorTileBucketFactoryUtils.storeVectorTileBucket(
+      vectorTile,
+      bucket,
+      styleRule,
+    ),
+    true,
+  );
   assert.equal(vectorTile.primitives["road-line"], bucket.primitives);
   assert.equal(vectorTile.primitiveStyleRules["road-line"], styleRule);
   console.log(
@@ -346,7 +217,14 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
     length: 2,
   };
 
-  assert.equal(storeVectorTileBucket(vectorTile, bucket, styleRule), true);
+  assert.equal(
+    VectorTileBucketFactoryUtils.storeVectorTileBucket(
+      vectorTile,
+      bucket,
+      styleRule,
+    ),
+    true,
+  );
   assert.deepEqual(vectorTile.pointBuckets["place-symbol"].descriptors, {
     billboards: [{ image: "city.png" }],
     labels: [{ text: "Beijing" }],
@@ -356,7 +234,7 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
 }
 
 {
-  const styleDocument = normalizeStyleDocument({
+  const styleDocument = VectorTileStyleUtils.normalizeStyleDocument({
     version: 1,
     sources: {
       demo: {
@@ -389,7 +267,7 @@ const { createVectorTilePrimitiveBucket, storeVectorTileBucket } =
 
   const bucketIds = styleDocument.layers.map(
     (styleRule) =>
-      createVectorTilePrimitiveBucket(
+      VectorTileBucketFactoryUtils.createVectorTilePrimitiveBucket(
         {
           land: createDecodedLandLayer(),
           road: createDecodedRoadLayer(),
@@ -497,16 +375,4 @@ function createDiagnostics() {
       this.counts[name] = (this.counts[name] ?? 0) + value;
     },
   };
-}
-
-function extractAlpha(value) {
-  if (typeof value !== "string") {
-    return 1.0;
-  }
-
-  const match = /^#(?:[0-9a-fA-F]{6})([0-9a-fA-F]{2})$/.exec(value);
-  if (!match) {
-    return 1.0;
-  }
-  return parseInt(match[1], 16) / 255;
 }

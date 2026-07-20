@@ -1,7 +1,7 @@
 import { DeveloperError } from "../../../../Build/CesiumUnminified/index.js";
-import { VectorTileTaskCancelledError } from "./VectorTileTaskScheduler.js";
+import VectorTileTaskCancelledError from "./VectorTileTaskCancelledError.js";
 
-export const DEFAULT_PBF_CACHE_BYTES = 64 * 1024 * 1024;
+const DEFAULT_PBF_CACHE_BYTES = 64 * 1024 * 1024;
 
 /**
  * 管理 manager 级原始 PBF master buffer，并协调相同 key 的在途请求。

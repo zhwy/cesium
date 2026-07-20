@@ -1,15 +1,11 @@
-import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
-import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import {
-  doesStyleRuleMatchMetadata,
-  evaluateStyleValue,
-  getStyleRuleHeightOffset,
-  getGeometryFeature,
-  getGeometryFeatureIndex,
-  isDefined,
-} from "./VectorTileBucketUtils.js";
-
-const Cesium = globalThis.Cesium ?? CesiumModule;
+  Cartesian2,
+  Cartesian3,
+  defined,
+  HeightReference,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
+import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 
 const DEFAULT_CIRCLE_RADIUS = 5;
 const DEFAULT_CIRCLE_COLOR = "#000000ff";
@@ -19,7 +15,7 @@ const DEFAULT_CIRCLE_COLOR = "#000000ff";
  *
  * @param {object} styleRule 当前桶对应的样式规则。
  * @param {object} [options={}] 构造参数。
- * @param {Cesium.Scene} [options.scene] Cesium 场景，用于创建圆点贴图资源。
+ * @param {Scene} [options.scene] Cesium 场景，用于创建圆点贴图资源。
  * @param {boolean} [options.allowPicking=false] 是否为生成的图元启用拾取。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录圆点桶指标。
  * @param {boolean} [options.ignoreZoomRange=false] 是否忽略样式规则中的缩放级别限制。
@@ -39,20 +35,33 @@ export default class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
     let billboardCount = 0;
 
     for (let i = 0; i < positions.length / 2; ++i) {
-      const pointMetadata = getGeometryFeature(this._featureTable, points, i);
-      const featureIndex = getGeometryFeatureIndex(points, i);
+      const pointMetadata = VectorTileBucketUtils.getGeometryFeature(
+        this._featureTable,
+        points,
+        i,
+      );
+      const featureIndex = VectorTileBucketUtils.getGeometryFeatureIndex(
+        points,
+        i,
+      );
       if (
-        !doesStyleRuleMatchMetadata(pointMetadata, 1, this.styleRule, zoom, {
-          ignoreZoomRange: this._ignoreZoomRange,
-        })
+        !VectorTileBucketUtils.doesStyleRuleMatchMetadata(
+          pointMetadata,
+          1,
+          this.styleRule,
+          zoom,
+          {
+            ignoreZoomRange: this._ignoreZoomRange,
+          },
+        )
       ) {
         continue;
       }
 
-      const position = Cesium.Cartesian3.fromDegrees(
+      const position = Cartesian3.fromDegrees(
         positions[i * 2],
         positions[i * 2 + 1],
-        getStyleRuleHeightOffset(this.styleRule),
+        VectorTileBucketUtils.getStyleRuleHeightOffset(this.styleRule),
       );
 
       const billboardOptions = createCircleBillboardOptions(
@@ -157,20 +166,15 @@ export default class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
   }
 }
 
-export function evaluateCircleStyleValue(
-  primaryValue,
-  aliasValue,
-  metadata,
-  zoom,
-) {
-  return evaluateStyleValue(
-    isDefined(primaryValue) ? primaryValue : aliasValue,
+function evaluateCircleStyleValue(primaryValue, aliasValue, metadata, zoom) {
+  return VectorTileBucketUtils.evaluateStyleValue(
+    defined(primaryValue) ? primaryValue : aliasValue,
     metadata,
     zoom,
   );
 }
 
-export function evaluateCircleColorValue(
+function evaluateCircleColorValue(
   primaryValue,
   aliasValue,
   metadata,
@@ -186,25 +190,35 @@ export function evaluateCircleColorValue(
   return typeof color === "string" && color.length > 0 ? color : fallback;
 }
 
-export function resolveCircleRadius(
+function resolveCircleRadius(
   styleRule,
   metadata,
   zoom,
   fallback = DEFAULT_CIRCLE_RADIUS,
 ) {
   const paint = styleRule?.paint ?? {};
-  if (isDefined(paint["circle-radius"])) {
+  if (defined(paint["circle-radius"])) {
     return normalizeCircleRadius(
       Number(
-        evaluateStyleValue(paint["circle-radius"], metadata, zoom, fallback),
+        VectorTileBucketUtils.evaluateStyleValue(
+          paint["circle-radius"],
+          metadata,
+          zoom,
+          fallback,
+        ),
       ),
       fallback,
     );
   }
 
-  if (isDefined(paint.pixelSize)) {
+  if (defined(paint.pixelSize)) {
     const pixelSize = Number(
-      evaluateStyleValue(paint.pixelSize, metadata, zoom, fallback * 2),
+      VectorTileBucketUtils.evaluateStyleValue(
+        paint.pixelSize,
+        metadata,
+        zoom,
+        fallback * 2,
+      ),
     );
     if (!Number.isFinite(pixelSize)) {
       return fallback;
@@ -215,7 +229,7 @@ export function resolveCircleRadius(
   return fallback;
 }
 
-export function resolveCirclePixelSize(
+function resolveCirclePixelSize(
   styleRule,
   metadata,
   zoom,
@@ -224,12 +238,7 @@ export function resolveCirclePixelSize(
   return resolveCircleRadius(styleRule, metadata, zoom, fallback) * 2;
 }
 
-export function createCirclePixelOffset(
-  primaryValue,
-  aliasValue,
-  metadata,
-  zoom,
-) {
+function createCirclePixelOffset(primaryValue, aliasValue, metadata, zoom) {
   const offset = evaluateCircleStyleValue(
     primaryValue,
     aliasValue,
@@ -237,33 +246,28 @@ export function createCirclePixelOffset(
     zoom,
   );
   if (!Array.isArray(offset) || offset.length < 2) {
-    return new Cesium.Cartesian2(0, 0);
+    return new Cartesian2(0, 0);
   }
 
   const x = Number(offset[0]);
   const y = Number(offset[1]);
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return new Cesium.Cartesian2(0, 0);
+    return new Cartesian2(0, 0);
   }
 
-  return new Cesium.Cartesian2(x, y);
+  return new Cartesian2(x, y);
 }
 
-export function getCircleHeightReference(scene, styleRule) {
-  if (styleRule.terrain?.clampToGround !== true || !isDefined(scene)) {
-    return Cesium.HeightReference.NONE;
+function getCircleHeightReference(scene, styleRule) {
+  if (styleRule.terrain?.clampToGround !== true || !defined(scene)) {
+    return HeightReference.NONE;
   }
-  return getStyleRuleHeightOffset(styleRule) === 0.0
-    ? Cesium.HeightReference.CLAMP_TO_GROUND
-    : Cesium.HeightReference.RELATIVE_TO_GROUND;
+  return VectorTileBucketUtils.getStyleRuleHeightOffset(styleRule) === 0.0
+    ? HeightReference.CLAMP_TO_GROUND
+    : HeightReference.RELATIVE_TO_GROUND;
 }
 
-export function createCircleCanvas(
-  pixelSize,
-  fillColor,
-  outlineColor,
-  outlineWidth,
-) {
+function createCircleCanvas(pixelSize, fillColor, outlineColor, outlineWidth) {
   const drawSize = Math.max(1, Math.ceil(pixelSize));
   const canvas = createCanvasElement(drawSize, drawSize);
   canvas.width = drawSize;

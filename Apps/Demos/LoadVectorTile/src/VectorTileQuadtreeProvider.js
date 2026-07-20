@@ -1,20 +1,21 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import VectorSurfaceTile from "./VectorSurfaceTile.js";
-
-const {
-  defined,
-  Rectangle,
+import {
   BoundingSphere,
   Cartesian3,
   Cartographic,
-  SceneMode,
-  Visibility,
-  TileBoundingRegion,
-  Math: CesiumMath,
-  OrthographicFrustum,
-  Intersect,
+  defined,
+  destroyObject,
   EllipsoidalOccluder,
-} = Cesium;
+  Event,
+  Intersect,
+  Math as CesiumMath,
+  OrthographicFrustum,
+  Rectangle,
+  SceneMode,
+  TileBoundingRegion,
+  Visibility,
+  WebMercatorTilingScheme,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorSurfaceTile from "./VectorSurfaceTile.js";
 
 function isUndergroundVisible(tileProvider, frameState) {
   if (frameState.cameraUnderground) {
@@ -148,7 +149,7 @@ function computeMapAlignedLevelZeroGeometricError(
  *
  * @param {object} [options={}] 构造参数。
  * @param {VectorTileLayerCollection} [options.vectorTileLayers] 当前参与渲染的图层集合。
- * @param {Cesium.TilingScheme} [options.tilingScheme] Cesium 切片方案。
+ * @param {TilingScheme} [options.tilingScheme] Cesium 切片方案。
  * @param {number} [options.minimumHeight=0] 瓦片包围体最小高度。
  * @param {number} [options.maximumHeight=0] 瓦片包围体最大高度。
  * @param {number} [options.minimumLevel=0] 最小四叉树层级。
@@ -162,9 +163,8 @@ export default class VectorTileQuadtreeProvider {
     this._quadtree = undefined;
     this._vectorTileLayers = options.vectorTileLayers;
 
-    this._tilingScheme =
-      options.tilingScheme || new Cesium.WebMercatorTilingScheme();
-    this._errorEvent = new Cesium.Event();
+    this._tilingScheme = options.tilingScheme || new WebMercatorTilingScheme();
+    this._errorEvent = new Event();
     this._minimumHeight = options.minimumHeight || 0;
     this._maximumHeight = options.maximumHeight || 0;
     this._minimumLevel = options.minimumLevel || 0;
@@ -175,9 +175,7 @@ export default class VectorTileQuadtreeProvider {
       options.maximumScreenSpaceError ?? 2,
       options.pixelRatio ?? 1,
     );
-    this.cartographicLimitRectangle = Cesium.Rectangle.clone(
-      Cesium.Rectangle.MAX_VALUE,
-    );
+    this.cartographicLimitRectangle = Rectangle.clone(Rectangle.MAX_VALUE);
   }
 }
 
@@ -464,7 +462,7 @@ VectorTileQuadtreeProvider.prototype.isDestroyed = function () {
 };
 
 VectorTileQuadtreeProvider.prototype.destroy = function () {
-  return Cesium.destroyObject(this);
+  return destroyObject(this);
 };
 
 VectorTileQuadtreeProvider.prototype.updateForPick = function (frameState) {};

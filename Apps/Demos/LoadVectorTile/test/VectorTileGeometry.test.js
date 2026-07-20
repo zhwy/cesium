@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
 
-import {
-  classifyRings,
-  getWebMercatorTileBounds,
-  isTileBoundarySegment,
-} from "../src/VectorTileGeometryUtils.js";
+import VectorTileGeometryUtils from "../src/VectorTileGeometryUtils.js";
 
-const tileBounds = getWebMercatorTileBounds({ x: 1, y: 1, level: 2 });
+const tileBounds = VectorTileGeometryUtils.getWebMercatorTileBounds({
+  x: 1,
+  y: 1,
+  level: 2,
+});
 
 assert.equal(tileBounds.west, -90);
 assert.equal(tileBounds.east, 0);
 
 assert.equal(
-  isTileBoundarySegment(
+  VectorTileGeometryUtils.isTileBoundarySegment(
     { longitude: tileBounds.west, latitude: tileBounds.south + 1 },
     { longitude: tileBounds.west, latitude: tileBounds.north - 1 },
     tileBounds,
@@ -21,7 +21,7 @@ assert.equal(
 );
 
 assert.equal(
-  isTileBoundarySegment(
+  VectorTileGeometryUtils.isTileBoundarySegment(
     { longitude: tileBounds.west, latitude: tileBounds.south + 1 },
     { longitude: tileBounds.east, latitude: tileBounds.north - 1 },
     tileBounds,
@@ -30,7 +30,7 @@ assert.equal(
 );
 
 assert.equal(
-  isTileBoundarySegment(
+  VectorTileGeometryUtils.isTileBoundarySegment(
     { longitude: tileBounds.west + 1, latitude: tileBounds.south + 1 },
     { longitude: tileBounds.east - 1, latitude: tileBounds.north - 1 },
     tileBounds,
@@ -61,7 +61,11 @@ assert.equal(
     { x: 2, y: 2 },
   ];
 
-  const polygons = classifyRings([outerA, outerB, holeInA]);
+  const polygons = VectorTileGeometryUtils.classifyRings([
+    outerA,
+    outerB,
+    holeInA,
+  ]);
 
   assert.equal(polygons.length, 2);
   assert.equal(polygons[0][0], outerA);

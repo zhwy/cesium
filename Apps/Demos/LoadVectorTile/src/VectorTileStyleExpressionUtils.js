@@ -1,3 +1,5 @@
+import CommonUtils from "./CommonUtils.js";
+
 const SUPPORTED_OPERATORS = new Set([
   "get",
   "has",
@@ -30,7 +32,7 @@ const SUPPORTED_OPERATORS = new Set([
  * @param {number} [context.zoom]
  * @returns {*}
  */
-export function evaluateVectorStyleExpression(expression, context = {}) {
+function evaluateVectorStyleExpression(expression, context = {}) {
   if (!Array.isArray(expression)) {
     return expression;
   }
@@ -96,7 +98,7 @@ export function evaluateVectorStyleExpression(expression, context = {}) {
   }
 }
 
-export function validateVectorStyleExpression(expression, path = "expression") {
+function validateVectorStyleExpression(expression, path = "expression") {
   if (typeof expression === "function") {
     throw new Error(`${path} must be serializable and cannot be a function.`);
   }
@@ -163,7 +165,7 @@ export function validateVectorStyleExpression(expression, path = "expression") {
   });
 }
 
-export function isWorkerSupportedVectorStyleExpression(expression) {
+function isWorkerSupportedVectorStyleExpression(expression) {
   try {
     validateVectorStyleExpression(expression);
     return true;
@@ -172,28 +174,7 @@ export function isWorkerSupportedVectorStyleExpression(expression) {
   }
 }
 
-/**
- * 静态收集样式表达式读取的 feature property。
- * `all` 表示表达式包含动态属性名或无法保守分析的表达式结构。
- *
- * @param {...*} values 表达式、常量或包含表达式的样式值。
- * @returns {{all: boolean, properties: string[]}}
- */
-export function collectVectorStylePropertyDependencies(...values) {
-  const state = {
-    all: false,
-    properties: new Set(),
-  };
-  for (let i = 0; i < values.length && !state.all; ++i) {
-    collectPropertyDependencies(values[i], state);
-  }
-  return {
-    all: state.all,
-    properties: [...state.properties].sort(),
-  };
-}
-
-export function collectVectorStyleStateDependencies(...values) {
+function collectVectorStyleStateDependencies(...values) {
   const keys = new Set();
   for (const value of values) {
     collectStateDependencies(value, keys);
@@ -201,25 +182,7 @@ export function collectVectorStyleStateDependencies(...values) {
   return [...keys].sort();
 }
 
-export function hasVectorStyleFeatureStateDependency(...values) {
-  return collectVectorStyleStateDependencies(...values).length > 0;
-}
-
-export function evaluateVectorStyleFilter(filter, feature, context = {}) {
-  if (filter === undefined || filter === null) {
-    return true;
-  }
-  validateVectorStyleFilter(filter);
-  return Boolean(
-    evaluateVectorStyleExpression(filter, {
-      ...context,
-      properties: feature?.properties ?? context.properties ?? {},
-      id: feature?.id,
-    }),
-  );
-}
-
-export function validateVectorStyleFilter(filter, path = "filter") {
+function validateVectorStyleFilter(filter, path = "filter") {
   if (filter === undefined || filter === null) {
     return;
   }
@@ -227,13 +190,6 @@ export function validateVectorStyleFilter(filter, path = "filter") {
     throw new Error(`${path} must be serializable and cannot be a function.`);
   }
   validateVectorStyleExpression(filter, path);
-}
-
-export function isWorkerSupportedVectorStyleFilter(filter) {
-  if (filter === undefined || filter === null) {
-    return true;
-  }
-  return isWorkerSupportedVectorStyleExpression(filter);
 }
 
 function getProperty(expression, context) {
@@ -459,7 +415,7 @@ function validateSerializableConstant(value, path) {
     });
     return;
   }
-  if (isPlainObject(value)) {
+  if (CommonUtils.isPlainObject(value)) {
     Object.keys(value).forEach((key) => {
       validateSerializableConstant(value[key], `${path}.${key}`);
     });
@@ -478,11 +434,66 @@ function validateInterpolation(expression, path) {
   }
 }
 
-function isPlainObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype ||
-      Object.getPrototypeOf(value) === null)
-  );
+export default class VectorTileStyleExpressionUtils {
+  static evaluateVectorStyleExpression(expression, context = {}) {
+    return evaluateVectorStyleExpression(expression, context);
+  }
+
+  static validateVectorStyleExpression(expression, path = "expression") {
+    return validateVectorStyleExpression(expression, path);
+  }
+
+  static isWorkerSupportedVectorStyleExpression(expression) {
+    return isWorkerSupportedVectorStyleExpression(expression);
+  }
+
+  /**
+   * 静态收集样式表达式读取的 feature property。
+   * `all` 表示表达式包含动态属性名或无法保守分析的表达式结构。
+   *
+   * @param {...*} values 表达式、常量或包含表达式的样式值。
+   * @returns {{all: boolean, properties: string[]}}
+   */
+  static collectVectorStylePropertyDependencies(...values) {
+    const state = {
+      all: false,
+      properties: new Set(),
+    };
+    for (let i = 0; i < values.length && !state.all; ++i) {
+      collectPropertyDependencies(values[i], state);
+    }
+    return {
+      all: state.all,
+      properties: [...state.properties].sort(),
+    };
+  }
+
+  static hasVectorStyleFeatureStateDependency(...values) {
+    return collectVectorStyleStateDependencies(...values).length > 0;
+  }
+
+  static evaluateVectorStyleFilter(filter, feature, context = {}) {
+    if (filter === undefined || filter === null) {
+      return true;
+    }
+    validateVectorStyleFilter(filter);
+    return Boolean(
+      evaluateVectorStyleExpression(filter, {
+        ...context,
+        properties: feature?.properties ?? context.properties ?? {},
+        id: feature?.id,
+      }),
+    );
+  }
+
+  static validateVectorStyleFilter(filter, path = "filter") {
+    return validateVectorStyleFilter(filter, path);
+  }
+
+  static isWorkerSupportedVectorStyleFilter(filter) {
+    if (filter === undefined || filter === null) {
+      return true;
+    }
+    return isWorkerSupportedVectorStyleExpression(filter);
+  }
 }

@@ -1,19 +1,35 @@
-import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
-
-const Cesium = globalThis.Cesium ?? CesiumModule;
+import {
+  BillboardCollection,
+  LabelCollection,
+} from "../../../../Build/CesiumUnminified/index.js";
 
 /**
  * 管理跨瓦片复用的点要素集合，统一维护 BillboardCollection 与 LabelCollection 的增删生命周期。
  *
  * @param {object} [options={}] 构造参数。
- * @param {Cesium.Scene} [options.scene] Cesium 场景，用于创建 `BillboardCollection` 和 `LabelCollection`。
+ * @param {Scene} [options.scene] Cesium 场景，用于创建 `BillboardCollection` 和 `LabelCollection`。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于累计共享点集合相关指标。
+ * @param {Function} [options.createBillboardCollection] Billboard 集合工厂，测试可注入替身。
+ * @param {Function} [options.createLabelCollection] Label 集合工厂，测试可注入替身。
  */
 export default class SharedPointCollections {
+  static createSharedPointEntryKey(vectorTile, bucketId) {
+    const tileKey =
+      vectorTile?.cacheKey ??
+      [vectorTile?.level, vectorTile?.x, vectorTile?.y].join("/");
+    return `${tileKey}:${bucketId}`;
+  }
+
   constructor(options = {}) {
     this._scene = options.scene;
     this._diagnostics = options.diagnostics;
     this._pickRegistry = options.pickRegistry;
+    this._createBillboardCollection =
+      options.createBillboardCollection ??
+      ((scene) => new BillboardCollection({ scene }));
+    this._createLabelCollection =
+      options.createLabelCollection ??
+      ((scene) => new LabelCollection({ scene }));
     this._billboards = undefined;
     this._labels = undefined;
     this._tileEntries = new Map();
@@ -163,7 +179,7 @@ export default class SharedPointCollections {
   _getOrCreateBillboardCollection() {
     if (!this._billboards) {
       this._billboards = markCollectionReady(
-        new Cesium.BillboardCollection({ scene: this._scene }),
+        this._createBillboardCollection(this._scene),
       );
       this._diagnostics?.addGauge("sharedPointCollections", 1);
     }
@@ -173,7 +189,7 @@ export default class SharedPointCollections {
   _getOrCreateLabelCollection() {
     if (!this._labels) {
       this._labels = markCollectionReady(
-        new Cesium.LabelCollection({ scene: this._scene }),
+        this._createLabelCollection(this._scene),
       );
       this._diagnostics?.addGauge("sharedPointCollections", 1);
     }
@@ -192,13 +208,6 @@ export default class SharedPointCollections {
     this[fieldName] = undefined;
     this._diagnostics?.addGauge("sharedPointCollections", -1);
   }
-}
-
-export function createSharedPointEntryKey(vectorTile, bucketId) {
-  const tileKey =
-    vectorTile?.cacheKey ??
-    [vectorTile?.level, vectorTile?.x, vectorTile?.y].join("/");
-  return `${tileKey}:${bucketId}`;
 }
 
 function removeHandles(collection, handles, pickRegistry) {

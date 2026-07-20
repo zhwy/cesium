@@ -1,80 +1,12 @@
-export function normalizePromoteId(promoteId, sourceId) {
-  if (promoteId === undefined) {
-    return undefined;
-  }
-  if (isNonEmptyString(promoteId)) {
-    return promoteId;
-  }
-  if (!isPlainObject(promoteId)) {
-    throw new Error(
-      `source "${sourceId}" promoteId must be a non-empty string or an object mapping source-layer names to property names.`,
-    );
-  }
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
 
-  const result = {};
-  for (const [sourceLayer, propertyName] of Object.entries(promoteId)) {
-    if (!isNonEmptyString(sourceLayer)) {
-      throw new Error(
-        `source "${sourceId}" promoteId source-layer names must be non-empty strings.`,
-      );
-    }
-    if (!isNonEmptyString(propertyName)) {
-      throw new Error(
-        `source "${sourceId}" promoteId["${sourceLayer}"] must be a non-empty string.`,
-      );
-    }
-    result[sourceLayer] = propertyName;
-  }
-  return result;
-}
-
-export function getPromoteIdPropertyName(promoteId, sourceLayer) {
-  if (typeof promoteId === "string") {
-    return promoteId;
-  }
-  if (
-    promoteId &&
-    Object.prototype.hasOwnProperty.call(promoteId, sourceLayer)
-  ) {
-    return promoteId[sourceLayer];
-  }
-  return undefined;
-}
-
-export function resolveFeatureStateId(sourceLayer, feature, promoteId) {
-  const propertyName = getPromoteIdPropertyName(promoteId, sourceLayer);
-  if (propertyName !== undefined) {
-    const id = feature?.properties?.[propertyName];
-    return {
-      id: isValidFeatureStateId(id) ? id : undefined,
-      unaddressable: !isValidFeatureStateId(id),
-    };
-  }
-  const id = feature?.id;
-  return {
-    id: isValidFeatureStateId(id) ? id : undefined,
-    unaddressable: !isValidFeatureStateId(id),
-  };
-}
-
-export function isValidFeatureStateId(id) {
-  return typeof id === "string" || typeof id === "number";
-}
-
-export function encodeFeatureStateKey(sourceLayer, id) {
-  return `${sourceLayer}\u0000${typeof id}\u0000${String(id)}`;
-}
-
-export function isPlainObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype ||
-      Object.getPrototypeOf(value) === null)
-  );
-}
-
-export class VectorTileFeatureStateStore {
+/**
+ * 保存运行时要素状态覆盖值的存储容器，支持按 `sourceLayer` + `id` 寻址。
+ *
+ * @param {object} [options={}] 构造参数。
+ * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
+ */
+export default class VectorTileFeatureStateStore {
   constructor(options = {}) {
     this._entries = new Map();
     this._revision = 0;
@@ -94,7 +26,11 @@ export class VectorTileFeatureStateStore {
   }
 
   peek(sourceLayer, id) {
-    return this._entries.get(encodeFeatureStateKey(sourceLayer, id)) ?? {};
+    return (
+      this._entries.get(
+        VectorTileFeatureStateUtils.encodeFeatureStateKey(sourceLayer, id),
+      ) ?? {}
+    );
   }
 
   set(target, state) {
@@ -159,7 +95,10 @@ export class VectorTileFeatureStateStore {
 }
 
 function encodeTargetKey(target) {
-  return encodeFeatureStateKey(target.sourceLayer, target.id);
+  return VectorTileFeatureStateUtils.encodeFeatureStateKey(
+    target.sourceLayer,
+    target.id,
+  );
 }
 
 function shallowEqual(left, right) {
@@ -173,8 +112,4 @@ function shallowEqual(left, right) {
       Object.prototype.hasOwnProperty.call(right, key) &&
       Object.is(left[key], right[key]),
   );
-}
-
-function isNonEmptyString(value) {
-  return typeof value === "string" && value.length > 0;
 }

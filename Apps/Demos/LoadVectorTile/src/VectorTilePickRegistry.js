@@ -1,4 +1,4 @@
-import { getPublicPickProperties } from "./VectorTilePropertyProjectionUtils.js";
+import VectorTilePropertyProjectionUtils from "./VectorTilePropertyProjectionUtils.js";
 
 export default class VectorTilePickRegistry {
   constructor() {
@@ -51,7 +51,7 @@ export default class VectorTilePickRegistry {
 
     return {
       id: feature.id,
-      properties: getPublicPickProperties(
+      properties: VectorTilePropertyProjectionUtils.getPublicPickProperties(
         feature.properties,
         context.pickProperties,
       ),

@@ -403,10 +403,11 @@ const { default: VectorTileLayerManager } =
   const manager = createManager([provider], [runtimeLayer]);
 
   assert.equal(manager.removeLayer("org-fill"), true);
-  assert.equal(manager.getProvider("org"), undefined);
-  assert.equal(manager._vectorTileLayers.removeCalls.length, 1);
-  assert.equal(manager._vectorTileLayers.removeCalls[0].layer, runtimeLayer);
-  console.log("✓ remove final style layer tears down the runtime layer");
+  assert.equal(manager.getProvider("org"), provider);
+  assert.equal(manager._vectorTileLayers.removeCalls.length, 0);
+  console.log(
+    "✓ remove final style layer keeps the shared source provider active",
+  );
 }
 
 {

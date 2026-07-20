@@ -1,21 +1,8 @@
-import * as CesiumModule from "../../../../Build/CesiumUnminified/index.js";
-import {
-  evaluateColorStyleValue,
-  isVectorStyleExpression,
-} from "./VectorTileBucketUtils.js";
-import {
-  collectVectorStylePropertyDependencies,
-  hasVectorStyleFeatureStateDependency,
-} from "./VectorTileStyleExpression.js";
-import { encodeFeatureStateKey } from "./VectorTileFeatureState.js";
-
-const Cesium = globalThis.Cesium ?? CesiumModule;
-
-export const VectorTileBucketFallbackReason = Object.freeze({
-  MISSING_PROPERTIES: "MISSING_PROPERTIES",
-  RENDER_STATE: "RENDER_STATE",
-  MISSING_BUCKET: "MISSING_BUCKET",
-});
+import { ColorGeometryInstanceAttribute } from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
+import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
+import VectorTileBucketFallbackReason from "./VectorTileBucketFallbackReason.js";
 
 const COLOR_ROLE_PROPERTIES = Object.freeze({
   line: { property: "line-color", fallback: "#ffff00ff" },
@@ -153,7 +140,10 @@ Object.defineProperty(VectorTilePrimitiveBucket.prototype, "length", {
 VectorTilePrimitiveBucket.prototype.hasResidentStyleDependencies = function (
   ...values
 ) {
-  const dependencies = collectVectorStylePropertyDependencies(...values);
+  const dependencies =
+    VectorTileStyleExpressionUtils.collectVectorStylePropertyDependencies(
+      ...values,
+    );
   const projection = this._propertyProjection;
   if (!projection || projection.retainAll) {
     return true;
@@ -223,7 +213,10 @@ VectorTilePrimitiveBucket.prototype.getStyleUpdateFallback = function (
     ) {
       continue;
     }
-    if (record.role === "packed-line" && isVectorStyleExpression(value)) {
+    if (
+      record.role === "packed-line" &&
+      VectorTileBucketUtils.isVectorStyleExpression(value)
+    ) {
       return VectorTileBucketFallbackReason.MISSING_PROPERTIES;
     }
     colorValues.push(value);
@@ -319,7 +312,7 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
       continue;
     }
     if (record.role === "packed-line") {
-      const color = evaluateColorStyleValue(
+      const color = VectorTileBucketUtils.evaluateColorStyleValue(
         value,
         undefined,
         this.buildZoom,
@@ -345,7 +338,7 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
         continue;
       }
       const feature = this._featureTable[featureIndices[instanceId]];
-      const color = evaluateColorStyleValue(
+      const color = VectorTileBucketUtils.evaluateColorStyleValue(
         value,
         feature,
         this.buildZoom,
@@ -354,7 +347,7 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
           state: this._getFeatureStateForFeature(feature),
         },
       );
-      attributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(
+      attributes.color = ColorGeometryInstanceAttribute.toValue(
         color,
         attributes.color,
       );
@@ -393,7 +386,10 @@ VectorTilePrimitiveBucket.prototype.getFeatureStateKeys = function () {
 };
 
 VectorTilePrimitiveBucket.prototype.applyFeatureState = function (target) {
-  const key = encodeFeatureStateKey(target.sourceLayer, target.id);
+  const key = VectorTileFeatureStateUtils.encodeFeatureStateKey(
+    target.sourceLayer,
+    target.id,
+  );
   const bindings = this._featureStateBindings.get(key);
   if (!bindings || bindings.length === 0) {
     return { instanceUpdates: 0, deferredUpdates: 0 };
@@ -555,7 +551,7 @@ VectorTilePrimitiveBucket.prototype._indexFeatureStateBindings = function (
     !colorStyle ||
     record.role === "packed-line" ||
     !record.instanceFeatureIndices ||
-    !hasVectorStyleFeatureStateDependency(
+    !VectorTileStyleExpressionUtils.hasVectorStyleFeatureStateDependency(
       this.styleRule.paint?.[colorStyle.property],
     )
   ) {
@@ -581,7 +577,10 @@ VectorTilePrimitiveBucket.prototype._indexFeatureStateBindings = function (
     if (!feature || feature.id === undefined || feature.id === null) {
       continue;
     }
-    const key = encodeFeatureStateKey(this.sourceLayer, feature.id);
+    const key = VectorTileFeatureStateUtils.encodeFeatureStateKey(
+      this.sourceLayer,
+      feature.id,
+    );
     let bindings = this._featureStateBindings.get(key);
     if (!bindings) {
       bindings = [];
@@ -608,7 +607,7 @@ VectorTilePrimitiveBucket.prototype._applyFeatureStateBinding = function (
     return false;
   }
   const feature = this._featureTable[binding.featureIndex];
-  const color = evaluateColorStyleValue(
+  const color = VectorTileBucketUtils.evaluateColorStyleValue(
     this.styleRule.paint?.[binding.property],
     feature,
     this.buildZoom,
@@ -617,7 +616,7 @@ VectorTilePrimitiveBucket.prototype._applyFeatureStateBinding = function (
       state: this._getFeatureStateForFeature(feature),
     },
   );
-  attributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(
+  attributes.color = ColorGeometryInstanceAttribute.toValue(
     color,
     attributes.color,
   );
@@ -642,12 +641,23 @@ function hasTranslucentRecordColor(
 ) {
   const featureIndices = record.instanceFeatureIndices;
   if (!featureIndices || featureIndices.length === 0) {
-    return evaluateColorStyleValue(value, undefined, zoom, fallback).alpha < 1;
+    return (
+      VectorTileBucketUtils.evaluateColorStyleValue(
+        value,
+        undefined,
+        zoom,
+        fallback,
+      ).alpha < 1
+    );
   }
   for (const featureIndex of featureIndices) {
     if (
-      evaluateColorStyleValue(value, featureTable[featureIndex], zoom, fallback)
-        .alpha < 1
+      VectorTileBucketUtils.evaluateColorStyleValue(
+        value,
+        featureTable[featureIndex],
+        zoom,
+        fallback,
+      ).alpha < 1
     ) {
       return true;
     }

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 
-import {
-  adoptDecodedFeatureTables,
-  getDecodedTileByteLength,
-} from "../src/VectorTileLayer.js";
+import VectorTileLayer from "../src/VectorTileLayer.js";
 import getVectorTileTransferableBuffers from "../src/getVectorTileTransferableBuffers.js";
 
 const decodedTile = {
@@ -42,13 +39,19 @@ const diagnostics = {
 };
 const vectorTile = {};
 
-adoptDecodedFeatureTables(vectorTile, decodedTile, true, ["name"], diagnostics);
+VectorTileLayer.adoptDecodedFeatureTables(
+  vectorTile,
+  decodedTile,
+  true,
+  ["name"],
+  diagnostics,
+);
 assert.equal(vectorTile.features.demo, decodedTile.layers.demo.features);
 assert.equal(vectorTile.residentFeatureTableEntries, 1);
 assert.equal(vectorTile.residentPickPropertyValues, 1);
 assert.equal(gauges.residentFeatureTableEntries, 1);
 assert.equal(gauges.residentPickPropertyValues, 1);
-assert.ok(getDecodedTileByteLength(decodedTile) > 32);
+assert.ok(VectorTileLayer.getDecodedTileByteLength(decodedTile) > 32);
 const transferableBuffers = getVectorTileTransferableBuffers(decodedTile);
 assert.equal(transferableBuffers.length, 9);
 assert.ok(

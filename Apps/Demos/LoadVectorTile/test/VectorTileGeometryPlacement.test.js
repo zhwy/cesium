@@ -1,44 +1,96 @@
 import assert from "node:assert/strict";
 
-import {
-  createPolygonCenterPoints,
-  doesStyleRuleUseGeometryType,
-  filterPackedLayerByStyleRules,
-  getStyleRuleGeometryTypes,
-  getStyleRuleSymbolPlacement,
-  normalizeSymbolPlacement,
-} from "../src/VectorTileGeometryPlacement.js";
+import VectorTileGeometryPlacementUtils from "../src/VectorTileGeometryPlacementUtils.js";
 
 {
-  assert.equal(normalizeSymbolPlacement(undefined), "point");
-  assert.equal(normalizeSymbolPlacement("point"), "point");
-  assert.equal(normalizeSymbolPlacement("polygon-center"), "polygon-center");
-  assert.equal(normalizeSymbolPlacement("polygon-visual-center"), "point");
+  assert.equal(
+    VectorTileGeometryPlacementUtils.normalizeSymbolPlacement(undefined),
+    "point",
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.normalizeSymbolPlacement("point"),
+    "point",
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.normalizeSymbolPlacement("polygon-center"),
+    "polygon-center",
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.normalizeSymbolPlacement(
+      "polygon-visual-center",
+    ),
+    "point",
+  );
 
   assert.equal(
-    getStyleRuleSymbolPlacement({
+    VectorTileGeometryPlacementUtils.getStyleRuleSymbolPlacement({
       type: "symbol",
       layout: { "symbol-placement": "polygon-center" },
     }),
     "polygon-center",
   );
   assert.deepEqual(
-    getStyleRuleGeometryTypes({
+    VectorTileGeometryPlacementUtils.getStyleRuleGeometryTypes({
       type: "symbol",
       layout: { "symbol-placement": "polygon-center" },
     }),
     [3],
   );
-  assert.deepEqual(getStyleRuleGeometryTypes({ type: "circle" }), [1]);
-  assert.equal(doesStyleRuleUseGeometryType({ type: "circle" }, 1), true);
-  assert.equal(doesStyleRuleUseGeometryType({ type: "circle" }, 2), false);
-  assert.deepEqual(getStyleRuleGeometryTypes({ type: "fill" }), [2, 3]);
-  assert.equal(doesStyleRuleUseGeometryType({ type: "fill" }, 2), true);
-  assert.equal(doesStyleRuleUseGeometryType({ type: "fill" }, 3), true);
-  assert.deepEqual(getStyleRuleGeometryTypes({ type: "line" }), [2, 3]);
-  assert.equal(doesStyleRuleUseGeometryType({ type: "line" }, 3), true);
+  assert.deepEqual(
+    VectorTileGeometryPlacementUtils.getStyleRuleGeometryTypes({
+      type: "circle",
+    }),
+    [1],
+  );
   assert.equal(
-    doesStyleRuleUseGeometryType(
+    VectorTileGeometryPlacementUtils.doesStyleRuleUseGeometryType(
+      { type: "circle" },
+      1,
+    ),
+    true,
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.doesStyleRuleUseGeometryType(
+      { type: "circle" },
+      2,
+    ),
+    false,
+  );
+  assert.deepEqual(
+    VectorTileGeometryPlacementUtils.getStyleRuleGeometryTypes({
+      type: "fill",
+    }),
+    [2, 3],
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.doesStyleRuleUseGeometryType(
+      { type: "fill" },
+      2,
+    ),
+    true,
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.doesStyleRuleUseGeometryType(
+      { type: "fill" },
+      3,
+    ),
+    true,
+  );
+  assert.deepEqual(
+    VectorTileGeometryPlacementUtils.getStyleRuleGeometryTypes({
+      type: "line",
+    }),
+    [2, 3],
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.doesStyleRuleUseGeometryType(
+      { type: "line" },
+      3,
+    ),
+    true,
+  );
+  assert.equal(
+    VectorTileGeometryPlacementUtils.doesStyleRuleUseGeometryType(
       {
         type: "symbol",
         layout: { "symbol-placement": "point" },
@@ -51,7 +103,7 @@ import {
 }
 
 {
-  const points = createPolygonCenterPoints({
+  const points = VectorTileGeometryPlacementUtils.createPolygonCenterPoints({
     positions: new Float64Array([
       0, 0, 2, 0, 2, 2, 0, 2, 0, 0, 5, 5, 6, 5, 7, 5,
     ]),
@@ -127,12 +179,13 @@ import {
     },
   ];
 
-  const filtered = filterPackedLayerByStyleRules(
-    packedLayer,
-    styleRules,
-    5,
-    diagnostics,
-  );
+  const filtered =
+    VectorTileGeometryPlacementUtils.filterPackedLayerByStyleRules(
+      packedLayer,
+      styleRules,
+      5,
+      diagnostics,
+    );
 
   assert.equal(filtered.points.featureIndices.length, 1);
   assert.equal(filtered.lines.featureIndices.length, 1);
@@ -159,34 +212,35 @@ import {
     id: 1,
     properties: { kind: "main" },
   };
-  const filtered = filterPackedLayerByStyleRules(
-    {
-      featureCount: 1,
-      features,
-      points: {
-        positions: new Float64Array(),
-        featureIndices: new Uint32Array(),
-      },
-      lines: {
-        positions: new Float64Array([0, 0, 1, 1, 2, 2, 3, 3]),
-        offsets: new Uint32Array([0, 2, 4]),
-        featureIndices: new Uint32Array([highFeatureIndex, highFeatureIndex]),
-      },
-      polygons: {
-        positions: new Float64Array(),
-        ringOffsets: new Uint32Array([0]),
-        polygonOffsets: new Uint32Array([0]),
-        featureIndices: new Uint32Array(),
-      },
-    },
-    [
+  const filtered =
+    VectorTileGeometryPlacementUtils.filterPackedLayerByStyleRules(
       {
-        type: "line",
-        filter: ["==", ["get", "kind"], "main"],
+        featureCount: 1,
+        features,
+        points: {
+          positions: new Float64Array(),
+          featureIndices: new Uint32Array(),
+        },
+        lines: {
+          positions: new Float64Array([0, 0, 1, 1, 2, 2, 3, 3]),
+          offsets: new Uint32Array([0, 2, 4]),
+          featureIndices: new Uint32Array([highFeatureIndex, highFeatureIndex]),
+        },
+        polygons: {
+          positions: new Float64Array(),
+          ringOffsets: new Uint32Array([0]),
+          polygonOffsets: new Uint32Array([0]),
+          featureIndices: new Uint32Array(),
+        },
       },
-    ],
-    5,
-  );
+      [
+        {
+          type: "line",
+          filter: ["==", ["get", "kind"], "main"],
+        },
+      ],
+      5,
+    );
   assert.equal(filtered.features.length, 1);
   assert.deepEqual([...filtered.lines.featureIndices], [0, 0]);
   console.log("✓ keep clipped geometry fragments on one feature table row");

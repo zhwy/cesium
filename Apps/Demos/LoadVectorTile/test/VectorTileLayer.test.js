@@ -4,8 +4,8 @@ import VectorTilePrimitiveBucket from "../src/VectorTilePrimitiveBucket.js";
 import VectorTileDecoder from "../src/VectorTileDecoder.js";
 
 const { default: VectorTileLayer } = await import("../src/VectorTileLayer.js");
-const { getStyleRulesForBuild, getStyleRulesForDecode } =
-  await import("../src/VectorTileLayer.js");
+const getStyleRulesForBuild = VectorTileLayer.getStyleRulesForBuild;
+const getStyleRulesForDecode = VectorTileLayer.getStyleRulesForDecode;
 const Cesium = await import("../../../../Build/CesiumUnminified/index.js");
 
 {

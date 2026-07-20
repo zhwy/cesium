@@ -1,31 +1,31 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import {
+  defined,
+  DeveloperError,
+  Event,
+  ImageryState,
+  ShadowMode,
+} from "../../../../Build/CesiumUnminified/index.js";
 import VectorTile from "./VectorTile.js";
 import TileVectorTile from "./TileVectorTile.js";
 import VectorTileDecoder from "./VectorTileDecoder.js";
 import VectorTileCache from "./VectorTileCache.js";
-import VectorTilePrimitiveBucket, {
-  VectorTileBucketFallbackReason,
-} from "./VectorTilePrimitiveBucket.js";
+import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import createVectorTilePrimitiveBucket from "./createVectorTilePrimitiveBucket.js";
-import SharedPointCollections, {
-  createSharedPointEntryKey,
-} from "./SharedPointCollections.js";
-import { createVectorTileIconResolver } from "./VectorTileSymbolBucket.js";
-import VectorTileTaskScheduler, {
-  VectorTileTaskCancelledError,
-} from "./VectorTileTaskScheduler.js";
-import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
-import { filterPackedLayerByStyleRules } from "./VectorTileGeometryPlacement.js";
-import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
-import { TileType } from "./VectorTileProvider.js";
-import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
-import { isWorkerSupportedVectorStyleFilter } from "./VectorTileStyleExpression.js";
-import { createVectorTilePropertyProjections } from "./VectorTilePropertyProjectionUtils.js";
-import { VectorTileStyleUpdateType } from "./VectorTileStyleUpdateUtils.js";
-import {
-  encodeFeatureStateKey,
-  VectorTileFeatureStateStore,
-} from "./VectorTileFeatureState.js";
+import SharedPointCollections from "./SharedPointCollections.js";
+import VectorTileSymbolBucket from "./VectorTileSymbolBucket.js";
+import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
+import VectorTileStyleUtils from "./VectorTileStyleUtils.js";
+import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
+import VectorTileCoverageState from "./VectorTileCoverageState.js";
+import VectorTileStyleZoomUtils from "./VectorTileStyleZoomUtils.js";
+import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
+import VectorTilePropertyProjectionUtils from "./VectorTilePropertyProjectionUtils.js";
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
+import VectorTileBucketFallbackReason from "./VectorTileBucketFallbackReason.js";
+import VectorTileTaskCancelledError from "./VectorTileTaskCancelledError.js";
+import TileType from "./TileType.js";
+import VectorTileStyleUpdateType from "./VectorTileStyleUpdateType.js";
+import VectorTileFeatureStateStore from "./VectorTileFeatureStateStore.js";
 
 const DEFAULT_OPTIONS = {
   tilingScheme: "WebMercatorTilingScheme",
@@ -38,7 +38,7 @@ const DEFAULT_OPTIONS = {
   url: "",
   allowPicking: false,
   asynchronous: true,
-  shadows: Cesium.ShadowMode.DISABLED,
+  shadows: ShadowMode.DISABLED,
   polygonHeight: 1.0,
   cacheBytes: 64 * 1024 * 1024,
   clipToTile: true,
@@ -63,14 +63,14 @@ const DEFAULT_OPTIONS = {
  * @param {boolean} [options.allowPicking=false] 是否启用拾取。
  * @param {string[]} [options.pickProperties] 公开拾取结果保留的属性名；未配置时保留全部属性。
  * @param {boolean} [options.asynchronous=true] 是否异步构建 Cesium 图元。
- * @param {Cesium.ShadowMode} [options.shadows=Cesium.ShadowMode.DISABLED] 阴影模式。
+ * @param {ShadowMode} [options.shadows=ShadowMode.DISABLED] 阴影模式。
  * @param {number} [options.polygonHeight=1.0] 面要素默认高度。
  * @param {number} [options.cacheBytes=64*1024*1024] 图层缓存字节数上限。
  * @param {boolean} [options.clipToTile=true] 是否按瓦片边界裁剪。
  * @param {string} [options.renderBackend="instances"] 线渲染后端类型。
  * @param {number} [options.packedMinimumInstances=200] packed 线渲染的最小实例数。
  * @param {number} [options.tileSize=512] 样式缩放与误差计算使用的瓦片宽度。
- * @param {Cesium.Scene} [options.scene] Cesium 场景。
+ * @param {Scene} [options.scene] Cesium 场景。
  * @param {object} [options.styleDocument] 当前图层样式文档。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
  * @param {VectorTileTaskScheduler} [options.decodeScheduler] 解码任务调度器。
@@ -104,7 +104,7 @@ export default class VectorTileLayer {
   }
 
   get ready() {
-    return Cesium.defined(this._vectorTileProvider);
+    return defined(this._vectorTileProvider);
   }
 
   get renderBackend() {
@@ -126,7 +126,7 @@ export default class VectorTileLayer {
     this._styleLayer = (this._option.layer || "").replace(/(.*:)/g, "");
     this._scene = options.scene;
     this._styleDocument = options.styleDocument
-      ? normalizeStyleDocument(options.styleDocument)
+      ? VectorTileStyleUtils.normalizeStyleDocument(options.styleDocument)
       : undefined;
     this._contentRevision = 0;
     this._styleLayerStates = createStyleLayerStates(this._styleDocument);
@@ -154,7 +154,9 @@ export default class VectorTileLayer {
       ...(options.iconResources ?? {}),
       ...(options.iconImages ?? {}),
     };
-    this._iconResolver = createVectorTileIconResolver(this._iconImages);
+    this._iconResolver = VectorTileSymbolBucket.createVectorTileIconResolver(
+      this._iconImages,
+    );
     /**
      * 当前仍处于网络请求中的 `VectorTile` 集合，
      * 每帧由 {@link VectorTileLayer#cancelStaleRequests} 检查是否过期。
@@ -162,11 +164,11 @@ export default class VectorTileLayer {
      */
     this._inFlightTiles = new Set();
 
-    this._readyEvent = new Cesium.Event();
-    this._errorEvent = new Cesium.Event();
-    this.showChangedEvent = new Cesium.Event();
-    this.changedEvent = new Cesium.Event();
-    this.styleChangedEvent = new Cesium.Event();
+    this._readyEvent = new Event();
+    this._errorEvent = new Event();
+    this.showChangedEvent = new Event();
+    this.changedEvent = new Event();
+    this.styleChangedEvent = new Event();
   }
 
   getVectorTileFromCache(x, y, level, rectangle) {
@@ -174,7 +176,7 @@ export default class VectorTileLayer {
     const cacheKey = getVectorTileCacheKey(contentRevision, x, y, level);
     let vectorTile = this._vectorTileCache.get(cacheKey);
 
-    if (!Cesium.defined(vectorTile)) {
+    if (!defined(vectorTile)) {
       vectorTile = new VectorTile(
         this,
         x,
@@ -206,7 +208,7 @@ export default class VectorTileLayer {
     if (!vectorTileProvider.isTileAvailable(vectorTile.level)) {
       vectorTile.terminalReason = "UNAVAILABLE";
       vectorTile.coverageState = VectorTileCoverageState.UNAVAILABLE;
-      vectorTile.state = Cesium.ImageryState.INVALID;
+      vectorTile.state = ImageryState.INVALID;
       this._diagnostics?.increment("unavailableTiles");
       return;
     }
@@ -215,7 +217,7 @@ export default class VectorTileLayer {
     const requestTask = vectorTileProvider.requestTile(vectorTile);
     if (requestTask) {
       vectorTile.networkTask = requestTask;
-      vectorTile.state = Cesium.ImageryState.TRANSITIONING;
+      vectorTile.state = ImageryState.TRANSITIONING;
       this._inFlightTiles.add(vectorTile);
       requestTask.promise
         .then((arrayBuffer) => {
@@ -231,7 +233,7 @@ export default class VectorTileLayer {
           if (!arrayBuffer || arrayBuffer.byteLength === 0) {
             vectorTile.terminalReason = "EMPTY";
             vectorTile.coverageState = VectorTileCoverageState.READY_EMPTY;
-            vectorTile.state = Cesium.ImageryState.READY;
+            vectorTile.state = ImageryState.READY;
             vectorTile.cacheable = true;
             this._diagnostics?.increment("readyEmptyTiles");
             return;
@@ -244,7 +246,7 @@ export default class VectorTileLayer {
             "residentArrayBufferBytes",
             arrayBuffer.byteLength,
           );
-          vectorTile.state = Cesium.ImageryState.RECEIVED;
+          vectorTile.state = ImageryState.RECEIVED;
         })
         .catch((e) => {
           vectorTile.networkTask = undefined;
@@ -260,13 +262,13 @@ export default class VectorTileLayer {
             // 重置为未加载，而不是终态 INVALID，这样瓦片重新进入视野时仍可再次请求。
             vectorTile.terminalReason = undefined;
             vectorTile.coverageState = VectorTileCoverageState.PENDING;
-            vectorTile.state = Cesium.ImageryState.UNLOADED;
+            vectorTile.state = ImageryState.UNLOADED;
             this._diagnostics?.increment("cancelledTiles");
             return;
           }
           vectorTile.terminalReason = "FAILED";
           vectorTile.coverageState = VectorTileCoverageState.FAILED;
-          vectorTile.state = Cesium.ImageryState.FAILED;
+          vectorTile.state = ImageryState.FAILED;
           this._diagnostics?.increment("failedTiles");
           this._errorEvent.raiseEvent(e, vectorTile);
         });
@@ -309,7 +311,10 @@ export default class VectorTileLayer {
         vectorTile.level,
       );
       const hasUnsupportedWorkerFilter = styleRules.some(
-        (styleRule) => !isWorkerSupportedVectorStyleFilter(styleRule.filter),
+        (styleRule) =>
+          !VectorTileStyleExpressionUtils.isWorkerSupportedVectorStyleFilter(
+            styleRule.filter,
+          ),
       );
       const workerStyleRules = hasUnsupportedWorkerFilter
         ? undefined
@@ -324,13 +329,14 @@ export default class VectorTileLayer {
         this._vectorTileProvider.sourceId,
         this._option.pickProperties,
       );
-      const propertyProjections = createVectorTilePropertyProjections(
-        { layers: styleRules },
-        {
-          allowPicking: this._option.allowPicking,
-          pickProperties,
-        },
-      );
+      const propertyProjections =
+        VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+          { layers: styleRules },
+          {
+            allowPicking: this._option.allowPicking,
+            pickProperties,
+          },
+        );
 
       const decodeTask = this._decodeScheduler.schedule(
         () =>
@@ -430,7 +436,7 @@ export default class VectorTileLayer {
           const hasPrimitives =
             Object.keys(vectorTile.primitives).length > 0 ||
             Object.keys(vectorTile.pointBuckets).length > 0;
-          vectorTile.state = Cesium.ImageryState.READY;
+          vectorTile.state = ImageryState.READY;
           vectorTile.cacheable = true;
           if (hasPrimitives) {
             vectorTile.coverageState = VectorTileCoverageState.READY;
@@ -456,13 +462,13 @@ export default class VectorTileLayer {
           if (error instanceof VectorTileTaskCancelledError) {
             vectorTile.terminalReason = "CANCELLED";
             vectorTile.coverageState = VectorTileCoverageState.CANCELLED;
-            vectorTile.state = Cesium.ImageryState.INVALID;
+            vectorTile.state = ImageryState.INVALID;
             this._diagnostics?.increment("cancelledTiles");
             return;
           }
           vectorTile.terminalReason = "DECODE_FAILED";
           vectorTile.coverageState = VectorTileCoverageState.FAILED;
-          vectorTile.state = Cesium.ImageryState.FAILED;
+          vectorTile.state = ImageryState.FAILED;
           this._diagnostics?.increment("failedTiles");
           this._errorEvent.raiseEvent(error, vectorTile);
         });
@@ -561,7 +567,7 @@ export default class VectorTileLayer {
     const levelScale = 2 ** levelDifference;
     const vectorTileX = Math.floor(tile.x / levelScale);
     const vectorTileY = Math.floor(tile.y / levelScale);
-    if (!Cesium.defined(index)) {
+    if (!defined(index)) {
       index = surfacecTile.tileVectorTiles.length;
     }
     const vectorTile = this.getVectorTileFromCache(
@@ -578,14 +584,18 @@ export default class VectorTileLayer {
   }
 
   getFrameStyleZoom(frameState) {
-    return computeCameraVectorTileStyleZoom(frameState, {
-      ...this._option,
-      scene: this._scene,
-    });
+    return VectorTileStyleZoomUtils.computeCameraVectorTileStyleZoom(
+      frameState,
+      {
+        ...this._option,
+        scene: this._scene,
+      },
+    );
   }
 
   setStyle(styleDocument) {
-    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const normalizedStyle =
+      VectorTileStyleUtils.normalizeStyleDocument(styleDocument);
     this._styleDocument = normalizedStyle;
     this._option.styleDocument = normalizedStyle;
     this._styleLayerStates = createStyleLayerStates(
@@ -596,7 +606,8 @@ export default class VectorTileLayer {
   }
 
   setStyleLayerAppearance(styleDocument, layerId, plan) {
-    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const normalizedStyle =
+      VectorTileStyleUtils.normalizeStyleDocument(styleDocument);
     const styleRule = normalizedStyle.layers.find(
       (layer) => layer.id === layerId,
     );
@@ -623,7 +634,8 @@ export default class VectorTileLayer {
   }
 
   setStyleLayerBucketRebuild(styleDocument, layerId, plan) {
-    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const normalizedStyle =
+      VectorTileStyleUtils.normalizeStyleDocument(styleDocument);
     const styleRule = normalizedStyle.layers.find(
       (layer) => layer.id === layerId,
     );
@@ -687,7 +699,7 @@ export default class VectorTileLayer {
           };
         }
       }
-      if (vectorTile.state !== Cesium.ImageryState.READY) {
+      if (vectorTile.state !== ImageryState.READY) {
         continue;
       }
       const bucket = vectorTile.buckets?.[styleRule.id];
@@ -816,7 +828,7 @@ export default class VectorTileLayer {
     if (
       vectorTile.released ||
       !this.isCurrentContentRevision(vectorTile) ||
-      vectorTile.state !== Cesium.ImageryState.READY
+      vectorTile.state !== ImageryState.READY
     ) {
       return false;
     }
@@ -865,26 +877,28 @@ export default class VectorTileLayer {
         }
         this._diagnostics?.recordDuration("bucketRebuildRequest", startTime);
         const styleRules = [styleRule];
-        const hasUnsupportedWorkerFilter = !isWorkerSupportedVectorStyleFilter(
-          styleRule.filter,
-        );
+        const hasUnsupportedWorkerFilter =
+          !VectorTileStyleExpressionUtils.isWorkerSupportedVectorStyleFilter(
+            styleRule.filter,
+          );
         const workerStyleRules = hasUnsupportedWorkerFilter
           ? undefined
           : styleRules;
         if (hasUnsupportedWorkerFilter) {
           this._diagnostics?.increment("mainThreadStyleFilterFallbacks");
         }
-        const propertyProjections = createVectorTilePropertyProjections(
-          { layers: styleRules },
-          {
-            allowPicking: this._option.allowPicking,
-            pickProperties: getSourcePickProperties(
-              this._styleDocument,
-              this._vectorTileProvider.sourceId,
-              this._option.pickProperties,
-            ),
-          },
-        );
+        const propertyProjections =
+          VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+            { layers: styleRules },
+            {
+              allowPicking: this._option.allowPicking,
+              pickProperties: getSourcePickProperties(
+                this._styleDocument,
+                this._vectorTileProvider.sourceId,
+                this._option.pickProperties,
+              ),
+            },
+          );
         const decodeTask = this._decodeScheduler.schedule(
           () =>
             VectorTileDecoder.instance().decode(arrayBuffer, {
@@ -1091,7 +1105,7 @@ export default class VectorTileLayer {
       return;
     }
     this._sharedPointCollections.removeTileEntries(
-      createSharedPointEntryKey(vectorTile, layerId),
+      SharedPointCollections.createSharedPointEntryKey(vectorTile, layerId),
     );
     delete vectorTile.buckets[layerId];
     delete vectorTile.primitives?.[layerId];
@@ -1116,15 +1130,17 @@ export default class VectorTileLayer {
     if (!this._styleDocument) {
       return undefined;
     }
-    return normalizeStyleDocument(this._styleDocument);
+    return VectorTileStyleUtils.normalizeStyleDocument(this._styleDocument);
   }
 
   registerIconImage(name, image) {
     if (typeof name !== "string" || name.length === 0) {
-      throw new Cesium.DeveloperError("name must be a non-empty string.");
+      throw new DeveloperError("name must be a non-empty string.");
     }
     this._iconImages[name] = image;
-    this._iconResolver = createVectorTileIconResolver(this._iconImages);
+    this._iconResolver = VectorTileSymbolBucket.createVectorTileIconResolver(
+      this._iconImages,
+    );
     this.clearCache();
   }
 
@@ -1143,7 +1159,7 @@ export default class VectorTileLayer {
 
   setRenderBackend(renderBackend) {
     if (renderBackend !== "instances" && renderBackend !== "packed") {
-      throw new Cesium.DeveloperError(
+      throw new DeveloperError(
         'renderBackend must be either "instances" or "packed".',
       );
     }
@@ -1229,7 +1245,10 @@ export default class VectorTileLayer {
 
   _applyFeatureStateChange(target) {
     const buckets = this._featureStateBuckets.get(
-      encodeFeatureStateKey(target.sourceLayer, target.id),
+      VectorTileFeatureStateUtils.encodeFeatureStateKey(
+        target.sourceLayer,
+        target.id,
+      ),
     );
     let instanceUpdates = 0;
     let deferredUpdates = 0;
@@ -1267,6 +1286,34 @@ export default class VectorTileLayer {
   }
 }
 
+VectorTileLayer.getStyleRulesForDecode = function (styleDocument, buildZoom) {
+  return getStyleRulesForDecode(styleDocument, buildZoom);
+};
+
+VectorTileLayer.getStyleRulesForBuild = function (styleDocument, buildZoom) {
+  return getStyleRulesForBuild(styleDocument, buildZoom);
+};
+
+VectorTileLayer.getDecodedTileByteLength = function (decodedTile) {
+  return getDecodedTileByteLength(decodedTile);
+};
+
+VectorTileLayer.adoptDecodedFeatureTables = function (
+  vectorTile,
+  decodedTile,
+  retainAll,
+  pickProperties,
+  diagnostics,
+) {
+  return adoptDecodedFeatureTables(
+    vectorTile,
+    decodedTile,
+    retainAll,
+    pickProperties,
+    diagnostics,
+  );
+};
+
 function createStyleLayerStates(styleDocument, previousStates) {
   const result = new Map();
   for (const rule of styleDocument?.layers ?? []) {
@@ -1284,7 +1331,9 @@ function getVectorTileCacheKey(contentRevision, x, y, level) {
 }
 
 function snapshotStyleDocument(styleDocument) {
-  return styleDocument ? normalizeStyleDocument(styleDocument) : undefined;
+  return styleDocument
+    ? VectorTileStyleUtils.normalizeStyleDocument(styleDocument)
+    : undefined;
 }
 
 function getSourcePickProperties(styleDocument, sourceId, fallback) {
@@ -1299,7 +1348,7 @@ function getSourcePromoteId(styleDocument, sourceId) {
   return styleDocument?.sources?.[sourceId]?.promoteId;
 }
 
-export function getStyleRulesForDecode(styleDocument, buildZoom) {
+function getStyleRulesForDecode(styleDocument, buildZoom) {
   if (!styleDocument?.layers) {
     return [];
   }
@@ -1321,7 +1370,7 @@ export function getStyleRulesForDecode(styleDocument, buildZoom) {
     }));
 }
 
-export function getStyleRulesForBuild(styleDocument, buildZoom) {
+function getStyleRulesForBuild(styleDocument, buildZoom) {
   if (!styleDocument?.layers) {
     return [];
   }
@@ -1368,7 +1417,7 @@ function applyMainThreadStyleFilters(
     const packedLayer = decodedTile.layers[sourceLayer];
     const layerStyleRules = styleRulesBySourceLayer.get(sourceLayer);
     layers[sourceLayer] = layerStyleRules
-      ? filterPackedLayerByStyleRules(
+      ? VectorTileGeometryPlacementUtils.filterPackedLayerByStyleRules(
           packedLayer,
           layerStyleRules,
           zoom,
@@ -1420,7 +1469,7 @@ function countDecodedTile(decodedTile) {
   };
 }
 
-export function getDecodedTileByteLength(decodedTile) {
+function getDecodedTileByteLength(decodedTile) {
   let byteLength = 0;
   Object.values(decodedTile.layers).forEach((layer) => {
     byteLength += layer.points.positions.byteLength;
@@ -1437,7 +1486,7 @@ export function getDecodedTileByteLength(decodedTile) {
   return byteLength;
 }
 
-export function adoptDecodedFeatureTables(
+function adoptDecodedFeatureTables(
   vectorTile,
   decodedTile,
   allowPicking,
