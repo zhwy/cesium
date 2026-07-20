@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
+  collectVectorStyleStateDependencies,
   collectVectorStylePropertyDependencies,
   evaluateVectorStyleExpression,
   evaluateVectorStyleFilter,
@@ -39,6 +40,30 @@ assert.deepEqual(
   collectVectorStylePropertyDependencies(["get", ["get", "fieldName"]]),
   { all: true, properties: [] },
 );
+assert.deepEqual(
+  collectVectorStylePropertyDependencies(
+    ["feature-state", "hover"],
+    [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      ["get", "a"],
+      0,
+    ],
+  ),
+  { all: false, properties: ["a"] },
+);
+assert.deepEqual(
+  collectVectorStyleStateDependencies(
+    ["feature-state", "hover"],
+    [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      ["get", "a"],
+      0,
+    ],
+  ),
+  ["hover", "selected"],
+);
 
 const context = {
   zoom: 6,
@@ -48,6 +73,10 @@ const context = {
     status: "active",
     area: 120,
     rank: 2,
+  },
+  state: {
+    hover: true,
+    selected: "yes",
   },
 };
 
@@ -116,6 +145,29 @@ assert.equal(
 );
 
 assert.equal(
+  evaluateVectorStyleExpression(["feature-state", "hover"], context),
+  true,
+);
+assert.equal(
+  evaluateVectorStyleExpression(["feature-state", "missing"], context),
+  null,
+);
+assert.equal(
+  evaluateVectorStyleExpression(
+    ["boolean", ["feature-state", "hover"], false],
+    context,
+  ),
+  true,
+);
+assert.equal(
+  evaluateVectorStyleExpression(
+    ["boolean", ["feature-state", "selected"], false],
+    context,
+  ),
+  false,
+);
+
+assert.equal(
   evaluateVectorStyleFilter(
     ["all", [">=", ["get", "area"], 100], ["==", ["get", "kind"], "park"]],
     { properties: context.properties },
@@ -131,6 +183,14 @@ assert.throws(
 assert.throws(
   () => validateVectorStyleExpression(["unsupported", ["get", "kind"]]),
   /unsupported/,
+);
+assert.throws(
+  () => validateVectorStyleExpression(["feature-state", ["get", "key"]]),
+  /feature-state key/,
+);
+assert.throws(
+  () => validateVectorStyleExpression(["boolean", ["feature-state", "hover"]]),
+  /fallback/,
 );
 
 console.log("VectorTileStyleExpression tests passed.");

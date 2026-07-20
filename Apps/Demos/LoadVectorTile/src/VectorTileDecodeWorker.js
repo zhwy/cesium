@@ -10,6 +10,7 @@ function decodeVectorTileTask(parameters, transferableObjects) {
     propertyProjections,
     clipToTile,
     styleRules,
+    promoteId,
   } = parameters;
 
   const result = decodeVectorTile(
@@ -19,6 +20,7 @@ function decodeVectorTileTask(parameters, transferableObjects) {
     propertyProjections,
     clipToTile,
     styleRules,
+    promoteId,
   );
   transferableObjects.push(...getVectorTileTransferableBuffers(result));
   return result;

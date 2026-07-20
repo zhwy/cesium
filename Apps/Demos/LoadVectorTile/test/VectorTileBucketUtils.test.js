@@ -35,10 +35,15 @@ const Cesium = {
   PolylineColorAppearance: FakePolylineColorAppearance,
   PerInstanceColorAppearance: FakePerInstanceColorAppearance,
   Color: {
-    fromCssColorString: (value) => ({
-      css: value,
-      alpha: value === "#112233ff" ? 1.0 : 0.5,
-    }),
+    fromCssColorString: (value) => {
+      if (typeof value !== "string") {
+        throw new Error("color must be a string");
+      }
+      return {
+        css: value,
+        alpha: value === "#112233ff" ? 1.0 : 0.5,
+      };
+    },
   },
 };
 
@@ -71,6 +76,15 @@ const {
   assert.equal(diagnostics.counts.createdGroundPrimitives, 1);
   assert.equal(diagnostics.counts.createdPrimitives, 1);
   console.log("✓ create shared polygon primitives with diagnostics accounting");
+}
+
+{
+  const primitive = createPrimitive([{ geometry: "polygon" }], "polygon", {
+    fillColor: ["case", true, "#ffffffff", "#000000ff"],
+  });
+
+  assert.equal(primitive.options.appearance.options.translucent, true);
+  console.log("✓ create primitive appearance falls back for expression colors");
 }
 
 {

@@ -18,6 +18,10 @@ import {
   createVectorTileStyleUpdatePlan,
   VectorTileStyleUpdateType,
 } from "./VectorTileStyleUpdateUtils.js";
+import {
+  isPlainObject as isPlainFeatureStateObject,
+  isValidFeatureStateId,
+} from "./VectorTileFeatureState.js";
 
 /**
  * 协调整个矢量瓦片图层系统：管理 provider、运行时图层、四叉树 primitive 与调度器。
@@ -359,6 +363,36 @@ export default class VectorTileLayerManager {
     return this._pickRegistry?.resolve(picked);
   }
 
+  setFeatureState(target, state) {
+    const normalizedTarget = validateFeatureStateTarget(target);
+    if (!isPlainFeatureStateObject(state)) {
+      throw new Cesium.DeveloperError("state must be a plain object.");
+    }
+    const runtimeLayer = this._findRuntimeLayerBySource(
+      normalizedTarget.source,
+    );
+    return runtimeLayer?.setFeatureState(normalizedTarget, state) ?? false;
+  }
+
+  getFeatureState(target) {
+    const normalizedTarget = validateFeatureStateTarget(target);
+    const runtimeLayer = this._findRuntimeLayerBySource(
+      normalizedTarget.source,
+    );
+    return runtimeLayer?.getFeatureState(normalizedTarget) ?? {};
+  }
+
+  removeFeatureState(target, key) {
+    const normalizedTarget = validateFeatureStateTarget(target);
+    if (key !== undefined && (typeof key !== "string" || key.length === 0)) {
+      throw new Cesium.DeveloperError("key must be a non-empty string.");
+    }
+    const runtimeLayer = this._findRuntimeLayerBySource(
+      normalizedTarget.source,
+    );
+    return runtimeLayer?.removeFeatureState(normalizedTarget, key) ?? false;
+  }
+
   setLayerStyle(layerId, newStyle, merged = true) {
     const runtimeLayer = this._findLayerByStyleRuleId(layerId);
     if (!runtimeLayer) {
@@ -547,6 +581,14 @@ export default class VectorTileLayerManager {
     return undefined;
   }
 
+  _findRuntimeLayerBySource(sourceId) {
+    const provider = this.getProvider(sourceId);
+    if (!provider) {
+      return undefined;
+    }
+    return this._getRuntimeLayerForProvider(provider);
+  }
+
   _deleteProvider(provider) {
     if (!provider?.sourceId) {
       return;
@@ -590,4 +632,31 @@ function isPlainObject(value) {
     (Object.getPrototypeOf(value) === Object.prototype ||
       Object.getPrototypeOf(value) === null)
   );
+}
+
+function validateFeatureStateTarget(target) {
+  if (!isPlainFeatureStateObject(target)) {
+    throw new Cesium.DeveloperError("target must be a plain object.");
+  }
+  if (typeof target.source !== "string" || target.source.length === 0) {
+    throw new Cesium.DeveloperError(
+      "target.source must be a non-empty string.",
+    );
+  }
+  if (
+    typeof target.sourceLayer !== "string" ||
+    target.sourceLayer.length === 0
+  ) {
+    throw new Cesium.DeveloperError(
+      "target.sourceLayer must be a non-empty string.",
+    );
+  }
+  if (!isValidFeatureStateId(target.id)) {
+    throw new Cesium.DeveloperError("target.id must be a string or number.");
+  }
+  return {
+    source: target.source,
+    sourceLayer: target.sourceLayer,
+    id: target.id,
+  };
 }

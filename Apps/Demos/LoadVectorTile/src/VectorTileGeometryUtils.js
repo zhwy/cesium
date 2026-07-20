@@ -14,8 +14,9 @@ export function classifyRings(rings) {
   }
 
   const polygons = [];
-  let polygon;
+  const pendingHoles = [];
   let exteriorIsCounterClockwise;
+  let lastExteriorIndex = -1;
   for (let i = 0; i < rings.length; ++i) {
     const ring = rings[i];
     const area = signedArea(ring);
@@ -28,19 +29,29 @@ export function classifyRings(rings) {
     }
 
     if (exteriorIsCounterClockwise === area < 0) {
-      if (polygon) {
-        polygons.push(polygon);
-      }
-      polygon = [ring];
-    } else if (polygon) {
-      polygon.push(ring);
+      polygons.push({
+        ring,
+        holes: [],
+        area: Math.abs(area),
+      });
+      lastExteriorIndex = polygons.length - 1;
+    } else {
+      pendingHoles.push({
+        ring,
+        fallbackExteriorIndex: lastExteriorIndex,
+      });
     }
   }
 
-  if (polygon) {
-    polygons.push(polygon);
+  for (const hole of pendingHoles) {
+    const exteriorIndex = findContainingExterior(hole.ring, polygons);
+    const target =
+      exteriorIndex !== -1 ? exteriorIndex : hole.fallbackExteriorIndex;
+    if (target !== -1) {
+      polygons[target].holes.push(hole.ring);
+    }
   }
-  return polygons;
+  return polygons.map((polygon) => [polygon.ring, ...polygon.holes]);
 }
 
 export function projectPoint(point, tile, extent, positions) {
@@ -113,6 +124,65 @@ export function isPointInRectangle(point, minimum, maximum) {
 
 function pointsEqual(left, right) {
   return left.x === right.x && left.y === right.y;
+}
+
+function findContainingExterior(hole, polygons) {
+  const point = findRepresentativePoint(hole);
+  let bestIndex = -1;
+  let bestArea = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < polygons.length; ++i) {
+    const polygon = polygons[i];
+    if (polygon.area < bestArea && pointInRing(point, polygon.ring)) {
+      bestIndex = i;
+      bestArea = polygon.area;
+    }
+  }
+  return bestIndex;
+}
+
+function findRepresentativePoint(ring) {
+  for (let i = 0; i < ring.length; ++i) {
+    if (!pointsEqual(ring[i], ring[(i + 1) % ring.length])) {
+      return ring[i];
+    }
+  }
+  return ring[0];
+}
+
+function pointInRing(point, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const current = ring[i];
+    const previous = ring[j];
+    if (isPointOnSegment(point, previous, current)) {
+      return true;
+    }
+    const intersects =
+      current.y > point.y !== previous.y > point.y &&
+      point.x <
+        ((previous.x - current.x) * (point.y - current.y)) /
+          (previous.y - current.y) +
+          current.x;
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function isPointOnSegment(point, start, end) {
+  const cross =
+    (point.y - start.y) * (end.x - start.x) -
+    (point.x - start.x) * (end.y - start.y);
+  if (Math.abs(cross) > 1e-9) {
+    return false;
+  }
+  return (
+    point.x >= Math.min(start.x, end.x) - 1e-9 &&
+    point.x <= Math.max(start.x, end.x) + 1e-9 &&
+    point.y >= Math.min(start.y, end.y) - 1e-9 &&
+    point.y <= Math.max(start.y, end.y) + 1e-9
+  );
 }
 
 function clipSegment(start, end, minimum, maximum) {

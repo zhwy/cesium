@@ -219,6 +219,74 @@ const { default: VectorTileLayerManager } =
 }
 
 {
+  const provider = createProviderStub("land", [
+    createFillRule("land-fill", "land"),
+  ]);
+  const runtimeLayer = createRuntimeLayer(provider);
+  const manager = createManager([provider], [runtimeLayer]);
+  runtimeLayer._states = new Map();
+  runtimeLayer.setFeatureState = (target, state) => {
+    const key = `${target.sourceLayer}:${typeof target.id}:${target.id}`;
+    const current = runtimeLayer._states.get(key) ?? {};
+    const next = { ...current, ...state };
+    if (JSON.stringify(current) === JSON.stringify(next)) {
+      return false;
+    }
+    runtimeLayer._states.set(key, next);
+    return true;
+  };
+  runtimeLayer.getFeatureState = (target) => {
+    const key = `${target.sourceLayer}:${typeof target.id}:${target.id}`;
+    return { ...(runtimeLayer._states.get(key) ?? {}) };
+  };
+  runtimeLayer.removeFeatureState = (target, key) => {
+    const stateKey = `${target.sourceLayer}:${typeof target.id}:${target.id}`;
+    if (!runtimeLayer._states.has(stateKey)) {
+      return false;
+    }
+    if (key === undefined) {
+      runtimeLayer._states.delete(stateKey);
+      return true;
+    }
+    const current = runtimeLayer._states.get(stateKey);
+    if (!(key in current)) {
+      return false;
+    }
+    const next = { ...current };
+    delete next[key];
+    runtimeLayer._states.set(stateKey, next);
+    return true;
+  };
+
+  const target = { source: "land", sourceLayer: "countries", id: 1 };
+  assert.equal(manager.setFeatureState(target, { hover: true, rank: 1 }), true);
+  assert.equal(manager.setFeatureState(target, { rank: 2 }), true);
+  assert.deepEqual(manager.getFeatureState(target), { hover: true, rank: 2 });
+  const snapshot = manager.getFeatureState(target);
+  snapshot.hover = false;
+  assert.equal(manager.getFeatureState(target).hover, true);
+  assert.equal(manager.setFeatureState(target, { rank: 2 }), false);
+  assert.equal(manager.removeFeatureState(target, "hover"), true);
+  assert.deepEqual(manager.getFeatureState(target), { rank: 2 });
+  assert.equal(manager.removeFeatureState(target), true);
+  assert.deepEqual(manager.getFeatureState(target), {});
+  assert.equal(
+    manager.setFeatureState(
+      { source: "missing", sourceLayer: "countries", id: 1 },
+      { hover: true },
+    ),
+    false,
+  );
+  assert.throws(
+    () => manager.setFeatureState({ source: "land", sourceLayer: "x" }, {}),
+    /target.id/,
+  );
+  assert.throws(() => manager.setFeatureState(target, null), /state/);
+  assert.throws(() => manager.removeFeatureState(target, ""), /key/);
+  console.log("✓ manager routes feature-state API with validation");
+}
+
+{
   const manager = new VectorTileLayerManager({ pbfCacheBytes: 7 });
   const deferred = createDeferredTask();
   const consumer = manager.pbfCache.getOrLoad(

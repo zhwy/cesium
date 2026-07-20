@@ -28,7 +28,13 @@ export function getGeometryFeatureIndex(geometry, index) {
   return geometry?.featureIndices?.[index] ?? index;
 }
 
-export function evaluateStyleValue(value, metadata, zoom, fallback) {
+export function evaluateStyleValue(
+  value,
+  metadata,
+  zoom,
+  fallback,
+  options = {},
+) {
   if (!isDefined(value)) {
     return fallback;
   }
@@ -36,6 +42,7 @@ export function evaluateStyleValue(value, metadata, zoom, fallback) {
   const result = isVectorStyleExpression(value)
     ? evaluateVectorStyleExpression(value, {
         properties: metadata?.properties ?? {},
+        state: options.state ?? {},
         id: metadata?.id,
         zoom,
         level: zoom,
@@ -44,8 +51,14 @@ export function evaluateStyleValue(value, metadata, zoom, fallback) {
   return isDefined(result) ? result : fallback;
 }
 
-export function evaluateFiniteStyleNumber(value, metadata, zoom, fallback) {
-  const result = evaluateStyleValue(value, metadata, zoom, fallback);
+export function evaluateFiniteStyleNumber(
+  value,
+  metadata,
+  zoom,
+  fallback,
+  options = {},
+) {
+  const result = evaluateStyleValue(value, metadata, zoom, fallback, options);
   if (!isDefined(result)) {
     return fallback;
   }
@@ -55,15 +68,24 @@ export function evaluateFiniteStyleNumber(value, metadata, zoom, fallback) {
 }
 
 export function parseCesiumColor(value, fallback) {
+  if (typeof value !== "string") {
+    return Cesium.Color.fromCssColorString(fallback);
+  }
   return (
     Cesium.Color.fromCssColorString(value) ??
     Cesium.Color.fromCssColorString(fallback)
   );
 }
 
-export function evaluateColorStyleValue(value, metadata, zoom, fallback) {
+export function evaluateColorStyleValue(
+  value,
+  metadata,
+  zoom,
+  fallback,
+  options = {},
+) {
   return parseCesiumColor(
-    evaluateStyleValue(value, metadata, zoom, fallback),
+    evaluateStyleValue(value, metadata, zoom, fallback, options),
     fallback,
   );
 }

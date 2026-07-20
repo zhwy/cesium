@@ -11,8 +11,6 @@ import {
   getStyleRuleHeightOffset,
   getGeometryFeature,
   getGeometryFeatureIndex,
-  isVectorStyleExpression,
-  parseCesiumColor,
   requiresGroundHeightOffsetFallback,
   shouldUseGroundPath,
 } from "./VectorTileBucketUtils.js";
@@ -48,19 +46,25 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
       tileContext.lines,
     );
     const useGroundPath = shouldUseGroundPath(this.styleRule);
-    const polygonResult = this._createPolygonGeometryInstances(
+    const polygonBatches = this._createPolygonGeometryInstances(
       fillPolygons,
       zoom,
       useGroundPath,
     );
-    if (polygonResult.instances.length > 0) {
+    // 贴地分类（GroundPrimitive）同一批次共享 stencil，颜色/拾取 pass 只按
+    // 实例的包围矩形裁剪片元，包围矩形重叠的实例会互相“抢色”并导致拾取
+    // 错误，因此重叠的实例必须拆到不同批次；半透明与不透明也分开成批。
+    for (const batch of polygonBatches) {
+      if (batch.instances.length === 0) {
+        continue;
+      }
       this.addPrimitive(
         createPrimitive(
-          polygonResult.instances,
+          batch.instances,
           "polygon",
           {
             fillColor: this.styleRule.paint?.["fill-color"] ?? "#ff000077",
-            translucent: isFillStyleTranslucent(this.styleRule),
+            translucent: batch.translucent,
             groundPrimitive: useGroundPath,
           },
           {
@@ -71,7 +75,7 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
           },
         ),
         "fill",
-        polygonResult.featureIndices,
+        batch.featureIndices,
       );
     }
 
@@ -108,8 +112,7 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
   }
 
   _createPolygonGeometryInstances(polygons, zoom, useGroundPath) {
-    const instances = [];
-    const instanceFeatureIndices = [];
+    const batches = [];
     const height = useGroundPath
       ? 0.0
       : getStyleRuleHeightOffset(this.styleRule);
@@ -151,26 +154,36 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
         polygonOptions.height = height;
       }
 
-      instances.push(
+      const color = evaluateColorStyleValue(
+        this.styleRule.paint?.["fill-color"],
+        metadata,
+        zoom,
+        "#ff000077",
+        {
+          state: this._getFeatureStateForFeature(metadata),
+        },
+      );
+      const translucent = color.alpha < 1.0;
+      const bounds = useGroundPath
+        ? computeRingDegreesBounds(polygons, firstRing)
+        : undefined;
+      const batch = findBatchForInstance(batches, translucent, bounds);
+      batch.instances.push(
         new Cesium.GeometryInstance({
-          id: instances.length,
+          id: batch.instances.length,
           geometry: new Cesium.PolygonGeometry(polygonOptions),
           attributes: {
-            color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-              evaluateColorStyleValue(
-                this.styleRule.paint?.["fill-color"],
-                metadata,
-                zoom,
-                "#ff000077",
-              ),
-            ),
+            color: Cesium.ColorGeometryInstanceAttribute.fromColor(color),
           },
         }),
       );
-      instanceFeatureIndices.push(featureIndex);
+      batch.featureIndices.push(featureIndex);
+      if (bounds !== undefined) {
+        batch.bounds.push(bounds);
+      }
     }
 
-    return { instances, featureIndices: instanceFeatureIndices };
+    return batches;
   }
 
   _createFillOutlineGeometryInstances(
@@ -241,6 +254,9 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
                     metadata,
                     zoom,
                     "#ffffffff",
+                    {
+                      state: this._getFeatureStateForFeature(metadata),
+                    },
                   ),
                 ),
               },
@@ -255,12 +271,56 @@ export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
   }
 }
 
-function isFillStyleTranslucent(styleRule) {
-  const fillColor = styleRule.paint?.["fill-color"];
-  if (isVectorStyleExpression(fillColor)) {
-    return true;
+// 为一个实例挑选可容纳它的批次：半透明性一致，且（贴地时）包围矩形
+// 与批内已有实例均不重叠；找不到则新建批次。
+function findBatchForInstance(batches, translucent, bounds) {
+  for (const batch of batches) {
+    if (batch.translucent !== translucent) {
+      continue;
+    }
+    if (
+      bounds === undefined ||
+      !batch.bounds.some((existing) => doBoundsIntersect(existing, bounds))
+    ) {
+      return batch;
+    }
   }
-  return parseCesiumColor(fillColor ?? "#ff000077", "#ff000077").alpha < 1.0;
+
+  const batch = {
+    instances: [],
+    featureIndices: [],
+    bounds: [],
+    translucent,
+  };
+  batches.push(batch);
+  return batch;
+}
+
+function computeRingDegreesBounds(polygons, ringIndex) {
+  const start = polygons.ringOffsets[ringIndex];
+  const end = polygons.ringOffsets[ringIndex + 1];
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (let i = start; i < end; ++i) {
+    const longitude = polygons.positions[i * 2];
+    const latitude = polygons.positions[i * 2 + 1];
+    west = Math.min(west, longitude);
+    east = Math.max(east, longitude);
+    south = Math.min(south, latitude);
+    north = Math.max(north, latitude);
+  }
+  return { west, south, east, north };
+}
+
+function doBoundsIntersect(a, b) {
+  return (
+    a.west <= b.east &&
+    b.west <= a.east &&
+    a.south <= b.north &&
+    b.south <= a.north
+  );
 }
 
 function createFillPolygonsFromLines(polygons, lines) {

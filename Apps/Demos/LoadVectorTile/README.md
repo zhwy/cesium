@@ -402,12 +402,74 @@ manager.setStyle({
 | `clipToTile`             |                `true` | 将 MVT buffer 几何裁剪到 `[0, extent]`，避免相邻瓦片面重叠。                                                                                |
 | `allowPicking`           |               `false` | 是否保留逐要素 ID 和属性用于 `scene.pick()`。                                                                                               |
 | `pickProperties`         |                未配置 | `allowPicking: true` 时公开拾取属性。未配置返回全部属性；字符串数组只返回指定字段；空数组只返回 feature id、source/style layer 和瓦片定位。 |
+| `promoteId`              |                未配置 | 将属性提升为稳定 feature id。字符串应用于全部 source-layer；对象按 source-layer 映射属性名，未映射图层继续使用 PBF 原生 id。                |
 | `renderBackend`          |           `instances` | 线渲染后端：`instances` 或实验性 `packed`。                                                                                                 |
 | `packedMinimumInstances` |                 `200` | packed 后端启用所需的最少线段/路径数量。                                                                                                    |
 | `cacheBytes`             |              `64 MiB` | 单 runtime layer 的渲染瓦片缓存预算估算值，不包含原始 PBF。                                                                                 |
 | `polygonHeight`          |                 `1.0` | 面相对椭球面的高度，减少与地球表面共面闪烁。                                                                                                |
 | `asynchronous`           |                `true` | instances 后端是否使用 Cesium 异步 Primitive 构建。                                                                                         |
 | `shadows`                | `ShadowMode.DISABLED` | 是否参与阴影。                                                                                                                              |
+
+### Feature State 交互样式
+
+`VectorTileLayerManager` 提供类似 Mapbox `feature-state` 的运行时逐要素状态 API，用于点击选中、悬浮高亮等交互：
+
+```js
+const target = {
+  source: picked.sourceId,
+  sourceLayer: picked.sourceLayer,
+  id: picked.id,
+};
+
+manager.setFeatureState(target, { hover: true });
+manager.getFeatureState(target);
+manager.removeFeatureState(target, "hover");
+manager.removeFeatureState(target);
+```
+
+target 使用 `source + sourceLayer + id` 寻址，`id` 支持 string 和 number，且两种类型不会互相冲突。`setFeatureState` 对顶层键做浅合并，值没有变化时返回 `false` 且不触发颜色更新；`getFeatureState` 返回浅拷贝；`removeFeatureState` 可删除单个 key 或整个要素状态。未知 source 的 set/remove 返回 `false`，get 返回空对象；非法 target、state 或 key 会抛出 `DeveloperError`。
+
+样式表达式支持 `["feature-state", key]` 和 `["boolean", value, fallback]`：
+
+```js
+paint: {
+  "fill-color": [
+    "case",
+    ["boolean", ["feature-state", "selected"], false],
+    "#00ffffff",
+    ["boolean", ["feature-state", "hover"], false],
+    "#ffff00cc",
+    "#33669977",
+  ],
+}
+```
+
+首期只允许 `feature-state` 出现在 `line-color`、`fill-color` 和已有 `fill-outline-color` 颜色表达式中。它不能用于 filter、layout、线宽、轮廓宽度、高度、显隐、circle 或 symbol 字段。包含状态颜色表达式的线要素会使用 instances 路径，不使用 packed line；首次热更新从 packed 切到状态颜色时可能触发一次 bucket 重建，之后 set/remove 状态只做目标实例的 per-instance color 原地更新。
+
+状态属于 runtime source：清瓦片缓存、瓦片驱逐重载和样式图层热更新会保留状态；替换 source、移除 source 或销毁 manager 会清空状态。没有稳定 PBF id 的数据应配置 `promoteId`，例如：
+
+```js
+sources: {
+  parcels: {
+    type: "vector",
+    url: ".../{z}/{x}/{y}.pbf",
+    allowPicking: true,
+    pickProperties: [],
+    promoteId: { parcel: "parcel_id" },
+  },
+}
+```
+
+配置了提升属性但要素缺失该属性，或属性值不是 string/number 时，该要素不可由 feature-state 寻址；运行时不会退回 `sourceFeatureIndex` 这类瓦片局部序号。只做 hover/selected 时可以设置 `pickProperties: []`，拾取结果仍保留 id、source、sourceLayer、layer 和瓦片定位。
+
+`promoteId` 必须选择当前 source-layer 内能唯一标识一个可交互要素的字段。不要给地块、宗地这类细粒度面图层使用上级行政区字段，例如多个地块共享同一个 `org_code` 时，一次 hover 会按设计更新这些同 id 要素的全部驻留实例。遇到这种数据应按 source-layer 映射到更细粒度字段：
+
+```js
+promoteId: {
+  res_org_gr: "org_code",
+  res_parent_plot: "plot_name",
+}
+```
 
 ### `terrain` 贴地与高度偏移
 

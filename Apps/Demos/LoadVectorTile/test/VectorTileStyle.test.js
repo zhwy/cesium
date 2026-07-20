@@ -58,6 +58,82 @@ import {
       org: {
         type: "vector",
         url: "https://example.com/{z}/{x}/{y}.pbf",
+        promoteId: { roads: "road_id", parcels: "parcel_id" },
+      },
+    },
+    layers: [
+      {
+        id: "roads-line",
+        type: "line",
+        source: "org",
+        sourceLayer: "roads",
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#00ffffff",
+            "#336699ff",
+          ],
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(style.sources.org.promoteId, {
+    roads: "road_id",
+    parcels: "parcel_id",
+  });
+  console.log("✓ normalize source promoteId mappings and legal state colors");
+}
+
+{
+  assert.throws(
+    () =>
+      normalizeStyleDocument({
+        sources: {
+          org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
+        },
+        layers: [
+          {
+            id: "bad-width",
+            type: "line",
+            source: "org",
+            sourceLayer: "roads",
+            paint: {
+              "line-width": ["case", ["feature-state", "hover"], 4, 2],
+            },
+          },
+        ],
+      }),
+    /bad-width.*paint.line-width.*feature-state/,
+  );
+  assert.throws(
+    () =>
+      normalizeStyleDocument({
+        sources: {
+          org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
+        },
+        layers: [
+          {
+            id: "bad-filter",
+            type: "fill",
+            source: "org",
+            sourceLayer: "land",
+            filter: ["boolean", ["feature-state", "selected"], false],
+          },
+        ],
+      }),
+    /bad-filter.*filter.*feature-state/,
+  );
+  console.log("✓ reject feature-state outside supported color fields");
+}
+
+{
+  const style = normalizeStyleDocument({
+    sources: {
+      org: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
       },
     },
     layers: [

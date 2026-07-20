@@ -170,10 +170,30 @@
       window._vectorTileBenchmark = createVectorTileBenchmark(viewer, manager);
 
       let highlightPoint;
+      let hoveredTarget;
+      let selectedTarget;
 
       function switchBackend(backend) {
         const allowPicking = backend === "instances";
+        hoveredTarget = undefined;
+        selectedTarget = undefined;
         manager.removeAll();
+        const fillStateColor = (fallback) => [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          "#00ffffff",
+          ["boolean", ["feature-state", "hover"], false],
+          "#ffff00cc",
+          fallback,
+        ];
+        const lineStateColor = (fallback) => [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          "#00ffffff",
+          ["boolean", ["feature-state", "hover"], false],
+          "#ffff00ff",
+          fallback,
+        ];
         manager.setStyle({
           version: 1,
           sources: {
@@ -185,6 +205,7 @@
               maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
+              promoteId: "org_code",
             },
             res_org_gr: {
               type: "vector",
@@ -194,6 +215,7 @@
               maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
+              promoteId: "org_code",
             },
             res_parent_plot: {
               type: "vector",
@@ -203,6 +225,9 @@
               maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
+              promoteId: {
+                res_parent_plot: "plot_name",
+              },
             },
             res_parent_plot_label: {
               type: "vector",
@@ -212,6 +237,9 @@
               maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
+              promoteId: {
+                res_parent_plot_label: "plot_id",
+              },
             },
             globe: {
               type: "vector",
@@ -233,7 +261,7 @@
               sourceLayer: "res_org_gr",
               maxzoom: 5,
               paint: {
-                "fill-color": "#ffff00",
+                "fill-color": fillStateColor("#ffff00"),
               },
               filter: [
                 "all",
@@ -249,8 +277,8 @@
               minzoom: 5,
               maxzoom: 10,
               paint: {
-                "fill-color": "#00ff0022",
-                "fill-outline-color": "#ff0000",
+                "fill-color": fillStateColor("#00ff0022"),
+                "fill-outline-color": lineStateColor("#ff0000"),
                 "fill-outline-width": [
                   "interpolate",
                   ["linear"],
@@ -278,8 +306,8 @@
               minzoom: 10,
               maxzoom: 13,
               paint: {
-                "fill-color": "#ff000022",
-                "fill-outline-color": "#ff0000",
+                "fill-color": fillStateColor("#ff000022"),
+                "fill-outline-color": lineStateColor("#ff0000"),
                 "fill-outline-width": 2,
               },
               filter: [
@@ -299,8 +327,8 @@
               minzoom: 13,
               maxzoom: 15,
               paint: {
-                "fill-color": "#ffff0022",
-                "fill-outline-color": "#ff0000",
+                "fill-color": fillStateColor("#ffff0022"),
+                "fill-outline-color": lineStateColor("#ff0000"),
                 "fill-outline-width": 2,
               },
               filter: [
@@ -406,8 +434,8 @@
               sourceLayer: "res_parent_plot",
               minzoom: 15,
               paint: {
-                "fill-color": "#00ffff22",
-                "fill-outline-color": "#00ffff",
+                "fill-color": fillStateColor("#00ffff22"),
+                "fill-outline-color": lineStateColor("#00ffff"),
                 "fill-outline-width": 2,
               },
               terrain: {
@@ -432,106 +460,106 @@
               },
               filter: ["all", ["==", ["get", "year"], 2025]],
             },
-            {
-              id: "globe-text",
-              type: "symbol",
-              source: "globe",
-              sourceLayer: "populated_places",
-              paint: {
-                "text-color": "#333333",
-                "text-halo-color": "#ff0000",
-                "text-halo-width": 3,
-                "text-background-color": "#ffffff77",
-                "text-background-padding": [6, 4],
-              },
-              layout: {
-                "text-field": ["get", "name"],
-                "text-font-family": '"Noto Sans SC", sans-serif',
-                "text-anchor": "center",
-                "text-offset": [0, 0],
-                "icon-image": "http://localhost:8080/Apps/SampleData/fire.png",
-                "text-size": [
-                  "case",
-                  [">", ["get", "pop_max"], 5000000],
-                  18,
-                  14,
-                ],
-                "icon-anchor": "bottom",
-                "icon-width": 32,
-                "icon-height": 32,
-                "icon-offset": [0, -30],
-                "icon-size": [
-                  "case",
-                  [">", ["get", "pop_max"], 5000000],
-                  2.5,
-                  1,
-                ],
-              },
-              terrain: {
-                clampToGround: true,
-                heightOffset: 10,
-              },
-              minzoom: 5,
-            },
-            {
-              id: "globe-circle",
-              type: "circle",
-              source: "globe",
-              sourceLayer: "populated_places",
-              paint: {
-                "circle-radius": [
-                  "interpolate",
-                  ["linear"],
-                  ["zoom"],
-                  1,
-                  2,
-                  10,
-                  10,
-                ],
-                "circle-color": "#ff6600cc",
-                "circle-outline-color": "#ffffffff",
-                "circle-outline-width": 2,
-              },
-              terrain: {
-                clampToGround: true,
-                heightOffset: 100,
-                disableDepthTestDistance: 2e6,
-              },
-            },
-            {
-              id: "globe-coastline-line",
-              type: "line",
-              source: "globe",
-              sourceLayer: "coastlines",
-              paint: {
-                "line-color": "#0000ff77",
-                "line-width": [
-                  "interpolate",
-                  ["linear"],
-                  ["zoom"],
-                  1,
-                  1,
-                  18,
-                  25,
-                ],
-              },
-              terrain: {
-                clampToGround: true,
-              },
-            },
-            {
-              id: "countries",
-              type: "fill",
-              source: "globe",
-              sourceLayer: "countries",
-              paint: {
-                "fill-color": "#ffff0077",
-              },
-              maxzoom: 6,
-              terrain: {
-                heightOffset: 10,
-              },
-            },
+            // {
+            //   id: "globe-text",
+            //   type: "symbol",
+            //   source: "globe",
+            //   sourceLayer: "populated_places",
+            //   paint: {
+            //     "text-color": "#333333",
+            //     "text-halo-color": "#ff0000",
+            //     "text-halo-width": 3,
+            //     "text-background-color": "#ffffff77",
+            //     "text-background-padding": [6, 4],
+            //   },
+            //   layout: {
+            //     "text-field": ["get", "name"],
+            //     "text-font-family": '"Noto Sans SC", sans-serif',
+            //     "text-anchor": "center",
+            //     "text-offset": [0, 0],
+            //     "icon-image": "http://localhost:8080/Apps/SampleData/fire.png",
+            //     "text-size": [
+            //       "case",
+            //       [">", ["get", "pop_max"], 5000000],
+            //       18,
+            //       14,
+            //     ],
+            //     "icon-anchor": "bottom",
+            //     "icon-width": 32,
+            //     "icon-height": 32,
+            //     "icon-offset": [0, -30],
+            //     "icon-size": [
+            //       "case",
+            //       [">", ["get", "pop_max"], 5000000],
+            //       2.5,
+            //       1,
+            //     ],
+            //   },
+            //   terrain: {
+            //     clampToGround: true,
+            //     heightOffset: 10,
+            //   },
+            //   minzoom: 5,
+            // },
+            // {
+            //   id: "globe-circle",
+            //   type: "circle",
+            //   source: "globe",
+            //   sourceLayer: "populated_places",
+            //   paint: {
+            //     "circle-radius": [
+            //       "interpolate",
+            //       ["linear"],
+            //       ["zoom"],
+            //       1,
+            //       2,
+            //       10,
+            //       10,
+            //     ],
+            //     "circle-color": "#ff6600cc",
+            //     "circle-outline-color": "#ffffffff",
+            //     "circle-outline-width": 2,
+            //   },
+            //   terrain: {
+            //     clampToGround: true,
+            //     heightOffset: 100,
+            //     disableDepthTestDistance: 2e6,
+            //   },
+            // },
+            // {
+            //   id: "globe-coastline-line",
+            //   type: "line",
+            //   source: "globe",
+            //   sourceLayer: "coastlines",
+            //   paint: {
+            //     "line-color": lineStateColor("#0000ff77"),
+            //     "line-width": [
+            //       "interpolate",
+            //       ["linear"],
+            //       ["zoom"],
+            //       1,
+            //       1,
+            //       18,
+            //       25,
+            //     ],
+            //   },
+            //   terrain: {
+            //     clampToGround: true,
+            //   },
+            // },
+            // {
+            //   id: "countries",
+            //   type: "fill",
+            //   source: "globe",
+            //   sourceLayer: "countries",
+            //   paint: {
+            //     "fill-color": fillStateColor("#ffff0077"),
+            //   },
+            //   maxzoom: 6,
+            //   terrain: {
+            //     heightOffset: 10,
+            //   },
+            // },
           ],
         });
 
@@ -576,6 +604,52 @@
         resultEl.textContent = JSON.stringify(feature, null, 2);
       }
 
+      function getFeatureStateTarget(feature) {
+        if (!Cesium.defined(feature) || !Cesium.defined(feature.id)) {
+          return undefined;
+        }
+        return {
+          source: feature.sourceId,
+          sourceLayer: feature.sourceLayer,
+          id: feature.id,
+        };
+      }
+
+      function sameTarget(left, right) {
+        return (
+          left?.source === right?.source &&
+          left?.sourceLayer === right?.sourceLayer &&
+          left?.id === right?.id &&
+          typeof left?.id === typeof right?.id
+        );
+      }
+
+      function setHoverTarget(target) {
+        if (sameTarget(hoveredTarget, target)) {
+          return;
+        }
+        if (hoveredTarget) {
+          manager.removeFeatureState(hoveredTarget, "hover");
+        }
+        hoveredTarget = target;
+        if (hoveredTarget) {
+          manager.setFeatureState(hoveredTarget, { hover: true });
+        }
+      }
+
+      function setSelectedTarget(target) {
+        if (sameTarget(selectedTarget, target)) {
+          return;
+        }
+        if (selectedTarget) {
+          manager.removeFeatureState(selectedTarget, "selected");
+        }
+        selectedTarget = target;
+        if (selectedTarget) {
+          manager.setFeatureState(selectedTarget, { selected: true });
+        }
+      }
+
       function highlightPosition(cartesian) {
         clearHighlight();
         highlightPoint = viewer.entities.add(
@@ -595,6 +669,9 @@
       handler.setInputAction((click) => {
         const picked = viewer.scene.pick(click.position);
         showPickResult(picked);
+        setSelectedTarget(
+          getFeatureStateTarget(manager.resolvePickedFeature(picked)),
+        );
 
         const ray = viewer.camera.getPickRay(click.position);
         const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
@@ -603,6 +680,13 @@
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+      handler.setInputAction((movement) => {
+        const picked = viewer.scene.pick(movement.endPosition);
+        setHoverTarget(
+          getFeatureStateTarget(manager.resolvePickedFeature(picked)),
+        );
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
       document
         .getElementById("btnInstances")
         .addEventListener("click", () => switchBackend("instances"));
@@ -610,6 +694,8 @@
         .getElementById("btnPacked")
         .addEventListener("click", () => switchBackend("packed"));
       document.getElementById("btnClear").addEventListener("click", () => {
+        setHoverTarget(undefined);
+        setSelectedTarget(undefined);
         clearHighlight();
         document.getElementById("pickResult").textContent = "{}";
       });

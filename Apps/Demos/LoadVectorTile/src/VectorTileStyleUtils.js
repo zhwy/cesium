@@ -1,4 +1,9 @@
-import { validateVectorStyleFilter } from "./VectorTileStyleExpression.js";
+import {
+  hasVectorStyleFeatureStateDependency,
+  validateVectorStyleFilter,
+  validateVectorStyleExpression,
+} from "./VectorTileStyleExpression.js";
+import { normalizePromoteId } from "./VectorTileFeatureState.js";
 import { normalizeSymbolPlacement } from "./VectorTileGeometryPlacement.js";
 
 const VALID_LAYER_TYPES = new Set(["fill", "line", "symbol", "circle"]);
@@ -56,9 +61,11 @@ function normalizeSources(sources) {
       throw new Error(`source "${sourceId}" type must be "vector".`);
     }
     validatePickProperties(source.pickProperties, sourceId);
+    const promoteId = normalizePromoteId(source.promoteId, sourceId);
     result[sourceId] = {
       ...cloneValue(source),
       type,
+      ...(promoteId === undefined ? {} : { promoteId: cloneValue(promoteId) }),
       pickProperties:
         source.pickProperties === undefined
           ? undefined
@@ -133,13 +140,17 @@ function normalizeLayers(layers, sources) {
     }
 
     validateVectorStyleFilter(layer.filter, `layer "${id}" filter`);
+    validateNoFeatureState(layer.filter, `layer "${id}" filter`, id, "filter");
 
     const layout = cloneValue(layer.layout ?? {});
+    validateStyleObjectFeatureStateUsage(layout, id, "layout", type);
     if (type === "symbol") {
       layout["symbol-placement"] = normalizeSymbolPlacement(
         layout["symbol-placement"],
       );
     }
+    const paint = cloneValue(layer.paint ?? {});
+    validateStyleObjectFeatureStateUsage(paint, id, "paint", type);
 
     return {
       id,
@@ -150,7 +161,7 @@ function normalizeLayers(layers, sources) {
       maxzoom: layer.maxzoom,
       filter: cloneValue(layer.filter),
       layout,
-      paint: cloneValue(layer.paint ?? {}),
+      paint,
       terrain: {
         clampToGround: layer.terrain?.clampToGround ?? false,
         heightOffset: layer.terrain?.heightOffset ?? 0.0,
@@ -160,6 +171,47 @@ function normalizeLayers(layers, sources) {
       metadata: cloneValue(layer.metadata ?? {}),
     };
   });
+}
+
+function validateStyleObjectFeatureStateUsage(
+  styleObject,
+  layerId,
+  scope,
+  type,
+) {
+  Object.entries(styleObject ?? {}).forEach(([field, value]) => {
+    if (Array.isArray(value) && typeof value[0] === "string") {
+      validateVectorStyleExpression(
+        value,
+        `layer "${layerId}" ${scope}.${field}`,
+      );
+    }
+    if (!hasVectorStyleFeatureStateDependency(value)) {
+      return;
+    }
+    if (scope !== "paint" || !isFeatureStatePaintFieldAllowed(type, field)) {
+      throw new Error(
+        `layer "${layerId}" ${scope}.${field} cannot use feature-state; feature-state is only supported in line-color, fill-color, and fill-outline-color paint fields.`,
+      );
+    }
+  });
+}
+
+function validateNoFeatureState(value, path, layerId, field) {
+  if (!hasVectorStyleFeatureStateDependency(value)) {
+    return;
+  }
+  throw new Error(
+    `${path} cannot use feature-state; layer "${layerId}" ${field} is not a supported feature-state color field.`,
+  );
+}
+
+function isFeatureStatePaintFieldAllowed(type, field) {
+  return (
+    (type === "line" && field === "line-color") ||
+    (type === "fill" &&
+      (field === "fill-color" || field === "fill-outline-color"))
+  );
 }
 
 function normalizeLayerVisibility(layer, layerId) {

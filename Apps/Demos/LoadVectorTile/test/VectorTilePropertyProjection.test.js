@@ -46,20 +46,31 @@ function createStyle(source = {}) {
 
 {
   const style = createStyle({ pickProperties: ["name"] });
+  style.layers[0].paint["line-color"] = [
+    "case",
+    ["boolean", ["feature-state", "hover"], false],
+    ["get", "highlightColor"],
+    ["get", "class"],
+  ];
   const projection = createVectorTilePropertyProjections(style, {
     allowPicking: true,
     pickProperties: style.sources.demo.pickProperties,
   }).transport;
   assert.deepEqual(projection.style, {
     all: false,
-    properties: ["class", "kind"],
+    properties: ["class", "highlightColor", "kind"],
   });
   assert.deepEqual(projection.pick, {
     enabled: true,
     all: false,
     properties: ["name"],
   });
-  assert.deepEqual(projection.properties, ["class", "kind", "name"]);
+  assert.deepEqual(projection.properties, [
+    "class",
+    "highlightColor",
+    "kind",
+    "name",
+  ]);
   assert.deepEqual(
     projectVectorTileProperties(
       { class: "a", kind: "road", name: "Main", hidden: 1 },

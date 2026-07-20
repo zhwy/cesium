@@ -22,6 +22,10 @@ import { computeCameraVectorTileStyleZoom } from "./VectorTileStyleZoom.js";
 import { isWorkerSupportedVectorStyleFilter } from "./VectorTileStyleExpression.js";
 import { createVectorTilePropertyProjections } from "./VectorTilePropertyProjectionUtils.js";
 import { VectorTileStyleUpdateType } from "./VectorTileStyleUpdateUtils.js";
+import {
+  encodeFeatureStateKey,
+  VectorTileFeatureStateStore,
+} from "./VectorTileFeatureState.js";
 
 const DEFAULT_OPTIONS = {
   tilingScheme: "WebMercatorTilingScheme",
@@ -133,6 +137,10 @@ export default class VectorTileLayer {
     this._buildScheduler =
       options.buildScheduler ?? new VectorTileTaskScheduler(1);
     this._pickRegistry = options.pickRegistry;
+    this._featureStateStore = new VectorTileFeatureStateStore({
+      diagnostics: this._diagnostics,
+    });
+    this._featureStateBuckets = new Map();
     this._vectorTileCache = new VectorTileCache({
       maximumBytes: this._option.cacheBytes,
       diagnostics: this._diagnostics,
@@ -338,6 +346,10 @@ export default class VectorTileLayer {
             styleRules: workerStyleRules,
             propertyProjections,
             clipToTile: this._option.clipToTile,
+            promoteId: getSourcePromoteId(
+              styleDocument,
+              this._vectorTileProvider.sourceId,
+            ),
           }),
         vectorTile.priority,
       );
@@ -387,6 +399,10 @@ export default class VectorTileLayer {
           this._diagnostics?.increment(
             "outOfBoundsPositions",
             counts.outOfBoundsPositions,
+          );
+          this._diagnostics?.increment(
+            "unaddressableFeatureStateFeatures",
+            counts.unaddressableFeatures,
           );
 
           const buildTask = this._buildScheduler.schedule(
@@ -518,6 +534,8 @@ export default class VectorTileLayer {
             featureTable: packedLayer.features,
             propertyProjection: propertyProjections?.[styleRule.sourceLayer],
             styleRevision: this.getStyleLayerRevision(styleRule.id),
+            featureStateStore: this._featureStateStore,
+            featureStateOwner: this,
           },
         );
         VectorTilePrimitiveBucket.storeVectorTileBucket(
@@ -733,6 +751,15 @@ export default class VectorTileLayer {
       if (styleState && bucket.appliedStyleRevision < styleState.revision) {
         this.applyStyleLayerToTile(vectorTile, layerId);
       }
+      const pendingState = bucket.applyPendingFeatureStateUpdates?.();
+      this._diagnostics?.increment(
+        "featureStateInstanceUpdates",
+        pendingState?.instanceUpdates ?? 0,
+      );
+      this._diagnostics?.increment(
+        "featureStateDeferredUpdates",
+        pendingState?.deferredUpdates ?? 0,
+      );
     }
   }
 
@@ -872,6 +899,10 @@ export default class VectorTileLayer {
               styleRules: workerStyleRules,
               propertyProjections,
               clipToTile: this._option.clipToTile,
+              promoteId: getSourcePromoteId(
+                this._styleDocument,
+                this._vectorTileProvider.sourceId,
+              ),
             }),
           vectorTile.priority,
         );
@@ -1002,6 +1033,8 @@ export default class VectorTileLayer {
             this._option.pickProperties,
           ),
         ),
+        featureStateStore: this._featureStateStore,
+        featureStateOwner: this,
       },
     );
   }
@@ -1133,6 +1166,89 @@ export default class VectorTileLayer {
     }
   }
 
+  setFeatureState(target, state) {
+    if (!this._featureStateStore.set(target, state)) {
+      return false;
+    }
+    this._applyFeatureStateChange(target);
+    return true;
+  }
+
+  getFeatureState(target) {
+    return this._featureStateStore.get(target);
+  }
+
+  removeFeatureState(target, key) {
+    if (!this._featureStateStore.remove(target, key)) {
+      return false;
+    }
+    this._applyFeatureStateChange(target);
+    return true;
+  }
+
+  getFeatureStateForFeature(sourceLayer, id) {
+    return this._featureStateStore.peek(sourceLayer, id);
+  }
+
+  get featureStateRevision() {
+    return this._featureStateStore.revision;
+  }
+
+  registerFeatureStateBucket(bucket) {
+    const keys = bucket?.getFeatureStateKeys?.() ?? [];
+    if (keys.length === 0) {
+      return;
+    }
+    bucket._registeredFeatureStateKeys = keys;
+    for (const key of keys) {
+      let buckets = this._featureStateBuckets.get(key);
+      if (!buckets) {
+        buckets = new Set();
+        this._featureStateBuckets.set(key, buckets);
+      }
+      buckets.add(bucket);
+    }
+    this._diagnostics?.addGauge("residentFeatureStateBindings", keys.length);
+  }
+
+  unregisterFeatureStateBucket(bucket) {
+    const keys = bucket?._registeredFeatureStateKeys ?? [];
+    if (keys.length === 0) {
+      return;
+    }
+    for (const key of keys) {
+      const buckets = this._featureStateBuckets.get(key);
+      buckets?.delete(bucket);
+      if (buckets?.size === 0) {
+        this._featureStateBuckets.delete(key);
+      }
+    }
+    bucket._registeredFeatureStateKeys = undefined;
+    this._diagnostics?.addGauge("residentFeatureStateBindings", -keys.length);
+  }
+
+  _applyFeatureStateChange(target) {
+    const buckets = this._featureStateBuckets.get(
+      encodeFeatureStateKey(target.sourceLayer, target.id),
+    );
+    let instanceUpdates = 0;
+    let deferredUpdates = 0;
+    for (const bucket of buckets ?? []) {
+      const result = bucket.applyFeatureState?.(target);
+      instanceUpdates += result?.instanceUpdates ?? 0;
+      deferredUpdates += result?.deferredUpdates ?? 0;
+    }
+    this._diagnostics?.increment(
+      "featureStateInstanceUpdates",
+      instanceUpdates,
+    );
+    this._diagnostics?.increment(
+      "featureStateDeferredUpdates",
+      deferredUpdates,
+    );
+    this._scene?.requestRender?.();
+  }
+
   isDestroyed() {
     return this._destroyed;
   }
@@ -1144,6 +1260,8 @@ export default class VectorTileLayer {
     this._destroyed = true;
     this._removeManagerStyleChangedListener?.();
     this._removeManagerStyleChangedListener = undefined;
+    this._featureStateStore.clear();
+    this._featureStateBuckets.clear();
     this._vectorTileCache.destroy();
     this._sharedPointCollections.destroy();
   }
@@ -1175,6 +1293,10 @@ function getSourcePickProperties(styleDocument, sourceId, fallback) {
     Object.prototype.hasOwnProperty.call(source, "pickProperties")
     ? source.pickProperties
     : fallback;
+}
+
+function getSourcePromoteId(styleDocument, sourceId) {
+  return styleDocument?.sources?.[sourceId]?.promoteId;
 }
 
 export function getStyleRulesForDecode(styleDocument, buildZoom) {
@@ -1277,6 +1399,7 @@ function countDecodedTile(decodedTile) {
   let clippedFeatures = 0;
   let discardedFeatures = 0;
   let outOfBoundsPositions = 0;
+  let unaddressableFeatures = 0;
   Object.values(decodedTile.layers).forEach((layer) => {
     features += layer.featureCount;
     positions += layer.positionCount;
@@ -1284,6 +1407,7 @@ function countDecodedTile(decodedTile) {
     clippedFeatures += layer.clippedFeatureCount;
     discardedFeatures += layer.discardedFeatureCount;
     outOfBoundsPositions += layer.outOfBoundsPositionCount;
+    unaddressableFeatures += layer.unaddressableFeatureCount ?? 0;
   });
   return {
     features,
@@ -1292,6 +1416,7 @@ function countDecodedTile(decodedTile) {
     clippedFeatures,
     discardedFeatures,
     outOfBoundsPositions,
+    unaddressableFeatures,
   };
 }
 

@@ -3,7 +3,11 @@ import {
   evaluateColorStyleValue,
   isVectorStyleExpression,
 } from "./VectorTileBucketUtils.js";
-import { collectVectorStylePropertyDependencies } from "./VectorTileStyleExpression.js";
+import {
+  collectVectorStylePropertyDependencies,
+  hasVectorStyleFeatureStateDependency,
+} from "./VectorTileStyleExpression.js";
+import { encodeFeatureStateKey } from "./VectorTileFeatureState.js";
 
 const Cesium = globalThis.Cesium ?? CesiumModule;
 
@@ -54,6 +58,11 @@ export default function VectorTilePrimitiveBucket(styleRule, options = {}) {
   this._pickRegistry = options.pickRegistry;
   this._sourceId = options.sourceId;
   this._vectorTile = options.vectorTile;
+  this._featureStateStore = options.featureStateStore;
+  this._featureStateOwner = options.featureStateOwner;
+  this._featureStateBindings = new Map();
+  this._pendingFeatureStateKeys = new Map();
+  this._registeredFeatureStateKeys = undefined;
   this._residentFeatureTableEntries = options.residentFeatureTableEntries ?? 0;
   this._residentPickPropertyValues = options.residentPickPropertyValues ?? 0;
   this._stored = false;
@@ -75,6 +84,9 @@ VectorTilePrimitiveBucket.prototype.addPrimitive = function (
           ? undefined
           : Uint32Array.from(instanceFeatureIndices),
     });
+    this._indexFeatureStateBindings(
+      this.primitiveRecords[this.primitiveRecords.length - 1],
+    );
   }
 };
 
@@ -262,6 +274,7 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
   }
 
   this.styleRule = styleRule;
+  this._rebuildFeatureStateBindings();
   this.pendingStyleRevision = styleRevision;
   this.pendingStylePlan = plan;
   const visible = styleRule.visibility !== false;
@@ -337,6 +350,9 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
         feature,
         this.buildZoom,
         colorStyle.fallback,
+        {
+          state: this._getFeatureStateForFeature(feature),
+        },
       );
       attributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(
         color,
@@ -358,6 +374,79 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
   return { pendingReady, instanceUpdates, pointUpdates };
 };
 
+VectorTilePrimitiveBucket.prototype._rebuildFeatureStateBindings = function () {
+  if (this._stored) {
+    this._featureStateOwner?.unregisterFeatureStateBucket?.(this);
+  }
+  this._featureStateBindings.clear();
+  this._pendingFeatureStateKeys.clear();
+  for (const record of this.primitiveRecords) {
+    this._indexFeatureStateBindings(record);
+  }
+  if (this._stored) {
+    this._featureStateOwner?.registerFeatureStateBucket?.(this);
+  }
+};
+
+VectorTilePrimitiveBucket.prototype.getFeatureStateKeys = function () {
+  return [...this._featureStateBindings.keys()];
+};
+
+VectorTilePrimitiveBucket.prototype.applyFeatureState = function (target) {
+  const key = encodeFeatureStateKey(target.sourceLayer, target.id);
+  const bindings = this._featureStateBindings.get(key);
+  if (!bindings || bindings.length === 0) {
+    return { instanceUpdates: 0, deferredUpdates: 0 };
+  }
+
+  let instanceUpdates = 0;
+  let deferredUpdates = 0;
+  for (const binding of bindings) {
+    if (!binding.primitive.ready) {
+      this._pendingFeatureStateKeys.set(key, this._featureStateStore.revision);
+      deferredUpdates++;
+      continue;
+    }
+    if (this._applyFeatureStateBinding(binding)) {
+      instanceUpdates++;
+    }
+  }
+  return { instanceUpdates, deferredUpdates };
+};
+
+VectorTilePrimitiveBucket.prototype.applyPendingFeatureStateUpdates =
+  function () {
+    if (this._pendingFeatureStateKeys.size === 0) {
+      return { instanceUpdates: 0, deferredUpdates: 0 };
+    }
+
+    let instanceUpdates = 0;
+    let remaining = 0;
+    for (const key of [...this._pendingFeatureStateKeys.keys()]) {
+      const bindings = this._featureStateBindings.get(key) ?? [];
+      let hasPending = false;
+      for (const binding of bindings) {
+        if (!binding.primitive.ready) {
+          hasPending = true;
+          continue;
+        }
+        if (this._applyFeatureStateBinding(binding)) {
+          instanceUpdates++;
+        }
+      }
+      if (hasPending) {
+        remaining++;
+        this._pendingFeatureStateKeys.set(
+          key,
+          this._featureStateStore.revision,
+        );
+      } else {
+        this._pendingFeatureStateKeys.delete(key);
+      }
+    }
+    return { instanceUpdates, deferredUpdates: remaining };
+  };
+
 VectorTilePrimitiveBucket.prototype.destroy = function () {
   if (this._destroyed) {
     return;
@@ -370,6 +459,7 @@ VectorTilePrimitiveBucket.prototype.destroy = function () {
     }
   });
   if (this._stored) {
+    this._featureStateOwner?.unregisterFeatureStateBucket?.(this);
     this._diagnostics?.addGauge("residentStyleBuckets", -1);
     this._diagnostics?.addGauge(
       "residentRenderPrimitives",
@@ -388,6 +478,8 @@ VectorTilePrimitiveBucket.prototype.destroy = function () {
   this.primitiveRecords.length = 0;
   this.pointDescriptors.billboards.length = 0;
   this.pointDescriptors.labels.length = 0;
+  this._featureStateBindings.clear();
+  this._pendingFeatureStateKeys.clear();
 };
 
 VectorTilePrimitiveBucket.storeVectorTileBucket = function (
@@ -401,6 +493,7 @@ VectorTilePrimitiveBucket.storeVectorTileBucket = function (
   }
 
   bucket._stored = true;
+  bucket._featureStateOwner?.registerFeatureStateBucket?.(bucket);
   vectorTile.buckets ??= {};
   vectorTile.primitives ??= {};
   vectorTile.primitiveStyleRules ??= {};
@@ -453,6 +546,92 @@ VectorTilePrimitiveBucket.storeVectorTileBucket = function (
 function doesPlanChangeProperty(plan, path) {
   return !plan?.changedPaths || plan.changedPaths.includes(path);
 }
+
+VectorTilePrimitiveBucket.prototype._indexFeatureStateBindings = function (
+  record,
+) {
+  const colorStyle = COLOR_ROLE_PROPERTIES[record.role];
+  if (
+    !colorStyle ||
+    record.role === "packed-line" ||
+    !record.instanceFeatureIndices ||
+    !hasVectorStyleFeatureStateDependency(
+      this.styleRule.paint?.[colorStyle.property],
+    )
+  ) {
+    return;
+  }
+  if (
+    record.role === "fill-outline" &&
+    !Object.prototype.hasOwnProperty.call(
+      this.styleRule.paint ?? {},
+      colorStyle.property,
+    )
+  ) {
+    return;
+  }
+
+  for (
+    let instanceId = 0;
+    instanceId < record.instanceFeatureIndices.length;
+    ++instanceId
+  ) {
+    const featureIndex = record.instanceFeatureIndices[instanceId];
+    const feature = this._featureTable[featureIndex];
+    if (!feature || feature.id === undefined || feature.id === null) {
+      continue;
+    }
+    const key = encodeFeatureStateKey(this.sourceLayer, feature.id);
+    let bindings = this._featureStateBindings.get(key);
+    if (!bindings) {
+      bindings = [];
+      this._featureStateBindings.set(key, bindings);
+    }
+    bindings.push({
+      primitive: record.primitive,
+      role: record.role,
+      instanceId,
+      featureIndex,
+      property: colorStyle.property,
+      fallback: colorStyle.fallback,
+    });
+  }
+};
+
+VectorTilePrimitiveBucket.prototype._applyFeatureStateBinding = function (
+  binding,
+) {
+  const attributes = binding.primitive.getGeometryInstanceAttributes?.(
+    binding.instanceId,
+  );
+  if (!attributes) {
+    return false;
+  }
+  const feature = this._featureTable[binding.featureIndex];
+  const color = evaluateColorStyleValue(
+    this.styleRule.paint?.[binding.property],
+    feature,
+    this.buildZoom,
+    binding.fallback,
+    {
+      state: this._getFeatureStateForFeature(feature),
+    },
+  );
+  attributes.color = Cesium.ColorGeometryInstanceAttribute.toValue(
+    color,
+    attributes.color,
+  );
+  return true;
+};
+
+VectorTilePrimitiveBucket.prototype._getFeatureStateForFeature = function (
+  feature,
+) {
+  if (!feature || !this._featureStateStore) {
+    return {};
+  }
+  return this._featureStateStore.peek(this.sourceLayer, feature.id);
+};
 
 function hasTranslucentRecordColor(
   record,

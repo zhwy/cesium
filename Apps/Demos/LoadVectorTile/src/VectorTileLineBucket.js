@@ -225,6 +225,9 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
                 metadata,
                 zoom,
                 "#ffff00ff",
+                {
+                  state: this._getFeatureStateForFeature(metadata),
+                },
               ),
             ),
           },
@@ -286,6 +289,9 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
                 metadata,
                 zoom,
                 "#ffff00ff",
+                {
+                  state: this._getFeatureStateForFeature(metadata),
+                },
               ),
             ),
           },
@@ -379,6 +385,9 @@ export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
                     metadata,
                     zoom,
                     "#ffff00ff",
+                    {
+                      state: this._getFeatureStateForFeature(metadata),
+                    },
                   ),
                 ),
               },

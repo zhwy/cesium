@@ -9,6 +9,7 @@ import {
   projectPoint,
 } from "./VectorTileGeometryUtils.js";
 import { doesFeatureMatchAnyStyleRule as matchFeatureAgainstStyleRules } from "./VectorTileGeometryPlacement.js";
+import { resolveFeatureStateId } from "./VectorTileFeatureState.js";
 import { projectVectorTileProperties } from "./VectorTilePropertyProjectionUtils.js";
 
 function createPackedLayer() {
@@ -134,6 +135,7 @@ function finalizePackedLayer(layer) {
     discardedFeatureCount: layer.discardedFeatureCount,
     outOfBoundsPositionCount: layer.outOfBoundsPositionCount,
     styleFilteredFeatureCount: layer.styleFilteredFeatureCount,
+    unaddressableFeatureCount: layer.unaddressableFeatureCount ?? 0,
     features: layer.features,
     points: {
       positions: new Float64Array(layer.pointPositions),
@@ -188,6 +190,7 @@ export default function decodeVectorTile(
   propertyProjections = undefined,
   clipToTile = true,
   styleRules = undefined,
+  promoteId = undefined,
 ) {
   const vectorTile = new VectorTile(new PbfReader(arrayBuffer));
   const layers = {};
@@ -264,8 +267,13 @@ export default function decodeVectorTile(
       if (packedLayer.positionCount === positionCountBefore) {
         packedLayer.discardedFeatureCount++;
       } else {
+        const idResult = resolveFeatureStateId(layerName, feature, promoteId);
+        if (idResult.unaddressable) {
+          packedLayer.unaddressableFeatureCount =
+            (packedLayer.unaddressableFeatureCount ?? 0) + 1;
+        }
         packedLayer.features.push({
-          id: feature.id,
+          id: idResult.id,
           sourceFeatureIndex: featureIndex,
           properties: projectVectorTileProperties(
             feature.properties,
