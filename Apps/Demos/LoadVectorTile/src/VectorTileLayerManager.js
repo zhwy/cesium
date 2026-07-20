@@ -1,17 +1,32 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
+import {
+  defined,
+  DeveloperError,
+  GeographicTilingScheme,
+  ShadowMode,
+  WebMercatorTilingScheme,
+} from "../../../../Build/CesiumUnminified/index.js";
+import CommonUtils from "./CommonUtils.js";
 import VectorTileQuadtreePrimitive from "./VectorTileQuadtreePrimitive.js";
 import VectorTileQuadtreeProvider from "./VectorTileQuadtreeProvider.js";
 import VectorTileLayerCollection from "./VectorTileLayerCollection.js";
 import VectorTileDiagnostics from "./VectorTileDiagnostics.js";
+import VectorTilePbfCache from "./VectorTilePbfCache.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
-import {
-  TileType,
-  WMTSGeoVectorTileProvider,
-  WMTSVectorTileProvider,
-  XYZVectorTileProvider,
-} from "./VectorTileProvider.js";
 import VectorTileStyleRule from "./VectorTileStyleRule.js";
-import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
+import VectorTileStyleUtils from "./VectorTileStyleUtils.js";
+import VectorTilePickRegistry from "./VectorTilePickRegistry.js";
+import VectorTileStyleUpdateUtils from "./VectorTileStyleUpdateUtils.js";
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
+import TileType from "./TileType.js";
+import VectorTileStyleUpdateType from "./VectorTileStyleUpdateType.js";
+import XYZVectorTileProvider from "./XYZVectorTileProvider.js";
+import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
+import WMTSGeoVectorTileProvider from "./WMTSGeoVectorTileProvider.js";
+
+const TILING_SCHEME_CONSTRUCTORS = {
+  GeographicTilingScheme,
+  WebMercatorTilingScheme,
+};
 
 /**
  * 协调整个矢量瓦片图层系统：管理 provider、运行时图层、四叉树 primitive 与调度器。
@@ -29,6 +44,7 @@ import { normalizeStyleDocument } from "./VectorTileStyleUtils.js";
  * @param {number} [options.tileSize=512] 样式缩放与误差计算使用的瓦片宽度。
  * @param {number} [options.pixelRatio=1] 设备像素比。
  * @param {number} [options.tileCacheSize=100] 四叉树 primitive 的瓦片缓存大小。
+ * @param {number} [options.pbfCacheBytes=64*1024*1024] 所有 source 共享的 ready PBF payload 预算。
  */
 export default class VectorTileLayerManager {
   get quadtreePrimitive() {
@@ -47,8 +63,16 @@ export default class VectorTileLayerManager {
     return this._diagnostics;
   }
 
+  get pbfCache() {
+    return this._pbfCache;
+  }
+
   constructor(options = {}) {
     this._diagnostics = new VectorTileDiagnostics(options.diagnostics);
+    this._pbfCache = new VectorTilePbfCache({
+      maximumBytes: options.pbfCacheBytes,
+      diagnostics: this._diagnostics,
+    });
     this._networkScheduler = new VectorTileTaskScheduler(
       options.maximumNetworkTasks ?? 8,
     );
@@ -58,14 +82,20 @@ export default class VectorTileLayerManager {
     this._buildScheduler = new VectorTileTaskScheduler(
       options.maximumBuildTasks ?? 1,
     );
-    this._tilingScheme = new Cesium[
-      options.tilingScheme || "WebMercatorTilingScheme"
-    ]();
+    const TilingSchemeConstructor =
+      TILING_SCHEME_CONSTRUCTORS[
+        options.tilingScheme || "WebMercatorTilingScheme"
+      ];
+    if (!defined(TilingSchemeConstructor)) {
+      throw new DeveloperError("tilingScheme must be a supported type name.");
+    }
+    this._tilingScheme = new TilingSchemeConstructor();
     this._iconImages = {
       ...(options.iconResources ?? {}),
       ...(options.iconImages ?? {}),
     };
     this._scene = options.scene;
+    this._pickRegistry = new VectorTilePickRegistry();
     this._providersBySourceId = new Map();
 
     this._vectorTileLayers = new VectorTileLayerCollection();
@@ -172,19 +202,19 @@ export default class VectorTileLayerManager {
 
   addLayer(sourceId, layerOptions = {}) {
     if (typeof sourceId !== "string" || sourceId.length === 0) {
-      throw new Cesium.DeveloperError("sourceId must be a non-empty string.");
+      throw new DeveloperError("sourceId must be a non-empty string.");
     }
 
     const provider = this.getProvider(sourceId);
     if (!provider) {
-      throw new Cesium.DeveloperError(
+      throw new DeveloperError(
         `provider for source "${sourceId}" does not exist.`,
       );
     }
 
     const runtimeLayer = this._getRuntimeLayerForProvider(provider);
     const currentStyle = runtimeLayer?.getStyle();
-    const mergedStyleDocument = normalizeStyleDocument({
+    const mergedStyleDocument = VectorTileStyleUtils.normalizeStyleDocument({
       version: 1,
       sources: {
         [sourceId]: provider.source,
@@ -201,15 +231,15 @@ export default class VectorTileLayerManager {
 
   addLayerProvider(provider, index) {
     //>>includeStart('debug', pragmas.debug);
-    if (!Cesium.defined(provider)) {
-      throw new Cesium.DeveloperError("provider is required.");
+    if (!defined(provider)) {
+      throw new DeveloperError("provider is required.");
     }
     if (
       provider.sourceId &&
       this._providersBySourceId.has(provider.sourceId) &&
       this._providersBySourceId.get(provider.sourceId) !== provider
     ) {
-      throw new Cesium.DeveloperError(
+      throw new DeveloperError(
         `provider for source "${provider.sourceId}" already exists.`,
       );
     }
@@ -223,14 +253,65 @@ export default class VectorTileLayerManager {
       scene: this._scene,
       iconImages: this._iconImages,
       diagnostics: this._diagnostics,
+      pbfCache: this._pbfCache,
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
+      pickRegistry: this._pickRegistry,
     };
+    provider.setPbfCache?.(this._pbfCache);
+    if (!provider.setPbfCache) {
+      provider._pbfCache = this._pbfCache;
+    }
+    provider._diagnostics = this._diagnostics;
     if (provider.sourceId) {
       this._providersBySourceId.set(provider.sourceId, provider);
     }
-    return this._vectorTileLayers.addLayerProvider(provider, index);
+    const runtimeLayer = this._vectorTileLayers.addLayerProvider(
+      provider,
+      index,
+    );
+    this._installStyleChangedListener(runtimeLayer);
+    return runtimeLayer;
+  }
+
+  createManagedProvider(sourceId, source, styleRules) {
+    return this._createProvider({
+      dataTypeField: "type",
+      dataIdField: "id",
+      minimumLevel: source.minimumLevel ?? 0,
+      maximumLevel: source.maximumLevel ?? 20,
+      tileType: source.tileType ?? TileType.XYZ,
+      format: source.format ?? "application/vnd.mapbox-vector-tile",
+      layer: source.layer ?? "",
+      allowPicking: source.allowPicking ?? false,
+      asynchronous: source.asynchronous ?? true,
+      shadows: source.shadows ?? ShadowMode.DISABLED,
+      polygonHeight: source.polygonHeight ?? 1.0,
+      clipToTile: source.clipToTile ?? true,
+      renderBackend: source.renderBackend ?? "instances",
+      packedMinimumInstances: source.packedMinimumInstances ?? 200,
+      cacheBytes: source.cacheBytes ?? 64 * 1024 * 1024,
+      ...source,
+      sourceId,
+      styleSourceId: sourceId,
+      styleDocument: {
+        version: 1,
+        sources: {
+          [sourceId]: source,
+        },
+        layers: styleRules.map((styleRule) => styleRule.toJSON()),
+      },
+      tilingScheme: this.tilingScheme,
+      diagnostics: this._diagnostics,
+      pbfCache: this._pbfCache,
+      networkScheduler: this._networkScheduler,
+      decodeScheduler: this._decodeScheduler,
+      buildScheduler: this._buildScheduler,
+      pickRegistry: this._pickRegistry,
+      scene: this._scene,
+      iconImages: this._iconImages,
+    });
   }
 
   removeLayer(layerId, destroy = true) {
@@ -247,11 +328,6 @@ export default class VectorTileLayerManager {
       return false;
     }
 
-    if (remainingLayers.length === 0) {
-      this._deleteProvider(runtimeLayer.vectorTileProvider);
-      return this._vectorTileLayers.remove(runtimeLayer, destroy);
-    }
-
     runtimeLayer.setStyle({ ...currentStyle, layers: remainingLayers });
     return true;
   }
@@ -265,8 +341,33 @@ export default class VectorTileLayerManager {
     return this._providersBySourceId.get(sourceId);
   }
 
+  removeProvider(provider, destroy = true) {
+    if (!provider?.sourceId) {
+      return false;
+    }
+    if (this._providersBySourceId.get(provider.sourceId) === provider) {
+      const runtimeLayer = this._getRuntimeLayerForProvider(provider);
+      if (runtimeLayer) {
+        this._vectorTileLayers.remove(runtimeLayer, destroy);
+      }
+      this._providersBySourceId.delete(provider.sourceId);
+      return true;
+    }
+    return false;
+  }
+
+  removeProviderBySourceId(sourceId, destroy = true) {
+    const provider = this._providersBySourceId.get(sourceId);
+    if (!provider) {
+      return false;
+    }
+
+    return this.removeProvider(provider, destroy);
+  }
+
   setStyle(styleDocument) {
-    const normalizedStyle = normalizeStyleDocument(styleDocument);
+    const normalizedStyle =
+      VectorTileStyleUtils.normalizeStyleDocument(styleDocument);
     this.removeAll();
 
     Object.keys(normalizedStyle.sources).forEach((sourceId) => {
@@ -278,11 +379,7 @@ export default class VectorTileLayerManager {
         return;
       }
 
-      const provider = this._createManagedProvider(
-        sourceId,
-        source,
-        styleRules,
-      );
+      const provider = this.createManagedProvider(sourceId, source, styleRules);
       this.addLayerProvider(provider);
     });
 
@@ -303,7 +400,7 @@ export default class VectorTileLayerManager {
     if (Object.keys(sources).length === 0) {
       return undefined;
     }
-    return normalizeStyleDocument({
+    return VectorTileStyleUtils.normalizeStyleDocument({
       version: 1,
       sources,
       layers,
@@ -321,6 +418,46 @@ export default class VectorTileLayerManager {
     return undefined;
   }
 
+  /**
+   * 同步解析该 manager 管理的紧凑矢量瓦片拾取结果。
+   *
+   * @param {object} picked `Scene#pick` 返回值。
+   * @returns {object|undefined} 仍驻留的 feature 信息。
+   */
+  resolvePickedFeature(picked) {
+    return this._pickRegistry?.resolve(picked);
+  }
+
+  setFeatureState(target, state) {
+    const normalizedTarget = validateFeatureStateTarget(target);
+    if (!CommonUtils.isPlainObject(state)) {
+      throw new DeveloperError("state must be a plain object.");
+    }
+    const runtimeLayer = this._findRuntimeLayerBySource(
+      normalizedTarget.source,
+    );
+    return runtimeLayer?.setFeatureState(normalizedTarget, state) ?? false;
+  }
+
+  getFeatureState(target) {
+    const normalizedTarget = validateFeatureStateTarget(target);
+    const runtimeLayer = this._findRuntimeLayerBySource(
+      normalizedTarget.source,
+    );
+    return runtimeLayer?.getFeatureState(normalizedTarget) ?? {};
+  }
+
+  removeFeatureState(target, key) {
+    const normalizedTarget = validateFeatureStateTarget(target);
+    if (key !== undefined && (typeof key !== "string" || key.length === 0)) {
+      throw new DeveloperError("key must be a non-empty string.");
+    }
+    const runtimeLayer = this._findRuntimeLayerBySource(
+      normalizedTarget.source,
+    );
+    return runtimeLayer?.removeFeatureState(normalizedTarget, key) ?? false;
+  }
+
   setLayerStyle(layerId, newStyle, merged = true) {
     const runtimeLayer = this._findLayerByStyleRuleId(layerId);
     if (!runtimeLayer) {
@@ -336,9 +473,70 @@ export default class VectorTileLayerManager {
       : newStyle;
     const updatedLayers = currentStyle.layers.slice();
     updatedLayers[layerIndex] = updatedLayer;
+    const updatedStyle = VectorTileStyleUtils.normalizeStyleDocument({
+      ...currentStyle,
+      layers: updatedLayers,
+    });
+    const normalizedLayer = updatedStyle.layers[layerIndex];
+    let plan = VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
+      currentStyle.layers[layerIndex],
+      normalizedLayer,
+    );
 
-    runtimeLayer.setStyle({ ...currentStyle, layers: updatedLayers });
+    if (plan.type === VectorTileStyleUpdateType.IN_PLACE_APPEARANCE) {
+      plan =
+        runtimeLayer.refineStyleLayerUpdatePlan?.(plan, normalizedLayer) ??
+        plan;
+    }
+
+    if (plan.type === VectorTileStyleUpdateType.NO_OP) {
+      this._diagnostics?.increment?.("styleNoopUpdates");
+      return true;
+    }
+    if (plan.type === VectorTileStyleUpdateType.IN_PLACE_APPEARANCE) {
+      if (runtimeLayer.setStyleLayerAppearance) {
+        runtimeLayer.setStyleLayerAppearance(updatedStyle, layerId, plan);
+      } else {
+        runtimeLayer.setStyle(updatedStyle);
+      }
+      return true;
+    }
+
+    if (plan.type === VectorTileStyleUpdateType.REBUILD_BUCKET) {
+      this._diagnostics?.increment?.("styleBucketRebuilds");
+      if (plan.reason === "MISSING_PROPERTIES") {
+        this._diagnostics?.increment?.("styleBucketPropertyFallbacks");
+      } else if (plan.reason === "RENDER_STATE") {
+        this._diagnostics?.increment?.("styleBucketRenderStateFallbacks");
+      }
+      if (runtimeLayer.setStyleLayerBucketRebuild) {
+        runtimeLayer.setStyleLayerBucketRebuild(updatedStyle, layerId, plan);
+        this._scene?.requestRender?.();
+        return true;
+      }
+    } else {
+      this._diagnostics?.increment?.("styleSourceRebuilds");
+    }
+    runtimeLayer.setStyle(updatedStyle);
     return true;
+  }
+
+  _installStyleChangedListener(runtimeLayer) {
+    if (!runtimeLayer?.styleChangedEvent) {
+      return;
+    }
+    runtimeLayer._removeManagerStyleChangedListener?.();
+    runtimeLayer._removeManagerStyleChangedListener =
+      runtimeLayer.styleChangedEvent.addEventListener(
+        (layer, layerId, plan) => {
+          this._quadtreePrimitive?.applyStyleLayerUpdate?.(
+            layer,
+            layerId,
+            plan,
+          );
+          this._scene?.requestRender?.();
+        },
+      );
   }
 
   registerIconImage(name, image) {
@@ -356,44 +554,12 @@ export default class VectorTileLayerManager {
     for (let i = 0; i < this._vectorTileLayers.length; ++i) {
       this._vectorTileLayers.get(i).clearCache(false);
     }
+    this.clearPbfCache();
     this._quadtreePrimitive.invalidateAllTiles();
   }
 
-  _createManagedProvider(sourceId, source, styleRules) {
-    return this._createProvider({
-      dataTypeField: "type",
-      dataIdField: "id",
-      minimumLevel: source.minimumLevel ?? 0,
-      maximumLevel: source.maximumLevel ?? 20,
-      tileType: source.tileType ?? TileType.XYZ,
-      format: source.format ?? "application/vnd.mapbox-vector-tile",
-      layer: source.layer ?? "",
-      allowPicking: source.allowPicking ?? false,
-      asynchronous: source.asynchronous ?? true,
-      shadows: source.shadows ?? Cesium.ShadowMode.DISABLED,
-      polygonHeight: source.polygonHeight ?? 1.0,
-      clipToTile: source.clipToTile ?? true,
-      renderBackend: source.renderBackend ?? "instances",
-      packedMinimumInstances: source.packedMinimumInstances ?? 200,
-      cacheBytes: source.cacheBytes ?? 64 * 1024 * 1024,
-      ...source,
-      sourceId,
-      styleSourceId: sourceId,
-      styleDocument: {
-        version: 1,
-        sources: {
-          [sourceId]: source,
-        },
-        layers: styleRules.map((styleRule) => styleRule.toJSON()),
-      },
-      tilingScheme: this.tilingScheme,
-      diagnostics: this._diagnostics,
-      networkScheduler: this._networkScheduler,
-      decodeScheduler: this._decodeScheduler,
-      buildScheduler: this._buildScheduler,
-      scene: this._scene,
-      iconImages: this._iconImages,
-    });
+  clearPbfCache() {
+    this._pbfCache.clear();
   }
 
   _createProvider(options) {
@@ -441,47 +607,49 @@ export default class VectorTileLayerManager {
     return undefined;
   }
 
-  _deleteProvider(provider) {
-    if (!provider?.sourceId) {
-      return;
+  _findRuntimeLayerBySource(sourceId) {
+    const provider = this.getProvider(sourceId);
+    if (!provider) {
+      return undefined;
     }
-    if (this._providersBySourceId.get(provider.sourceId) === provider) {
-      this._providersBySourceId.delete(provider.sourceId);
-    }
+    return this._getRuntimeLayerForProvider(provider);
   }
 }
 
 function mergeStyleValue(currentValue, newValue) {
-  if (!isPlainObject(currentValue) || !isPlainObject(newValue)) {
-    return cloneStyleValue(newValue);
+  if (
+    !CommonUtils.isPlainObject(currentValue) ||
+    !CommonUtils.isPlainObject(newValue)
+  ) {
+    return CommonUtils.cloneValue(newValue);
   }
 
-  const result = cloneStyleValue(currentValue);
+  const result = CommonUtils.cloneValue(currentValue);
   Object.keys(newValue).forEach((key) => {
     result[key] = mergeStyleValue(currentValue[key], newValue[key]);
   });
   return result;
 }
 
-function cloneStyleValue(value) {
-  if (Array.isArray(value)) {
-    return value.map(cloneStyleValue);
+function validateFeatureStateTarget(target) {
+  if (!CommonUtils.isPlainObject(target)) {
+    throw new DeveloperError("target must be a plain object.");
   }
-  if (isPlainObject(value)) {
-    const result = {};
-    Object.keys(value).forEach((key) => {
-      result[key] = cloneStyleValue(value[key]);
-    });
-    return result;
+  if (typeof target.source !== "string" || target.source.length === 0) {
+    throw new DeveloperError("target.source must be a non-empty string.");
   }
-  return value;
-}
-
-function isPlainObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype ||
-      Object.getPrototypeOf(value) === null)
-  );
+  if (
+    typeof target.sourceLayer !== "string" ||
+    target.sourceLayer.length === 0
+  ) {
+    throw new DeveloperError("target.sourceLayer must be a non-empty string.");
+  }
+  if (!VectorTileFeatureStateUtils.isValidFeatureStateId(target.id)) {
+    throw new DeveloperError("target.id must be a string or number.");
+  }
+  return {
+    source: target.source,
+    sourceLayer: target.sourceLayer,
+    id: target.id,
+  };
 }

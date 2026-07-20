@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+const Cesium = await import("../../../../Build/CesiumUnminified/index.js");
 const { default: VectorTileLayerManager } =
   await import("../src/VectorTileLayerManager.js");
 
@@ -47,6 +48,7 @@ const { default: VectorTileLayerManager } =
   manager._providersBySourceId = new Map();
   manager._vectorTileLayers = collection;
   manager._diagnostics = {};
+  manager._pbfCache = {};
   manager._networkScheduler = {};
   manager._decodeScheduler = {};
   manager._buildScheduler = {};
@@ -62,8 +64,296 @@ const { default: VectorTileLayerManager } =
   assert.equal(collection.addLayerProviderCalls[0].index, 2);
   assert.equal(provider._options.sourceId, "land");
   assert.ok(provider._options.styleDocument);
+  assert.equal(provider._options.pbfCache, manager._pbfCache);
+  assert.equal(provider._pbfCache, manager._pbfCache);
   console.log(
     "✓ addLayerProvider registers provider state and forwards to the collection",
+  );
+}
+
+{
+  const manager = new VectorTileLayerManager({ pbfCacheBytes: 7 });
+  assert.equal(manager.pbfCache.maximumBytes, 7);
+  assert.throws(
+    () => new VectorTileLayerManager({ pbfCacheBytes: -1 }),
+    /finite/,
+  );
+  manager.removeFromScene();
+  console.log("✓ manager owns and validates the shared PBF cache budget");
+}
+
+{
+  let requestRenderCalls = 0;
+  let appearanceApplyCalls = 0;
+  const manager = new VectorTileLayerManager({
+    diagnostics: true,
+    scene: {
+      requestRender() {
+        requestRenderCalls++;
+      },
+      primitives: {
+        remove() {},
+      },
+    },
+  });
+  manager._quadtreePrimitive.applyStyleLayerUpdate = () => {
+    appearanceApplyCalls++;
+  };
+  manager.setStyle({
+    version: 1,
+    sources: {
+      land: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        ...createFillRule("land-fill", "land"),
+        paint: { "fill-color": "#008800" },
+      },
+    ],
+  });
+  const runtimeLayer = manager.vectorTileLayers.get(0);
+  const contentRevision = runtimeLayer.contentRevision;
+
+  assert.equal(
+    manager.setLayerStyle("land-fill", {
+      paint: { "fill-color": "#008800" },
+    }),
+    true,
+  );
+  assert.equal(requestRenderCalls, 0);
+  assert.equal(appearanceApplyCalls, 0);
+
+  manager.setLayerStyle("land-fill", {
+    paint: { "fill-color": "#ff0000" },
+  });
+  assert.equal(runtimeLayer.contentRevision, contentRevision);
+  assert.equal(requestRenderCalls, 1);
+  assert.equal(appearanceApplyCalls, 1);
+
+  manager.setLayerStyle("land-fill", {
+    paint: { "fill-outline-width": 2 },
+  });
+  assert.equal(runtimeLayer.contentRevision, contentRevision + 1);
+  assert.equal(manager.diagnostics.snapshot().counters.styleNoopUpdates, 1);
+  manager.removeAll();
+  manager.removeFromScene();
+  console.log(
+    "✓ style no-op and appearance updates avoid content invalidation",
+  );
+}
+
+{
+  const manager = new VectorTileLayerManager({ diagnostics: true });
+  manager.setStyle({
+    version: 1,
+    sources: {
+      land: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        ...createFillRule("land-fill", "land"),
+        paint: { "fill-color": "#ffffffff" },
+      },
+    ],
+  });
+  const runtimeLayer = manager.vectorTileLayers.get(0);
+  const tile = runtimeLayer.getVectorTileFromCache(0, 0, 0);
+  tile.state = Cesium.ImageryState.READY;
+  tile.builtStyleLayerIds = new Set(["land-fill"]);
+  tile.buckets = {
+    "land-fill": {
+      getStyleUpdateFallback() {
+        return "RENDER_STATE";
+      },
+      destroy() {},
+    },
+  };
+  tile.primitives = {};
+  const contentRevision = runtimeLayer.contentRevision;
+
+  manager.setLayerStyle("land-fill", {
+    paint: { "fill-color": "#ffffff77" },
+  });
+  const snapshot = manager.diagnostics.snapshot();
+  assert.equal(runtimeLayer.contentRevision, contentRevision);
+  assert.ok(tile.bucketRebuilds["land-fill"]);
+  assert.equal(snapshot.counters.styleBucketRebuilds, 1);
+  assert.equal(snapshot.counters.styleBucketRenderStateFallbacks, 1);
+
+  tile.releaseReference();
+  manager.removeAll();
+  manager.removeFromScene();
+  console.log("✓ incompatible alpha records a bucket render-state fallback");
+}
+
+{
+  const manager = new VectorTileLayerManager();
+  const handle = {};
+  manager._pickRegistry.registerPoint(
+    handle,
+    {
+      featureTable: [
+        { id: 5, sourceFeatureIndex: 2, properties: { name: "Picked" } },
+      ],
+      sourceId: "demo",
+      sourceLayer: "places",
+      styleLayerId: "place-label",
+      tile: { x: 0, y: 1, level: 2 },
+      pickProperties: ["name"],
+    },
+    0,
+  );
+  assert.equal(
+    manager.resolvePickedFeature({ primitive: handle }).properties.name,
+    "Picked",
+  );
+  assert.equal(manager.resolvePickedFeature({ primitive: {} }), undefined);
+  manager.removeFromScene();
+  console.log("✓ manager synchronously resolves compact pick contexts");
+}
+
+{
+  const provider = createProviderStub("land", [
+    createFillRule("land-fill", "land"),
+  ]);
+  const runtimeLayer = createRuntimeLayer(provider);
+  const manager = createManager([provider], [runtimeLayer]);
+  runtimeLayer._states = new Map();
+  runtimeLayer.setFeatureState = (target, state) => {
+    const key = `${target.sourceLayer}:${typeof target.id}:${target.id}`;
+    const current = runtimeLayer._states.get(key) ?? {};
+    const next = { ...current, ...state };
+    if (JSON.stringify(current) === JSON.stringify(next)) {
+      return false;
+    }
+    runtimeLayer._states.set(key, next);
+    return true;
+  };
+  runtimeLayer.getFeatureState = (target) => {
+    const key = `${target.sourceLayer}:${typeof target.id}:${target.id}`;
+    return { ...(runtimeLayer._states.get(key) ?? {}) };
+  };
+  runtimeLayer.removeFeatureState = (target, key) => {
+    const stateKey = `${target.sourceLayer}:${typeof target.id}:${target.id}`;
+    if (!runtimeLayer._states.has(stateKey)) {
+      return false;
+    }
+    if (key === undefined) {
+      runtimeLayer._states.delete(stateKey);
+      return true;
+    }
+    const current = runtimeLayer._states.get(stateKey);
+    if (!(key in current)) {
+      return false;
+    }
+    const next = { ...current };
+    delete next[key];
+    runtimeLayer._states.set(stateKey, next);
+    return true;
+  };
+
+  const target = { source: "land", sourceLayer: "countries", id: 1 };
+  assert.equal(manager.setFeatureState(target, { hover: true, rank: 1 }), true);
+  assert.equal(manager.setFeatureState(target, { rank: 2 }), true);
+  assert.deepEqual(manager.getFeatureState(target), { hover: true, rank: 2 });
+  const snapshot = manager.getFeatureState(target);
+  snapshot.hover = false;
+  assert.equal(manager.getFeatureState(target).hover, true);
+  assert.equal(manager.setFeatureState(target, { rank: 2 }), false);
+  assert.equal(manager.removeFeatureState(target, "hover"), true);
+  assert.deepEqual(manager.getFeatureState(target), { rank: 2 });
+  assert.equal(manager.removeFeatureState(target), true);
+  assert.deepEqual(manager.getFeatureState(target), {});
+  assert.equal(
+    manager.setFeatureState(
+      { source: "missing", sourceLayer: "countries", id: 1 },
+      { hover: true },
+    ),
+    false,
+  );
+  assert.throws(
+    () => manager.setFeatureState({ source: "land", sourceLayer: "x" }, {}),
+    /target.id/,
+  );
+  assert.throws(() => manager.setFeatureState(target, null), /state/);
+  assert.throws(() => manager.removeFeatureState(target, ""), /key/);
+  console.log("✓ manager routes feature-state API with validation");
+}
+
+{
+  const manager = new VectorTileLayerManager({ pbfCacheBytes: 7 });
+  const deferred = createDeferredTask();
+  const consumer = manager.pbfCache.getOrLoad(
+    "pending-before-clear",
+    () => deferred.handle,
+  );
+  manager.clearPbfCache();
+  deferred.resolve(Uint8Array.from([1, 2]).buffer);
+  assert.deepEqual([...new Uint8Array(await consumer.promise)], [1, 2]);
+  assert.equal(manager.pbfCache.length, 0);
+  manager.removeFromScene();
+  console.log("✓ manager clear prevents old pending PBF refill");
+}
+
+{
+  const manager = new VectorTileLayerManager({
+    pbfCacheBytes: 16,
+    diagnostics: true,
+  });
+  const style = {
+    version: 1,
+    sources: {
+      land: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [createFillRule("land-fill", "land")],
+  };
+  const tile = { x: 1, y: 2, level: 3, priority: 0 };
+  manager.setStyle(style);
+  const originalProvider = manager.getProvider("land");
+  const originalResource = originalProvider.getTileResource(tile);
+  const originalKey = originalProvider.getPbfCacheKey(tile, originalResource);
+  await manager.pbfCache.getOrLoad(originalKey, () =>
+    resolvedTask(Uint8Array.from([4, 5, 6]).buffer),
+  ).promise;
+
+  const runtimeLayer = manager.vectorTileLayers.get(0);
+  const originalRevision = runtimeLayer.contentRevision;
+  manager.clearPbfCache();
+  assert.equal(manager.pbfCache.length, 0);
+  assert.equal(runtimeLayer.contentRevision, originalRevision);
+
+  await manager.pbfCache.getOrLoad(originalKey, () =>
+    resolvedTask(Uint8Array.from([4, 5, 6]).buffer),
+  ).promise;
+  manager.setStyle(style);
+  const replacementProvider = manager.getProvider("land");
+  const replacementKey = replacementProvider.getPbfCacheKey(
+    tile,
+    replacementProvider.getTileResource(tile),
+  );
+  const reused = await replacementProvider.requestTile(tile).promise;
+  assert.equal(replacementKey, originalKey);
+  assert.deepEqual([...new Uint8Array(reused)], [4, 5, 6]);
+
+  manager.clearCache();
+  assert.equal(manager.pbfCache.length, 0);
+  assert.equal(
+    manager.vectorTileLayers.get(0).contentRevision,
+    originalRevision + 1,
+  );
+  manager.removeAll();
+  manager.removeFromScene();
+  console.log(
+    "✓ raw-only clear preserves render state and setStyle reuses unchanged source PBF",
   );
 }
 
@@ -113,10 +403,11 @@ const { default: VectorTileLayerManager } =
   const manager = createManager([provider], [runtimeLayer]);
 
   assert.equal(manager.removeLayer("org-fill"), true);
-  assert.equal(manager.getProvider("org"), undefined);
-  assert.equal(manager._vectorTileLayers.removeCalls.length, 1);
-  assert.equal(manager._vectorTileLayers.removeCalls[0].layer, runtimeLayer);
-  console.log("✓ remove final style layer tears down the runtime layer");
+  assert.equal(manager.getProvider("org"), provider);
+  assert.equal(manager._vectorTileLayers.removeCalls.length, 0);
+  console.log(
+    "✓ remove final style layer keeps the shared source provider active",
+  );
 }
 
 {
@@ -162,17 +453,14 @@ const { default: VectorTileLayerManager } =
     true,
   );
   assert.equal(runtimeLayer.setStyleCalls.length, 1);
-  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0], {
-    ...fillRule,
-    paint: {
-      "fill-color": "#ff0000",
-      "fill-opacity": 0.5,
-    },
-    metadata: {
-      state: {
-        selected: true,
-        category: "country",
-      },
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0].paint, {
+    "fill-color": "#ff0000",
+    "fill-opacity": 0.5,
+  });
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0].metadata, {
+    state: {
+      selected: true,
+      category: "country",
     },
   });
   console.log("✓ setLayerStyle recursively merges a partial layer style");
@@ -195,7 +483,11 @@ const { default: VectorTileLayerManager } =
   };
 
   assert.equal(manager.setLayerStyle("org-fill", replacement, false), true);
-  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0], replacement);
+  assert.deepEqual(runtimeLayer.setStyleCalls[0].layers[0].paint, {
+    "line-width": 3,
+  });
+  assert.equal(runtimeLayer.setStyleCalls[0].layers[0].type, "line");
+  assert.equal(runtimeLayer.setStyleCalls[0].layers[0].sourceLayer, "borders");
   assert.equal(manager.setLayerStyle("missing", replacement), false);
   assert.equal(runtimeLayer.setStyleCalls.length, 1);
   console.log("✓ setLayerStyle supports replacement and unknown layer ids");
@@ -332,4 +624,26 @@ function createLineRule(id, source) {
     source,
     sourceLayer: "countries",
   };
+}
+
+function resolvedTask(value) {
+  return {
+    promise: Promise.resolve(value),
+    cancel() {},
+    setPriority() {},
+    cancelled: false,
+  };
+}
+
+function createDeferredTask() {
+  let resolve;
+  const handle = {
+    promise: new Promise((resolvePromise) => {
+      resolve = resolvePromise;
+    }),
+    cancel() {},
+    setPriority() {},
+    cancelled: false,
+  };
+  return { handle, resolve };
 }

@@ -31,27 +31,34 @@ class FakeCollection {
   }
 }
 
-globalThis.Cesium = {
-  BillboardCollection: FakeCollection,
-  LabelCollection: FakeCollection,
-};
-
 const { default: SharedPointCollections } =
   await import("../src/SharedPointCollections.js");
-const { createSharedPointEntryKey } =
-  await import("../src/SharedPointCollections.js");
+const createSharedPointEntryKey =
+  SharedPointCollections.createSharedPointEntryKey;
 
 {
   const diagnostics = createDiagnostics();
+  const pickRegistry = createPickRegistry();
   const shared = new SharedPointCollections({
     scene: {},
     diagnostics,
+    pickRegistry,
+    createBillboardCollection: () => new FakeCollection(),
+    createLabelCollection: () => new FakeCollection(),
   });
 
-  shared.addTileEntries("tile-a", {
-    billboards: [{ id: "a-1" }, { id: "a-2" }],
-    labels: [{ text: "Alpha" }],
-  });
+  const pickContext = { sourceId: "demo" };
+  shared.addTileEntries(
+    "tile-a",
+    {
+      billboards: [
+        { id: 3, _vectorTileFeatureIndex: 3 },
+        { id: 4, _vectorTileFeatureIndex: 4 },
+      ],
+      labels: [{ text: "Alpha", _vectorTileFeatureIndex: 5 }],
+    },
+    pickContext,
+  );
   shared.addTileEntries("tile-b", {
     billboards: [{ id: "b-1" }],
   });
@@ -65,6 +72,43 @@ const { createSharedPointEntryKey } =
   assert.equal(diagnostics.gauges.sharedPointCollections, 2);
   assert.equal(diagnostics.gauges.liveSharedBillboards, 3);
   assert.equal(diagnostics.gauges.liveSharedLabels, 1);
+  assert.deepEqual(
+    pickRegistry.registrations.map(({ context, featureIndex }) => ({
+      context,
+      featureIndex,
+    })),
+    [
+      { context: pickContext, featureIndex: 3 },
+      { context: pickContext, featureIndex: 4 },
+      { context: pickContext, featureIndex: 5 },
+    ],
+  );
+
+  const firstBillboard = primitives[0].items[0];
+  const firstLabel = primitives[1].items[0];
+  shared.updateTileEntries("tile-a", {
+    billboards: [{ image: "updated.png", show: false }],
+    labels: [{ text: "Updated", fillColor: "green" }],
+  });
+  assert.equal(primitives[0].items[0], firstBillboard);
+  assert.equal(primitives[1].items[0], firstLabel);
+  assert.equal(firstBillboard.image, "updated.png");
+  assert.equal(firstBillboard.show, false);
+  assert.equal(firstLabel.text, "Updated");
+  assert.equal(firstLabel.fillColor, "green");
+
+  shared.updateTileEntries(
+    "tile-a",
+    {
+      billboards: [{ image: "must-not-reload.png", show: true }],
+      labels: [{ text: "Must not change", show: false }],
+    },
+    ["show"],
+  );
+  assert.equal(firstBillboard.image, "updated.png");
+  assert.equal(firstBillboard.show, true);
+  assert.equal(firstLabel.text, "Updated");
+  assert.equal(firstLabel.show, false);
 
   shared.removeTileEntries("tile-a");
   assert.equal(primitives[0].items.length, 1);
@@ -73,6 +117,7 @@ const { createSharedPointEntryKey } =
   assert.equal(shared.hasTileEntries("tile-b"), true);
   assert.equal(diagnostics.gauges.liveSharedBillboards, 1);
   assert.equal(diagnostics.gauges.liveSharedLabels, 0);
+  assert.equal(pickRegistry.unregistrations.length, 3);
 
   shared.destroy();
   assert.equal(primitives[0].destroyed, true);
@@ -111,6 +156,19 @@ function createDiagnostics() {
     gauges: {},
     addGauge(name, amount) {
       this.gauges[name] = Math.max(0, (this.gauges[name] ?? 0) + amount);
+    },
+  };
+}
+
+function createPickRegistry() {
+  return {
+    registrations: [],
+    unregistrations: [],
+    registerPoint(handle, context, featureIndex) {
+      this.registrations.push({ handle, context, featureIndex });
+    },
+    unregister(handle) {
+      this.unregistrations.push(handle);
     },
   };
 }

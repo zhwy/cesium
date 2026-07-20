@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { VectorTilePrimitiveBucket } from "../src/VectorTileBucketFactory.js";
+import VectorTilePrimitiveBucket from "../src/VectorTilePrimitiveBucket.js";
 
 const styleRule = {
   id: "parks-fill",

@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 const Cesium = await import("../../../../Build/CesiumUnminified/index.js");
 const { default: VectorTileQuadtreePrimitive } =
   await import("../src/VectorTileQuadtreePrimitive.js");
-const { createSharedPointEntryKey } =
+const { default: SharedPointCollections } =
   await import("../src/SharedPointCollections.js");
+const createSharedPointEntryKey =
+  SharedPointCollections.createSharedPointEntryKey;
 
 {
   const primitive = createPrimitiveForTest();
@@ -24,18 +26,57 @@ const { createSharedPointEntryKey } =
   state.committedRenderSet = new Set([tile]);
   const entryKey = createSharedPointEntryKey(tile, "labels");
 
-  primitive._syncLayerPointCollections(layer, state, 3);
+  primitive._syncLayerPointCollections(layer, state);
   assert.deepEqual(sharedPointCollections.adds, [entryKey]);
   assert.equal(sharedPointCollections.entries.has(entryKey), true);
 
-  primitive._syncLayerPointCollections(layer, state, 4);
-  assert.deepEqual(sharedPointCollections.removes, [entryKey]);
-  assert.equal(sharedPointCollections.entries.has(entryKey), false);
-
-  primitive._syncLayerPointCollections(layer, state, 3);
-  assert.deepEqual(sharedPointCollections.adds, [entryKey, entryKey]);
+  layer.getFrameStyleZoom = () => 5;
+  primitive._syncLayerPointCollections(layer, state);
+  assert.deepEqual(sharedPointCollections.removes, []);
+  assert.deepEqual(sharedPointCollections.adds, [entryKey]);
+  assert.deepEqual(sharedPointCollections.updates, []);
   assert.equal(sharedPointCollections.entries.has(entryKey), true);
-  console.log("✓ zoom-range changes add and remove shared point entries");
+
+  tile.pointBuckets.labels.styleRevision = 1;
+  tile.pointBuckets.labels.updateProperties = ["show"];
+  primitive._syncLayerPointCollections(layer, state);
+  assert.deepEqual(sharedPointCollections.updates, [
+    { tileKey: entryKey, properties: ["show"] },
+  ]);
+  console.log("✓ ancestor point buckets keep their build-zoom style");
+}
+
+{
+  const primitive = createPrimitiveForTest();
+  primitive._tilesToRender = [];
+  const sharedPointCollections = createSharedPointCollectionsSpy();
+  const layer = {
+    _show: true,
+    sharedPointCollections,
+  };
+  const renderPrimitive = createWarmablePrimitive(true);
+  renderPrimitive.seenShows = [];
+  renderPrimitive.update = function () {
+    this.updateCalls++;
+    this.seenShows.push(this.show);
+  };
+  const tile = {
+    primitives: { hidden: [renderPrimitive] },
+    buckets: {
+      hidden: {
+        styleRule: { visibility: false },
+      },
+    },
+  };
+  const state = primitive._getOrCreateLayerState(layer);
+  state.committedRenderSet = new Set([tile]);
+
+  primitive.renderTiles({
+    passes: { render: false, pick: true },
+    commandList: [],
+  });
+  assert.deepEqual(renderPrimitive.seenShows, [false]);
+  console.log("✓ render submission preserves bucket-level visibility");
 }
 
 {
@@ -398,6 +439,7 @@ function createSharedPointCollectionsSpy() {
     entries: new Map(),
     adds: [],
     removes: [],
+    updates: [],
     addTileEntries(tileKey, descriptors) {
       this.entries.set(tileKey, descriptors);
       this.adds.push(tileKey);
@@ -409,6 +451,11 @@ function createSharedPointCollectionsSpy() {
         this.removes.push(tileKey);
       }
       return hadEntries;
+    },
+    updateTileEntries(tileKey, descriptors, properties) {
+      this.entries.set(tileKey, descriptors);
+      this.updates.push({ tileKey, properties });
+      return true;
     },
     hasTileEntries(tileKey) {
       return this.entries.has(tileKey);

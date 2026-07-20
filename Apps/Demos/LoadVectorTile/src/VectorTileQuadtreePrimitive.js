@@ -1,9 +1,9 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
 import {
-  selectByCoverage,
-  isAncestorOrSame,
-} from "./VectorTileLodSelection.js";
-import { createSharedPointEntryKey } from "./SharedPointCollections.js";
+  ImageryState,
+  QuadtreePrimitive,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileLodSelectionUtils from "./VectorTileLodSelectionUtils.js";
+import SharedPointCollections from "./SharedPointCollections.js";
 
 /**
  * 判断一个瓦片上的所有图元是否都能在当前帧真正出图。
@@ -23,7 +23,7 @@ function arePrimitivesReady(tile) {
   for (let ki = 0; ki < keys.length; ++ki) {
     const primitives = layerPrimitives[keys[ki]];
     for (let pi = 0; pi < primitives.length; ++pi) {
-      if (!primitives[pi].ready) {
+      if (primitives[pi].show !== false && !primitives[pi].ready) {
         return false;
       }
     }
@@ -38,12 +38,10 @@ function arePrimitivesReady(tile) {
  * @param {object} options 构造参数。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
  * @param {number} [options.warmupTilesPerFrame=4] 每帧允许预热但不直接显示的瓦片数量上限。
- * @param {number} [options.tileCacheSize] 继续透传给 `Cesium.QuadtreePrimitive` 的缓存大小参数。
- * @param {number} [options.maximumScreenSpaceError] 继续透传给 `Cesium.QuadtreePrimitive` 的屏幕误差阈值。
+ * @param {number} [options.tileCacheSize] 继续透传给 `QuadtreePrimitive` 的缓存大小参数。
+ * @param {number} [options.maximumScreenSpaceError] 继续透传给 `QuadtreePrimitive` 的屏幕误差阈值。
  */
-export default class VectorTileQuadtreePrimitive
-  extends Cesium.QuadtreePrimitive
-{
+export default class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
   constructor(options) {
     super(options);
     this._diagnostics = options.diagnostics;
@@ -143,7 +141,7 @@ export default class VectorTileQuadtreePrimitive
     state.committedPointEntries = new Map();
   }
 
-  _syncLayerPointCollections(layer, state, styleZoom) {
+  _syncLayerPointCollections(layer, state) {
     const sharedPointCollections = layer.sharedPointCollections;
     if (!sharedPointCollections) {
       state.committedPointEntries = new Map();
@@ -157,23 +155,38 @@ export default class VectorTileQuadtreePrimitive
       for (let i = 0; i < bucketIds.length; ++i) {
         const bucketId = bucketIds[i];
         const pointBucket = pointBuckets[bucketId];
-        if (!isStyleRuleVisibleForZoom(pointBucket.styleRule, styleZoom)) {
-          continue;
-        }
-
-        const pointKey = createSharedPointEntryKey(tile, bucketId);
-        nextPointEntries.set(pointKey, pointBucket);
+        const pointKey = SharedPointCollections.createSharedPointEntryKey(
+          tile,
+          bucketId,
+        );
+        nextPointEntries.set(pointKey, {
+          pointBucket,
+          styleRevision: pointBucket.styleRevision ?? 0,
+        });
       }
     }
 
-    for (const [pointKey, pointBucket] of nextPointEntries) {
-      if (
-        !state.committedPointEntries.has(pointKey) ||
-        !sharedPointCollections.hasTileEntries(pointKey)
-      ) {
+    for (const [pointKey, pointEntry] of nextPointEntries) {
+      const { pointBucket, styleRevision } = pointEntry;
+      const committedEntry = state.committedPointEntries.get(pointKey);
+      if (!committedEntry || !sharedPointCollections.hasTileEntries(pointKey)) {
         sharedPointCollections.addTileEntries(
           pointKey,
           pointBucket.descriptors,
+          pointBucket.pickContext,
+        );
+      } else if (committedEntry.pointBucket !== pointBucket) {
+        sharedPointCollections.removeTileEntries(pointKey);
+        sharedPointCollections.addTileEntries(
+          pointKey,
+          pointBucket.descriptors,
+          pointBucket.pickContext,
+        );
+      } else if (committedEntry.styleRevision !== styleRevision) {
+        sharedPointCollections.updateTileEntries?.(
+          pointKey,
+          pointBucket.descriptors,
+          pointBucket.updateProperties,
         );
       }
     }
@@ -185,6 +198,17 @@ export default class VectorTileQuadtreePrimitive
     }
 
     state.committedPointEntries = nextPointEntries;
+  }
+
+  applyStyleLayerUpdate(layer, layerId, plan) {
+    const state = this._layerRenderStates.get(layer);
+    if (!state) {
+      return;
+    }
+    for (const tile of state.committedRenderSet) {
+      layer.applyStyleLayerToTile?.(tile, layerId, plan);
+    }
+    this._syncLayerPointCollections(layer, state);
   }
 
   update(frameState) {
@@ -264,6 +288,7 @@ export default class VectorTileQuadtreePrimitive
           // 否则在高压加载场景下，可见瓦片可能拿不到时间片，导致无意义的取消与重请求抖动。
           exact.lastNeededFrame = frameState.frameNumber;
           const layer = exact.vectorTileLayer;
+          layer.processBucketRebuilds?.(exact, frameState);
 
           let entry = layerEntries.get(layer);
           if (!entry) {
@@ -284,12 +309,14 @@ export default class VectorTileQuadtreePrimitive
           // 即便 `readyVectorTile` 仍指向可绘制的祖先回退结果，
           // `READY_EMPTY` 的精确瓦片也应视为已完成覆盖。
           const exactCoverage =
-            exact.state === Cesium.ImageryState.READY && exact.coverageComplete
+            exact.state === ImageryState.READY && exact.coverageComplete
               ? exact
               : undefined;
           const vt = exactCoverage ?? tileVectorTile.readyVectorTile;
+          layer.processBucketRebuilds?.(vt, frameState);
+          layer.applyPendingStyleUpdates?.(vt);
           if (
-            vt?.state === Cesium.ImageryState.READY &&
+            vt?.state === ImageryState.READY &&
             layer.isCurrentContentRevision?.(vt) !== false &&
             !warmupTiles.has(vt)
           ) {
@@ -320,12 +347,16 @@ export default class VectorTileQuadtreePrimitive
         const state = this._getOrCreateLayerState(layer);
         const { candidates, regions } = entry;
 
-        const selected = selectByCoverage(candidates);
+        const selected =
+          VectorTileLodSelectionUtils.selectByCoverage(candidates);
         suppressedLodVectorTiles += candidates.size - selected.length;
 
         // 统计本帧仍未被 READY 瓦片覆盖的区域。
         const uncovered = regions.filter(
-          (region) => !selected.some((s) => isAncestorOrSame(s, region)),
+          (region) =>
+            !selected.some((s) =>
+              VectorTileLodSelectionUtils.isAncestorOrSame(s, region),
+            ),
         );
 
         // 从上一次已提交集合中回填未覆盖区域：
@@ -336,8 +367,8 @@ export default class VectorTileQuadtreePrimitive
             if (
               uncovered.some(
                 (region) =>
-                  isAncestorOrSame(old, region) ||
-                  isAncestorOrSame(region, old),
+                  VectorTileLodSelectionUtils.isAncestorOrSame(old, region) ||
+                  VectorTileLodSelectionUtils.isAncestorOrSame(region, old),
               )
             ) {
               retained.push(old);
@@ -345,7 +376,10 @@ export default class VectorTileQuadtreePrimitive
           }
           // 移除那些已被新选中瓦片完全覆盖的保留瓦片。
           retained = retained.filter(
-            (old) => !selected.some((s) => isAncestorOrSame(s, old)),
+            (old) =>
+              !selected.some((s) =>
+                VectorTileLodSelectionUtils.isAncestorOrSame(s, old),
+              ),
           );
         }
 
@@ -355,16 +389,18 @@ export default class VectorTileQuadtreePrimitive
           retained.length === 0
             ? selected
             : selected.filter(
-                (s) => !retained.some((old) => isAncestorOrSame(old, s)),
+                (s) =>
+                  !retained.some((old) =>
+                    VectorTileLodSelectionUtils.isAncestorOrSame(old, s),
+                  ),
               );
 
         retainedTileCount += retained.length;
         refreshRetainedTileCount += retained.filter(
           (tile) => layer.isCurrentContentRevision?.(tile) === false,
         ).length;
-        const styleZoom = layer.getFrameStyleZoom(frameState);
         this._commitRenderSet(state, [...merged, ...retained], () =>
-          this._syncLayerPointCollections(layer, state, styleZoom),
+          this._syncLayerPointCollections(layer, state),
         );
       }
 
@@ -418,7 +454,6 @@ export default class VectorTileQuadtreePrimitive
       if (!layer._show || state.committedRenderSet.size === 0) {
         continue;
       }
-      const styleZoom = layer.getFrameStyleZoom(frameState);
       const sharedPrimitives =
         layer.sharedPointCollections?.getPrimitives() ?? [];
       for (let i = 0; i < sharedPrimitives.length; ++i) {
@@ -433,14 +468,13 @@ export default class VectorTileQuadtreePrimitive
         primitive.update(frameState);
       }
       for (const tile of state.committedRenderSet) {
+        layer.processBucketRebuilds?.(tile, frameState);
+        layer.applyPendingStyleUpdates?.(tile);
         const layerPrimitives = tile.primitives || {};
         const primitiveKeys = Object.keys(layerPrimitives);
         for (let ki = 0; ki < primitiveKeys.length; ++ki) {
-          const styleRule = tile.primitiveStyleRules?.[primitiveKeys[ki]];
-          if (!isStyleRuleVisibleForZoom(styleRule, styleZoom)) {
-            continue;
-          }
           const primitives = layerPrimitives[primitiveKeys[ki]];
+          const bucket = tile.buckets?.[primitiveKeys[ki]];
           for (let pi = 0; pi < primitives.length; ++pi) {
             const primitive = primitives[pi];
             primitiveCandidates++;
@@ -449,7 +483,9 @@ export default class VectorTileQuadtreePrimitive
               continue;
             }
             submittedPrimitives.add(primitive);
-            primitive.show = true;
+            primitive.show =
+              bucket?.isPrimitiveVisible?.(primitive) ??
+              bucket?.styleRule?.visibility !== false;
             primitive.update(frameState);
           }
         }
@@ -472,6 +508,7 @@ export default class VectorTileQuadtreePrimitive
           break;
         }
         warmupBudget--;
+        tile.vectorTileLayer?.applyPendingStyleUpdates?.(tile);
         const layerPrimitives = tile.primitives || {};
         const primitiveKeys = Object.keys(layerPrimitives);
         for (let ki = 0; ki < primitiveKeys.length; ++ki) {
@@ -479,6 +516,9 @@ export default class VectorTileQuadtreePrimitive
           for (let pi = 0; pi < primitives.length; ++pi) {
             const primitive = primitives[pi];
             if (submittedPrimitives.has(primitive)) {
+              continue;
+            }
+            if (primitive.show === false) {
               continue;
             }
             warmUpPrimitive(primitive, frameState);
@@ -507,14 +547,4 @@ function warmUpPrimitive(primitive, frameState) {
   primitive.update(frameState);
   primitive.show = show;
   frameState.commandList.length = commandListLength;
-}
-
-function isStyleRuleVisibleForZoom(styleRule, zoom) {
-  if (!styleRule || !Number.isFinite(zoom)) {
-    return true;
-  }
-  return (
-    (styleRule.minzoom === undefined || zoom >= styleRule.minzoom) &&
-    (styleRule.maxzoom === undefined || zoom < styleRule.maxzoom)
-  );
 }

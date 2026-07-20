@@ -1,3 +1,5 @@
+import CommonUtils from "./CommonUtils.js";
+
 /**
  * 一条外部样式文档图层在运行时的 Cesium 侧表示。
  * 外部文档继续沿用类似 Mapbox 的 `layers` 结构，运行时则将每一项视作可挂接到
@@ -25,12 +27,12 @@ export default class VectorTileStyleRule {
     this.sourceLayer = layer.sourceLayer;
     this.minzoom = layer.minzoom;
     this.maxzoom = layer.maxzoom;
-    this.filter = cloneValue(layer.filter);
-    this.layout = cloneValue(layer.layout ?? {});
-    this.paint = cloneValue(layer.paint ?? {});
-    this.terrain = cloneValue(layer.terrain ?? {});
+    this.filter = CommonUtils.cloneValue(layer.filter);
+    this.layout = CommonUtils.cloneValue(layer.layout ?? {});
+    this.paint = CommonUtils.cloneValue(layer.paint ?? {});
+    this.terrain = CommonUtils.cloneValue(layer.terrain ?? {});
     this.visibility = layer.visibility ?? true;
-    this.metadata = cloneValue(layer.metadata ?? {});
+    this.metadata = CommonUtils.cloneValue(layer.metadata ?? {});
   }
 
   toJSON() {
@@ -41,35 +43,12 @@ export default class VectorTileStyleRule {
       sourceLayer: this.sourceLayer,
       minzoom: this.minzoom,
       maxzoom: this.maxzoom,
-      filter: cloneValue(this.filter),
-      layout: cloneValue(this.layout),
-      paint: cloneValue(this.paint),
-      terrain: cloneValue(this.terrain),
+      filter: CommonUtils.cloneValue(this.filter),
+      layout: CommonUtils.cloneValue(this.layout),
+      paint: CommonUtils.cloneValue(this.paint),
+      terrain: CommonUtils.cloneValue(this.terrain),
       visibility: this.visibility,
-      metadata: cloneValue(this.metadata),
+      metadata: CommonUtils.cloneValue(this.metadata),
     };
   }
-}
-
-function cloneValue(value) {
-  if (Array.isArray(value)) {
-    return value.map(cloneValue);
-  }
-  if (isPlainObject(value)) {
-    const result = {};
-    Object.keys(value).forEach((key) => {
-      result[key] = cloneValue(value[key]);
-    });
-    return result;
-  }
-  return value;
-}
-
-function isPlainObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype ||
-      Object.getPrototypeOf(value) === null)
-  );
 }

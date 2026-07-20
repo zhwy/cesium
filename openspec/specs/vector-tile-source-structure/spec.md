@@ -1,18 +1,18 @@
 ## ADDED Requirements
 
-### Requirement: Provider 寻址逻辑集中于单一模块
+### Requirement: Provider 寻址逻辑按子类拆分为独立文件
 
-矢量瓦片框架 SHALL 将所有瓦片寻址（URL 模板解析）与 PBF 加载逻辑集中在单一 `VectorTileProvider.js` 模块中，包含 Provider 基类、`XYZ`/`WMTS`/`WMTSGeo` 子类、`TileType` 枚举与 `MVTLoader` 加载器；`src/` 目录 SHALL 不再包含 `XYZVectorTileProvider.js`、`WMTSVectorTileProvider.js`、`WMTSGeoVectorTileProvider.js`、`TileType.js`、`MVTLoader.js` 独立文件。
+矢量瓦片框架 SHALL 将 Provider 基类（含 PBF 加载入口与 `MVTLoader` 单例）保留在 `VectorTileProvider.js` 中，`XYZ`/`WMTS`/`WMTSGeo` 三个具体寻址子类与 `TileType` 枚举 SHALL 拆分为独立文件 `XYZVectorTileProvider.js`、`WMTSVectorTileProvider.js`、`WMTSGeoVectorTileProvider.js`、`TileType.js`；子类文件从对应基类文件默认导入并 `extends`，消费方（如 `VectorTileLayerManager`）直接从这些独立文件导入，不再通过 `VectorTileProvider` 的静态成员转发子类或枚举。
 
 #### Scenario: 请求 XYZ 瓦片
 
 - **WHEN** 图层配置 `tileType` 为 `XYZ` 且发起某 `(x, y, level)` 瓦片请求
-- **THEN** 系统从 `VectorTileProvider.js` 导出的 XYZ 寻址实现生成正确 URL 并完成加载，行为与重构前一致
+- **THEN** 系统使用 `XYZVectorTileProvider.js` 导出的寻址实现生成正确 URL 并完成加载，行为与重构前一致
 
 #### Scenario: 请求 WMTS 瓦片
 
 - **WHEN** 图层配置 `tileType` 为 `WMTS`
-- **THEN** 系统从 `VectorTileProvider.js` 导出的 WMTS 寻址实现生成正确 URL，行为与重构前一致
+- **THEN** 系统使用 `WMTSVectorTileProvider.js`（或 `format` 为 GeoJSON 时的 `WMTSGeoVectorTileProvider.js`）导出的寻址实现生成正确 URL，行为与重构前一致
 
 ### Requirement: Provider 工厂逻辑内联到 Manager
 
@@ -246,3 +246,60 @@
 
 - **WHEN** callers need to remove a style document layer
 - **THEN** callers SHALL use `removeLayer(layerId)` rather than removing the source-backed runtime layer directly
+
+### Requirement: Manager owns PBF cache for all sources
+
+`VectorTileLayerManager` SHALL own and manage a shared PBF cache that serves all vector tile sources managed by this instance. The cache SHALL be configured with `pbfCacheBytes` parameter and SHALL provide LRU eviction based on master buffer byte size.
+
+#### Scenario: Manager creates shared cache
+
+- **WHEN** manager is instantiated with `pbfCacheBytes` configuration
+- **THEN** manager SHALL create a shared `VectorTilePbfCache` instance with the specified budget
+
+#### Scenario: Manager injects cache into providers
+
+- **WHEN** manager creates or accepts a provider
+- **THEN** manager SHALL inject the same PBF cache instance into all providers
+
+#### Scenario: Cache budget validation
+
+- **WHEN** `pbfCacheBytes` is invalid (negative, non-finite, non-number)
+- **THEN** manager construction SHALL throw `DeveloperError`
+
+### Requirement: PBF cache provides shared network task coordination
+
+The PBF cache SHALL coordinate concurrent network requests for the same PBF key, merging multiple concurrent misses into a single shared request.
+
+#### Scenario: Cache accepts concurrent requests
+
+- **WHEN** multiple providers request the same PBF key simultaneously
+- **THEN** cache SHALL merge these into a single shared network task
+
+#### Scenario: Cache provides independent handles
+
+- **WHEN** cache handles a shared request
+- **THEN** cache SHALL return independent promise handles to each consumer with separate cancellation capability
+
+#### Scenario: Cache cleans up after all consumers cancel
+
+- **WHEN** all consumers of a shared request cancel
+- **THEN** cache SHALL cancel the underlying network task and remove the pending entry
+
+### Requirement: PBF cache maintains master buffer copies
+
+The PBF cache SHALL maintain immutable master `ArrayBuffer` copies and provide working copies to consumers for Worker transfer.
+
+#### Scenario: Cache saves master on first hit
+
+- **WHEN** network request succeeds for a PBF key
+- **THEN** cache SHALL save the master buffer and provide working copies to consumers
+
+#### Scenario: Working copies are transferable
+
+- **WHEN** consumer needs to transfer PBF data to Worker
+- **THEN** cache SHALL provide a working copy that can be transferred while keeping master
+
+#### Scenario: Master remains available for reuse
+
+- **WHEN** master buffer is saved and new consumers request the same key
+- **THEN** cache SHALL create new working copies from the same master buffer

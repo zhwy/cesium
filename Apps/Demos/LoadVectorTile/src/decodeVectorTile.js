@@ -1,41 +1,28 @@
 import { VectorTile } from "https://cdn.jsdelivr.net/npm/@mapbox/vector-tile/+esm";
 import { PbfReader } from "https://cdn.jsdelivr.net/npm/pbf/+esm";
-import {
-  classifyRings,
-  clipLineString,
-  clipRingToRectangle,
-  countOutOfBoundsPoints,
-  isPointInRectangle,
-  projectPoint,
-} from "./VectorTileGeometryUtils.js";
-import { doesFeatureMatchAnyStyleRule as matchFeatureAgainstStyleRules } from "./VectorTileGeometryPlacement.js";
+import VectorTileGeometryUtils from "./VectorTileGeometryUtils.js";
+import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
+import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
+import VectorTilePropertyProjectionUtils from "./VectorTilePropertyProjectionUtils.js";
 
 function createPackedLayer() {
   return {
     featureCount: 0,
     positionCount: 0,
+    features: [],
     pointPositions: [],
-    pointMetadata: [],
+    pointFeatureIndices: [],
     linePositions: [],
     lineOffsets: [],
-    lineMetadata: [],
+    lineFeatureIndices: [],
     polygonPositions: [],
     ringOffsets: [],
     polygonOffsets: [],
-    polygonMetadata: [],
+    polygonFeatureIndices: [],
+    styleFilteredFeatureCount: 0,
     clippedFeatureCount: 0,
     discardedFeatureCount: 0,
     outOfBoundsPositionCount: 0,
-  };
-}
-
-function getMetadata(feature, includeProperties) {
-  if (!includeProperties) {
-    return undefined;
-  }
-  return {
-    id: feature.id,
-    properties: feature.properties,
   };
 }
 
@@ -44,20 +31,29 @@ function addPoints(
   geometry,
   tile,
   packedLayer,
-  includeProperties,
+  featureIndex,
   clipToTile,
 ) {
-  const metadata = getMetadata(feature, includeProperties);
   for (let i = 0; i < geometry.length; ++i) {
     const points = geometry[i];
     for (let j = 0; j < points.length; ++j) {
-      if (clipToTile && !isPointInRectangle(points[j], 0, feature.extent)) {
+      if (
+        clipToTile &&
+        !VectorTileGeometryUtils.isPointInRectangle(
+          points[j],
+          0,
+          feature.extent,
+        )
+      ) {
         continue;
       }
-      projectPoint(points[j], tile, feature.extent, packedLayer.pointPositions);
-      if (includeProperties) {
-        packedLayer.pointMetadata.push(metadata);
-      }
+      VectorTileGeometryUtils.projectPoint(
+        points[j],
+        tile,
+        feature.extent,
+        packedLayer.pointPositions,
+      );
+      packedLayer.pointFeatureIndices.push(featureIndex);
       packedLayer.positionCount++;
     }
   }
@@ -68,13 +64,12 @@ function addLines(
   geometry,
   tile,
   packedLayer,
-  includeProperties,
+  featureIndex,
   clipToTile,
 ) {
-  const metadata = getMetadata(feature, includeProperties);
   for (let i = 0; i < geometry.length; ++i) {
     const lines = clipToTile
-      ? clipLineString(geometry[i], 0, feature.extent)
+      ? VectorTileGeometryUtils.clipLineString(geometry[i], 0, feature.extent)
       : [geometry[i]];
     for (let lineIndex = 0; lineIndex < lines.length; ++lineIndex) {
       const line = lines[lineIndex];
@@ -84,12 +79,15 @@ function addLines(
 
       packedLayer.lineOffsets.push(packedLayer.linePositions.length / 2);
       for (let j = 0; j < line.length; ++j) {
-        projectPoint(line[j], tile, feature.extent, packedLayer.linePositions);
+        VectorTileGeometryUtils.projectPoint(
+          line[j],
+          tile,
+          feature.extent,
+          packedLayer.linePositions,
+        );
         packedLayer.positionCount++;
       }
-      if (includeProperties) {
-        packedLayer.lineMetadata.push(metadata);
-      }
+      packedLayer.lineFeatureIndices.push(featureIndex);
     }
   }
 }
@@ -99,16 +97,17 @@ function addPolygons(
   geometry,
   tile,
   packedLayer,
-  includeProperties,
+  featureIndex,
   clipToTile,
 ) {
-  const metadata = getMetadata(feature, includeProperties);
   const rings = clipToTile
     ? geometry
-        .map((ring) => clipRingToRectangle(ring, 0, feature.extent))
+        .map((ring) =>
+          VectorTileGeometryUtils.clipRingToRectangle(ring, 0, feature.extent),
+        )
         .filter((ring) => ring.length >= 4)
     : geometry;
-  const polygons = classifyRings(rings);
+  const polygons = VectorTileGeometryUtils.classifyRings(rings);
   for (let i = 0; i < polygons.length; ++i) {
     const polygon = polygons[i];
     const polygonStart = packedLayer.ringOffsets.length;
@@ -120,7 +119,7 @@ function addPolygons(
 
       packedLayer.ringOffsets.push(packedLayer.polygonPositions.length / 2);
       for (let k = 0; k < ring.length; ++k) {
-        projectPoint(
+        VectorTileGeometryUtils.projectPoint(
           ring[k],
           tile,
           feature.extent,
@@ -132,9 +131,7 @@ function addPolygons(
 
     if (packedLayer.ringOffsets.length > polygonStart) {
       packedLayer.polygonOffsets.push(polygonStart);
-      if (includeProperties) {
-        packedLayer.polygonMetadata.push(metadata);
-      }
+      packedLayer.polygonFeatureIndices.push(featureIndex);
     }
   }
 }
@@ -149,20 +146,23 @@ function finalizePackedLayer(layer) {
     clippedFeatureCount: layer.clippedFeatureCount,
     discardedFeatureCount: layer.discardedFeatureCount,
     outOfBoundsPositionCount: layer.outOfBoundsPositionCount,
+    styleFilteredFeatureCount: layer.styleFilteredFeatureCount,
+    unaddressableFeatureCount: layer.unaddressableFeatureCount ?? 0,
+    features: layer.features,
     points: {
       positions: new Float64Array(layer.pointPositions),
-      metadata: layer.pointMetadata,
+      featureIndices: new Uint32Array(layer.pointFeatureIndices),
     },
     lines: {
       positions: new Float64Array(layer.linePositions),
       offsets: new Uint32Array(layer.lineOffsets),
-      metadata: layer.lineMetadata,
+      featureIndices: new Uint32Array(layer.lineFeatureIndices),
     },
     polygons: {
       positions: new Float64Array(layer.polygonPositions),
       ringOffsets: new Uint32Array(layer.ringOffsets),
       polygonOffsets: new Uint32Array(layer.polygonOffsets),
-      metadata: layer.polygonMetadata,
+      featureIndices: new Uint32Array(layer.polygonFeatureIndices),
     },
   };
 }
@@ -188,20 +188,26 @@ function groupStyleRulesBySourceLayer(styleRules) {
 
 function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
   const zoom = tile.styleZoom ?? tile.level;
-  return matchFeatureAgainstStyleRules(feature, feature.type, styleRules, {
-    zoom,
-    level: zoom,
-    sourceLevel: tile.sourceLevel ?? tile.level,
-  });
+  return VectorTileGeometryPlacementUtils.doesFeatureMatchAnyStyleRule(
+    feature,
+    feature.type,
+    styleRules,
+    {
+      zoom,
+      level: zoom,
+      sourceLevel: tile.sourceLevel ?? tile.level,
+    },
+  );
 }
 
 export default function decodeVectorTile(
   arrayBuffer,
   tile,
   styledLayerNames,
-  includeProperties = false,
+  propertyProjections = undefined,
   clipToTile = true,
   styleRules = undefined,
+  promoteId = undefined,
 ) {
   const vectorTile = new VectorTile(new PbfReader(arrayBuffer));
   const layers = {};
@@ -215,6 +221,10 @@ export default function decodeVectorTile(
 
     const packedLayer = createPackedLayer();
     const layerStyleRules = styleRulesBySourceLayer.get(layerName);
+    const propertyProjection = getPropertyProjection(
+      propertyProjections,
+      layerName,
+    );
     for (
       let featureIndex = 0;
       featureIndex < vectorTileLayer.length;
@@ -231,12 +241,14 @@ export default function decodeVectorTile(
       const geometry = feature.loadGeometry();
       packedLayer.featureCount++;
       const positionCountBefore = packedLayer.positionCount;
+      const packedFeatureIndex = packedLayer.features.length;
       if (clipToTile) {
-        const outOfBoundsPositionCount = countOutOfBoundsPoints(
-          geometry,
-          0,
-          feature.extent,
-        );
+        const outOfBoundsPositionCount =
+          VectorTileGeometryUtils.countOutOfBoundsPoints(
+            geometry,
+            0,
+            feature.extent,
+          );
         packedLayer.outOfBoundsPositionCount += outOfBoundsPositionCount;
         if (outOfBoundsPositionCount > 0) {
           packedLayer.clippedFeatureCount++;
@@ -248,7 +260,7 @@ export default function decodeVectorTile(
           geometry,
           tile,
           packedLayer,
-          includeProperties,
+          packedFeatureIndex,
           clipToTile,
         );
       } else if (feature.type === 2) {
@@ -257,7 +269,7 @@ export default function decodeVectorTile(
           geometry,
           tile,
           packedLayer,
-          includeProperties,
+          packedFeatureIndex,
           clipToTile,
         );
       } else if (feature.type === 3) {
@@ -266,15 +278,49 @@ export default function decodeVectorTile(
           geometry,
           tile,
           packedLayer,
-          includeProperties,
+          packedFeatureIndex,
           clipToTile,
         );
       }
       if (packedLayer.positionCount === positionCountBefore) {
         packedLayer.discardedFeatureCount++;
+      } else {
+        const idResult = VectorTileFeatureStateUtils.resolveFeatureStateId(
+          layerName,
+          feature,
+          promoteId,
+        );
+        if (idResult.unaddressable) {
+          packedLayer.unaddressableFeatureCount =
+            (packedLayer.unaddressableFeatureCount ?? 0) + 1;
+        }
+        packedLayer.features.push({
+          id: idResult.id,
+          sourceFeatureIndex: featureIndex,
+          properties:
+            VectorTilePropertyProjectionUtils.projectVectorTileProperties(
+              feature.properties,
+              propertyProjection,
+            ),
+        });
       }
     }
     layers[layerName] = finalizePackedLayer(packedLayer);
   }
   return { layers };
+}
+
+function getPropertyProjection(propertyProjections, layerName) {
+  if (typeof propertyProjections === "boolean") {
+    return {
+      retainAll: propertyProjections,
+      properties: [],
+    };
+  }
+  return (
+    propertyProjections?.[layerName] ?? {
+      retainAll: false,
+      properties: [],
+    }
+  );
 }

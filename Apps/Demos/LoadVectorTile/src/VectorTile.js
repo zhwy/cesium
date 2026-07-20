@@ -1,8 +1,10 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
-import { createSharedPointEntryKey } from "./SharedPointCollections.js";
-const { defined, destroyObject, ImageryState } = Cesium;
-
+import {
+  defined,
+  destroyObject,
+  ImageryState,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileCoverageState from "./VectorTileCoverageState.js";
+import SharedPointCollections from "./SharedPointCollections.js";
 /**
  * 矢量瓦片栈中与 Cesium `Imagery` 对应的数据对象，
  * 保存单个矢量瓦片的请求、解码、构建、缓存与父子层级状态。
@@ -44,17 +46,23 @@ function VectorTile(
   this.coverageState = VectorTileCoverageState.PENDING;
   this.imageUrl = undefined;
   this.features = undefined;
+  this.propertyProjections = undefined;
+  this.residentFeatureTableEntries = 0;
+  this.residentPickPropertyValues = 0;
   this.arrayBuffer = undefined;
   this.arrayBufferBytes = 0;
   this.primitives = undefined;
+  this.buckets = undefined;
   this.primitiveStyleRules = undefined;
   this.pointBuckets = undefined;
+  this.builtStyleLayerIds = undefined;
   this.terminalReason = undefined;
   this.released = false;
   this.priority = 0;
   this.networkTask = undefined;
   this.decodeTask = undefined;
   this.buildTask = undefined;
+  this.bucketRebuilds = undefined;
   this.cacheKey = undefined;
   this.cacheBytes = 0;
   this.cacheStale = false;
@@ -79,6 +87,9 @@ VectorTile.createPlaceholder = function (vectorTileLayer) {
 };
 
 VectorTile.prototype.addReference = function () {
+  if (this.referenceCount === 0) {
+    this.cache.tileReferenced?.(this);
+  }
   ++this.referenceCount;
 };
 
@@ -120,6 +131,11 @@ VectorTile.prototype.processStateMachine = function (
   this.networkTask?.setPriority(this.priority);
   this.decodeTask?.setPriority(this.priority);
   this.buildTask?.setPriority(this.priority);
+  if (this.bucketRebuilds) {
+    Object.values(this.bucketRebuilds).forEach((rebuild) => {
+      rebuild.setPriority?.(this.priority);
+    });
+  }
   if (this.state === ImageryState.UNLOADED && !skipLoading) {
     this.vectorTileLayer._requestTile(this);
   }
@@ -138,6 +154,11 @@ VectorTile.prototype.cancelPendingTasks = function () {
   this.networkTask?.cancel();
   this.decodeTask?.cancel();
   this.buildTask?.cancel();
+  if (this.bucketRebuilds) {
+    Object.values(this.bucketRebuilds).forEach((rebuild) => {
+      rebuild.cancel?.();
+    });
+  }
 };
 
 VectorTile.prototype.destroyResources = function () {
@@ -150,7 +171,7 @@ VectorTile.prototype.destroyResources = function () {
   if (defined(this.pointBuckets)) {
     Object.keys(this.pointBuckets).forEach((bucketId) => {
       this.vectorTileLayer.sharedPointCollections.removeTileEntries(
-        createSharedPointEntryKey(this, bucketId),
+        SharedPointCollections.createSharedPointEntryKey(this, bucketId),
       );
       delete this.pointBuckets[bucketId];
     });
@@ -161,7 +182,20 @@ VectorTile.prototype.destroyResources = function () {
     this.parent.releaseReference();
     this.parent = undefined;
   }
-  this.features = undefined;
+  if (defined(this.features)) {
+    this.vectorTileLayer._diagnostics?.addGauge(
+      "residentFeatureTableEntries",
+      -this.residentFeatureTableEntries,
+    );
+    this.vectorTileLayer._diagnostics?.addGauge(
+      "residentPickPropertyValues",
+      -this.residentPickPropertyValues,
+    );
+    this.features = undefined;
+    this.propertyProjections = undefined;
+    this.residentFeatureTableEntries = 0;
+    this.residentPickPropertyValues = 0;
+  }
 
   if (defined(this.arrayBuffer)) {
     this.vectorTileLayer._diagnostics?.addGauge(
@@ -172,7 +206,14 @@ VectorTile.prototype.destroyResources = function () {
     this.arrayBufferBytes = 0;
   }
 
-  if (defined(this.primitives)) {
+  if (defined(this.buckets)) {
+    Object.keys(this.buckets).forEach((key) => {
+      this.buckets[key].destroy();
+      delete this.buckets[key];
+    });
+    this.buckets = undefined;
+    this.primitives = undefined;
+  } else if (defined(this.primitives)) {
     Object.keys(this.primitives).forEach((key) => {
       this.primitives[key].forEach((primitive) => {
         if (!primitive.isDestroyed()) {
@@ -184,6 +225,7 @@ VectorTile.prototype.destroyResources = function () {
     this.primitives = undefined;
   }
   this.primitiveStyleRules = undefined;
+  this.builtStyleLayerIds = undefined;
   destroyObject(this);
 };
 export default VectorTile;

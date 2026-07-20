@@ -1,60 +1,17 @@
 import assert from "node:assert/strict";
 
-class FakePrimitive {
+class FakeGroundPolylinePrimitive {
   constructor(options) {
     this.options = options;
   }
 }
 
-class FakeGroundPrimitive extends FakePrimitive {}
-class FakeGroundPolylinePrimitive extends FakePrimitive {}
-
-class FakePolylineColorAppearance {}
-
-class FakePerInstanceColorAppearance {
-  constructor(options) {
-    this.options = options;
-  }
-}
-
-const Cesium = {
-  Cartesian3: {
-    fromDegrees: (longitude, latitude, height) => ({
-      longitude,
-      latitude,
-      height,
-    }),
-    equals: (left, right) =>
-      left.longitude === right.longitude &&
-      left.latitude === right.latitude &&
-      left.height === right.height,
-  },
-  Primitive: FakePrimitive,
-  GroundPrimitive: FakeGroundPrimitive,
-  GroundPolylinePrimitive: FakeGroundPolylinePrimitive,
-  PolylineColorAppearance: FakePolylineColorAppearance,
-  PerInstanceColorAppearance: FakePerInstanceColorAppearance,
-  Color: {
-    fromCssColorString: (value) => ({
-      css: value,
-      alpha: value === "#112233ff" ? 1.0 : 0.5,
-    }),
-  },
-};
-
-globalThis.Cesium = Cesium;
-
-const {
-  createGroundPolylinePrimitive,
-  createOutlineCartesianLines,
-  createPrimitive,
-  shouldUseGroundPath,
-  requiresGroundHeightOffsetFallback,
-} = await import("../src/VectorTileBucketUtils.js");
+const { default: VectorTileBucketUtils } =
+  await import("../src/VectorTileBucketUtils.js");
 
 {
   const diagnostics = createDiagnostics();
-  const primitive = createPrimitive(
+  const primitive = VectorTileBucketUtils.createPrimitive(
     [{ geometry: "polygon" }],
     "polygon",
     {
@@ -66,7 +23,7 @@ const {
     },
   );
 
-  assert.ok(primitive instanceof FakeGroundPrimitive);
+  assert.equal(primitive.constructor.name, "GroundPrimitive");
   assert.equal(diagnostics.counts.createdGeometryInstances, 1);
   assert.equal(diagnostics.counts.createdGroundPrimitives, 1);
   assert.equal(diagnostics.counts.createdPrimitives, 1);
@@ -74,10 +31,28 @@ const {
 }
 
 {
+  const primitive = VectorTileBucketUtils.createPrimitive(
+    [{ geometry: "polygon" }],
+    "polygon",
+    {
+      fillColor: ["case", true, "#ffffffff", "#000000ff"],
+    },
+  );
+
+  assert.equal(primitive.appearance.translucent, true);
+  console.log("✓ create primitive appearance falls back for expression colors");
+}
+
+{
   const diagnostics = createDiagnostics();
-  const primitive = createGroundPolylinePrimitive([{ geometry: "line" }], {
-    diagnostics,
-  });
+  const primitive = VectorTileBucketUtils.createGroundPolylinePrimitive(
+    [{ geometry: "line" }],
+    {
+      diagnostics,
+      createGroundPolylinePrimitive: (options) =>
+        new FakeGroundPolylinePrimitive(options),
+    },
+  );
 
   assert.ok(primitive instanceof FakeGroundPolylinePrimitive);
   assert.equal(diagnostics.counts.createdGroundPolylinePrimitives, 1);
@@ -92,11 +67,14 @@ const {
     positions: new Float64Array([0, 0, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0]),
     ringOffsets: new Uint32Array([0, 5]),
   };
-  const closedOutline = createOutlineCartesianLines(polygons, 0);
+  const closedOutline = VectorTileBucketUtils.createOutlineCartesianLines(
+    polygons,
+    0,
+  );
   assert.equal(closedOutline.length, 1);
   assert.equal(closedOutline[0].length, 5);
 
-  const tileBoundLines = createOutlineCartesianLines(
+  const tileBoundLines = VectorTileBucketUtils.createOutlineCartesianLines(
     {
       positions: new Float64Array([
         0, 0, 1, 0, 1, 1, 0.5, 1, 0.5, 0.5, 0, 0.5, 0, 0,
@@ -121,7 +99,7 @@ const {
 
 {
   assert.equal(
-    shouldUseGroundPath({
+    VectorTileBucketUtils.shouldUseGroundPath({
       terrain: {
         clampToGround: true,
         heightOffset: 0,
@@ -130,7 +108,7 @@ const {
     true,
   );
   assert.equal(
-    requiresGroundHeightOffsetFallback({
+    VectorTileBucketUtils.requiresGroundHeightOffsetFallback({
       terrain: {
         clampToGround: true,
         heightOffset: 5,

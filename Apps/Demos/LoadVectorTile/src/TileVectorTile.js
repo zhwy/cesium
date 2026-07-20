@@ -1,7 +1,8 @@
-import * as Cesium from "../../../../Build/CesiumUnminified/index.js";
-import { VectorTileCoverageState } from "./VectorTileLodSelection.js";
-const { defined, ImageryState } = Cesium;
-
+import {
+  defined,
+  ImageryState,
+} from "../../../../Build/CesiumUnminified/index.js";
+import VectorTileCoverageState from "./VectorTileCoverageState.js";
 /**
  * 矢量瓦片栈中与 Cesium `TileImagery` 对应的关联对象，
  * 用于把一个地形四叉树瓦片与其当前使用的矢量瓦片连接起来。

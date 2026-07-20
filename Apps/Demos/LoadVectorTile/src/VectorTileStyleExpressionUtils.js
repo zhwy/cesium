@@ -1,6 +1,10 @@
+import CommonUtils from "./CommonUtils.js";
+
 const SUPPORTED_OPERATORS = new Set([
   "get",
   "has",
+  "feature-state",
+  "boolean",
   "==",
   "!=",
   ">",
@@ -24,10 +28,11 @@ const SUPPORTED_OPERATORS = new Set([
  * @param {*} expression 常量值或表达式数组。
  * @param {object} [context]
  * @param {object} [context.properties]
+ * @param {object} [context.state]
  * @param {number} [context.zoom]
  * @returns {*}
  */
-export function evaluateVectorStyleExpression(expression, context = {}) {
+function evaluateVectorStyleExpression(expression, context = {}) {
   if (!Array.isArray(expression)) {
     return expression;
   }
@@ -40,6 +45,10 @@ export function evaluateVectorStyleExpression(expression, context = {}) {
       return getProperty(expression, context);
     case "has":
       return hasProperty(expression, context);
+    case "feature-state":
+      return getFeatureStateValue(expression, context);
+    case "boolean":
+      return evaluateBoolean(expression, context);
     case "==":
       return (
         evaluateVectorStyleExpression(expression[1], context) ===
@@ -89,7 +98,7 @@ export function evaluateVectorStyleExpression(expression, context = {}) {
   }
 }
 
-export function validateVectorStyleExpression(expression, path = "expression") {
+function validateVectorStyleExpression(expression, path = "expression") {
   if (typeof expression === "function") {
     throw new Error(`${path} must be serializable and cannot be a function.`);
   }
@@ -128,6 +137,22 @@ export function validateVectorStyleExpression(expression, path = "expression") {
     return;
   }
 
+  if (operator === "feature-state") {
+    if (expression.length !== 2 || typeof expression[1] !== "string") {
+      throw new Error(`${path} feature-state key must be a string.`);
+    }
+    return;
+  }
+
+  if (operator === "boolean") {
+    if (expression.length !== 3) {
+      throw new Error(`${path} boolean expression must include a fallback.`);
+    }
+    validateVectorStyleExpression(expression[1], `${path}[1]`);
+    validateVectorStyleExpression(expression[2], `${path}[2]`);
+    return;
+  }
+
   expression.forEach((value, index) => {
     if (index === 0 && operator !== "literal") {
       return;
@@ -140,7 +165,7 @@ export function validateVectorStyleExpression(expression, path = "expression") {
   });
 }
 
-export function isWorkerSupportedVectorStyleExpression(expression) {
+function isWorkerSupportedVectorStyleExpression(expression) {
   try {
     validateVectorStyleExpression(expression);
     return true;
@@ -149,21 +174,15 @@ export function isWorkerSupportedVectorStyleExpression(expression) {
   }
 }
 
-export function evaluateVectorStyleFilter(filter, feature, context = {}) {
-  if (filter === undefined || filter === null) {
-    return true;
+function collectVectorStyleStateDependencies(...values) {
+  const keys = new Set();
+  for (const value of values) {
+    collectStateDependencies(value, keys);
   }
-  validateVectorStyleFilter(filter);
-  return Boolean(
-    evaluateVectorStyleExpression(filter, {
-      ...context,
-      properties: feature?.properties ?? context.properties ?? {},
-      id: feature?.id,
-    }),
-  );
+  return [...keys].sort();
 }
 
-export function validateVectorStyleFilter(filter, path = "filter") {
+function validateVectorStyleFilter(filter, path = "filter") {
   if (filter === undefined || filter === null) {
     return;
   }
@@ -173,19 +192,92 @@ export function validateVectorStyleFilter(filter, path = "filter") {
   validateVectorStyleExpression(filter, path);
 }
 
-export function isWorkerSupportedVectorStyleFilter(filter) {
-  if (filter === undefined || filter === null) {
-    return true;
-  }
-  return isWorkerSupportedVectorStyleExpression(filter);
-}
-
 function getProperty(expression, context) {
   const key = getPropertyKey(expression[1], context);
   if (key === undefined || key === null) {
     return undefined;
   }
   return context.properties?.[key];
+}
+
+function collectPropertyDependencies(value, state) {
+  if (!Array.isArray(value) || value.length === 0 || state.all) {
+    return;
+  }
+
+  const operator = value[0];
+  if (operator === "literal") {
+    return;
+  }
+
+  if (operator === "feature-state") {
+    return;
+  }
+
+  if (typeof operator === "string" && !SUPPORTED_OPERATORS.has(operator)) {
+    state.all = true;
+    return;
+  }
+
+  if (operator === "get" || operator === "has") {
+    const propertyName = value[1];
+    if (typeof propertyName !== "string" || propertyName.length === 0) {
+      state.all = true;
+      return;
+    }
+    state.properties.add(propertyName);
+    for (let i = 2; i < value.length; ++i) {
+      collectPropertyDependencies(value[i], state);
+    }
+    return;
+  }
+
+  if (operator === "match") {
+    collectPropertyDependencies(value[1], state);
+    for (let i = 3; i < value.length && !state.all; i += 2) {
+      collectPropertyDependencies(value[i], state);
+    }
+    if (value.length % 2 === 1) {
+      collectPropertyDependencies(value[value.length - 1], state);
+    }
+    return;
+  }
+
+  if (operator === "interpolate") {
+    collectPropertyDependencies(value[2], state);
+    for (let i = 4; i < value.length && !state.all; i += 2) {
+      collectPropertyDependencies(value[i], state);
+    }
+    return;
+  }
+
+  const startIndex = typeof operator === "string" ? 1 : 0;
+  for (let i = startIndex; i < value.length && !state.all; ++i) {
+    collectPropertyDependencies(value[i], state);
+  }
+}
+
+function collectStateDependencies(value, keys) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return;
+  }
+
+  const operator = value[0];
+  if (operator === "literal") {
+    return;
+  }
+
+  if (operator === "feature-state") {
+    if (typeof value[1] === "string") {
+      keys.add(value[1]);
+    }
+    return;
+  }
+
+  const startIndex = typeof operator === "string" ? 1 : 0;
+  for (let i = startIndex; i < value.length; ++i) {
+    collectStateDependencies(value[i], keys);
+  }
 }
 
 function hasProperty(expression, context) {
@@ -200,6 +292,23 @@ function getPropertyKey(value, context) {
   return Array.isArray(value)
     ? evaluateVectorStyleExpression(value, context)
     : value;
+}
+
+function getFeatureStateValue(expression, context) {
+  const key = expression[1];
+  if (typeof key !== "string") {
+    return null;
+  }
+  const state = context.state ?? {};
+  return Object.prototype.hasOwnProperty.call(state, key) ? state[key] : null;
+}
+
+function evaluateBoolean(expression, context) {
+  const value = evaluateVectorStyleExpression(expression[1], context);
+  if (typeof value === "boolean") {
+    return value;
+  }
+  return evaluateVectorStyleExpression(expression[2], context);
 }
 
 function evaluateAll(expression, context) {
@@ -306,7 +415,7 @@ function validateSerializableConstant(value, path) {
     });
     return;
   }
-  if (isPlainObject(value)) {
+  if (CommonUtils.isPlainObject(value)) {
     Object.keys(value).forEach((key) => {
       validateSerializableConstant(value[key], `${path}.${key}`);
     });
@@ -325,11 +434,66 @@ function validateInterpolation(expression, path) {
   }
 }
 
-function isPlainObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype ||
-      Object.getPrototypeOf(value) === null)
-  );
+export default class VectorTileStyleExpressionUtils {
+  static evaluateVectorStyleExpression(expression, context = {}) {
+    return evaluateVectorStyleExpression(expression, context);
+  }
+
+  static validateVectorStyleExpression(expression, path = "expression") {
+    return validateVectorStyleExpression(expression, path);
+  }
+
+  static isWorkerSupportedVectorStyleExpression(expression) {
+    return isWorkerSupportedVectorStyleExpression(expression);
+  }
+
+  /**
+   * 静态收集样式表达式读取的 feature property。
+   * `all` 表示表达式包含动态属性名或无法保守分析的表达式结构。
+   *
+   * @param {...*} values 表达式、常量或包含表达式的样式值。
+   * @returns {{all: boolean, properties: string[]}}
+   */
+  static collectVectorStylePropertyDependencies(...values) {
+    const state = {
+      all: false,
+      properties: new Set(),
+    };
+    for (let i = 0; i < values.length && !state.all; ++i) {
+      collectPropertyDependencies(values[i], state);
+    }
+    return {
+      all: state.all,
+      properties: [...state.properties].sort(),
+    };
+  }
+
+  static hasVectorStyleFeatureStateDependency(...values) {
+    return collectVectorStyleStateDependencies(...values).length > 0;
+  }
+
+  static evaluateVectorStyleFilter(filter, feature, context = {}) {
+    if (filter === undefined || filter === null) {
+      return true;
+    }
+    validateVectorStyleFilter(filter);
+    return Boolean(
+      evaluateVectorStyleExpression(filter, {
+        ...context,
+        properties: feature?.properties ?? context.properties ?? {},
+        id: feature?.id,
+      }),
+    );
+  }
+
+  static validateVectorStyleFilter(filter, path = "filter") {
+    return validateVectorStyleFilter(filter, path);
+  }
+
+  static isWorkerSupportedVectorStyleFilter(filter) {
+    if (filter === undefined || filter === null) {
+      return true;
+    }
+    return isWorkerSupportedVectorStyleExpression(filter);
+  }
 }

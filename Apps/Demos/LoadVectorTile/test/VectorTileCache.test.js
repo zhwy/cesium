@@ -26,6 +26,7 @@ const { default: VectorTileCache } = await import("../src/VectorTileCache.js");
     bytes: 12,
     staleTiles: 1,
     retiredTiles: 1,
+    offscreenTiles: 1,
   });
 
   oldTile.releaseReference();
@@ -33,6 +34,34 @@ const { default: VectorTileCache } = await import("../src/VectorTileCache.js");
   assert.equal(oldTile.destroyed, true);
   assert.equal(newTile.destroyed, false);
   console.log("✓ stale referenced entries can coexist with current revision");
+}
+
+{
+  const gauges = {};
+  const diagnostics = {
+    increment() {},
+    addGauge(name, amount) {
+      gauges[name] = Math.max(0, (gauges[name] ?? 0) + amount);
+    },
+  };
+  const cache = new VectorTileCache({
+    maximumBytes: 20,
+    diagnostics,
+  });
+  const tile = createTile(0);
+  tile.cache = cache;
+  cache.set("[0,0,0,0]", tile);
+  tile.addReference();
+  tile.releaseReference();
+  assert.equal(gauges.offscreenResidentVectorTiles, 1);
+
+  tile.addReference();
+  assert.equal(gauges.offscreenResidentVectorTiles, 0);
+  tile.releaseReference();
+  cache.destroy();
+  assert.equal(gauges.offscreenResidentVectorTiles, 0);
+  assert.equal(tile.destroyed, true);
+  console.log("✓ offscreen residency follows reference and eviction state");
 }
 
 {
@@ -72,6 +101,9 @@ function createTile(contentRevision) {
     cacheable: true,
     destroyed: false,
     addReference() {
+      if (this.referenceCount === 0) {
+        this.cache.tileReferenced?.(this);
+      }
       this.referenceCount++;
     },
     releaseReference() {

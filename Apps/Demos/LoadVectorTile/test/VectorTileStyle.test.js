@@ -5,13 +5,13 @@
  *   node Apps/Demos/LoadVectorTile/src_test/VectorTileStyle.test.js
  */
 import assert from "node:assert/strict";
-import {
-  CESIUM_STYLE_IMPLEMENTATION_TERMS,
-  normalizeStyleDocument,
-} from "../src/VectorTileStyleUtils.js";
+import VectorTileStyleUtils from "../src/VectorTileStyleUtils.js";
+
+const CESIUM_STYLE_IMPLEMENTATION_TERMS =
+  VectorTileStyleUtils.CESIUM_STYLE_IMPLEMENTATION_TERMS;
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",
@@ -53,7 +53,83 @@ import {
 }
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
+    sources: {
+      org: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+        promoteId: { roads: "road_id", parcels: "parcel_id" },
+      },
+    },
+    layers: [
+      {
+        id: "roads-line",
+        type: "line",
+        source: "org",
+        sourceLayer: "roads",
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#00ffffff",
+            "#336699ff",
+          ],
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(style.sources.org.promoteId, {
+    roads: "road_id",
+    parcels: "parcel_id",
+  });
+  console.log("✓ normalize source promoteId mappings and legal state colors");
+}
+
+{
+  assert.throws(
+    () =>
+      VectorTileStyleUtils.normalizeStyleDocument({
+        sources: {
+          org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
+        },
+        layers: [
+          {
+            id: "bad-width",
+            type: "line",
+            source: "org",
+            sourceLayer: "roads",
+            paint: {
+              "line-width": ["case", ["feature-state", "hover"], 4, 2],
+            },
+          },
+        ],
+      }),
+    /bad-width.*paint.line-width.*feature-state/,
+  );
+  assert.throws(
+    () =>
+      VectorTileStyleUtils.normalizeStyleDocument({
+        sources: {
+          org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
+        },
+        layers: [
+          {
+            id: "bad-filter",
+            type: "fill",
+            source: "org",
+            sourceLayer: "land",
+            filter: ["boolean", ["feature-state", "selected"], false],
+          },
+        ],
+      }),
+    /bad-filter.*filter.*feature-state/,
+  );
+  console.log("✓ reject feature-state outside supported color fields");
+}
+
+{
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",
@@ -80,9 +156,55 @@ import {
 }
 
 {
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
+    sources: {
+      org: {
+        type: "vector",
+        url: "https://example.com/{z}/{x}/{y}.pbf",
+      },
+    },
+    layers: [
+      {
+        id: "layout-hidden",
+        type: "fill",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          visibility: "none",
+        },
+      },
+      {
+        id: "layout-visible",
+        type: "fill",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        layout: {
+          visibility: "visible",
+        },
+      },
+      {
+        id: "top-wins",
+        type: "fill",
+        source: "org",
+        sourceLayer: "res_org_gr",
+        visibility: true,
+        layout: {
+          visibility: "none",
+        },
+      },
+    ],
+  });
+
+  assert.equal(style.layers[0].visibility, false);
+  assert.equal(style.layers[1].visibility, true);
+  assert.equal(style.layers[2].visibility, true);
+  console.log("✓ normalize layout visibility values");
+}
+
+{
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -109,7 +231,7 @@ import {
 {
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -130,7 +252,7 @@ import {
 {
   assert.throws(
     () =>
-      normalizeStyleDocument({
+      VectorTileStyleUtils.normalizeStyleDocument({
         sources: {
           org: { type: "vector", url: "https://example.com/{z}/{x}/{y}.pbf" },
         },
@@ -149,7 +271,7 @@ import {
 }
 
 {
-  const style = normalizeStyleDocument({
+  const style = VectorTileStyleUtils.normalizeStyleDocument({
     sources: {
       org: {
         type: "vector",

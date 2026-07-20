@@ -142,11 +142,12 @@
       window._viewer = viewer;
       viewer.camera.flyTo({
         destination: {
-          west: -0.4689341203726429,
-          south: -0.2324597787212113,
-          east: 1.3142529214458865,
-          north: 0.47479581081789896,
+          west: 2.089170406381677,
+          south: 0.7431292736133033,
+          east: 2.3958119516190353,
+          north: 0.8892280233096688,
         },
+        // destination: Cesium.Cartesian3.fromRadians(0, 0, 1e8),
         duration: 0,
       });
 
@@ -154,54 +155,100 @@
         new Cesium.TileCoordinatesImageryProvider({
           tileWidth: 512,
           tileHeight: 512,
+          tilingScheme: new Cesium.WebMercatorTilingScheme(),
         }),
       );
-
-      // Cesium.MVTDataProvider.fromUrl(
-      //   "https://mapservice.bdhic.com/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
-      // ).then((tileset) => {
-      //   // viewer.scene.primitives.add(tileset);
-      // });
 
       const manager = new VectorTileLayerManager({
         diagnostics: { enabled: true },
         pixelRatio: window.devicePixelRatio,
+        tileCacheSize: 50,
+        // pbfCacheBytes: 0 * 1024 * 1024,
       });
       manager.addToScene(viewer.scene);
       window._vectorTileManager = manager;
       window._vectorTileBenchmark = createVectorTileBenchmark(viewer, manager);
 
       let highlightPoint;
+      let hoveredTarget;
+      let selectedTarget;
 
       function switchBackend(backend) {
         const allowPicking = backend === "instances";
+        hoveredTarget = undefined;
+        selectedTarget = undefined;
         manager.removeAll();
+        const fillStateColor = (fallback) => [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          "#00ffffff",
+          ["boolean", ["feature-state", "hover"], false],
+          "#ffff00cc",
+          fallback,
+        ];
+        const lineStateColor = (fallback) => [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          "#00ffffff",
+          ["boolean", ["feature-state", "hover"], false],
+          "#ffff00ff",
+          fallback,
+        ];
         manager.setStyle({
           version: 1,
           sources: {
+            gp_res_org_gr: {
+              type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
+              url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/gp_res_org_gr/{z}/{x}/{y}.pbf",
+              minimumLevel: 5,
+              maximumLevel: 15,
+              allowPicking: allowPicking,
+              renderBackend: backend,
+              promoteId: "org_code",
+            },
             res_org_gr: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_org_gr/{z}/{x}/{y}.pbf",
               minimumLevel: 5,
               maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
+              promoteId: "org_code",
+            },
+            res_parent_plot: {
+              type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
+              url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_parent_plot/{z}/{x}/{y}.pbf",
+              minimumLevel: 11,
+              maximumLevel: 15,
+              allowPicking: allowPicking,
+              renderBackend: backend,
+              promoteId: {
+                res_parent_plot: "plot_name",
+              },
+            },
+            res_parent_plot_label: {
+              type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
+              url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_parent_plot_label/{z}/{x}/{y}.pbf",
+              minimumLevel: 11,
+              maximumLevel: 15,
+              allowPicking: allowPicking,
+              renderBackend: backend,
+              promoteId: {
+                res_parent_plot_label: "plot_id",
+              },
             },
             globe: {
               type: "vector",
+              cacheBytes: 16 * 1024 * 1024,
               url: "http://localhost:10101/geoserver/gwc/service/tms/1.0.0/ne%3Aworld@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf",
               // url: "http://localhost:10101/geoserver/ne/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER=ne:world&STYLE=&TILEMATRIX=EPSG:3857:{z}&TILEMATRIXSET=EPSG:3857&FORMAT=application/vnd.mapbox-vector-tile&TILECOL={x}&TILEROW={y}",
               // tileType: "WMTS",
               minimumLevel: 0,
               maximumLevel: 18,
-              allowPicking: allowPicking,
-              renderBackend: backend,
-            },
-            res_parent_plot_boundary: {
-              type: "vector",
-              url: "http://10.7.10.105:31879/geoservice-rvt-api/maps/res_parent_plot_boundary/{z}/{x}/{y}.pbf",
-              minimumLevel: 11,
-              maximumLevel: 15,
               allowPicking: allowPicking,
               renderBackend: backend,
             },
@@ -214,7 +261,7 @@
               sourceLayer: "res_org_gr",
               maxzoom: 5,
               paint: {
-                "fill-color": "#ffff00",
+                "fill-color": fillStateColor("#ffff00"),
               },
               filter: [
                 "all",
@@ -230,8 +277,8 @@
               minzoom: 5,
               maxzoom: 10,
               paint: {
-                "fill-color": "#00ff0022",
-                "fill-outline-color": "#ff0000",
+                "fill-color": fillStateColor("#00ff0022"),
+                "fill-outline-color": lineStateColor("#ff0000"),
                 "fill-outline-width": [
                   "interpolate",
                   ["linear"],
@@ -259,8 +306,8 @@
               minzoom: 10,
               maxzoom: 13,
               paint: {
-                "fill-color": "#ff000022",
-                "fill-outline-color": "#ff0000",
+                "fill-color": fillStateColor("#ff000022"),
+                "fill-outline-color": lineStateColor("#ff0000"),
                 "fill-outline-width": 2,
               },
               filter: [
@@ -280,8 +327,8 @@
               minzoom: 13,
               maxzoom: 15,
               paint: {
-                "fill-color": "#ffff0022",
-                "fill-outline-color": "#ff0000",
+                "fill-color": fillStateColor("#ffff0022"),
+                "fill-outline-color": lineStateColor("#ff0000"),
                 "fill-outline-width": 2,
               },
               filter: [
@@ -294,15 +341,80 @@
               },
             },
             {
-              id: "res_org_gr-level4-text",
+              id: "gp_res_org_gr-level1-text",
               type: "symbol",
-              source: "res_org_gr",
-              sourceLayer: "res_org_gr",
+              source: "gp_res_org_gr",
+              sourceLayer: "gp_res_org_gr",
+              maxzoom: 5,
+              layout: {
+                "text-field": ["get", "org_name"],
+                "text-font-family": "sans-serif",
+              },
+              paint: {
+                "text-color": "#ffffff",
+                "text-halo-color": "#000000",
+                "text-halo-width": 3,
+              },
+              filter: [
+                "all",
+                ["==", ["get", "year"], 2025],
+                ["==", ["get", "org_level"], "1"],
+              ],
+            },
+            {
+              id: "gp_res_org_gr-level2-text",
+              type: "symbol",
+              source: "gp_res_org_gr",
+              sourceLayer: "gp_res_org_gr",
+              minzoom: 5,
+              maxzoom: 10,
+              layout: {
+                "text-field": ["get", "org_name"],
+                "text-font-family": "sans-serif",
+              },
+              paint: {
+                "text-color": "#ffffff",
+                "text-halo-color": "#000000",
+                "text-halo-width": 3,
+              },
+              filter: [
+                "all",
+                ["==", ["get", "year"], 2025],
+                ["==", ["get", "org_level"], "2"],
+              ],
+            },
+            {
+              id: "gp_res_org_gr-level3-text",
+              type: "symbol",
+              source: "gp_res_org_gr",
+              sourceLayer: "gp_res_org_gr",
+              minzoom: 10,
+              maxzoom: 13,
+              layout: {
+                "text-field": ["get", "org_name"],
+                "text-font-family": "sans-serif",
+              },
+              paint: {
+                "text-color": "#ffffff",
+                "text-halo-color": "#000000",
+                "text-halo-width": 3,
+              },
+              filter: [
+                "all",
+                ["==", ["get", "year"], 2025],
+                ["==", ["get", "org_level"], "3"],
+              ],
+            },
+            {
+              id: "gp_res_org_gr-level4-text",
+              type: "symbol",
+              source: "gp_res_org_gr",
+              sourceLayer: "gp_res_org_gr",
               minzoom: 13,
               maxzoom: 15,
               layout: {
-                "symbol-placement": "polygon-center",
                 "text-field": ["get", "org_name"],
+                "text-font-family": "sans-serif",
               },
               paint: {
                 "text-color": "#ffffff",
@@ -314,43 +426,40 @@
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "4"],
               ],
-              terrain: {
-                clampToGround: true,
-              },
             },
             {
-              id: "res_parent_plot_boundary-line",
-              type: "line",
-              source: "res_parent_plot_boundary",
-              sourceLayer: "res_parent_plot_boundary",
+              id: "res_parent_plot-fill",
+              type: "fill",
+              source: "res_parent_plot",
+              sourceLayer: "res_parent_plot",
               minzoom: 15,
-              maxzoom: 22,
               paint: {
-                "line-color": "#00ffff",
-                "line-width": 2,
+                "fill-color": fillStateColor("#00ffff22"),
+                "fill-outline-color": lineStateColor("#00ffff"),
+                "fill-outline-width": 2,
               },
               terrain: {
                 clampToGround: true,
               },
               filter: ["all", ["==", ["get", "year"], 2025]],
             },
-            // {
-            //   id: "res_parent_plot_boundary-fill",
-            //   type: "fill",
-            //   source: "res_parent_plot_boundary",
-            //   sourceLayer: "res_parent_plot_boundary",
-            //   minzoom: 15,
-            //   maxzoom: 22,
-            //   paint: {
-            //     "fill-color": "#0077ff77",
-            //     "fill-outline-color": "#0077ff",
-            //     "fill-outline-width": 2,
-            //   },
-            //   terrain: {
-            //     clampToGround: true,
-            //   },
-            //   filter: ["all", ["==", ["get", "year"], 2025]],
-            // },
+            {
+              id: "res_parent_plot-label",
+              type: "symbol",
+              source: "res_parent_plot_label",
+              sourceLayer: "res_parent_plot_label",
+              minzoom: 15,
+              layout: {
+                "text-field": ["get", "plot_name"],
+                "text-font-family": "sans-serif",
+              },
+              paint: {
+                "text-color": "#ffffff",
+                "text-halo-color": "#000000",
+                "text-halo-width": 3,
+              },
+              filter: ["all", ["==", ["get", "year"], 2025]],
+            },
             {
               id: "globe-text",
               type: "symbol",
@@ -423,7 +532,7 @@
               source: "globe",
               sourceLayer: "coastlines",
               paint: {
-                "line-color": "#0000ff77",
+                "line-color": lineStateColor("#0000ff77"),
                 "line-width": [
                   "interpolate",
                   ["linear"],
@@ -444,7 +553,7 @@
               source: "globe",
               sourceLayer: "countries",
               paint: {
-                "fill-color": "#ffff0077",
+                "fill-color": fillStateColor("#ffff0077"),
               },
               maxzoom: 6,
               terrain: {
@@ -487,11 +596,58 @@
 
       function showPickResult(picked) {
         const resultEl = document.getElementById("pickResult");
-        if (!Cesium.defined(picked)) {
+        const feature = manager.resolvePickedFeature(picked);
+        if (!Cesium.defined(feature)) {
           resultEl.textContent = "（未拾取到任何要素）";
           return;
         }
-        resultEl.textContent = JSON.stringify(picked?.id?.properties, null, 2);
+        resultEl.textContent = JSON.stringify(feature, null, 2);
+      }
+
+      function getFeatureStateTarget(feature) {
+        if (!Cesium.defined(feature) || !Cesium.defined(feature.id)) {
+          return undefined;
+        }
+        return {
+          source: feature.sourceId,
+          sourceLayer: feature.sourceLayer,
+          id: feature.id,
+        };
+      }
+
+      function sameTarget(left, right) {
+        return (
+          left?.source === right?.source &&
+          left?.sourceLayer === right?.sourceLayer &&
+          left?.id === right?.id &&
+          typeof left?.id === typeof right?.id
+        );
+      }
+
+      function setHoverTarget(target) {
+        if (sameTarget(hoveredTarget, target)) {
+          return;
+        }
+        if (hoveredTarget) {
+          manager.removeFeatureState(hoveredTarget, "hover");
+        }
+        hoveredTarget = target;
+        if (hoveredTarget) {
+          manager.setFeatureState(hoveredTarget, { hover: true });
+        }
+      }
+
+      function setSelectedTarget(target) {
+        if (sameTarget(selectedTarget, target)) {
+          return;
+        }
+        if (selectedTarget) {
+          manager.removeFeatureState(selectedTarget, "selected");
+        }
+        selectedTarget = target;
+        if (selectedTarget) {
+          manager.setFeatureState(selectedTarget, { selected: true });
+        }
       }
 
       function highlightPosition(cartesian) {
@@ -513,6 +669,9 @@
       handler.setInputAction((click) => {
         const picked = viewer.scene.pick(click.position);
         showPickResult(picked);
+        setSelectedTarget(
+          getFeatureStateTarget(manager.resolvePickedFeature(picked)),
+        );
 
         const ray = viewer.camera.getPickRay(click.position);
         const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
@@ -521,6 +680,13 @@
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+      handler.setInputAction((movement) => {
+        const picked = viewer.scene.pick(movement.endPosition);
+        setHoverTarget(
+          getFeatureStateTarget(manager.resolvePickedFeature(picked)),
+        );
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
       document
         .getElementById("btnInstances")
         .addEventListener("click", () => switchBackend("instances"));
@@ -528,6 +694,8 @@
         .getElementById("btnPacked")
         .addEventListener("click", () => switchBackend("packed"));
       document.getElementById("btnClear").addEventListener("click", () => {
+        setHoverTarget(undefined);
+        setSelectedTarget(undefined);
         clearHighlight();
         document.getElementById("pickResult").textContent = "{}";
       });

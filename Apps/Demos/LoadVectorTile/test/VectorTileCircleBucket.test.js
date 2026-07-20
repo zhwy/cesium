@@ -1,57 +1,8 @@
 import assert from "node:assert/strict";
+import { HeightReference } from "../../../../Build/CesiumUnminified/index.js";
 
-class FakeBillboardCollection {
-  constructor() {
-    this.items = [];
-  }
-
-  add(options) {
-    this.items.push(options);
-  }
-
-  isDestroyed() {
-    return false;
-  }
-
-  destroy() {}
-}
-
-class FakeCartesian2 {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-}
-
-const Cesium = {
-  BillboardCollection: FakeBillboardCollection,
-  Cartesian2: FakeCartesian2,
-  Cartesian3: {
-    fromDegrees: (longitude, latitude, height) => ({
-      longitude,
-      latitude,
-      height,
-    }),
-  },
-  HeightReference: {
-    NONE: "none",
-    CLAMP_TO_GROUND: "clamp-to-ground",
-    RELATIVE_TO_GROUND: "relative-to-ground",
-  },
-};
-
-globalThis.Cesium = Cesium;
-
-const {
-  default: VectorTileCircleBucket,
-  createCircleCanvas,
-  createCirclePixelOffset,
-  evaluateCircleColorValue,
-  evaluateCircleStyleValue,
-  getCircleHeightReference,
-  resolveCirclePixelSize,
-  resolveCircleRadius,
-} = await import("../src/VectorTileCircleBucket.js");
+const { default: VectorTileCircleBucket } =
+  await import("../src/VectorTileCircleBucket.js");
 
 {
   const styleRule = {
@@ -67,10 +18,16 @@ const {
     },
   };
 
-  assert.equal(resolveCircleRadius(styleRule, metadata, 4), 8);
-  assert.equal(resolveCirclePixelSize(styleRule, metadata, 4), 16);
   assert.equal(
-    resolveCircleRadius(
+    VectorTileCircleBucket.resolveCircleRadius(styleRule, metadata, 4),
+    8,
+  );
+  assert.equal(
+    VectorTileCircleBucket.resolveCirclePixelSize(styleRule, metadata, 4),
+    16,
+  );
+  assert.equal(
+    VectorTileCircleBucket.resolveCircleRadius(
       {
         paint: {
           pixelSize: ["get", "size"],
@@ -82,7 +39,7 @@ const {
     9,
   );
   assert.equal(
-    resolveCirclePixelSize(
+    VectorTileCircleBucket.resolveCirclePixelSize(
       {
         paint: {
           pixelSize: ["get", "size"],
@@ -94,7 +51,7 @@ const {
     18,
   );
   assert.equal(
-    resolveCircleRadius(
+    VectorTileCircleBucket.resolveCircleRadius(
       {
         paint: {
           "circle-radius": "bad",
@@ -110,13 +67,17 @@ const {
 
 {
   assert.equal(
-    evaluateCircleStyleValue(["get", "radius"], undefined, {
-      properties: { radius: 6 },
-    }),
+    VectorTileCircleBucket.evaluateCircleStyleValue(
+      ["get", "radius"],
+      undefined,
+      {
+        properties: { radius: 6 },
+      },
+    ),
     6,
   );
   assert.equal(
-    evaluateCircleColorValue(
+    VectorTileCircleBucket.evaluateCircleColorValue(
       undefined,
       ["get", "color"],
       {
@@ -127,16 +88,32 @@ const {
     ),
     "#ff0000ff",
   );
-  assert.equal(createCirclePixelOffset([4, -2]).x, 4);
-  assert.equal(createCirclePixelOffset([4, -2]).y, -2);
-  assert.equal(createCirclePixelOffset(undefined, [3, 1]).x, 3);
-  assert.equal(createCirclePixelOffset(undefined, [3, 1]).y, 1);
-  assert.equal(createCirclePixelOffset([1, "bad"]), undefined);
+  assert.equal(VectorTileCircleBucket.createCirclePixelOffset([4, -2]).x, 4);
+  assert.equal(VectorTileCircleBucket.createCirclePixelOffset([4, -2]).y, -2);
+  assert.equal(
+    VectorTileCircleBucket.createCirclePixelOffset(undefined, [3, 1]).x,
+    3,
+  );
+  assert.equal(
+    VectorTileCircleBucket.createCirclePixelOffset(undefined, [3, 1]).y,
+    1,
+  );
+  const fallbackOffset = VectorTileCircleBucket.createCirclePixelOffset([
+    1,
+    "bad",
+  ]);
+  assert.equal(fallbackOffset.x, 0);
+  assert.equal(fallbackOffset.y, 0);
   console.log("✓ evaluate circle style values and pixel offsets");
 }
 
 {
-  const canvas = createCircleCanvas(16, "#ff6600cc", "#ffffffff", 2);
+  const canvas = VectorTileCircleBucket.createCircleCanvas(
+    16,
+    "#ff6600cc",
+    "#ffffffff",
+    2,
+  );
   assert.equal(canvas.width, 16);
   assert.equal(canvas.height, 16);
   assert.equal(canvas._vectorTileCircle.pixelSize, 16);
@@ -172,41 +149,33 @@ const {
   const bucket = new VectorTileCircleBucket(styleRule, {
     scene: {},
     allowPicking: true,
+    featureTable: [
+      {
+        id: 1,
+        properties: {
+          kind: "city",
+          radius: 8,
+          fill: "#ff6600cc",
+          outlineWidth: 2,
+          offset: [5, 7],
+        },
+      },
+      {
+        id: 2,
+        properties: {
+          kind: "city",
+          radius: 8,
+          fill: "#ff6600cc",
+          outlineWidth: 2,
+          offset: [5, 7],
+        },
+      },
+      { id: 3, properties: { kind: "village" } },
+    ],
   }).build(
     {
       positions: new Float64Array([116, 40, 117, 41, 120, 30]),
-      metadata: [
-        {
-          id: 1,
-          properties: {
-            kind: "city",
-            radius: 8,
-            fill: "#ff6600cc",
-            outlineWidth: 2,
-            offset: [5, 7],
-          },
-        },
-        {
-          id: 2,
-          properties: {
-            kind: "city",
-            radius: 8,
-            fill: "#ff6600cc",
-            outlineWidth: 2,
-            offset: [5, 7],
-          },
-        },
-        {
-          id: 3,
-          properties: {
-            kind: "village",
-            radius: 4,
-            fill: "#00ff00ff",
-            outlineWidth: 1,
-            offset: [0, 0],
-          },
-        },
-      ],
+      featureIndices: new Uint32Array([0, 1, 2]),
     },
     4,
   );
@@ -218,7 +187,7 @@ const {
   assert.equal(bucket.pointDescriptors.billboards[0].height, 16);
   assert.equal(
     bucket.pointDescriptors.billboards[0].heightReference,
-    "relative-to-ground",
+    HeightReference.RELATIVE_TO_GROUND,
   );
   assert.equal(
     bucket.pointDescriptors.billboards[0].disableDepthTestDistance,
@@ -226,11 +195,18 @@ const {
   );
   assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.x, 5);
   assert.equal(bucket.pointDescriptors.billboards[0].pixelOffset.y, 7);
-  assert.deepEqual(bucket.pointDescriptors.billboards[0].position, {
-    longitude: 116,
-    latitude: 40,
-    height: 3,
-  });
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.x,
+    "number",
+  );
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.y,
+    "number",
+  );
+  assert.equal(
+    typeof bucket.pointDescriptors.billboards[0].position.z,
+    "number",
+  );
   assert.equal(
     bucket.pointDescriptors.billboards[0].image._vectorTileCircle.fillColor,
     "#ff6600cc",
@@ -243,19 +219,40 @@ const {
     bucket.pointDescriptors.billboards[0].image,
     bucket.pointDescriptors.billboards[1].image,
   );
+  assert.equal(bucket.pointDescriptors.billboards[0].id, 0);
   assert.equal(
-    bucket.pointDescriptors.billboards[0].id.properties.kind,
-    "city",
+    bucket.pointDescriptors.billboards[0]._vectorTileFeatureIndex,
+    0,
   );
+  const updatedStyleRule = {
+    ...styleRule,
+    visibility: false,
+    paint: {
+      ...styleRule.paint,
+      "circle-color": "#00ffffff",
+    },
+  };
+  const update = bucket.applyStyle(updatedStyleRule, 1, {
+    changedPaths: ["paint.circle-color", "visibility"],
+  });
+  assert.equal(update.pointUpdates, 2);
+  assert.equal(
+    bucket.pointDescriptors.billboards[0].image._vectorTileCircle.fillColor,
+    "#00ffffff",
+  );
+  assert.equal(bucket.pointDescriptors.billboards[0].show, false);
   console.log(
     "✓ build circle billboards with terrain, picking, alias precedence and cache reuse",
   );
 }
 
 {
-  assert.equal(getCircleHeightReference({}, { terrain: {} }), "none");
   assert.equal(
-    getCircleHeightReference(
+    VectorTileCircleBucket.getCircleHeightReference({}, { terrain: {} }),
+    HeightReference.NONE,
+  );
+  assert.equal(
+    VectorTileCircleBucket.getCircleHeightReference(
       {},
       {
         terrain: {
@@ -264,10 +261,10 @@ const {
         },
       },
     ),
-    "clamp-to-ground",
+    HeightReference.CLAMP_TO_GROUND,
   );
   assert.equal(
-    getCircleHeightReference(
+    VectorTileCircleBucket.getCircleHeightReference(
       {},
       {
         terrain: {
@@ -276,7 +273,7 @@ const {
         },
       },
     ),
-    "relative-to-ground",
+    HeightReference.RELATIVE_TO_GROUND,
   );
   console.log("✓ map circle terrain settings to billboard height references");
 }

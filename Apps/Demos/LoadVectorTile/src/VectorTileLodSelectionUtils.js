@@ -1,14 +1,5 @@
 const MAX_COVERAGE_DEPTH = 4;
 
-export const VectorTileCoverageState = Object.freeze({
-  PENDING: "pending",
-  READY: "ready",
-  READY_EMPTY: "ready-empty",
-  FAILED: "failed",
-  CANCELLED: "cancelled",
-  UNAVAILABLE: "unavailable",
-});
-
 /**
  * 返回用于唯一标识瓦片坐标的字符串键。
  *
@@ -17,7 +8,7 @@ export const VectorTileCoverageState = Object.freeze({
  * @param {number} level
  * @returns {string}
  */
-export function tileKey(x, y, level) {
+function tileKey(x, y, level) {
   return `${level}/${x}/${y}`;
 }
 
@@ -29,7 +20,7 @@ export function tileKey(x, y, level) {
  * @param {number} level
  * @returns {{x: number, y: number, level: number}[]}
  */
-export function getDirectChildCoords(x, y, level) {
+function getDirectChildCoords(x, y, level) {
   const childLevel = level + 1;
   return [
     { x: 2 * x, y: 2 * y, level: childLevel },
@@ -55,7 +46,7 @@ export function getDirectChildCoords(x, y, level) {
  * @param {number} [depth=0] 当前递归深度，仅供内部使用。
  * @returns {boolean}
  */
-export function isRegionFullyCovered(
+function isRegionFullyCovered(
   coords,
   candidatesMap,
   maxDepth = MAX_COVERAGE_DEPTH,
@@ -91,7 +82,7 @@ export function isRegionFullyCovered(
  * @param {number} [maxDepth=MAX_COVERAGE_DEPTH] 子区域覆盖检查的递归深度上限。
  * @returns {object[]} 选中的瓦片集合，任意两个瓦片都不会覆盖同一区域。
  */
-export function selectByCoverage(candidates, maxDepth = MAX_COVERAGE_DEPTH) {
+function selectByCoverage(candidates, maxDepth = MAX_COVERAGE_DEPTH) {
   // 构建从瓦片坐标键到候选瓦片的查找表。
   const candidatesMap = new Map();
   for (const tile of candidates) {
@@ -139,7 +130,7 @@ export function selectByCoverage(candidates, maxDepth = MAX_COVERAGE_DEPTH) {
  * @param {{x: number, y: number, level: number}} descendant
  * @returns {boolean}
  */
-export function isAncestorOrSame(ancestor, descendant) {
+function isAncestorOrSame(ancestor, descendant) {
   if (ancestor.level > descendant.level) {
     return false;
   }
@@ -149,4 +140,14 @@ export function isAncestorOrSame(ancestor, descendant) {
     Math.floor(descendant.x / scale) === ancestor.x &&
     Math.floor(descendant.y / scale) === ancestor.y
   );
+}
+
+export default class VectorTileLodSelectionUtils {
+  static selectByCoverage(candidates, maxDepth = MAX_COVERAGE_DEPTH) {
+    return selectByCoverage(candidates, maxDepth);
+  }
+
+  static isAncestorOrSame(ancestor, descendant) {
+    return isAncestorOrSame(ancestor, descendant);
+  }
 }

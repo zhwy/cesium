@@ -17,6 +17,7 @@
       renderBackend: "instances",
       clipToTile: true,
       allowPicking: false,
+      pickProperties: ["name", "kind"],
     },
   },
   layers: [
@@ -53,47 +54,107 @@
 
 常用字段：
 
-| 字段                     | 说明                                     |
-| ------------------------ | ---------------------------------------- |
-| `type`                   | 固定为 `vector`。                        |
-| `url`                    | 瓦片地址模板。                           |
-| `minimumLevel`           | 最低请求层级。                           |
-| `maximumLevel`           | 最高请求层级。                           |
-| `tileType`               | `XYZ` 或 `WMTS`。                        |
-| `renderBackend`          | 线渲染后端，`instances` 或 `packed`。    |
-| `packedMinimumInstances` | packed 线后端的最少线数量阈值。          |
-| `clipToTile`             | 是否裁剪到瓦片边界。建议保持 `true`。    |
-| `allowPicking`           | 是否保留要素属性用于拾取。               |
-| `cacheBytes`             | 单图层缓存预算。                         |
-| `asynchronous`           | instances 后端是否允许 Cesium 异步建模。 |
-| `shadows`                | 是否参与阴影。                           |
+| 字段                     | 说明                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `type`                   | 固定为 `vector`。                                                                                       |
+| `url`                    | 瓦片地址模板。                                                                                          |
+| `minimumLevel`           | 最低请求层级。                                                                                          |
+| `maximumLevel`           | 最高请求层级。                                                                                          |
+| `tileType`               | `XYZ` 或 `WMTS`。                                                                                       |
+| `renderBackend`          | 线渲染后端，`instances` 或 `packed`。                                                                   |
+| `packedMinimumInstances` | packed 线后端的最少线数量阈值。                                                                         |
+| `clipToTile`             | 是否裁剪到瓦片边界。建议保持 `true`。                                                                   |
+| `allowPicking`           | 是否保留要素属性用于拾取。                                                                              |
+| `pickProperties`         | `allowPicking: true` 时公开拾取属性。未配置返回全部属性；字符串数组只返回指定字段；空数组不返回属性值。 |
+| `cacheBytes`             | 单 runtime layer 的渲染缓存预算估算值。                                                                 |
+| `asynchronous`           | instances 后端是否允许 Cesium 异步建模。                                                                |
+| `shadows`                | 是否参与阴影。                                                                                          |
 
 这些字段写在 `manager.setStyle(styleDocument)` 的 `sources[sourceId]` 中；如果你已经创建了自定义 `VectorTileProvider`，也可以直接通过 `manager.addLayerProvider(provider)` 注入。`manager.addLayer(sourceId, layerOptions)` 只追加单个样式图层，不负责 source 配置。
+
+原始 PBF 缓存使用 `VectorTileLayerManager` 构造参数 `pbfCacheBytes` 配置，它是 manager 下所有 source 共用的 ready PBF master payload 总预算，不属于 `sources[sourceId]` 字段，也不包含在 `cacheBytes` 中。`tileCacheSize` 则单独控制 Cesium 四叉树保留的 surface tile 数量。
 
 ## 3. 图层通用字段
 
 每个 `layers[]` 元素都支持以下通用字段：
 
-| 字段          | 必填 | 说明                                                |
-| ------------- | ---- | --------------------------------------------------- |
-| `id`          | 是   | 当前样式图层唯一 id。                               |
-| `type`        | 是   | 当前可用值为 `fill`、`line`、`symbol` 或 `circle`。 |
-| `source`      | 是   | 关联的 source id。                                  |
-| `sourceLayer` | 是   | PBF 内部 source-layer 名称。                        |
-| `minzoom`     | 否   | 当前图层的最小可见 zoom。                           |
-| `maxzoom`     | 否   | 当前图层的最大可见 zoom，语义为排他上界。           |
-| `filter`      | 否   | 可序列化过滤表达式。                                |
-| `layout`      | 否   | 主要放几何布局和 symbol 相关字段。                  |
-| `paint`       | 否   | 主要放颜色、宽度、文字外观等字段。                  |
-| `terrain`     | 否   | Cesium 三维扩展，控制贴地和高度偏移。               |
-| `visibility`  | 否   | `false` 时图层不会参与解码和建桶。                  |
-| `metadata`    | 否   | 自定义透传数据。                                    |
+| 字段          | 必填 | 说明                                                                                           |
+| ------------- | ---- | ---------------------------------------------------------------------------------------------- |
+| `id`          | 是   | 当前样式图层唯一 id。                                                                          |
+| `type`        | 是   | 当前可用值为 `fill`、`line`、`symbol` 或 `circle`。                                            |
+| `source`      | 是   | 关联的 source id。                                                                             |
+| `sourceLayer` | 是   | PBF 内部 source-layer 名称。                                                                   |
+| `minzoom`     | 否   | 当前图层的最小可见 zoom。                                                                      |
+| `maxzoom`     | 否   | 当前图层的最大可见 zoom，语义为排他上界。                                                      |
+| `filter`      | 否   | 可序列化过滤表达式。                                                                           |
+| `layout`      | 否   | 主要放几何布局和 symbol 相关字段。                                                             |
+| `paint`       | 否   | 主要放颜色、宽度、文字外观等字段。                                                             |
+| `terrain`     | 否   | Cesium 三维扩展，控制贴地和高度偏移。                                                          |
+| `visibility`  | 否   | 顶层布尔显隐。`false` 时图层不会参与初始解码和建桶；运行时改变可走原地显隐或目标 bucket 构建。 |
+| `metadata`    | 否   | 自定义透传数据。                                                                               |
 
-## 4. fill 图层
+`layout.visibility` 可作为兼容输入，接受 `true`、`false`、`"visible"` 和 `"none"`；规范化后同步到顶层布尔 `visibility`。如果顶层 `visibility` 和 `layout.visibility` 同时设置，以顶层为准。
+
+## 4. 拾取属性与 feature 解析
+
+开启拾取时，渲染对象只保存紧凑 id，公开结果需要通过 manager 解析：
+
+```js
+const picked = viewer.scene.pick(windowPosition);
+const feature = manager.resolvePickedFeature(picked);
+```
+
+有效返回包含：
+
+```js
+{
+  id,
+  properties,
+  sourceId,
+  sourceLayer,
+  styleLayerId,
+  tile: { x, y, level },
+  featureIndex,
+  sourceFeatureIndex,
+}
+```
+
+`picked.id.properties` 不再作为公开 API 使用。`resolvePickedFeature()` 是同步方法，不解析 PBF，也不发起网络请求；旧瓦片或已替换 bucket 的 picked 对象会返回 `undefined`。
+
+`pickProperties` 的语义：
+
+| source 配置                                    | Worker 长期保留             | `resolvePickedFeature().properties` |
+| ---------------------------------------------- | --------------------------- | ----------------------------------- |
+| `allowPicking: false`                          | 仅样式需要的属性            | 不注册拾取，返回 `undefined`        |
+| `allowPicking: true` 且未配置 `pickProperties` | 样式需要属性 + 全部公开属性 | 全部 properties                     |
+| `pickProperties: ["name", "kind"]`             | 样式需要属性 + `name/kind`  | 只返回存在的 `name/kind`            |
+| `pickProperties: []`                           | 仅样式需要的属性            | `{}`                                |
+
+样式表达式中 `["get", "field"]`、`["has", "field"]` 会被静态收集；动态属性名无法静态判断时会回退为保留全部属性，以保证样式正确。
+
+## 5. 样式热更新矩阵
+
+`manager.setLayerStyle(layerId, patch)` 会先规范化并分类差异：
+
+| 变化                                                                                 | 行为                                                                                       |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| 规范化后无变化                                                                       | `NO_OP`，不推进 `contentRevision`，不请求、不解码、不建桶。                                |
+| `line-color`、`fill-color`、`fill-outline-color`                                     | instances 通过 per-instance color attribute 更新；packed line 通过 material uniform 更新。 |
+| `circle-color`、`circle-outline-color`                                               | 更新已提交 Billboard image；未提交描述在下次提交前同步。                                   |
+| `text-color`、`text-halo-color`、`text-background-color`                             | 更新 Label 现有属性。                                                                      |
+| 顶层 `visibility`                                                                    | 已构建 Primitive/点对象直接切换 `show`；隐藏不销毁 bucket。                                |
+| 显示从未构建或已驱逐的 layer                                                         | 只重建目标 style layer bucket。                                                            |
+| 新颜色表达式引用未驻留属性                                                           | 只重建目标 style layer bucket，并通过 PBF cache/request 重新投影所需属性。                 |
+| fill alpha 与当前 Appearance render state 不兼容                                     | 只重建目标 style layer bucket。                                                            |
+| `filter`、`sourceLayer`、`type`、线宽、高度、layout、图标资源、scene、render backend | source 级 rebuild，推进 `contentRevision`。                                                |
+
+目标 bucket replacement 会保留旧 bucket 继续绘制，直到新 bucket 可用后再替换；替换时会注销旧 Primitive/Billboard/Label 的拾取上下文。离屏瓦片只标记 dirty，重新进入提交候选时才调度 replacement。
+
+## 6. fill 图层
 
 `type: "fill"` 用于绘制面。
 
-### 4.1 `paint`
+### 6.1 `paint`
 
 | 字段                 | 类型            | 默认值                    | 说明                                   |
 | -------------------- | --------------- | ------------------------- | -------------------------------------- |
@@ -102,7 +163,7 @@
 | `fill-outline-width` | 数字或表达式    | `1`                       | 面轮廓线宽。                           |
 | `arcType`            | Cesium 弧线类型 | `Cesium.ArcType.GEODESIC` | 轮廓线弧线类型。                       |
 
-### 4.2 行为说明
+### 6.2 行为说明
 
 - `fill` 当前由 `VectorTileFillBucket` 负责。
 - `fill` 会绘制 polygon / multipolygon；当 source layer 中是 line / multiline 时，会把至少 3 个点的线作为单环面绘制，不闭合的线会自动追加起点强制闭合。
@@ -110,11 +171,11 @@
 - 当配置 `fill-outline-color` 时，会额外生成 outline primitive。
 - `clipToTile: true` 且存在瓦片边界信息时，落在瓦片边界上的 outline 线段会被跳过，避免相邻瓦片重复描边。
 
-## 5. line 图层
+## 7. line 图层
 
 `type: "line"` 用于绘制线。
 
-### 5.1 `paint`
+### 7.1 `paint`
 
 | 字段         | 类型            | 默认值                    | 说明           |
 | ------------ | --------------- | ------------------------- | -------------- |
@@ -122,7 +183,7 @@
 | `line-width` | 数字或表达式    | `2`                       | 线宽。         |
 | `arcType`    | Cesium 弧线类型 | `Cesium.ArcType.GEODESIC` | 线的弧线类型。 |
 
-### 5.2 行为说明
+### 7.2 行为说明
 
 - `line` 当前由 `VectorTileLineBucket` 负责。
 - `line` 图层会自动绘制 source layer 中所有可线化几何：
@@ -138,11 +199,11 @@
 - 当当前图层需要同时绘制 polygon outline 时，会回退到普通 instances 后端。
 - 不满足条件时会自动回退到普通 instances 后端。
 
-## 6. symbol 图层
+## 8. symbol 图层
 
 `type: "symbol"` 用于绘制点图标和文字。
 
-### 6.0 placement
+### 8.1 placement
 
 | 字段               | 类型   | 默认值  | 说明                                                                         |
 | ------------------ | ------ | ------- | ---------------------------------------------------------------------------- |
@@ -153,7 +214,7 @@
 - `point`：读取点要素，保持当前 point symbol 行为。
 - `polygon-center`：读取面要素，基于每个已解码 polygon 片段计算中心点，然后在该中心点绘制图标和文字。
 
-### 6.1 icon layout
+### 8.2 icon layout
 
 | 字段          | 类型              | 默认值   | 说明                                            |
 | ------------- | ----------------- | -------- | ----------------------------------------------- |
@@ -164,7 +225,7 @@
 | `icon-anchor` | 字符串或表达式    | `center` | 图标锚点。                                      |
 | `icon-offset` | `[x, y]` 或表达式 | 无       | 图标像素偏移，单位像素。                        |
 
-### 6.2 text layout
+### 8.3 text layout
 
 | 字段               | 类型                   | 默认值       | 说明                                                          |
 | ------------------ | ---------------------- | ------------ | ------------------------------------------------------------- |
@@ -175,7 +236,7 @@
 | `text-anchor`      | 字符串或表达式         | `center`     | 文字锚点。                                                    |
 | `text-offset`      | `[x, y]` 或表达式      | 无           | 文字像素偏移，单位像素。                                      |
 
-### 6.3 text paint
+### 8.4 text paint
 
 | 字段                      | 类型                    | 默认值      | 说明                                              |
 | ------------------------- | ----------------------- | ----------- | ------------------------------------------------- |
@@ -185,7 +246,7 @@
 | `text-background-color`   | 颜色或表达式            | 无          | 文字背景色。配置后会启用 `Label.showBackground`。 |
 | `text-background-padding` | 数字、`[x, y]` 或表达式 | 无          | 文字背景内边距，单位像素。                        |
 
-### 6.4 锚点取值
+### 8.5 锚点取值
 
 `text-anchor` 和 `icon-anchor` 都支持以下取值：
 
@@ -203,7 +264,7 @@
 
 未配置或值非法时，回退到 `center`。
 
-### 6.5 偏移与尺寸回退
+### 8.6 偏移与尺寸回退
 
 - `icon-offset` 和 `text-offset` 都按 Cesium `Cartesian2` 语义解释。
 - `[x, y]` 中 `x` 为向右，`y` 为向上。
@@ -214,7 +275,7 @@
 - `text-font` 优先级高于 `text-font-family`。
 - `symbol-placement: "polygon-center"` 时，`icon-*` 和 `text-*` 字段仍按普通 symbol 规则求值，只是位置来自 polygon center。
 
-## 7. circle 图层
+## 9. circle 图层
 
 `type: "circle"` 用于绘制点要素的屏幕空间圆点。当前实现使用 `BillboardCollection + 动态圆形 canvas`，因此可以复用 billboard 的贴地能力。
 
@@ -240,7 +301,7 @@
 }
 ```
 
-### 7.1 `paint`
+### 9.1 `paint`
 
 | 字段                   | 别名            | 类型              | 默认值      | 说明                           |
 | ---------------------- | --------------- | ----------------- | ----------- | ------------------------------ |
@@ -257,7 +318,7 @@
 - 创建圆点图像时始终使用 `pixelSize = radius * 2`。
 - 当前未实现 `circle-opacity`、`circle-blur` 等附加字段。
 
-### 7.2 行为说明
+### 9.2 行为说明
 
 - `circle` 当前由 `VectorTileCircleBucket` 负责。
 - `circle` 图层只匹配 point / multipoint 要素，不读取 line 或 polygon。
@@ -265,7 +326,7 @@
 - 圆点图像会按求值后的尺寸和颜色缓存复用，避免同一瓦片内重复创建相同 canvas。
 - 描边绘制在圆点主体内部，因此 `circle-radius` 的外径语义保持稳定，不把描边额外计入 `pixelSize`。
 
-## 8. terrain 三维扩展
+## 10. terrain 三维扩展
 
 每个样式图层都可以配置：
 
@@ -292,7 +353,7 @@ terrain: {
 | `symbol` | `BillboardCollection` / `LabelCollection` | `HeightReference.CLAMP_TO_GROUND`      | `HeightReference.RELATIVE_TO_GROUND`     |
 | `circle` | `BillboardCollection`                     | `HeightReference.CLAMP_TO_GROUND`      | `HeightReference.RELATIVE_TO_GROUND`     |
 
-## 9. 表达式
+## 11. 表达式
 
 当前样式值支持和 demo 现有实现一致的可序列化表达式子集，例如：
 
@@ -341,7 +402,7 @@ terrain: {
 - `packed` 线后端要求 `line-color` 和 `line-width` 为常量，表达式会让该图层自动回退到 instances。
 - `text-background-padding`、`icon-offset`、`text-offset` 的数组值当前建议直接写常量数组。
 
-## 10. filter
+## 12. filter
 
 `filter` 使用可序列化过滤表达式。常见示例：
 
@@ -361,11 +422,11 @@ terrain: {
 - `symbol-placement: "polygon-center"` 匹配 polygon 要素。
 - `circle` 图层只匹配 point 要素。
 
-## 11. 图标注册
+## 13. 图标注册
 
 `icon-image` 可以直接写 URL，也可以写注册名。
 
-### 10.1 初始化时传入
+### 13.1 初始化时传入
 
 ```js
 const manager = new VectorTileLayerManager({
@@ -377,7 +438,7 @@ const manager = new VectorTileLayerManager({
 
 `manager.addLayer(sourceId, layerOptions)` 用于向现有 source 对应的 layer 追加单个样式图层（样式由 layer 持有，provider 只负责数据源）；多 source 组合初始化请使用 `manager.setStyle(styleDocument)`。如果你已经手里有自定义 `VectorTileProvider`，可以直接调用 `manager.addLayerProvider(provider)`。
 
-### 10.2 运行时注册
+### 13.2 运行时注册
 
 ```js
 layer.registerIconImage("capital", imageOrCanvasOrUrl);
@@ -390,7 +451,7 @@ layer.registerIconImage("capital", imageOrCanvasOrUrl);
 - `HTMLImageElement`
 - `HTMLCanvasElement`
 
-## 12. 完整示例
+## 14. 完整示例
 
 下面的示例覆盖面、线、polygon outline、图标、文字、背景、锚点、尺寸、表达式、过滤和 terrain：
 
@@ -531,7 +592,7 @@ manager.setStyle({
 });
 ```
 
-## 13. 已知限制
+## 15. 已知限制
 
 - `circle` 当前使用 billboard + canvas 路径，而不是 Cesium `PointPrimitiveCollection`。
 - `circle` 的描边绘制在主体半径内部，`circle-radius` 语义保持为外径的一半。

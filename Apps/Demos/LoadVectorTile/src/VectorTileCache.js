@@ -22,9 +22,14 @@ export default class VectorTileCache {
     return this._entries.size;
   }
 
+  values() {
+    return this._entries.values();
+  }
+
   getStatistics(currentContentRevision) {
     let staleTiles = 0;
     let retiredTiles = 0;
+    let offscreenTiles = 0;
     for (const tile of this._entries.values()) {
       if (tile.cacheStale) {
         staleTiles++;
@@ -35,12 +40,16 @@ export default class VectorTileCache {
       ) {
         retiredTiles++;
       }
+      if (tile.referenceCount === 0) {
+        offscreenTiles++;
+      }
     }
     return {
       tiles: this._entries.size,
       bytes: this._totalBytes,
       staleTiles,
       retiredTiles,
+      offscreenTiles,
     };
   }
 
@@ -87,9 +96,14 @@ export default class VectorTileCache {
     if (tile.cacheStale || !tile.cacheable) {
       this._evict(tile);
     } else {
+      this._setOffscreen(tile, true);
       this.touch(tile);
       this.trim();
     }
+  }
+
+  tileReferenced(tile) {
+    this._setOffscreen(tile, false);
   }
 
   trim() {
@@ -124,15 +138,36 @@ export default class VectorTileCache {
     }
   }
 
+  destroy() {
+    const tiles = [...this._entries.values()].sort(
+      (left, right) => (right.level ?? 0) - (left.level ?? 0),
+    );
+    for (const tile of tiles) {
+      this._evict(tile);
+    }
+  }
+
   _evict(tile) {
     if (this._entries.get(tile.cacheKey) !== tile) {
       return;
     }
     this._entries.delete(tile.cacheKey);
+    this._setOffscreen(tile, false);
     this._totalBytes -= tile.cacheBytes;
     this._diagnostics?.addGauge("residentCacheBytes", -tile.cacheBytes);
     this._diagnostics?.increment("cacheEvictions");
     tile.cacheBytes = 0;
     tile.destroyResources();
+  }
+
+  _setOffscreen(tile, offscreen) {
+    if (tile._offscreenResident === offscreen) {
+      return;
+    }
+    tile._offscreenResident = offscreen;
+    this._diagnostics?.addGauge(
+      "offscreenResidentVectorTiles",
+      offscreen ? 1 : -1,
+    );
   }
 }
