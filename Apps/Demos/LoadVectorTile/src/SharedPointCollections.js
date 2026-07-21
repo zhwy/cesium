@@ -1,7 +1,5 @@
-import {
-  BillboardCollection,
-  LabelCollection,
-} from "../../../../Build/CesiumUnminified/index.js";
+import BillboardCollection from "../../../../packages/engine/Source/Scene/BillboardCollection.js";
+import LabelCollection from "../../../../packages/engine/Source/Scene/LabelCollection.js";
 
 /**
  * 管理跨瓦片复用的点要素集合，统一维护 BillboardCollection 与 LabelCollection 的增删生命周期。
@@ -12,7 +10,7 @@ import {
  * @param {Function} [options.createBillboardCollection] Billboard 集合工厂，测试可注入替身。
  * @param {Function} [options.createLabelCollection] Label 集合工厂，测试可注入替身。
  */
-export default class SharedPointCollections {
+class SharedPointCollections {
   static createSharedPointEntryKey(vectorTile, bucketId) {
     const tileKey =
       vectorTile?.cacheKey ??
@@ -258,3 +256,5 @@ function markCollectionReady(collection) {
   }
   return collection;
 }
+
+export default SharedPointCollections;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import VectorTileStyleUpdateUtils from "../src/VectorTileStyleUpdateUtils.js";
+import VectorTileStyleUtils from "../src/VectorTileStyleUtils.js";
 import VectorTileStyleUpdateType from "../src/VectorTileStyleUpdateType.js";
 
 const supportedColors = {
@@ -16,8 +16,7 @@ for (const [type, propertyNames] of Object.entries(supportedColors)) {
     const next = structuredClone(previous);
     next.paint[propertyName] = "#ff0000";
     assert.equal(
-      VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(previous, next)
-        .type,
+      VectorTileStyleUtils.createVectorTileStyleUpdatePlan(previous, next).type,
       VectorTileStyleUpdateType.IN_PLACE_APPEARANCE,
       `${type}.${propertyName}`,
     );
@@ -29,15 +28,12 @@ for (const [type, propertyNames] of Object.entries(supportedColors)) {
   const next = structuredClone(previous);
   next.visibility = false;
   assert.equal(
-    VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(previous, next)
-      .type,
+    VectorTileStyleUtils.createVectorTileStyleUpdatePlan(previous, next).type,
     VectorTileStyleUpdateType.IN_PLACE_APPEARANCE,
   );
   assert.equal(
-    VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
-      previous,
-      previous,
-    ).type,
+    VectorTileStyleUtils.createVectorTileStyleUpdatePlan(previous, previous)
+      .type,
     VectorTileStyleUpdateType.NO_OP,
   );
 }
@@ -63,8 +59,7 @@ for (const mutate of [
   const next = structuredClone(previous);
   mutate(next);
   assert.equal(
-    VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(previous, next)
-      .type,
+    VectorTileStyleUtils.createVectorTileStyleUpdatePlan(previous, next).type,
     VectorTileStyleUpdateType.REBUILD_SOURCE,
   );
 }
@@ -73,7 +68,7 @@ for (const mutate of [
   const previous = createLayer("fill");
   const next = structuredClone(previous);
   next.paint["fill-color"] = "#00ff00";
-  const plan = VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
+  const plan = VectorTileStyleUtils.createVectorTileStyleUpdatePlan(
     previous,
     next,
     {

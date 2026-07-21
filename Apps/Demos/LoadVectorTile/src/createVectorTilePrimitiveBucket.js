@@ -6,7 +6,7 @@ import VectorTileLineBucket from "./VectorTileLineBucket.js";
 import VectorTileSymbolBucket from "./VectorTileSymbolBucket.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 
-export default function createVectorTilePrimitiveBucket(
+function createVectorTilePrimitiveBucket(
   packedLayer,
   styleRule,
   zoom,
@@ -56,3 +56,5 @@ export default function createVectorTilePrimitiveBucket(
   }
   return bucket;
 }
+
+export default createVectorTilePrimitiveBucket;

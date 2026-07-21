@@ -1,9 +1,7 @@
-import {
-  defined,
-  DeveloperError,
-  Resource,
-  WebMercatorTilingScheme,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import Resource from "../../../../packages/engine/Source/Core/Resource.js";
+import WebMercatorTilingScheme from "../../../../packages/engine/Source/Core/WebMercatorTilingScheme.js";
 import CommonUtils from "./CommonUtils.js";
 import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 import VectorTileStyleUtils from "./VectorTileStyleUtils.js";
@@ -69,38 +67,36 @@ MVTLoader.instance();
  * @param {object} [options.styleDocument] 完整样式文档；提供后会自动抽取当前 source 对应内容。
  * @param {object[]} [options.styleRules] 当未传入 `styleDocument` 时，可直接提供样式规则数组。
  */
-export default class VectorTileProvider {
-  constructor(options = {}) {
-    const sourceState = getProviderSourceState(options);
-    this._sourceId = sourceState.sourceId;
-    this._source = sourceState.source;
-    this._options = {
-      ...(this._source ?? {}),
-      ...options,
-    };
-    if (this._sourceId) {
-      this._options.sourceId = this._sourceId;
-      this._options.styleSourceId = this._sourceId;
-    }
-    if (sourceState.styleDocument) {
-      this._options.styleDocument = sourceState.styleDocument;
-    }
-
-    this._tilingScheme =
-      this._options.tilingScheme ?? new WebMercatorTilingScheme();
-    this._minimumLevel = this._options.minimumLevel ?? 0;
-    this._maximumLevel = this._options.maximumLevel ?? 18;
-    this._networkScheduler =
-      this._options.networkScheduler ?? new VectorTileTaskScheduler(8);
-    this._pbfCache = this._options.pbfCache;
-    this._pbfCacheNamespace =
-      this._options.pbfCacheNamespace ?? this._sourceId ?? "";
-    this._diagnostics = this._options.diagnostics;
-
-    this._resource = new Resource({
-      url: this._options.url,
-    });
+function VectorTileProvider(options = {}) {
+  const sourceState = getProviderSourceState(options);
+  this._sourceId = sourceState.sourceId;
+  this._source = sourceState.source;
+  this._options = {
+    ...(this._source ?? {}),
+    ...options,
+  };
+  if (this._sourceId) {
+    this._options.sourceId = this._sourceId;
+    this._options.styleSourceId = this._sourceId;
   }
+  if (sourceState.styleDocument) {
+    this._options.styleDocument = sourceState.styleDocument;
+  }
+
+  this._tilingScheme =
+    this._options.tilingScheme ?? new WebMercatorTilingScheme();
+  this._minimumLevel = this._options.minimumLevel ?? 0;
+  this._maximumLevel = this._options.maximumLevel ?? 18;
+  this._networkScheduler =
+    this._options.networkScheduler ?? new VectorTileTaskScheduler(8);
+  this._pbfCache = this._options.pbfCache;
+  this._pbfCacheNamespace =
+    this._options.pbfCacheNamespace ?? this._sourceId ?? "";
+  this._diagnostics = this._options.diagnostics;
+
+  this._resource = new Resource({
+    url: this._options.url,
+  });
 }
 
 Object.defineProperties(VectorTileProvider.prototype, {
@@ -292,3 +288,5 @@ function styleRuleToJSON(styleRule) {
   }
   return CommonUtils.cloneValue(styleRule);
 }
+
+export default VectorTileProvider;

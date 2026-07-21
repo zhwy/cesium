@@ -1,15 +1,13 @@
-import {
-  defined,
-  GlobeSurfaceTile,
-  ImageryState,
-  QuadtreeTileLoadState,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import GlobeSurfaceTile from "../../../../packages/engine/Source/Scene/GlobeSurfaceTile.js";
+import ImageryState from "../../../../packages/engine/Source/Scene/ImageryState.js";
+import QuadtreeTileLoadState from "../../../../packages/engine/Source/Scene/QuadtreeTileLoadState.js";
 
 /**
  * 矢量瓦片栈中与 Cesium `GlobeSurfaceTile` 对应的地表瓦片对象，
  * 负责挂接当前四叉树瓦片关联的 `TileVectorTile` 集合并驱动其状态流转。
  */
-export default class VectorSurfaceTile extends GlobeSurfaceTile {
+class VectorSurfaceTile extends GlobeSurfaceTile {
   constructor() {
     super();
     /**
@@ -102,3 +100,5 @@ export default class VectorSurfaceTile extends GlobeSurfaceTile {
     }
   }
 }
+
+export default VectorSurfaceTile;

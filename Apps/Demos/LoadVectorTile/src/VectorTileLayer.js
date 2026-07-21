@@ -1,10 +1,8 @@
-import {
-  defined,
-  DeveloperError,
-  Event,
-  ImageryState,
-  ShadowMode,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import Event from "../../../../packages/engine/Source/Core/Event.js";
+import ImageryState from "../../../../packages/engine/Source/Scene/ImageryState.js";
+import ShadowMode from "../../../../packages/engine/Source/Scene/ShadowMode.js";
 import VectorTile from "./VectorTile.js";
 import TileVectorTile from "./TileVectorTile.js";
 import VectorTileDecoder from "./VectorTileDecoder.js";
@@ -17,7 +15,6 @@ import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 import VectorTileStyleUtils from "./VectorTileStyleUtils.js";
 import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
 import VectorTileCoverageState from "./VectorTileCoverageState.js";
-import VectorTileStyleZoomUtils from "./VectorTileStyleZoomUtils.js";
 import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 import VectorTilePropertyProjectionUtils from "./VectorTilePropertyProjectionUtils.js";
 import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
@@ -78,7 +75,7 @@ const DEFAULT_OPTIONS = {
  * @param {object} [options.iconResources] 图标资源注册表。
  * @param {object} [options.iconImages] 图标资源注册表的别名配置。
  */
-export default class VectorTileLayer {
+class VectorTileLayer {
   get show() {
     return this._show;
   }
@@ -584,13 +581,10 @@ export default class VectorTileLayer {
   }
 
   getFrameStyleZoom(frameState) {
-    return VectorTileStyleZoomUtils.computeCameraVectorTileStyleZoom(
-      frameState,
-      {
-        ...this._option,
-        scene: this._scene,
-      },
-    );
+    return VectorTileStyleUtils.computeCameraVectorTileStyleZoom(frameState, {
+      ...this._option,
+      scene: this._scene,
+    });
   }
 
   setStyle(styleDocument) {
@@ -1284,35 +1278,35 @@ export default class VectorTileLayer {
     this._vectorTileCache.destroy();
     this._sharedPointCollections.destroy();
   }
-}
 
-VectorTileLayer.getStyleRulesForDecode = function (styleDocument, buildZoom) {
-  return getStyleRulesForDecode(styleDocument, buildZoom);
-};
+  static getStyleRulesForDecode(styleDocument, buildZoom) {
+    return getStyleRulesForDecode(styleDocument, buildZoom);
+  }
 
-VectorTileLayer.getStyleRulesForBuild = function (styleDocument, buildZoom) {
-  return getStyleRulesForBuild(styleDocument, buildZoom);
-};
+  static getStyleRulesForBuild(styleDocument, buildZoom) {
+    return getStyleRulesForBuild(styleDocument, buildZoom);
+  }
 
-VectorTileLayer.getDecodedTileByteLength = function (decodedTile) {
-  return getDecodedTileByteLength(decodedTile);
-};
+  static getDecodedTileByteLength(decodedTile) {
+    return getDecodedTileByteLength(decodedTile);
+  }
 
-VectorTileLayer.adoptDecodedFeatureTables = function (
-  vectorTile,
-  decodedTile,
-  retainAll,
-  pickProperties,
-  diagnostics,
-) {
-  return adoptDecodedFeatureTables(
+  static adoptDecodedFeatureTables(
     vectorTile,
     decodedTile,
     retainAll,
     pickProperties,
     diagnostics,
-  );
-};
+  ) {
+    return adoptDecodedFeatureTables(
+      vectorTile,
+      decodedTile,
+      retainAll,
+      pickProperties,
+      diagnostics,
+    );
+  }
+}
 
 function createStyleLayerStates(styleDocument, previousStates) {
   const result = new Map();
@@ -1608,3 +1602,5 @@ function countPublicPickPropertyValues(features, allowPicking, pickProperties) {
   }
   return count;
 }
+
+export default VectorTileLayer;

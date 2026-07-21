@@ -11,6 +11,94 @@ const GEOMETRY_TYPES_BY_STYLE_RULE = Object.freeze({
   symbolPolygonCenter: Object.freeze([3]),
 });
 
+class VectorTileGeometryPlacementUtils {
+  static normalizeSymbolPlacement(value) {
+    return normalizeSymbolPlacement(value);
+  }
+
+  static getStyleRuleSymbolPlacement(styleRule) {
+    return getStyleRuleSymbolPlacement(styleRule);
+  }
+
+  static doesStyleRuleUseGeometryType(styleRule, geometryType) {
+    return doesStyleRuleUseGeometryType(styleRule, geometryType);
+  }
+
+  static doesFeatureMatchAnyStyleRule(
+    feature,
+    geometryType,
+    styleRules,
+    context = {},
+  ) {
+    return doesFeatureMatchAnyStyleRule(
+      feature,
+      geometryType,
+      styleRules,
+      context,
+    );
+  }
+
+  static filterPackedLayerByStyleRules(
+    packedLayer,
+    styleRules,
+    zoom,
+    diagnostics,
+  ) {
+    const points = filterPoints(packedLayer, styleRules, zoom);
+    const lines = filterLines(packedLayer, styleRules, zoom);
+    const polygons = filterPolygons(packedLayer, styleRules, zoom);
+    const positionCount =
+      points.positions.length / 2 +
+      lines.positions.length / 2 +
+      polygons.positions.length / 2;
+    const featureCount =
+      points.featureIndices.length +
+      lines.featureIndices.length +
+      polygons.featureIndices.length;
+    const styleFilteredFeatureCount = Math.max(
+      0,
+      (packedLayer.featureCount ?? 0) - featureCount,
+    );
+
+    if (styleFilteredFeatureCount > 0) {
+      diagnostics?.increment("mainThreadStyleFilteredFeatures");
+    }
+
+    return compactPackedLayerFeatures({
+      ...packedLayer,
+      featureCount,
+      positionCount,
+      styleFilteredFeatureCount:
+        (packedLayer.styleFilteredFeatureCount ?? 0) +
+        styleFilteredFeatureCount,
+      points,
+      lines,
+      polygons,
+    });
+  }
+
+  static createPolygonCenterPoints(polygons) {
+    const positions = [];
+    const featureIndices = [];
+    const polygonOffsets = polygons?.polygonOffsets ?? [];
+
+    for (let i = 0; i + 1 < polygonOffsets.length; ++i) {
+      const center = computePolygonCenter(polygons, i);
+      if (!center) {
+        continue;
+      }
+
+      positions.push(center.longitude, center.latitude);
+      featureIndices.push(polygons.featureIndices?.[i] ?? 0);
+    }
+
+    return {
+      positions: new Float64Array(positions),
+      featureIndices: new Uint32Array(featureIndices),
+    };
+  }
+}
+
 function normalizeSymbolPlacement(value) {
   return value === SYMBOL_PLACEMENT_POLYGON_CENTER
     ? SYMBOL_PLACEMENT_POLYGON_CENTER
@@ -327,90 +415,4 @@ function getOpenRingPointCount(polygons, start, end) {
   return pointCount;
 }
 
-export default class VectorTileGeometryPlacementUtils {
-  static normalizeSymbolPlacement(value) {
-    return normalizeSymbolPlacement(value);
-  }
-
-  static getStyleRuleSymbolPlacement(styleRule) {
-    return getStyleRuleSymbolPlacement(styleRule);
-  }
-
-  static doesStyleRuleUseGeometryType(styleRule, geometryType) {
-    return doesStyleRuleUseGeometryType(styleRule, geometryType);
-  }
-
-  static doesFeatureMatchAnyStyleRule(
-    feature,
-    geometryType,
-    styleRules,
-    context = {},
-  ) {
-    return doesFeatureMatchAnyStyleRule(
-      feature,
-      geometryType,
-      styleRules,
-      context,
-    );
-  }
-
-  static filterPackedLayerByStyleRules(
-    packedLayer,
-    styleRules,
-    zoom,
-    diagnostics,
-  ) {
-    const points = filterPoints(packedLayer, styleRules, zoom);
-    const lines = filterLines(packedLayer, styleRules, zoom);
-    const polygons = filterPolygons(packedLayer, styleRules, zoom);
-    const positionCount =
-      points.positions.length / 2 +
-      lines.positions.length / 2 +
-      polygons.positions.length / 2;
-    const featureCount =
-      points.featureIndices.length +
-      lines.featureIndices.length +
-      polygons.featureIndices.length;
-    const styleFilteredFeatureCount = Math.max(
-      0,
-      (packedLayer.featureCount ?? 0) - featureCount,
-    );
-
-    if (styleFilteredFeatureCount > 0) {
-      diagnostics?.increment("mainThreadStyleFilteredFeatures");
-    }
-
-    return compactPackedLayerFeatures({
-      ...packedLayer,
-      featureCount,
-      positionCount,
-      styleFilteredFeatureCount:
-        (packedLayer.styleFilteredFeatureCount ?? 0) +
-        styleFilteredFeatureCount,
-      points,
-      lines,
-      polygons,
-    });
-  }
-
-  static createPolygonCenterPoints(polygons) {
-    const positions = [];
-    const featureIndices = [];
-    const polygonOffsets = polygons?.polygonOffsets ?? [];
-
-    for (let i = 0; i + 1 < polygonOffsets.length; ++i) {
-      const center = computePolygonCenter(polygons, i);
-      if (!center) {
-        continue;
-      }
-
-      positions.push(center.longitude, center.latitude);
-      featureIndices.push(polygons.featureIndices?.[i] ?? 0);
-    }
-
-    return {
-      positions: new Float64Array(positions),
-      featureIndices: new Uint32Array(featureIndices),
-    };
-  }
-}
+export default VectorTileGeometryPlacementUtils;

@@ -1,4 +1,4 @@
-import { defined } from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
 import VectorTileProvider from "./VectorTileProvider.js";
 
 /**
@@ -7,7 +7,7 @@ import VectorTileProvider from "./VectorTileProvider.js";
  * 构造参数继承自 `VectorTileProvider`，并额外支持：
  * `options.tileMatrixSetID`、`options.tileMatrixLabels`、`options.subdomains`。
  */
-export default class WMTSVectorTileProvider extends VectorTileProvider {
+class WMTSVectorTileProvider extends VectorTileProvider {
   getTileResource(tile) {
     const labels = this._options.tileMatrixLabels;
     const tileMatrix = defined(labels)
@@ -39,3 +39,5 @@ export default class WMTSVectorTileProvider extends VectorTileProvider {
     return resource;
   }
 }
+
+export default WMTSVectorTileProvider;

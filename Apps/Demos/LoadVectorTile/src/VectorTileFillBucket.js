@@ -1,12 +1,10 @@
-import {
-  ArcType,
-  ColorGeometryInstanceAttribute,
-  GeometryInstance,
-  GroundPolylineGeometry,
-  PolygonGeometry,
-  PolygonHierarchy,
-  PolylineGeometry,
-} from "../../../../Build/CesiumUnminified/index.js";
+import ArcType from "../../../../packages/engine/Source/Core/ArcType.js";
+import ColorGeometryInstanceAttribute from "../../../../packages/engine/Source/Core/ColorGeometryInstanceAttribute.js";
+import GeometryInstance from "../../../../packages/engine/Source/Core/GeometryInstance.js";
+import GroundPolylineGeometry from "../../../../packages/engine/Source/Core/GroundPolylineGeometry.js";
+import PolygonGeometry from "../../../../packages/engine/Source/Core/PolygonGeometry.js";
+import PolygonHierarchy from "../../../../packages/engine/Source/Core/PolygonHierarchy.js";
+import PolylineGeometry from "../../../../packages/engine/Source/Core/PolylineGeometry.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 
@@ -20,7 +18,7 @@ import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
  * @param {ShadowMode} [options.shadows] Cesium 阴影模式配置。
  * @param {boolean} [options.asynchronous=true] 是否启用 Cesium 异步几何构建。
  */
-export default class VectorTileFillBucket extends VectorTilePrimitiveBucket {
+class VectorTileFillBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule, options);
     this._allowPicking = options.allowPicking ?? false;
@@ -485,3 +483,5 @@ function isLineClosed(lines, lineIndex) {
     lines.positions[firstIndex + 1] === lines.positions[lastIndex + 1]
   );
 }
+
+export default VectorTileFillBucket;

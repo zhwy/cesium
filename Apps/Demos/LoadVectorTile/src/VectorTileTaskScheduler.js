@@ -5,7 +5,7 @@ import VectorTileTaskCancelledError from "./VectorTileTaskCancelledError.js";
  *
  * @param {number} [maximumActiveTasks=1] 允许同时执行的最大任务数。
  */
-export default class VectorTileTaskScheduler {
+class VectorTileTaskScheduler {
   constructor(maximumActiveTasks = 1) {
     this.maximumActiveTasks = Math.max(1, maximumActiveTasks);
     this._activeTasks = 0;
@@ -139,3 +139,5 @@ export default class VectorTileTaskScheduler {
       });
   }
 }
+
+export default VectorTileTaskScheduler;

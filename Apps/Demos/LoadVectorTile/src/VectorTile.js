@@ -1,8 +1,6 @@
-import {
-  defined,
-  destroyObject,
-  ImageryState,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import destroyObject from "../../../../packages/engine/Source/Core/destroyObject.js";
+import ImageryState from "../../../../packages/engine/Source/Scene/ImageryState.js";
 import VectorTileCoverageState from "./VectorTileCoverageState.js";
 import SharedPointCollections from "./SharedPointCollections.js";
 /**
@@ -228,4 +226,5 @@ VectorTile.prototype.destroyResources = function () {
   this.builtStyleLayerIds = undefined;
   destroyObject(this);
 };
+
 export default VectorTile;

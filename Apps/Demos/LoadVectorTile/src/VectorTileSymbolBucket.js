@@ -1,15 +1,52 @@
-import {
-  Cartesian2,
-  Cartesian3,
-  defined,
-  HeightReference,
-  HorizontalOrigin,
-  LabelStyle,
-  VerticalOrigin,
-} from "../../../../Build/CesiumUnminified/index.js";
+import Cartesian2 from "../../../../packages/engine/Source/Core/Cartesian2.js";
+import Cartesian3 from "../../../../packages/engine/Source/Core/Cartesian3.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import HeightReference from "../../../../packages/engine/Source/Scene/HeightReference.js";
+import HorizontalOrigin from "../../../../packages/engine/Source/Scene/HorizontalOrigin.js";
+import LabelStyle from "../../../../packages/engine/Source/Scene/LabelStyle.js";
+import VerticalOrigin from "../../../../packages/engine/Source/Scene/VerticalOrigin.js";
 import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
+
+const SYMBOL_ANCHOR_MAP = Object.freeze({
+  center: {
+    horizontalOrigin: "CENTER",
+    verticalOrigin: "CENTER",
+  },
+  left: {
+    horizontalOrigin: "LEFT",
+    verticalOrigin: "CENTER",
+  },
+  right: {
+    horizontalOrigin: "RIGHT",
+    verticalOrigin: "CENTER",
+  },
+  top: {
+    horizontalOrigin: "CENTER",
+    verticalOrigin: "TOP",
+  },
+  bottom: {
+    horizontalOrigin: "CENTER",
+    verticalOrigin: "BOTTOM",
+  },
+  "top-left": {
+    horizontalOrigin: "LEFT",
+    verticalOrigin: "TOP",
+  },
+  "top-right": {
+    horizontalOrigin: "RIGHT",
+    verticalOrigin: "TOP",
+  },
+  "bottom-left": {
+    horizontalOrigin: "LEFT",
+    verticalOrigin: "BOTTOM",
+  },
+  "bottom-right": {
+    horizontalOrigin: "RIGHT",
+    verticalOrigin: "BOTTOM",
+  },
+});
 
 /**
  * 面向 Cesium 的 `symbol` 渲染桶，对单条样式规则在单个矢量瓦片上的结果进行收集。
@@ -26,7 +63,7 @@ import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录符号桶指标。
  * @param {boolean} [options.ignoreZoomRange=false] 是否忽略样式规则中的缩放级别限制。
  */
-export default class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
+class VectorTileSymbolBucket extends VectorTilePrimitiveBucket {
   static createVectorTileIconResolver(...registries) {
     return createVectorTileIconResolver(...registries);
   }
@@ -471,45 +508,8 @@ function createLabelFont(styleRule, metadata, zoom, textSize) {
   }`;
 }
 
-const SYMBOL_ANCHOR_MAP = Object.freeze({
-  center: {
-    horizontalOrigin: "CENTER",
-    verticalOrigin: "CENTER",
-  },
-  left: {
-    horizontalOrigin: "LEFT",
-    verticalOrigin: "CENTER",
-  },
-  right: {
-    horizontalOrigin: "RIGHT",
-    verticalOrigin: "CENTER",
-  },
-  top: {
-    horizontalOrigin: "CENTER",
-    verticalOrigin: "TOP",
-  },
-  bottom: {
-    horizontalOrigin: "CENTER",
-    verticalOrigin: "BOTTOM",
-  },
-  "top-left": {
-    horizontalOrigin: "LEFT",
-    verticalOrigin: "TOP",
-  },
-  "top-right": {
-    horizontalOrigin: "RIGHT",
-    verticalOrigin: "TOP",
-  },
-  "bottom-left": {
-    horizontalOrigin: "LEFT",
-    verticalOrigin: "BOTTOM",
-  },
-  "bottom-right": {
-    horizontalOrigin: "RIGHT",
-    verticalOrigin: "BOTTOM",
-  },
-});
-
 function doesPlanChangeProperty(plan, path) {
   return !plan?.changedPaths || plan.changedPaths.includes(path);
 }
+
+export default VectorTileSymbolBucket;

@@ -1,7 +1,5 @@
-import {
-  ImageryState,
-  QuadtreePrimitive,
-} from "../../../../Build/CesiumUnminified/index.js";
+import ImageryState from "../../../../packages/engine/Source/Scene/ImageryState.js";
+import QuadtreePrimitive from "../../../../packages/engine/Source/Scene/QuadtreePrimitive.js";
 import VectorTileLodSelectionUtils from "./VectorTileLodSelectionUtils.js";
 import SharedPointCollections from "./SharedPointCollections.js";
 
@@ -41,7 +39,7 @@ function arePrimitivesReady(tile) {
  * @param {number} [options.tileCacheSize] 继续透传给 `QuadtreePrimitive` 的缓存大小参数。
  * @param {number} [options.maximumScreenSpaceError] 继续透传给 `QuadtreePrimitive` 的屏幕误差阈值。
  */
-export default class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
+class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
   constructor(options) {
     super(options);
     this._diagnostics = options.diagnostics;
@@ -548,3 +546,5 @@ function warmUpPrimitive(primitive, frameState) {
   primitive.show = show;
   frameState.commandList.length = commandListLength;
 }
+
+export default VectorTileQuadtreePrimitive;

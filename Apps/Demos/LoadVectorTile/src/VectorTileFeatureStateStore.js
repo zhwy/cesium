@@ -6,7 +6,7 @@ import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
  * @param {object} [options={}] 构造参数。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
  */
-export default class VectorTileFeatureStateStore {
+class VectorTileFeatureStateStore {
   constructor(options = {}) {
     this._entries = new Map();
     this._revision = 0;
@@ -113,3 +113,5 @@ function shallowEqual(left, right) {
       Object.is(left[key], right[key]),
   );
 }
+
+export default VectorTileFeatureStateStore;

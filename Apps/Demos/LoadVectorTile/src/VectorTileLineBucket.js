@@ -1,15 +1,13 @@
-import {
-  ArcType,
-  ColorGeometryInstanceAttribute,
-  defined,
-  GeometryInstance,
-  GeometryPipeline,
-  GroundPolylineGeometry,
-  Material,
-  PolylineGeometry,
-  PolylineMaterialAppearance,
-  Primitive,
-} from "../../../../Build/CesiumUnminified/index.js";
+import ArcType from "../../../../packages/engine/Source/Core/ArcType.js";
+import ColorGeometryInstanceAttribute from "../../../../packages/engine/Source/Core/ColorGeometryInstanceAttribute.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import GeometryInstance from "../../../../packages/engine/Source/Core/GeometryInstance.js";
+import GeometryPipeline from "../../../../packages/engine/Source/Core/GeometryPipeline.js";
+import GroundPolylineGeometry from "../../../../packages/engine/Source/Core/GroundPolylineGeometry.js";
+import PolylineGeometry from "../../../../packages/engine/Source/Core/PolylineGeometry.js";
+import Material from "../../../../packages/engine/Source/Scene/Material.js";
+import PolylineMaterialAppearance from "../../../../packages/engine/Source/Scene/PolylineMaterialAppearance.js";
+import Primitive from "../../../../packages/engine/Source/Scene/Primitive.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 
@@ -26,7 +24,7 @@ import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
  * @param {boolean} [options.asynchronous=true] 是否启用 Cesium 异步几何构建。
  * @param {Function} [options.createGroundPolylinePrimitive] Ground polyline primitive 工厂，测试可注入替身。
  */
-export default class VectorTileLineBucket extends VectorTilePrimitiveBucket {
+class VectorTileLineBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule, options);
     this._allowPicking = options.allowPicking ?? false;
@@ -497,3 +495,5 @@ function filterLinesForStyleRule(lines, featureTable, styleRule, zoom) {
     ...(metadata.length > 0 ? { metadata } : {}),
   };
 }
+
+export default VectorTileLineBucket;

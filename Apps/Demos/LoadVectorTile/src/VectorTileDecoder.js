@@ -1,4 +1,4 @@
-import { TaskProcessor } from "../../../../Build/CesiumUnminified/index.js";
+import TaskProcessor from "../../../../packages/engine/Source/Core/TaskProcessor.js";
 
 let instance;
 
@@ -6,7 +6,7 @@ let instance;
  * 统一管理矢量瓦片解码任务，使用 Cesium `TaskProcessor` 风格封装 Worker，
  * 但仍复用当前 demo 目录下的 Worker 文件。
  */
-export default class VectorTileDecoder {
+class VectorTileDecoder {
   constructor() {
     this._taskProcessor = undefined;
   }
@@ -37,3 +37,5 @@ export default class VectorTileDecoder {
     return instance;
   }
 }
+
+export default VectorTileDecoder;

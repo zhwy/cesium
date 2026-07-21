@@ -23,46 +23,61 @@ Apps/Demos/LoadVectorTile/
 ├── README.md               # 当前说明文档
 ├── STYLE.md                # 完整样式参考
 ├── TODO.txt                # 临时待办记录
-├── src/                    # 31 个运行时文件（整套 Demo 共 35 个顶层/运行时文件）
-│   ├── VectorTileLayerManager.js
-│   ├── VectorTileLayerCollection.js
+├── src/                    # 44 个运行时文件
+│   ├── CommonUtils.js
+│   ├── SharedPointCollections.js
+│   ├── TileType.js
+│   ├── TileVectorTile.js
+│   ├── VectorSurfaceTile.js
+│   ├── VectorTile.js
+│   ├── VectorTileBucketFallbackReason.js
+│   ├── VectorTileBucketUtils.js
+│   ├── VectorTileCache.js
+│   ├── VectorTileCircleBucket.js
+│   ├── VectorTileCoverageState.js
+│   ├── VectorTileDecoder.js
+│   ├── VectorTileDiagnostics.js
+│   ├── VectorTileFeatureStateStore.js
+│   ├── VectorTileFeatureStateUtils.js
+│   ├── VectorTileFillBucket.js
+│   ├── VectorTileGeometryPlacementUtils.js
+│   ├── VectorTileGeometryUtils.js
 │   ├── VectorTileLayer.js
-│   ├── VectorTileStyleUtils.js
-│   ├── VectorTileStyleRule.js
-│   ├── VectorTileStyleExpressionUtils.js
-│   ├── VectorTileStyleZoomUtils.js
+│   ├── VectorTileLayerCollection.js
+│   ├── VectorTileLayerManager.js
+│   ├── VectorTileLodSelectionUtils.js
+│   ├── VectorTileLineBucket.js
+│   ├── VectorTilePbfCache.js
+│   ├── VectorTilePickRegistry.js
+│   ├── VectorTilePrimitiveBucket.js
+│   ├── VectorTilePropertyProjectionUtils.js
 │   ├── VectorTileProvider.js
 │   ├── VectorTileQuadtreePrimitive.js
 │   ├── VectorTileQuadtreeProvider.js
-│   ├── VectorSurfaceTile.js
-│   ├── TileVectorTile.js
-│   ├── VectorTile.js
-│   ├── VectorTileLodSelectionUtils.js
-│   ├── VectorTileDecoder.js
-│   ├── VectorTileDecodeWorker.js
-│   ├── decodeVectorTile.js
-│   ├── VectorTileGeometryUtils.js
-│   ├── VectorTileGeometryPlacementUtils.js
-│   ├── VectorTileBucketFactory.js
-│   ├── VectorTileBucketUtils.js
-│   ├── VectorTileFillBucket.js
-│   ├── VectorTileLineBucket.js
+│   ├── VectorTileStyleExpressionUtils.js
+│   ├── VectorTileStyleRule.js
+│   ├── VectorTileStyleUpdateType.js
+│   ├── VectorTileStyleUtils.js
 │   ├── VectorTileSymbolBucket.js
-│   ├── SharedPointCollections.js
+│   ├── VectorTileTaskCancelledError.js
 │   ├── VectorTileTaskScheduler.js
-│   ├── VectorTileCache.js
-│   ├── VectorTilePbfCache.js
-│   ├── VectorTileDiagnostics.js
-│   └── VectorTileBenchmark.js
-├── test/                   # 轻量 Node 单元测试
+│   ├── WMTSGeoVectorTileProvider.js
+│   ├── WMTSVectorTileProvider.js
+│   ├── XYZVectorTileProvider.js
+│   ├── createDecodeVectorTileTask.js
+│   ├── createVectorTileBenchmark.js
+│   ├── createVectorTilePrimitiveBucket.js
+│   └── decodeVectorTile.js
+├── test/                   # 28 个轻量 Node 单元测试
 │   ├── SharedPointCollections.test.js
 │   ├── VectorStyleExpression.test.js
 │   ├── VectorTile.test.js
-│   ├── VectorTileBucketFactory.test.js
 │   ├── VectorTileBucketUtils.test.js
 │   ├── VectorTileCache.test.js
-│   ├── VectorTileDiagnostics.test.js
 │   ├── VectorTileCircleBucket.test.js
+│   ├── VectorTileDecodedResidency.test.js
+│   ├── VectorTileDiagnostics.test.js
+│   ├── VectorTileFeatureState.test.js
 │   ├── VectorTileFillBucket.test.js
 │   ├── VectorTileGeometry.test.js
 │   ├── VectorTileGeometryPlacement.test.js
@@ -70,11 +85,16 @@ Apps/Demos/LoadVectorTile/
 │   ├── VectorTileLayerManager.test.js
 │   ├── VectorTileLineBucket.test.js
 │   ├── VectorTileLodSelection.test.js
-│   ├── VectorTilePrimitiveBucket.test.js
-│   ├── VectorTileProvider.test.js
 │   ├── VectorTilePbfCache.test.js
+│   ├── VectorTilePickRegistry.test.js
+│   ├── VectorTilePrimitiveBucket.test.js
+│   ├── VectorTilePrimitiveBucketState.test.js
+│   ├── VectorTilePropertyProjection.test.js
+│   ├── VectorTileProvider.test.js
 │   ├── VectorTileQuadtreePrimitive.test.js
 │   ├── VectorTileStyle.test.js
+│   ├── VectorTileStyleHotUpdate.test.js
+│   ├── VectorTileStyleUpdateUtils.test.js
 │   ├── VectorTileStyleZoom.test.js
 │   └── VectorTileSymbolBucket.test.js
 └── src_old/                # 旧实验版本备份，仅作对照
@@ -86,11 +106,11 @@ Apps/Demos/LoadVectorTile/
 
 `src/` 代码需要保持接近 Cesium 源码目录的模块形态，后续新增或整理代码时遵循以下规则：
 
-1. Cesium API 必须从 `../../../../Build/CesiumUnminified/index.js` 按需命名导入，例如 `defined`、`DeveloperError`、`destroyObject`、`Event`、`Primitive`、`Color` 等；不要使用 `import * as Cesium`、`CesiumModule` 或 `globalThis.Cesium` 兜底。
+1. Cesium API 必须从 `../../../../packages/engine/Source` 导入模块，例如 `import Rectangle from "../../../../packages/engine/Source/Core/Rectangle.js`；不要使用 `import * as Cesium`、`CesiumModule` 或 `globalThis.Cesium` 兜底。
 2. 优先复用 Cesium 已有工具方法。值是否存在使用 `defined`，开发期参数错误使用 `DeveloperError`，对象销毁使用 `destroyObject`。
 3. 跨文件复用的通用 helper 放到默认导出的工具类静态方法中，例如 `CommonUtils.isPlainObject()`、`CommonUtils.cloneValue()`、`CommonUtils.isNonEmptyString()`；不要在多个文件重复定义等价函数。
-4. 每个 `src` 文件都必须提供 `export default`，默认导出表达该文件的主要职责：主类文件导出主类，单一工厂函数文件导出该函数，工具集合文件导出工具类。
-5. 仅导出一个普通函数的文件使用小写开头命名，例如 `createVectorTilePrimitiveBucket.js`、`decodeVectorTile.js`、`getVectorTileTransferableBuffers.js`。如果文件包含一组工具方法，则使用工具类默认导出，而不是保留一组裸函数作为唯一导出形态。
+4. 每个 `src` 文件都必须提供 `export default`，默认导出表达该文件的主要职责：主类文件导出主类，单一工厂函数文件导出该函数，工具集合文件导出工具类。`export default`放置在文件末尾，内部方法定义放置在主类之后，`export default`之前。
+5. 仅导出一个普通函数的文件使用小写开头命名，例如 `createVectorTilePrimitiveBucket.js`、`createVectorTileBenchmark.js`、`decodeVectorTile.js`。如果文件包含一组工具方法，则使用工具类默认导出，而不是保留一组裸函数作为唯一导出形态。
 6. `src` 文件不得使用命名导出。需要被其他文件引用的枚举、错误类型、子类等常量或类型拆分为独立文件默认导出，例如 `VectorTileCoverageState.js`、`TileType.js`、`VectorTileStyleUpdateType.js`、`VectorTileTaskCancelledError.js`、`VectorTileFeatureStateStore.js`、`XYZVectorTileProvider.js`、`WMTSVectorTileProvider.js`、`WMTSGeoVectorTileProvider.js`；宿主文件与外部消费方都直接从该文件导入，不要再通过宿主类的静态成员转发。
 7. 代码结构规范化不得夹带运行逻辑变化。导入、导出、工具函数复用和文档调整完成后，需要运行 `Apps/Demos/LoadVectorTile/test` 下相关单元测试或记录无法运行的原因。
 
@@ -121,7 +141,7 @@ VectorTileLayerManager
   → VectorTileProvider.requestTile()
   → VectorTilePbfCache（ready hit / pending join / MVTLoader miss）
   → VectorTileDecoder
-  → VectorTileDecodeWorker
+  → createDecodeVectorTileTask
   → decodeVectorTile
   → TypedArray 几何桶
   → Cesium Primitive
@@ -191,37 +211,52 @@ READY
 
 ## 3. 核心模块职责
 
-| 模块                                  | 职责                                                                                                                        |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `VectorTileLayerManager.js`           | 创建四叉树、图层集合、任务调度器、共享 PBF cache 和诊断器，对外提供图层、场景及缓存管理 API。                               |
-| `VectorTileLayerCollection.js`        | 管理图层顺序、增删、显隐和样式变化事件。                                                                                    |
-| `VectorTileLayer.js`                  | 单个 source 对应的请求、解码、建桶、缓存和后端选择，并持有该图层的 style document、内容代和样式快照。                       |
-| `VectorTileStyleUtils.js`             | 解析、校验 style document。                                                                                                 |
-| `VectorTileStyleRule.js`              | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。                                      |
-| `VectorTileStyleExpressionUtils.js`   | 统一执行和校验样式表达式与可序列化 filter 表达式。                                                                          |
-| `VectorTileBucketUtils.js`            | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                                                |
-| `VectorTileGeometryPlacementUtils.js` | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。                              |
-| `VectorTileBucketFactory.js`          | 包含 `VectorTilePrimitiveBucket` 基类，并按样式类型把 style rule 路由到 fill/line/symbol bucket。                           |
-| `VectorTileFillBucket.js`             | 基于面要素创建填充和 outline primitive，并支持将线绘制为强制闭合的单环面。                                                  |
-| `VectorTileLineBucket.js`             | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。                                   |
-| `VectorTileSymbolBucket.js`           | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。                                 |
-| `SharedPointCollections.js`           | 统一管理 symbol/circle 共享点集合条目，按版本化瓦片 key 隔离跨代 billboard/label。                                          |
-| `VectorTileQuadtreePrimitive.js`      | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                                               |
-| `VectorTileQuadtreeProvider.js`       | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                                            |
-| `VectorSurfaceTile.js`                | 对标 Cesium `GlobeSurfaceTile`，挂载到四叉树瓦片上的矢量数据容器。                                                          |
-| `TileVectorTile.js`                   | 对标 Cesium `TileImagery`，连接四叉树瓦片和矢量瓦片，管理加载对象、就绪对象和父级回退。                                     |
-| `VectorTile.js`                       | 对标 Cesium `Imagery`，保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。                                |
-| `VectorTileProvider.js`               | 集中 Provider 基类、`TileType`、内部 `MVTLoader` 与 XYZ/WMTS/WMTSGeo 寻址实现，只负责数据源寻址与发起瓦片请求，不持有样式。 |
-| `VectorTileTaskScheduler.js`          | 有界优先级任务队列，支持排队、调整优先级和取消。                                                                            |
-| `VectorTileDecoder.js`                | 管理 Worker 请求和异步响应。                                                                                                |
-| `VectorTileDecodeWorker.js`           | Worker 入口。                                                                                                               |
-| `decodeVectorTile.js`                 | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                                                 |
-| `VectorTileGeometryUtils.js`          | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。                                        |
-| `VectorTileCache.js`                  | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                                              |
-| `VectorTilePbfCache.js`               | 按 manager 总预算保存原始 PBF master、为 Worker 创建副本，并合并同 key 的在途网络请求。                                     |
-| `VectorTileLodSelectionUtils.js`      | 包含 `VectorTileCoverageState` 枚举，并在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                          |
-| `VectorTileDiagnostics.js`            | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                                                         |
-| `VectorTileBenchmark.js`              | 固定视角采样，以及 instances/packed A/B 测试。                                                                              |
+| 模块                                   | 职责                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `VectorTileLayerManager.js`            | 创建四叉树、图层集合、任务调度器、共享 PBF cache 和诊断器，对外提供图层、场景及缓存管理 API。             |
+| `VectorTileLayerCollection.js`         | 管理图层顺序、增删、显隐和样式变化事件。                                                                  |
+| `VectorTileLayer.js`                   | 单个 source 对应的请求、解码、建桶、缓存和后端选择，并持有该图层的 style document、内容代和样式快照。     |
+| `VectorTileStyleUtils.js`              | 解析、校验 style document，并集中样式热更新计划和相机 style zoom 计算。                                   |
+| `VectorTileStyleRule.js`               | 封装单个外部 `layers[]` 配置，包含 type、sourceLayer、filter、paint、layout、terrain。                    |
+| `VectorTileStyleExpressionUtils.js`    | 统一执行和校验样式表达式与可序列化 filter 表达式。                                                        |
+| `VectorTileBucketUtils.js`             | bucket 共享 helper，包含样式值求值、贴地判断、primitive 工厂和几何转换工具。                              |
+| `VectorTileGeometryPlacementUtils.js`  | 管理 `symbol-placement`、样式规则到源几何类型的映射、polygon center 派生和主线程过滤共享逻辑。            |
+| `VectorTilePrimitiveBucket.js`         | 单条 style rule 在单个瓦片上的基础渲染桶，管理 primitives、点集合描述、拾取和 feature-state 绑定。        |
+| `createVectorTilePrimitiveBucket.js`   | 按样式类型把 style rule 路由到 fill/line/circle/symbol bucket，并处理瓦片裁剪边界与 polygon center 输入。 |
+| `VectorTileFillBucket.js`              | 基于面要素创建填充和 outline primitive，并支持将线绘制为强制闭合的单环面。                                |
+| `VectorTileLineBucket.js`              | 基于线要素创建普通线、贴地线和 packed 线 primitive，并支持将 polygon 自动绘制为 outline。                 |
+| `VectorTileCircleBucket.js`            | 基于点位输入创建 circle billboard 描述，支持圆形颜色、描边、半径、偏移与贴地。                            |
+| `VectorTileSymbolBucket.js`            | 基于点位输入创建 `BillboardCollection` 和 `LabelCollection`，可复用 polygon center 派生点。               |
+| `SharedPointCollections.js`            | 统一管理 symbol/circle 共享点集合条目，按版本化瓦片 key 隔离跨代 billboard/label。                        |
+| `VectorTileQuadtreePrimitive.js`       | 扩展 Cesium `QuadtreePrimitive`，收集并提交当前帧 Primitive。                                             |
+| `VectorTileQuadtreeProvider.js`        | 实现 Cesium 四叉树要求的可见性、误差、距离、层级细分和加载接口。                                          |
+| `VectorSurfaceTile.js`                 | 对标 Cesium `GlobeSurfaceTile`，挂载到四叉树瓦片上的矢量数据容器。                                        |
+| `TileVectorTile.js`                    | 对标 Cesium `TileImagery`，连接四叉树瓦片和矢量瓦片，管理加载对象、就绪对象和父级回退。                   |
+| `VectorTile.js`                        | 对标 Cesium `Imagery`，保存一个 `(x, y, level)` 矢量瓦片的状态、任务、Primitive 和引用计数。              |
+| `VectorTileProvider.js`                | Provider 基类和内部 `MVTLoader`，负责数据源配置、层级范围、PBF cache 对接与瓦片请求入口。                 |
+| `XYZVectorTileProvider.js`             | 基于 XYZ/TMS URL 模板生成瓦片请求资源。                                                                   |
+| `WMTSVectorTileProvider.js`            | 基于 WMTS 矩阵集生成 MVT 瓦片请求资源。                                                                   |
+| `WMTSGeoVectorTileProvider.js`         | 遗留 WMTS GeoJSON provider 分支。                                                                         |
+| `TileType.js`                          | provider 类型枚举。                                                                                       |
+| `VectorTileTaskScheduler.js`           | 有界优先级任务队列，支持排队、调整优先级和取消。                                                          |
+| `VectorTileDecoder.js`                 | 管理 Worker 请求和异步响应。                                                                              |
+| `createDecodeVectorTileTask.js`        | Cesium `TaskProcessor` worker 入口，调用解码函数并收集 Transferable buffers。                             |
+| `decodeVectorTile.js`                  | 解码指定 source layer，并输出点、线、面 TypedArray 几何桶。                                               |
+| `VectorTileGeometryUtils.js`           | MVT 环分类、WebMercator 投影、线段和面环矩形裁剪，并识别 fill-outline 的瓦片裁剪边。                      |
+| `VectorTilePropertyProjectionUtils.js` | 为拾取和样式热更新预投影要素属性，减少驻留 feature table 体积。                                           |
+| `VectorTilePickRegistry.js`            | 管理 Cesium pick id 与矢量瓦片 feature 信息之间的映射。                                                   |
+| `VectorTileCache.js`                   | 引用计数配合字节预算 LRU，负责确定性资源销毁。                                                            |
+| `VectorTilePbfCache.js`                | 按 manager 总预算保存原始 PBF master、为 Worker 创建副本，并合并同 key 的在途网络请求。                   |
+| `VectorTileCoverageState.js`           | 瓦片覆盖状态枚举。                                                                                        |
+| `VectorTileLodSelectionUtils.js`       | 在父子瓦片同时就绪时选择不重叠的 LOD 集合。                                                               |
+| `VectorTileFeatureStateStore.js`       | 保存 runtime feature-state，并提供按 revision 的状态读取。                                                |
+| `VectorTileFeatureStateUtils.js`       | 校验 feature-state 目标和 id，生成稳定 feature-state key。                                                |
+| `VectorTileBucketFallbackReason.js`    | bucket 局部重建的原因枚举。                                                                               |
+| `VectorTileStyleUpdateType.js`         | 样式更新计划类型枚举。                                                                                    |
+| `VectorTileTaskCancelledError.js`      | 任务取消的专用错误类型。                                                                                  |
+| `CommonUtils.js`                       | 通用值判断、克隆和字符串校验 helper。                                                                     |
+| `VectorTileDiagnostics.js`             | 收集帧耗时、请求、解码、Primitive、缓存和裁剪指标。                                                       |
+| `createVectorTileBenchmark.js`         | 固定视角采样，以及 instances/packed A/B 测试。                                                            |
 
 ## 4. 快速使用
 
@@ -510,7 +545,7 @@ terrain: {
 
 ### XYZ/TMS 模板变量
 
-`VectorTileProvider.js` 内部的 `XYZVectorTileProvider` 支持：
+`XYZVectorTileProvider.js` 支持：
 
 - `{z}`：层级；
 - `{x}`：列号；

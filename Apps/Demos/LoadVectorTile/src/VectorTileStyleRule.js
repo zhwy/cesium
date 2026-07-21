@@ -19,7 +19,7 @@ import CommonUtils from "./CommonUtils.js";
  * @param {boolean} [layer.visibility=true] 是否可见。
  * @param {object} [layer.metadata] 自定义元数据。
  */
-export default class VectorTileStyleRule {
+class VectorTileStyleRule {
   constructor(layer) {
     this.id = layer.id;
     this.type = layer.type;
@@ -52,3 +52,5 @@ export default class VectorTileStyleRule {
     };
   }
 }
+
+export default VectorTileStyleRule;

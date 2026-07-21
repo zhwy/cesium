@@ -1,4 +1,4 @@
-import { ColorGeometryInstanceAttribute } from "../../../../Build/CesiumUnminified/index.js";
+import ColorGeometryInstanceAttribute from "../../../../packages/engine/Source/Core/ColorGeometryInstanceAttribute.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
@@ -19,7 +19,7 @@ const COLOR_ROLE_PROPERTIES = Object.freeze({
  *
  * @param {VectorTileStyleRule} styleRule 当前渲染桶对应的样式规则。
  */
-export default function VectorTilePrimitiveBucket(styleRule, options = {}) {
+function VectorTilePrimitiveBucket(styleRule, options = {}) {
   this.id = styleRule.id;
   this.type = styleRule.type;
   this.sourceLayer = styleRule.sourceLayer;
@@ -539,10 +539,6 @@ VectorTilePrimitiveBucket.storeVectorTileBucket = function (
   return true;
 };
 
-function doesPlanChangeProperty(plan, path) {
-  return !plan?.changedPaths || plan.changedPaths.includes(path);
-}
-
 VectorTilePrimitiveBucket.prototype._indexFeatureStateBindings = function (
   record,
 ) {
@@ -664,3 +660,9 @@ function hasTranslucentRecordColor(
   }
   return false;
 }
+
+function doesPlanChangeProperty(plan, path) {
+  return !plan?.changedPaths || plan.changedPaths.includes(path);
+}
+
+export default VectorTilePrimitiveBucket;

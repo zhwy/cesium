@@ -3,9 +3,11 @@
  *
  * @param {string} [message="Vector tile task cancelled."] 错误消息。
  */
-export default class VectorTileTaskCancelledError extends Error {
+class VectorTileTaskCancelledError extends Error {
   constructor(message = "Vector tile task cancelled.") {
     super(message);
     this.name = "VectorTileTaskCancelledError";
   }
 }
+
+export default VectorTileTaskCancelledError;

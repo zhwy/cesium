@@ -1,9 +1,7 @@
-import {
-  Cartesian2,
-  Cartesian3,
-  defined,
-  HeightReference,
-} from "../../../../Build/CesiumUnminified/index.js";
+import Cartesian2 from "../../../../packages/engine/Source/Core/Cartesian2.js";
+import Cartesian3 from "../../../../packages/engine/Source/Core/Cartesian3.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import HeightReference from "../../../../packages/engine/Source/Scene/HeightReference.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 
@@ -20,7 +18,7 @@ const DEFAULT_CIRCLE_COLOR = "#000000ff";
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录圆点桶指标。
  * @param {boolean} [options.ignoreZoomRange=false] 是否忽略样式规则中的缩放级别限制。
  */
-export default class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
+class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
   constructor(styleRule, options = {}) {
     super(styleRule, options);
     this._scene = options.scene;
@@ -433,3 +431,5 @@ function normalizeOutlineWidth(outlineWidth) {
 function doesPlanChangeProperty(plan, path) {
   return !plan?.changedPaths || plan.changedPaths.includes(path);
 }
+
+export default VectorTileCircleBucket;

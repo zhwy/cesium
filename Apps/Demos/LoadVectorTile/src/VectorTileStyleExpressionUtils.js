@@ -21,6 +21,70 @@ const SUPPORTED_OPERATORS = new Set([
   "literal",
 ]);
 
+class VectorTileStyleExpressionUtils {
+  static evaluateVectorStyleExpression(expression, context = {}) {
+    return evaluateVectorStyleExpression(expression, context);
+  }
+
+  static validateVectorStyleExpression(expression, path = "expression") {
+    return validateVectorStyleExpression(expression, path);
+  }
+
+  static isWorkerSupportedVectorStyleExpression(expression) {
+    return isWorkerSupportedVectorStyleExpression(expression);
+  }
+
+  /**
+   * 静态收集样式表达式读取的 feature property。
+   * `all` 表示表达式包含动态属性名或无法保守分析的表达式结构。
+   *
+   * @param {...*} values 表达式、常量或包含表达式的样式值。
+   * @returns {{all: boolean, properties: string[]}}
+   */
+  static collectVectorStylePropertyDependencies(...values) {
+    const state = {
+      all: false,
+      properties: new Set(),
+    };
+    for (let i = 0; i < values.length && !state.all; ++i) {
+      collectPropertyDependencies(values[i], state);
+    }
+    return {
+      all: state.all,
+      properties: [...state.properties].sort(),
+    };
+  }
+
+  static hasVectorStyleFeatureStateDependency(...values) {
+    return collectVectorStyleStateDependencies(...values).length > 0;
+  }
+
+  static evaluateVectorStyleFilter(filter, feature, context = {}) {
+    if (filter === undefined || filter === null) {
+      return true;
+    }
+    validateVectorStyleFilter(filter);
+    return Boolean(
+      evaluateVectorStyleExpression(filter, {
+        ...context,
+        properties: feature?.properties ?? context.properties ?? {},
+        id: feature?.id,
+      }),
+    );
+  }
+
+  static validateVectorStyleFilter(filter, path = "filter") {
+    return validateVectorStyleFilter(filter, path);
+  }
+
+  static isWorkerSupportedVectorStyleFilter(filter) {
+    if (filter === undefined || filter === null) {
+      return true;
+    }
+    return isWorkerSupportedVectorStyleExpression(filter);
+  }
+}
+
 /**
  * 计算矢量瓦片示例中使用的可序列化表达式子集。
  * 语法有意保持与 Mapbox 表达式相近，但这里只实现当前 Cesium 实验所需的最小子集。
@@ -434,66 +498,4 @@ function validateInterpolation(expression, path) {
   }
 }
 
-export default class VectorTileStyleExpressionUtils {
-  static evaluateVectorStyleExpression(expression, context = {}) {
-    return evaluateVectorStyleExpression(expression, context);
-  }
-
-  static validateVectorStyleExpression(expression, path = "expression") {
-    return validateVectorStyleExpression(expression, path);
-  }
-
-  static isWorkerSupportedVectorStyleExpression(expression) {
-    return isWorkerSupportedVectorStyleExpression(expression);
-  }
-
-  /**
-   * 静态收集样式表达式读取的 feature property。
-   * `all` 表示表达式包含动态属性名或无法保守分析的表达式结构。
-   *
-   * @param {...*} values 表达式、常量或包含表达式的样式值。
-   * @returns {{all: boolean, properties: string[]}}
-   */
-  static collectVectorStylePropertyDependencies(...values) {
-    const state = {
-      all: false,
-      properties: new Set(),
-    };
-    for (let i = 0; i < values.length && !state.all; ++i) {
-      collectPropertyDependencies(values[i], state);
-    }
-    return {
-      all: state.all,
-      properties: [...state.properties].sort(),
-    };
-  }
-
-  static hasVectorStyleFeatureStateDependency(...values) {
-    return collectVectorStyleStateDependencies(...values).length > 0;
-  }
-
-  static evaluateVectorStyleFilter(filter, feature, context = {}) {
-    if (filter === undefined || filter === null) {
-      return true;
-    }
-    validateVectorStyleFilter(filter);
-    return Boolean(
-      evaluateVectorStyleExpression(filter, {
-        ...context,
-        properties: feature?.properties ?? context.properties ?? {},
-        id: feature?.id,
-      }),
-    );
-  }
-
-  static validateVectorStyleFilter(filter, path = "filter") {
-    return validateVectorStyleFilter(filter, path);
-  }
-
-  static isWorkerSupportedVectorStyleFilter(filter) {
-    if (filter === undefined || filter === null) {
-      return true;
-    }
-    return isWorkerSupportedVectorStyleExpression(filter);
-  }
-}
+export default VectorTileStyleExpressionUtils;

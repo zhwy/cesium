@@ -1,5 +1,15 @@
 const MAX_COVERAGE_DEPTH = 4;
 
+class VectorTileLodSelectionUtils {
+  static selectByCoverage(candidates, maxDepth = MAX_COVERAGE_DEPTH) {
+    return selectByCoverage(candidates, maxDepth);
+  }
+
+  static isAncestorOrSame(ancestor, descendant) {
+    return isAncestorOrSame(ancestor, descendant);
+  }
+}
+
 /**
  * 返回用于唯一标识瓦片坐标的字符串键。
  *
@@ -142,12 +152,4 @@ function isAncestorOrSame(ancestor, descendant) {
   );
 }
 
-export default class VectorTileLodSelectionUtils {
-  static selectByCoverage(candidates, maxDepth = MAX_COVERAGE_DEPTH) {
-    return selectByCoverage(candidates, maxDepth);
-  }
-
-  static isAncestorOrSame(ancestor, descendant) {
-    return isAncestorOrSame(ancestor, descendant);
-  }
-}
+export default VectorTileLodSelectionUtils;

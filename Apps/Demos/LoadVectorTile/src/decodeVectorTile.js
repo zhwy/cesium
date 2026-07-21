@@ -200,7 +200,22 @@ function doesFeatureMatchAnyStyleRule(feature, styleRules, tile) {
   );
 }
 
-export default function decodeVectorTile(
+function getPropertyProjection(propertyProjections, layerName) {
+  if (typeof propertyProjections === "boolean") {
+    return {
+      retainAll: propertyProjections,
+      properties: [],
+    };
+  }
+  return (
+    propertyProjections?.[layerName] ?? {
+      retainAll: false,
+      properties: [],
+    }
+  );
+}
+
+function decodeVectorTile(
   arrayBuffer,
   tile,
   styledLayerNames,
@@ -310,17 +325,4 @@ export default function decodeVectorTile(
   return { layers };
 }
 
-function getPropertyProjection(propertyProjections, layerName) {
-  if (typeof propertyProjections === "boolean") {
-    return {
-      retainAll: propertyProjections,
-      properties: [],
-    };
-  }
-  return (
-    propertyProjections?.[layerName] ?? {
-      retainAll: false,
-      properties: [],
-    }
-  );
-}
+export default decodeVectorTile;

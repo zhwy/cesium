@@ -1,7 +1,5 @@
-import {
-  defined,
-  QuadtreeTileLoadState,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import QuadtreeTileLoadState from "../../../../packages/engine/Source/Scene/QuadtreeTileLoadState.js";
 import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
 
 /**
@@ -9,7 +7,7 @@ import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
  *
  * 构造参数与 `WMTSVectorTileProvider` 一致。
  */
-export default class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
+class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
   loadTile(frameState, tile) {
     if (tile.state === QuadtreeTileLoadState.START) {
       if (tile.level < this._minimumLevel || tile.level > this._maximumLevel) {
@@ -52,3 +50,5 @@ export default class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
     }
   }
 }
+
+export default WMTSGeoVectorTileProvider;

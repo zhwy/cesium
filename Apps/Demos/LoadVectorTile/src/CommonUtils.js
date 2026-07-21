@@ -1,4 +1,4 @@
-export default class CommonUtils {
+class CommonUtils {
   static isPlainObject(value) {
     return (
       typeof value === "object" &&
@@ -26,3 +26,5 @@ export default class CommonUtils {
     return typeof value === "string" && value.length > 0;
   }
 }
+
+export default CommonUtils;

@@ -1,15 +1,13 @@
-import {
-  defined,
-  DeveloperError,
-  destroyObject,
-  Event,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import destroyObject from "../../../../packages/engine/Source/Core/destroyObject.js";
+import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import Event from "../../../../packages/engine/Source/Core/Event.js";
 import VectorTileLayer from "./VectorTileLayer.js";
 
 /**
  * 维护 `VectorTileLayer` 的有序集合，并向外转发图层增删改与显隐事件。
  */
-export default class VectorTileLayerCollection {
+class VectorTileLayerCollection {
   get length() {
     return this._layers.length;
   }
@@ -93,7 +91,7 @@ export default class VectorTileLayerCollection {
       this._update();
 
       this.layerRemoved.raiseEvent(layer, index);
-      removeLayerListeners(layer);
+      this._removeLayerListeners(layer);
 
       if (destroy) {
         layer.destroy();
@@ -112,7 +110,7 @@ export default class VectorTileLayerCollection {
     for (let i = 0, len = layers.length; i < len; i++) {
       const layer = layers[i];
       this.layerRemoved.raiseEvent(layer, i);
-      removeLayerListeners(layer);
+      this._removeLayerListeners(layer);
 
       if (destroy) {
         layer.destroy();
@@ -156,11 +154,13 @@ export default class VectorTileLayerCollection {
       layer._layerIndex = i;
     }
   }
+
+  _removeLayerListeners(layer) {
+    layer._removeCollectionShowListener?.();
+    layer._removeCollectionChangedListener?.();
+    layer._removeCollectionShowListener = undefined;
+    layer._removeCollectionChangedListener = undefined;
+  }
 }
 
-function removeLayerListeners(layer) {
-  layer._removeCollectionShowListener?.();
-  layer._removeCollectionChangedListener?.();
-  layer._removeCollectionShowListener = undefined;
-  layer._removeCollectionChangedListener = undefined;
-}
+export default VectorTileLayerCollection;

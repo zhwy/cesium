@@ -1,23 +1,6 @@
 import CommonUtils from "./CommonUtils.js";
 
-function getPromoteIdPropertyName(promoteId, sourceLayer) {
-  if (typeof promoteId === "string") {
-    return promoteId;
-  }
-  if (
-    promoteId &&
-    Object.prototype.hasOwnProperty.call(promoteId, sourceLayer)
-  ) {
-    return promoteId[sourceLayer];
-  }
-  return undefined;
-}
-
-function isValidFeatureStateId(id) {
-  return typeof id === "string" || typeof id === "number";
-}
-
-export default class VectorTileFeatureStateUtils {
+class VectorTileFeatureStateUtils {
   static normalizePromoteId(promoteId, sourceId) {
     if (promoteId === undefined) {
       return undefined;
@@ -72,3 +55,22 @@ export default class VectorTileFeatureStateUtils {
     return `${sourceLayer}\u0000${typeof id}\u0000${String(id)}`;
   }
 }
+
+function getPromoteIdPropertyName(promoteId, sourceLayer) {
+  if (typeof promoteId === "string") {
+    return promoteId;
+  }
+  if (
+    promoteId &&
+    Object.prototype.hasOwnProperty.call(promoteId, sourceLayer)
+  ) {
+    return promoteId[sourceLayer];
+  }
+  return undefined;
+}
+
+function isValidFeatureStateId(id) {
+  return typeof id === "string" || typeof id === "number";
+}
+
+export default VectorTileFeatureStateUtils;

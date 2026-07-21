@@ -5,7 +5,7 @@
  * @param {number} [options.maximumBytes=64*1024*1024] 缓存允许占用的最大字节数。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器，用于记录命中、驱逐与内存占用指标。
  */
-export default class VectorTileCache {
+class VectorTileCache {
   constructor(options = {}) {
     this.maximumBytes = options.maximumBytes ?? 64 * 1024 * 1024;
     this._diagnostics = options.diagnostics;
@@ -171,3 +171,5 @@ export default class VectorTileCache {
     );
   }
 }
+
+export default VectorTileCache;

@@ -6,7 +6,7 @@ import VectorTileProvider from "./VectorTileProvider.js";
  * 构造参数继承自 `VectorTileProvider`，并额外支持：
  * `options.subdomains`、`options.layer`、`options.workspace`。
  */
-export default class XYZVectorTileProvider extends VectorTileProvider {
+class XYZVectorTileProvider extends VectorTileProvider {
   getTileResource(tile) {
     const subdomains = this._options.subdomains || [];
     const x = parseFloat(tile.x);
@@ -36,3 +36,5 @@ export default class XYZVectorTileProvider extends VectorTileProvider {
     return resource;
   }
 }
+
+export default XYZVectorTileProvider;

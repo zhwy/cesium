@@ -1,10 +1,8 @@
-import {
-  defined,
-  DeveloperError,
-  GeographicTilingScheme,
-  ShadowMode,
-  WebMercatorTilingScheme,
-} from "../../../../Build/CesiumUnminified/index.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import GeographicTilingScheme from "../../../../packages/engine/Source/Core/GeographicTilingScheme.js";
+import WebMercatorTilingScheme from "../../../../packages/engine/Source/Core/WebMercatorTilingScheme.js";
+import ShadowMode from "../../../../packages/engine/Source/Scene/ShadowMode.js";
 import CommonUtils from "./CommonUtils.js";
 import VectorTileQuadtreePrimitive from "./VectorTileQuadtreePrimitive.js";
 import VectorTileQuadtreeProvider from "./VectorTileQuadtreeProvider.js";
@@ -15,7 +13,6 @@ import VectorTileTaskScheduler from "./VectorTileTaskScheduler.js";
 import VectorTileStyleRule from "./VectorTileStyleRule.js";
 import VectorTileStyleUtils from "./VectorTileStyleUtils.js";
 import VectorTilePickRegistry from "./VectorTilePickRegistry.js";
-import VectorTileStyleUpdateUtils from "./VectorTileStyleUpdateUtils.js";
 import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
 import TileType from "./TileType.js";
 import VectorTileStyleUpdateType from "./VectorTileStyleUpdateType.js";
@@ -46,7 +43,7 @@ const TILING_SCHEME_CONSTRUCTORS = {
  * @param {number} [options.tileCacheSize=100] 四叉树 primitive 的瓦片缓存大小。
  * @param {number} [options.pbfCacheBytes=64*1024*1024] 所有 source 共享的 ready PBF payload 预算。
  */
-export default class VectorTileLayerManager {
+class VectorTileLayerManager {
   get quadtreePrimitive() {
     return this._quadtreePrimitive;
   }
@@ -478,7 +475,7 @@ export default class VectorTileLayerManager {
       layers: updatedLayers,
     });
     const normalizedLayer = updatedStyle.layers[layerIndex];
-    let plan = VectorTileStyleUpdateUtils.createVectorTileStyleUpdatePlan(
+    let plan = VectorTileStyleUtils.createVectorTileStyleUpdatePlan(
       currentStyle.layers[layerIndex],
       normalizedLayer,
     );
@@ -653,3 +650,5 @@ function validateFeatureStateTarget(target) {
     id: target.id,
   };
 }
+
+export default VectorTileLayerManager;

@@ -1,148 +1,19 @@
-import {
-  BoundingSphere,
-  Cartesian3,
-  Cartographic,
-  defined,
-  destroyObject,
-  EllipsoidalOccluder,
-  Event,
-  Intersect,
-  Math as CesiumMath,
-  OrthographicFrustum,
-  Rectangle,
-  SceneMode,
-  TileBoundingRegion,
-  Visibility,
-  WebMercatorTilingScheme,
-} from "../../../../Build/CesiumUnminified/index.js";
+import BoundingSphere from "../../../../packages/engine/Source/Core/BoundingSphere.js";
+import Cartesian3 from "../../../../packages/engine/Source/Core/Cartesian3.js";
+import Cartographic from "../../../../packages/engine/Source/Core/Cartographic.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import destroyObject from "../../../../packages/engine/Source/Core/destroyObject.js";
+import EllipsoidalOccluder from "../../../../packages/engine/Source/Core/EllipsoidalOccluder.js";
+import Event from "../../../../packages/engine/Source/Core/Event.js";
+import Intersect from "../../../../packages/engine/Source/Core/Intersect.js";
+import CesiumMath from "../../../../packages/engine/Source/Core/Math.js";
+import OrthographicFrustum from "../../../../packages/engine/Source/Core/OrthographicFrustum.js";
+import Rectangle from "../../../../packages/engine/Source/Core/Rectangle.js";
+import Visibility from "../../../../packages/engine/Source/Core/Visibility.js";
+import WebMercatorTilingScheme from "../../../../packages/engine/Source/Core/WebMercatorTilingScheme.js";
+import SceneMode from "../../../../packages/engine/Source/Scene/SceneMode.js";
+import TileBoundingRegion from "../../../../packages/engine/Source/Scene/TileBoundingRegion.js";
 import VectorSurfaceTile from "./VectorSurfaceTile.js";
-
-function isUndergroundVisible(tileProvider, frameState) {
-  if (frameState.cameraUnderground) {
-    return true;
-  }
-
-  if (frameState.globeTranslucencyState.translucent) {
-    return true;
-  }
-
-  if (tileProvider.backFaceCulling) {
-    return false;
-  }
-
-  const clippingPlanes = tileProvider._clippingPlanes;
-  if (defined(clippingPlanes) && clippingPlanes.enabled) {
-    return true;
-  }
-
-  if (
-    !Rectangle.equals(
-      tileProvider.cartographicLimitRectangle,
-      Rectangle.MAX_VALUE,
-    )
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-const boundingSphereScratch = new BoundingSphere();
-const rectangleIntersectionScratch = new Rectangle();
-const splitCartographicLimitRectangleScratch = new Rectangle();
-const rectangleCenterScratch = new Cartographic();
-
-// `cartographicLimitRectangle` 可能跨越日期变更线，但单个瓦片自身不会。
-function clipRectangleAntimeridian(tileRectangle, cartographicLimitRectangle) {
-  if (cartographicLimitRectangle.west < cartographicLimitRectangle.east) {
-    return cartographicLimitRectangle;
-  }
-  const splitRectangle = Rectangle.clone(
-    cartographicLimitRectangle,
-    splitCartographicLimitRectangleScratch,
-  );
-  const tileCenter = Rectangle.center(tileRectangle, rectangleCenterScratch);
-  if (tileCenter.longitude > 0.0) {
-    splitRectangle.east = CesiumMath.PI;
-  } else {
-    splitRectangle.west = -CesiumMath.PI;
-  }
-  return splitRectangle;
-}
-
-function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
-  let surfaceTile = tile.data;
-  if (surfaceTile === undefined) {
-    surfaceTile = tile.data = new VectorSurfaceTile();
-  }
-
-  const ellipsoid = tile.tilingScheme.ellipsoid;
-  if (surfaceTile.tileBoundingRegion === undefined) {
-    surfaceTile.tileBoundingRegion = new TileBoundingRegion({
-      computeBoundingVolumes: true,
-      rectangle: tile.rectangle,
-      ellipsoid: ellipsoid,
-      minimumHeight: options.minimumHeight,
-      maximumHeight: options.maximumHeight,
-    });
-    surfaceTile.tileBoundingRegion.computeBoundingVolumes(ellipsoid);
-    // 矢量瓦片的高度在这里是固定常量，因此当前瓦片的包围区域始终是权威值。
-    // 如果不这样处理，`computeTileVisibility` 会对所有瓦片都直接返回
-    // `Visibility.PARTIAL`，导致既没有视锥裁剪也没有地平线裁剪，
-    // 进而把整颗全球瓦片金字塔都塞进 `_tilesToRender`，并拖垮加载队列。
-    surfaceTile.boundingVolumeSourceTile = tile;
-    // `GlobeSurfaceTile` 默认会把 `occludeePointInScaledSpace` 初始化成零向量，
-    // 地平线裁剪会把它视为“永远不可见”，从而错误剔除所有瓦片。
-    // 这里根据瓦片矩形重新计算真实的地平线裁剪点；对于过大的矩形
-    // （例如根瓦片）该值会返回 `undefined`，从而正确跳过地平线裁剪。
-    let occluder = tileProvider._ellipsoidalOccluder;
-    if (!defined(occluder)) {
-      occluder = tileProvider._ellipsoidalOccluder = new EllipsoidalOccluder(
-        ellipsoid,
-      );
-    }
-    surfaceTile.occludeePointInScaledSpace =
-      occluder.computeHorizonCullingPointFromRectangle(
-        tile.rectangle,
-        ellipsoid,
-      );
-  }
-}
-
-/**
- * 计算零层级几何误差，使四叉树的 LOD 切换点能够与地图样式
- * （Mapbox 风格）的缩放级别精确对齐，而不是碰巧依赖 Cesium
- * 默认地形高度图参数（65 顶点网格乘 0.25 质量因子）凑巧接近。
- *
- * 推导如下：当满足以下条件时，`QuadtreePrimitive` 会渲染层级 `L`：
- *   SSE(L) = error(L) / metersPerDevicePixel <= maximumScreenSpaceError.
- * 而地图样式会在 CSS 像素分辨率达到瓦片像素间距时切换到缩放级别 `L`：
- *   metersPerCssPixel = C / (N * 2^L * tileWidth)
- * 其中 `C` 是切片方案对应椭球的赤道周长，`N` 是零层级 X 方向瓦片数，
- * `tileWidth` 是地图样式中的瓦片宽度（CSS 像素）。
- * 令 `metersPerDevicePixel = metersPerCssPixel / pixelRatio`，把两类切换点对齐后可得：
- *   error(L) = maximumScreenSpaceError * C / (N * 2^L * tileWidth * pixelRatio)
- *
- * @param {TilingScheme} tilingScheme
- * @param {number} tileWidth 地图样式里的瓦片宽度（CSS 像素，Mapbox 常用 512）。
- * @param {number} maximumScreenSpaceError 四叉树的屏幕空间误差阈值。
- * @param {number} pixelRatio 绘制缓冲区所用的设备像素比。
- *        传 1 时保持 Cesium 默认的设备像素 LOD；传 `window.devicePixelRatio`
- *        时可以获得与 CSS 像素口径严格一致的 Mapbox 缩放对齐效果。
- * @returns {number}
- */
-function computeMapAlignedLevelZeroGeometricError(
-  tilingScheme,
-  tileWidth,
-  maximumScreenSpaceError,
-  pixelRatio,
-) {
-  const circumference = tilingScheme.ellipsoid.maximumRadius * 2.0 * Math.PI;
-  return (
-    (maximumScreenSpaceError * circumference) /
-    (tileWidth * pixelRatio * tilingScheme.getNumberOfXTilesAtLevel(0))
-  );
-}
 
 /**
  * 为矢量瓦片四叉树提供可见性、距离和加载入口的 provider。
@@ -158,25 +29,23 @@ function computeMapAlignedLevelZeroGeometricError(
  * @param {number} [options.maximumScreenSpaceError=2] 四叉树 LOD 屏幕误差阈值。
  * @param {number} [options.pixelRatio=1] 设备像素比。
  */
-export default class VectorTileQuadtreeProvider {
-  constructor(options = {}) {
-    this._quadtree = undefined;
-    this._vectorTileLayers = options.vectorTileLayers;
+function VectorTileQuadtreeProvider(options = {}) {
+  this._quadtree = undefined;
+  this._vectorTileLayers = options.vectorTileLayers;
 
-    this._tilingScheme = options.tilingScheme || new WebMercatorTilingScheme();
-    this._errorEvent = new Event();
-    this._minimumHeight = options.minimumHeight || 0;
-    this._maximumHeight = options.maximumHeight || 0;
-    this._minimumLevel = options.minimumLevel || 0;
-    this._maximumLevel = options.maximumLevel || 20;
-    this._levelZeroMaximumError = computeMapAlignedLevelZeroGeometricError(
-      this._tilingScheme,
-      options.tileSize ?? 512,
-      options.maximumScreenSpaceError ?? 2,
-      options.pixelRatio ?? 1,
-    );
-    this.cartographicLimitRectangle = Rectangle.clone(Rectangle.MAX_VALUE);
-  }
+  this._tilingScheme = options.tilingScheme || new WebMercatorTilingScheme();
+  this._errorEvent = new Event();
+  this._minimumHeight = options.minimumHeight || 0;
+  this._maximumHeight = options.maximumHeight || 0;
+  this._minimumLevel = options.minimumLevel || 0;
+  this._maximumLevel = options.maximumLevel || 20;
+  this._levelZeroMaximumError = computeMapAlignedLevelZeroGeometricError(
+    this._tilingScheme,
+    options.tileSize ?? 512,
+    options.maximumScreenSpaceError ?? 2,
+    options.pixelRatio ?? 1,
+  );
+  this.cartographicLimitRectangle = Rectangle.clone(Rectangle.MAX_VALUE);
 }
 
 Object.defineProperties(VectorTileQuadtreeProvider.prototype, {
@@ -471,3 +340,132 @@ VectorTileQuadtreeProvider.prototype.cancelReprojections = function () {};
 
 VectorTileQuadtreeProvider.prototype.isUndergroundVisible =
   isUndergroundVisible;
+
+function isUndergroundVisible(tileProvider, frameState) {
+  if (frameState.cameraUnderground) {
+    return true;
+  }
+
+  if (frameState.globeTranslucencyState.translucent) {
+    return true;
+  }
+
+  if (tileProvider.backFaceCulling) {
+    return false;
+  }
+
+  const clippingPlanes = tileProvider._clippingPlanes;
+  if (defined(clippingPlanes) && clippingPlanes.enabled) {
+    return true;
+  }
+
+  if (
+    !Rectangle.equals(
+      tileProvider.cartographicLimitRectangle,
+      Rectangle.MAX_VALUE,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+const boundingSphereScratch = new BoundingSphere();
+const rectangleIntersectionScratch = new Rectangle();
+const splitCartographicLimitRectangleScratch = new Rectangle();
+const rectangleCenterScratch = new Cartographic();
+
+// `cartographicLimitRectangle` 可能跨越日期变更线，但单个瓦片自身不会。
+function clipRectangleAntimeridian(tileRectangle, cartographicLimitRectangle) {
+  if (cartographicLimitRectangle.west < cartographicLimitRectangle.east) {
+    return cartographicLimitRectangle;
+  }
+  const splitRectangle = Rectangle.clone(
+    cartographicLimitRectangle,
+    splitCartographicLimitRectangleScratch,
+  );
+  const tileCenter = Rectangle.center(tileRectangle, rectangleCenterScratch);
+  if (tileCenter.longitude > 0.0) {
+    splitRectangle.east = CesiumMath.PI;
+  } else {
+    splitRectangle.west = -CesiumMath.PI;
+  }
+  return splitRectangle;
+}
+
+function updateTileBoundingRegion(tile, tileProvider, frameState, options) {
+  let surfaceTile = tile.data;
+  if (surfaceTile === undefined) {
+    surfaceTile = tile.data = new VectorSurfaceTile();
+  }
+
+  const ellipsoid = tile.tilingScheme.ellipsoid;
+  if (surfaceTile.tileBoundingRegion === undefined) {
+    surfaceTile.tileBoundingRegion = new TileBoundingRegion({
+      computeBoundingVolumes: true,
+      rectangle: tile.rectangle,
+      ellipsoid: ellipsoid,
+      minimumHeight: options.minimumHeight,
+      maximumHeight: options.maximumHeight,
+    });
+    surfaceTile.tileBoundingRegion.computeBoundingVolumes(ellipsoid);
+    // 矢量瓦片的高度在这里是固定常量，因此当前瓦片的包围区域始终是权威值。
+    // 如果不这样处理，`computeTileVisibility` 会对所有瓦片都直接返回
+    // `Visibility.PARTIAL`，导致既没有视锥裁剪也没有地平线裁剪，
+    // 进而把整颗全球瓦片金字塔都塞进 `_tilesToRender`，并拖垮加载队列。
+    surfaceTile.boundingVolumeSourceTile = tile;
+    // `GlobeSurfaceTile` 默认会把 `occludeePointInScaledSpace` 初始化成零向量，
+    // 地平线裁剪会把它视为“永远不可见”，从而错误剔除所有瓦片。
+    // 这里根据瓦片矩形重新计算真实的地平线裁剪点；对于过大的矩形
+    // （例如根瓦片）该值会返回 `undefined`，从而正确跳过地平线裁剪。
+    let occluder = tileProvider._ellipsoidalOccluder;
+    if (!defined(occluder)) {
+      occluder = tileProvider._ellipsoidalOccluder = new EllipsoidalOccluder(
+        ellipsoid,
+      );
+    }
+    surfaceTile.occludeePointInScaledSpace =
+      occluder.computeHorizonCullingPointFromRectangle(
+        tile.rectangle,
+        ellipsoid,
+      );
+  }
+}
+
+/**
+ * 计算零层级几何误差，使四叉树的 LOD 切换点能够与地图样式
+ * （Mapbox 风格）的缩放级别精确对齐，而不是碰巧依赖 Cesium
+ * 默认地形高度图参数（65 顶点网格乘 0.25 质量因子）凑巧接近。
+ *
+ * 推导如下：当满足以下条件时，`QuadtreePrimitive` 会渲染层级 `L`：
+ *   SSE(L) = error(L) / metersPerDevicePixel <= maximumScreenSpaceError.
+ * 而地图样式会在 CSS 像素分辨率达到瓦片像素间距时切换到缩放级别 `L`：
+ *   metersPerCssPixel = C / (N * 2^L * tileWidth)
+ * 其中 `C` 是切片方案对应椭球的赤道周长，`N` 是零层级 X 方向瓦片数，
+ * `tileWidth` 是地图样式中的瓦片宽度（CSS 像素）。
+ * 令 `metersPerDevicePixel = metersPerCssPixel / pixelRatio`，把两类切换点对齐后可得：
+ *   error(L) = maximumScreenSpaceError * C / (N * 2^L * tileWidth * pixelRatio)
+ *
+ * @param {TilingScheme} tilingScheme
+ * @param {number} tileWidth 地图样式里的瓦片宽度（CSS 像素，Mapbox 常用 512）。
+ * @param {number} maximumScreenSpaceError 四叉树的屏幕空间误差阈值。
+ * @param {number} pixelRatio 绘制缓冲区所用的设备像素比。
+ *        传 1 时保持 Cesium 默认的设备像素 LOD；传 `window.devicePixelRatio`
+ *        时可以获得与 CSS 像素口径严格一致的 Mapbox 缩放对齐效果。
+ * @returns {number}
+ */
+function computeMapAlignedLevelZeroGeometricError(
+  tilingScheme,
+  tileWidth,
+  maximumScreenSpaceError,
+  pixelRatio,
+) {
+  const circumference = tilingScheme.ellipsoid.maximumRadius * 2.0 * Math.PI;
+  return (
+    (maximumScreenSpaceError * circumference) /
+    (tileWidth * pixelRatio * tilingScheme.getNumberOfXTilesAtLevel(0))
+  );
+}
+
+export default VectorTileQuadtreeProvider;

@@ -121,12 +121,39 @@
       <h3>诊断信息</h3>
       <pre id="diagnosticsResult">等待数据...</pre>
     </div>
+    <script type="importmap">
+      {
+        "imports": {
+          "@cesium/engine": "../../../packages/engine/index.js",
+          "@tweenjs/tween.js": "https://cdn.jsdelivr.net/npm/@tweenjs/tween.js/+esm",
+          "bitmap-sdf": "https://cdn.jsdelivr.net/npm/bitmap-sdf/+esm",
+          "dompurify": "https://cdn.jsdelivr.net/npm/dompurify/+esm",
+          "earcut": "https://cdn.jsdelivr.net/npm/earcut/+esm",
+          "grapheme-splitter": "https://cdn.jsdelivr.net/npm/grapheme-splitter/+esm",
+          "mersenne-twister": "https://cdn.jsdelivr.net/npm/mersenne-twister/+esm",
+          "urijs": "https://cdn.jsdelivr.net/npm/urijs/+esm",
+          "jsep": "https://cdn.jsdelivr.net/npm/jsep/+esm",
+          "lerc": "https://cdn.jsdelivr.net/npm/lerc@2.0.0/+esm",
+          "meshoptimizer": "https://cdn.jsdelivr.net/npm/meshoptimizer/+esm",
+          "nosleep.js": "https://cdn.jsdelivr.net/npm/nosleep.js/+esm",
+          "protobufjs/dist/minimal/protobuf.js": "https://cdn.jsdelivr.net/npm/protobufjs/dist/minimal/protobuf.js/+esm",
+          "@spz-loader/core": "https://cdn.jsdelivr.net/npm/@spz-loader/core/+esm",
+          "kdbush": "https://cdn.jsdelivr.net/npm/kdbush/+esm",
+          "rbush": "https://cdn.jsdelivr.net/npm/rbush/+esm",
+          "@zip.js/zip.js/lib/zip-core.js": "https://cdn.jsdelivr.net/npm/@zip.js/zip.js/lib/zip-core.js/+esm",
+          "topojson-client": "https://cdn.jsdelivr.net/npm/topojson-client/+esm",
+          "autolinker": "https://cdn.jsdelivr.net/npm/autolinker/+esm"
+        }
+      }
+    </script>
     <script type="module">
-      import * as Cesium from "../../../Build/CesiumUnminified/index.js";
+      import * as CesiumEngine from "../../../packages/engine/index.js";
+      import * as CesiumWidgets from "../../../packages/widgets/index.js";
       import VectorTileLayerManager from "./src/VectorTileLayerManager.js";
       import createVectorTileBenchmark from "./src/createVectorTileBenchmark.js";
 
       window.CESIUM_BASE_URL = "../../../Build/CesiumUnminified/";
+      const Cesium = { ...CesiumEngine, ...CesiumWidgets };
       window.Cesium = Cesium;
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4MDRmNjJiNS1iNmVhLTQwMDEtOWM0ZS02MTdlNWZiZmIwYjciLCJpZCI6MTEzNTYsImlhdCI6MTc0MTc4ODkyNX0.lrveOeXTCbdSofQPBpkwlC-rTJBFL9nZ1x1DI-DDKHk";

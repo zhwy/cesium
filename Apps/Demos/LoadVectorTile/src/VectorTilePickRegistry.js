@@ -1,6 +1,6 @@
 import VectorTilePropertyProjectionUtils from "./VectorTilePropertyProjectionUtils.js";
 
-export default class VectorTilePickRegistry {
+class VectorTilePickRegistry {
   constructor() {
     this._contexts = new WeakMap();
   }
@@ -71,3 +71,5 @@ function resolvePrimitiveFeatureIndex(context, instanceId) {
   }
   return context.instanceFeatureIndices?.[instanceId];
 }
+
+export default VectorTilePickRegistry;

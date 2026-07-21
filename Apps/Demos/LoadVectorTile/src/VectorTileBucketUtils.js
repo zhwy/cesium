@@ -1,16 +1,113 @@
-import {
-  defined,
-  Cartesian3,
-  Color,
-  GroundPolylinePrimitive,
-  GroundPrimitive,
-  PerInstanceColorAppearance,
-  PolylineColorAppearance,
-  Primitive,
-} from "../../../../Build/CesiumUnminified/index.js";
+import Cartesian3 from "../../../../packages/engine/Source/Core/Cartesian3.js";
+import Color from "../../../../packages/engine/Source/Core/Color.js";
+import defined from "../../../../packages/engine/Source/Core/defined.js";
+import GroundPolylinePrimitive from "../../../../packages/engine/Source/Scene/GroundPolylinePrimitive.js";
+import GroundPrimitive from "../../../../packages/engine/Source/Scene/GroundPrimitive.js";
+import PerInstanceColorAppearance from "../../../../packages/engine/Source/Scene/PerInstanceColorAppearance.js";
+import PolylineColorAppearance from "../../../../packages/engine/Source/Scene/PolylineColorAppearance.js";
+import Primitive from "../../../../packages/engine/Source/Scene/Primitive.js";
 import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
 import VectorTileGeometryUtils from "./VectorTileGeometryUtils.js";
+
+class VectorTileBucketUtils {
+  static isVectorStyleExpression(value) {
+    return isVectorStyleExpression(value);
+  }
+
+  static getGeometryFeature(featureTable, geometry, index) {
+    return getGeometryFeature(featureTable, geometry, index);
+  }
+
+  static getGeometryFeatureIndex(geometry, index) {
+    return getGeometryFeatureIndex(geometry, index);
+  }
+
+  static evaluateStyleValue(value, metadata, zoom, fallback, options = {}) {
+    return evaluateStyleValue(value, metadata, zoom, fallback, options);
+  }
+
+  static evaluateFiniteStyleNumber(
+    value,
+    metadata,
+    zoom,
+    fallback,
+    options = {},
+  ) {
+    return evaluateFiniteStyleNumber(value, metadata, zoom, fallback, options);
+  }
+
+  static parseCesiumColor(value, fallback) {
+    return parseCesiumColor(value, fallback);
+  }
+
+  static evaluateColorStyleValue(
+    value,
+    metadata,
+    zoom,
+    fallback,
+    options = {},
+  ) {
+    return evaluateColorStyleValue(value, metadata, zoom, fallback, options);
+  }
+
+  static doesStyleRuleMatchMetadata(
+    metadata,
+    geometryType,
+    styleRule,
+    zoom,
+    options = {},
+  ) {
+    return doesStyleRuleMatchMetadata(
+      metadata,
+      geometryType,
+      styleRule,
+      zoom,
+      options,
+    );
+  }
+
+  static isZoomInRange(zoom, styleRule) {
+    return isZoomInRange(zoom, styleRule);
+  }
+
+  static getStyleRuleHeightOffset(styleRule) {
+    return getStyleRuleHeightOffset(styleRule);
+  }
+
+  static shouldUseGroundPath(styleRule) {
+    return shouldUseGroundPath(styleRule);
+  }
+
+  static requiresGroundHeightOffsetFallback(styleRule) {
+    return requiresGroundHeightOffsetFallback(styleRule);
+  }
+
+  static createPrimitive(geometryInstances, geometryType, style, options = {}) {
+    return createPrimitive(geometryInstances, geometryType, style, options);
+  }
+
+  static createGroundPolylinePrimitive(geometryInstances, options = {}) {
+    return createGroundPolylinePrimitive(geometryInstances, options);
+  }
+
+  static createCartesianLine(lines, lineIndex, height = 0.0) {
+    return createCartesianLine(lines, lineIndex, height);
+  }
+
+  static createCartesianRing(polygons, ringIndex, height = 0.0) {
+    return createCartesianRing(polygons, ringIndex, height);
+  }
+
+  static createOutlineCartesianLines(
+    polygons,
+    ringIndex,
+    height = 0.0,
+    tileBounds,
+  ) {
+    return createOutlineCartesianLines(polygons, ringIndex, height, tileBounds);
+  }
+}
 
 function isVectorStyleExpression(value) {
   return Array.isArray(value) && typeof value[0] === "string";
@@ -320,101 +417,4 @@ function getPackedPolygonPoint(polygons, index) {
   };
 }
 
-export default class VectorTileBucketUtils {
-  static isVectorStyleExpression(value) {
-    return isVectorStyleExpression(value);
-  }
-
-  static getGeometryFeature(featureTable, geometry, index) {
-    return getGeometryFeature(featureTable, geometry, index);
-  }
-
-  static getGeometryFeatureIndex(geometry, index) {
-    return getGeometryFeatureIndex(geometry, index);
-  }
-
-  static evaluateStyleValue(value, metadata, zoom, fallback, options = {}) {
-    return evaluateStyleValue(value, metadata, zoom, fallback, options);
-  }
-
-  static evaluateFiniteStyleNumber(
-    value,
-    metadata,
-    zoom,
-    fallback,
-    options = {},
-  ) {
-    return evaluateFiniteStyleNumber(value, metadata, zoom, fallback, options);
-  }
-
-  static parseCesiumColor(value, fallback) {
-    return parseCesiumColor(value, fallback);
-  }
-
-  static evaluateColorStyleValue(
-    value,
-    metadata,
-    zoom,
-    fallback,
-    options = {},
-  ) {
-    return evaluateColorStyleValue(value, metadata, zoom, fallback, options);
-  }
-
-  static doesStyleRuleMatchMetadata(
-    metadata,
-    geometryType,
-    styleRule,
-    zoom,
-    options = {},
-  ) {
-    return doesStyleRuleMatchMetadata(
-      metadata,
-      geometryType,
-      styleRule,
-      zoom,
-      options,
-    );
-  }
-
-  static isZoomInRange(zoom, styleRule) {
-    return isZoomInRange(zoom, styleRule);
-  }
-
-  static getStyleRuleHeightOffset(styleRule) {
-    return getStyleRuleHeightOffset(styleRule);
-  }
-
-  static shouldUseGroundPath(styleRule) {
-    return shouldUseGroundPath(styleRule);
-  }
-
-  static requiresGroundHeightOffsetFallback(styleRule) {
-    return requiresGroundHeightOffsetFallback(styleRule);
-  }
-
-  static createPrimitive(geometryInstances, geometryType, style, options = {}) {
-    return createPrimitive(geometryInstances, geometryType, style, options);
-  }
-
-  static createGroundPolylinePrimitive(geometryInstances, options = {}) {
-    return createGroundPolylinePrimitive(geometryInstances, options);
-  }
-
-  static createCartesianLine(lines, lineIndex, height = 0.0) {
-    return createCartesianLine(lines, lineIndex, height);
-  }
-
-  static createCartesianRing(polygons, ringIndex, height = 0.0) {
-    return createCartesianRing(polygons, ringIndex, height);
-  }
-
-  static createOutlineCartesianLines(
-    polygons,
-    ringIndex,
-    height = 0.0,
-    tileBounds,
-  ) {
-    return createOutlineCartesianLines(polygons, ringIndex, height, tileBounds);
-  }
-}
+export default VectorTileBucketUtils;

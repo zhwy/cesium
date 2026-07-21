@@ -1,4 +1,4 @@
-import { DeveloperError } from "../../../../Build/CesiumUnminified/index.js";
+import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
 import VectorTileTaskCancelledError from "./VectorTileTaskCancelledError.js";
 
 const DEFAULT_PBF_CACHE_BYTES = 64 * 1024 * 1024;
@@ -10,7 +10,7 @@ const DEFAULT_PBF_CACHE_BYTES = 64 * 1024 * 1024;
  * @param {number} [options.maximumBytes=64*1024*1024] ready master 的总字节预算。
  * @param {VectorTileDiagnostics} [options.diagnostics] 诊断采样器。
  */
-export default class VectorTilePbfCache {
+class VectorTilePbfCache {
   constructor(options = {}) {
     const maximumBytes = options.maximumBytes ?? DEFAULT_PBF_CACHE_BYTES;
     if (
@@ -309,3 +309,5 @@ export default class VectorTilePbfCache {
 function normalizePriority(priority) {
   return Number.isFinite(priority) ? priority : 0;
 }
+
+export default VectorTilePbfCache;

@@ -1,3 +1,158 @@
+class VectorTileGeometryUtils {
+  static classifyRings(rings) {
+    if (rings.length <= 1) {
+      return rings.length === 1 ? [rings] : [];
+    }
+
+    const polygons = [];
+    const pendingHoles = [];
+    let exteriorIsCounterClockwise;
+    let lastExteriorIndex = -1;
+    for (let i = 0; i < rings.length; ++i) {
+      const ring = rings[i];
+      const area = signedArea(ring);
+      if (area === 0) {
+        continue;
+      }
+
+      if (exteriorIsCounterClockwise === undefined) {
+        exteriorIsCounterClockwise = area < 0;
+      }
+
+      if (exteriorIsCounterClockwise === area < 0) {
+        polygons.push({
+          ring,
+          holes: [],
+          area: Math.abs(area),
+        });
+        lastExteriorIndex = polygons.length - 1;
+      } else {
+        pendingHoles.push({
+          ring,
+          fallbackExteriorIndex: lastExteriorIndex,
+        });
+      }
+    }
+
+    for (const hole of pendingHoles) {
+      const exteriorIndex = findContainingExterior(hole.ring, polygons);
+      const target =
+        exteriorIndex !== -1 ? exteriorIndex : hole.fallbackExteriorIndex;
+      if (target !== -1) {
+        polygons[target].holes.push(hole.ring);
+      }
+    }
+    return polygons.map((polygon) => [polygon.ring, ...polygon.holes]);
+  }
+
+  static projectPoint(point, tile, extent, positions) {
+    const worldSize = extent * 2 ** tile.level;
+    const worldX = (point.x + extent * tile.x) / worldSize;
+    const worldY = (point.y + extent * tile.y) / worldSize;
+    const longitude = worldX * 360.0 - 180.0;
+    const latitude =
+      (Math.atan(Math.sinh(Math.PI * (1.0 - 2.0 * worldY))) * 180.0) / Math.PI;
+    positions.push(longitude, latitude);
+  }
+
+  static getWebMercatorTileBounds(tile) {
+    const worldSize = 2 ** tile.level;
+    return {
+      west: (tile.x / worldSize) * 360.0 - 180.0,
+      east: ((tile.x + 1) / worldSize) * 360.0 - 180.0,
+      north: projectTileYToLatitude(tile.y, tile.level),
+      south: projectTileYToLatitude(tile.y + 1, tile.level),
+    };
+  }
+
+  static isTileBoundarySegment(start, end, tileBounds) {
+    if (!tileBounds) {
+      return false;
+    }
+    return (
+      (getTileBoundaryMask(start, tileBounds) &
+        getTileBoundaryMask(end, tileBounds)) !==
+      0
+    );
+  }
+
+  static isPointInRectangle(point, minimum, maximum) {
+    return isPointInRectangle(point, minimum, maximum);
+  }
+
+  static clipLineString(line, minimum, maximum) {
+    const clippedLines = [];
+    let currentLine = [];
+    for (let i = 0; i + 1 < line.length; ++i) {
+      const segment = clipSegment(line[i], line[i + 1], minimum, maximum);
+      if (!segment || pointsEqual(segment[0], segment[1])) {
+        if (currentLine.length >= 2) {
+          clippedLines.push(currentLine);
+        }
+        currentLine = [];
+        continue;
+      }
+
+      if (
+        currentLine.length === 0 ||
+        !pointsEqual(currentLine[currentLine.length - 1], segment[0])
+      ) {
+        if (currentLine.length >= 2) {
+          clippedLines.push(currentLine);
+        }
+        currentLine = [segment[0]];
+      }
+      currentLine.push(segment[1]);
+    }
+    if (currentLine.length >= 2) {
+      clippedLines.push(currentLine);
+    }
+    return clippedLines;
+  }
+
+  static clipRingToRectangle(ring, minimum, maximum) {
+    let points = removeDuplicatePoints(ring);
+    points = clipAgainstBoundary(
+      points,
+      (point) => point.x >= minimum,
+      (start, end) => intersectVertical(start, end, minimum),
+    );
+    points = clipAgainstBoundary(
+      points,
+      (point) => point.x <= maximum,
+      (start, end) => intersectVertical(start, end, maximum),
+    );
+    points = clipAgainstBoundary(
+      points,
+      (point) => point.y >= minimum,
+      (start, end) => intersectHorizontal(start, end, minimum),
+    );
+    points = clipAgainstBoundary(
+      points,
+      (point) => point.y <= maximum,
+      (start, end) => intersectHorizontal(start, end, maximum),
+    );
+    points = removeDuplicatePoints(points);
+    if (points.length < 3 || signedArea(points) === 0) {
+      return [];
+    }
+    points.push({ ...points[0] });
+    return points;
+  }
+
+  static countOutOfBoundsPoints(geometry, minimum, maximum) {
+    let count = 0;
+    for (let i = 0; i < geometry.length; ++i) {
+      for (let j = 0; j < geometry[i].length; ++j) {
+        if (!isPointInRectangle(geometry[i][j], minimum, maximum)) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+}
+
 function signedArea(ring) {
   let sum = 0;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -199,157 +354,4 @@ function removeDuplicatePoints(points) {
   return result;
 }
 
-export default class VectorTileGeometryUtils {
-  static classifyRings(rings) {
-    if (rings.length <= 1) {
-      return rings.length === 1 ? [rings] : [];
-    }
-
-    const polygons = [];
-    const pendingHoles = [];
-    let exteriorIsCounterClockwise;
-    let lastExteriorIndex = -1;
-    for (let i = 0; i < rings.length; ++i) {
-      const ring = rings[i];
-      const area = signedArea(ring);
-      if (area === 0) {
-        continue;
-      }
-
-      if (exteriorIsCounterClockwise === undefined) {
-        exteriorIsCounterClockwise = area < 0;
-      }
-
-      if (exteriorIsCounterClockwise === area < 0) {
-        polygons.push({
-          ring,
-          holes: [],
-          area: Math.abs(area),
-        });
-        lastExteriorIndex = polygons.length - 1;
-      } else {
-        pendingHoles.push({
-          ring,
-          fallbackExteriorIndex: lastExteriorIndex,
-        });
-      }
-    }
-
-    for (const hole of pendingHoles) {
-      const exteriorIndex = findContainingExterior(hole.ring, polygons);
-      const target =
-        exteriorIndex !== -1 ? exteriorIndex : hole.fallbackExteriorIndex;
-      if (target !== -1) {
-        polygons[target].holes.push(hole.ring);
-      }
-    }
-    return polygons.map((polygon) => [polygon.ring, ...polygon.holes]);
-  }
-
-  static projectPoint(point, tile, extent, positions) {
-    const worldSize = extent * 2 ** tile.level;
-    const worldX = (point.x + extent * tile.x) / worldSize;
-    const worldY = (point.y + extent * tile.y) / worldSize;
-    const longitude = worldX * 360.0 - 180.0;
-    const latitude =
-      (Math.atan(Math.sinh(Math.PI * (1.0 - 2.0 * worldY))) * 180.0) / Math.PI;
-    positions.push(longitude, latitude);
-  }
-
-  static getWebMercatorTileBounds(tile) {
-    const worldSize = 2 ** tile.level;
-    return {
-      west: (tile.x / worldSize) * 360.0 - 180.0,
-      east: ((tile.x + 1) / worldSize) * 360.0 - 180.0,
-      north: projectTileYToLatitude(tile.y, tile.level),
-      south: projectTileYToLatitude(tile.y + 1, tile.level),
-    };
-  }
-
-  static isTileBoundarySegment(start, end, tileBounds) {
-    if (!tileBounds) {
-      return false;
-    }
-    return (
-      (getTileBoundaryMask(start, tileBounds) &
-        getTileBoundaryMask(end, tileBounds)) !==
-      0
-    );
-  }
-
-  static isPointInRectangle(point, minimum, maximum) {
-    return isPointInRectangle(point, minimum, maximum);
-  }
-
-  static clipLineString(line, minimum, maximum) {
-    const clippedLines = [];
-    let currentLine = [];
-    for (let i = 0; i + 1 < line.length; ++i) {
-      const segment = clipSegment(line[i], line[i + 1], minimum, maximum);
-      if (!segment || pointsEqual(segment[0], segment[1])) {
-        if (currentLine.length >= 2) {
-          clippedLines.push(currentLine);
-        }
-        currentLine = [];
-        continue;
-      }
-
-      if (
-        currentLine.length === 0 ||
-        !pointsEqual(currentLine[currentLine.length - 1], segment[0])
-      ) {
-        if (currentLine.length >= 2) {
-          clippedLines.push(currentLine);
-        }
-        currentLine = [segment[0]];
-      }
-      currentLine.push(segment[1]);
-    }
-    if (currentLine.length >= 2) {
-      clippedLines.push(currentLine);
-    }
-    return clippedLines;
-  }
-
-  static clipRingToRectangle(ring, minimum, maximum) {
-    let points = removeDuplicatePoints(ring);
-    points = clipAgainstBoundary(
-      points,
-      (point) => point.x >= minimum,
-      (start, end) => intersectVertical(start, end, minimum),
-    );
-    points = clipAgainstBoundary(
-      points,
-      (point) => point.x <= maximum,
-      (start, end) => intersectVertical(start, end, maximum),
-    );
-    points = clipAgainstBoundary(
-      points,
-      (point) => point.y >= minimum,
-      (start, end) => intersectHorizontal(start, end, minimum),
-    );
-    points = clipAgainstBoundary(
-      points,
-      (point) => point.y <= maximum,
-      (start, end) => intersectHorizontal(start, end, maximum),
-    );
-    points = removeDuplicatePoints(points);
-    if (points.length < 3 || signedArea(points) === 0) {
-      return [];
-    }
-    points.push({ ...points[0] });
-    return points;
-  }
-
-  static countOutOfBoundsPoints(geometry, minimum, maximum) {
-    let count = 0;
-    for (let i = 0; i < geometry.length; ++i) {
-      for (let j = 0; j < geometry[i].length; ++j) {
-        if (!isPointInRectangle(geometry[i][j], minimum, maximum)) {
-          count++;
-        }
-      }
-    }
-    return count;
-  }
-}
+export default VectorTileGeometryUtils;
