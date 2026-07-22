@@ -137,13 +137,15 @@ const Cesium = await import("../../../../Build/CesiumUnminified/index.js");
 
   assert.deepEqual(
     getStyleRulesForDecode(style, 7).map((rule) => rule.id),
-    ["land-fill"],
+    ["land-fill", "land-detail"],
   );
   assert.deepEqual(
     getStyleRulesForBuild(style, 8).map((rule) => rule.id),
-    ["land-detail"],
+    ["land-fill", "land-detail"],
   );
-  console.log("✓ decode and build select only visible build-zoom buckets");
+  console.log(
+    "✓ decode and build keep zoom-gated buckets for runtime visibility",
+  );
 }
 
 {

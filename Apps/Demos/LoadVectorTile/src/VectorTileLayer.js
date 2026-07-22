@@ -789,7 +789,9 @@ class VectorTileLayer {
   }
 
   _markStyleLayerBucketDirty(vectorTile, layerId, revision, plan) {
-    vectorTile.bucketRebuilds ??= {};
+    if (!vectorTile.bucketRebuilds) {
+      vectorTile.bucketRebuilds = {};
+    }
     const existing = vectorTile.bucketRebuilds[layerId];
     if (existing?.revision === revision) {
       existing.dirty = true;
@@ -832,8 +834,7 @@ class VectorTileLayer {
     if (
       !styleRule ||
       styleState.revision !== revision ||
-      styleRule.visibility === false ||
-      !isStyleLayerInBuildZoom(styleRule, vectorTile.level)
+      styleRule.visibility === false
     ) {
       this._removeStyleLayerBucket(vectorTile, layerId);
       delete vectorTile.bucketRebuilds?.[layerId];
@@ -1082,7 +1083,9 @@ class VectorTileLayer {
     } else {
       bucket?.destroy?.();
     }
-    vectorTile.builtStyleLayerIds ??= new Set();
+    if (!vectorTile.builtStyleLayerIds) {
+      vectorTile.builtStyleLayerIds = new Set();
+    }
     vectorTile.builtStyleLayerIds.add(layerId);
     delete vectorTile.bucketRebuilds?.[layerId];
     this._diagnostics?.increment("styleBucketReplacementCommits");
@@ -1342,16 +1345,13 @@ function getSourcePromoteId(styleDocument, sourceId) {
   return styleDocument?.sources?.[sourceId]?.promoteId;
 }
 
-function getStyleRulesForDecode(styleDocument, buildZoom) {
+function getStyleRulesForDecode(styleDocument) {
   if (!styleDocument?.layers) {
     return [];
   }
   return styleDocument.layers
     .filter(
-      (layer) =>
-        isSupportedStyleLayer(layer) &&
-        layer.visibility !== false &&
-        isStyleLayerInBuildZoom(layer, buildZoom),
+      (layer) => isSupportedStyleLayer(layer) && layer.visibility !== false,
     )
     .map((layer) => ({
       id: layer.id,
@@ -1364,15 +1364,12 @@ function getStyleRulesForDecode(styleDocument, buildZoom) {
     }));
 }
 
-function getStyleRulesForBuild(styleDocument, buildZoom) {
+function getStyleRulesForBuild(styleDocument) {
   if (!styleDocument?.layers) {
     return [];
   }
   return styleDocument.layers.filter(
-    (layer) =>
-      layer.visibility !== false &&
-      isSupportedStyleLayer(layer) &&
-      isStyleLayerInBuildZoom(layer, buildZoom),
+    (layer) => layer.visibility !== false && isSupportedStyleLayer(layer),
   );
 }
 
@@ -1386,16 +1383,6 @@ function isSupportedStyleLayer(layer) {
     layer.type === "circle" ||
     layer.type === "line" ||
     layer.type === "symbol"
-  );
-}
-
-function isStyleLayerInBuildZoom(layer, buildZoom) {
-  if (!Number.isFinite(buildZoom)) {
-    return true;
-  }
-  return (
-    (layer.minzoom === undefined || buildZoom >= layer.minzoom) &&
-    (layer.maxzoom === undefined || buildZoom < layer.maxzoom)
   );
 }
 

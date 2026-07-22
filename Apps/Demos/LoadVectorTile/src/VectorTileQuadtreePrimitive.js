@@ -54,6 +54,7 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
      *   committedRenderSet：当前真正参与绘制的 `VectorTile` 集合；成员会额外持有
      *     一个引用，避免仍在屏幕上时被缓存回收。
      *   committedPointEntries：当前已同步到图层共享点集合中的点要素条目映射。
+     *   frameStyleZoom：最近一帧用于 layer zoom 可见性判断的全局样式缩放级别。
      */
     this._layerRenderStates = new Map();
   }
@@ -139,7 +140,7 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
     state.committedPointEntries = new Map();
   }
 
-  _syncLayerPointCollections(layer, state) {
+  _syncLayerPointCollections(layer, state, frameStyleZoom) {
     const sharedPointCollections = layer.sharedPointCollections;
     if (!sharedPointCollections) {
       state.committedPointEntries = new Map();
@@ -153,6 +154,9 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
       for (let i = 0; i < bucketIds.length; ++i) {
         const bucketId = bucketIds[i];
         const pointBucket = pointBuckets[bucketId];
+        if (!isStyleRuleVisibleAtZoom(pointBucket.styleRule, frameStyleZoom)) {
+          continue;
+        }
         const pointKey = SharedPointCollections.createSharedPointEntryKey(
           tile,
           bucketId,
@@ -206,7 +210,7 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
     for (const tile of state.committedRenderSet) {
       layer.applyStyleLayerToTile?.(tile, layerId, plan);
     }
-    this._syncLayerPointCollections(layer, state);
+    this._syncLayerPointCollections(layer, state, state.frameStyleZoom);
   }
 
   update(frameState) {
@@ -344,6 +348,8 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
       for (const [layer, entry] of layerEntries) {
         const state = this._getOrCreateLayerState(layer);
         const { candidates, regions } = entry;
+        const frameStyleZoom = getLayerFrameStyleZoom(layer, frameState);
+        state.frameStyleZoom = frameStyleZoom;
 
         const selected =
           VectorTileLodSelectionUtils.selectByCoverage(candidates);
@@ -398,7 +404,7 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
           (tile) => layer.isCurrentContentRevision?.(tile) === false,
         ).length;
         this._commitRenderSet(state, [...merged, ...retained], () =>
-          this._syncLayerPointCollections(layer, state),
+          this._syncLayerPointCollections(layer, state, frameStyleZoom),
         );
       }
 
@@ -452,6 +458,9 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
       if (!layer._show || state.committedRenderSet.size === 0) {
         continue;
       }
+      const frameStyleZoom = getLayerFrameStyleZoom(layer, frameState);
+      state.frameStyleZoom = frameStyleZoom;
+      this._syncLayerPointCollections(layer, state, frameStyleZoom);
       const sharedPrimitives =
         layer.sharedPointCollections?.getPrimitives() ?? [];
       for (let i = 0; i < sharedPrimitives.length; ++i) {
@@ -481,9 +490,14 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
               continue;
             }
             submittedPrimitives.add(primitive);
-            primitive.show =
+            const styleRuleVisible = isStyleRuleVisibleAtZoom(
+              bucket?.styleRule,
+              frameStyleZoom,
+            );
+            const bucketVisible =
               bucket?.isPrimitiveVisible?.(primitive) ??
               bucket?.styleRule?.visibility !== false;
+            primitive.show = styleRuleVisible && bucketVisible;
             primitive.update(frameState);
           }
         }
@@ -545,6 +559,21 @@ function warmUpPrimitive(primitive, frameState) {
   primitive.update(frameState);
   primitive.show = show;
   frameState.commandList.length = commandListLength;
+}
+
+function getLayerFrameStyleZoom(layer, frameState) {
+  const frameStyleZoom = layer.getFrameStyleZoom?.(frameState);
+  return Number.isFinite(frameStyleZoom) ? frameStyleZoom : undefined;
+}
+
+function isStyleRuleVisibleAtZoom(styleRule, frameStyleZoom) {
+  if (!styleRule || !Number.isFinite(frameStyleZoom)) {
+    return true;
+  }
+  return (
+    (styleRule.minzoom === undefined || frameStyleZoom >= styleRule.minzoom) &&
+    (styleRule.maxzoom === undefined || frameStyleZoom < styleRule.maxzoom)
+  );
 }
 
 export default VectorTileQuadtreePrimitive;

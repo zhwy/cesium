@@ -490,9 +490,15 @@ VectorTilePrimitiveBucket.storeVectorTileBucket = function (
 
   bucket._stored = true;
   bucket._featureStateOwner?.registerFeatureStateBucket?.(bucket);
-  vectorTile.buckets ??= {};
-  vectorTile.primitives ??= {};
-  vectorTile.primitiveStyleRules ??= {};
+  if (!vectorTile.buckets) {
+    vectorTile.buckets = {};
+  }
+  if (!vectorTile.primitives) {
+    vectorTile.primitives = {};
+  }
+  if (!vectorTile.primitiveStyleRules) {
+    vectorTile.primitiveStyleRules = {};
+  }
   vectorTile.buckets[bucket.id] = bucket;
   bucket._diagnostics?.addGauge("residentStyleBuckets", 1);
   bucket._diagnostics?.addGauge(

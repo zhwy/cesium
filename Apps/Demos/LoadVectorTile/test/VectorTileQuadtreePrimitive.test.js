@@ -26,24 +26,23 @@ const createSharedPointEntryKey =
   state.committedRenderSet = new Set([tile]);
   const entryKey = createSharedPointEntryKey(tile, "labels");
 
-  primitive._syncLayerPointCollections(layer, state);
+  primitive._syncLayerPointCollections(layer, state, 3);
   assert.deepEqual(sharedPointCollections.adds, [entryKey]);
   assert.equal(sharedPointCollections.entries.has(entryKey), true);
 
-  layer.getFrameStyleZoom = () => 5;
-  primitive._syncLayerPointCollections(layer, state);
-  assert.deepEqual(sharedPointCollections.removes, []);
+  primitive._syncLayerPointCollections(layer, state, 5);
+  assert.deepEqual(sharedPointCollections.removes, [entryKey]);
   assert.deepEqual(sharedPointCollections.adds, [entryKey]);
   assert.deepEqual(sharedPointCollections.updates, []);
-  assert.equal(sharedPointCollections.entries.has(entryKey), true);
+  assert.equal(sharedPointCollections.entries.has(entryKey), false);
 
   tile.pointBuckets.labels.styleRevision = 1;
   tile.pointBuckets.labels.updateProperties = ["show"];
-  primitive._syncLayerPointCollections(layer, state);
-  assert.deepEqual(sharedPointCollections.updates, [
-    { tileKey: entryKey, properties: ["show"] },
-  ]);
-  console.log("✓ ancestor point buckets keep their build-zoom style");
+  primitive._syncLayerPointCollections(layer, state, 3);
+  assert.deepEqual(sharedPointCollections.adds, [entryKey, entryKey]);
+  assert.deepEqual(sharedPointCollections.updates, []);
+  assert.equal(sharedPointCollections.entries.has(entryKey), true);
+  console.log("✓ shared point buckets honor frame style zoom visibility");
 }
 
 {
@@ -77,6 +76,55 @@ const createSharedPointEntryKey =
   });
   assert.deepEqual(renderPrimitive.seenShows, [false]);
   console.log("✓ render submission preserves bucket-level visibility");
+}
+
+{
+  const primitive = createPrimitiveForTest();
+  primitive._tilesToRender = [];
+  const sharedPointCollections = createSharedPointCollectionsSpy();
+  const layer = {
+    _show: true,
+    sharedPointCollections,
+    getFrameStyleZoom: () => 5,
+  };
+  const renderPrimitive = createWarmablePrimitive(true);
+  renderPrimitive.seenShows = [];
+  renderPrimitive.update = function () {
+    this.updateCalls++;
+    this.seenShows.push(this.show);
+  };
+  const tile = {
+    primitives: { fill: [renderPrimitive] },
+    buckets: {
+      fill: {
+        styleRule: {
+          id: "fill",
+          type: "fill",
+          minzoom: 2,
+          maxzoom: 4,
+        },
+        isPrimitiveVisible() {
+          return true;
+        },
+      },
+    },
+  };
+  const state = primitive._getOrCreateLayerState(layer);
+  state.committedRenderSet = new Set([tile]);
+
+  primitive.renderTiles({
+    passes: { render: false, pick: true },
+    commandList: [],
+  });
+  assert.deepEqual(renderPrimitive.seenShows, [false]);
+
+  layer.getFrameStyleZoom = () => 3;
+  primitive.renderTiles({
+    passes: { render: false, pick: true },
+    commandList: [],
+  });
+  assert.deepEqual(renderPrimitive.seenShows, [false, true]);
+  console.log("✓ render submission applies frame style zoom visibility");
 }
 
 {

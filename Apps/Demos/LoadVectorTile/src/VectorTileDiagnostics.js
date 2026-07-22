@@ -29,7 +29,11 @@ class VectorTileDiagnostics {
       return;
     }
 
-    const samples = (this._durations[name] ??= []);
+    if (!this._durations[name]) {
+      this._durations[name] = [];
+    }
+
+    const samples = this._durations[name];
     samples.push(now() - startTime);
     if (samples.length > MAX_SAMPLES) {
       samples.shift();
