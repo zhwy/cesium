@@ -215,7 +215,7 @@ VectorTilePrimitiveBucket.prototype.getStyleUpdateFallback = function (
     }
     if (
       record.role === "packed-line" &&
-      VectorTileBucketUtils.isVectorStyleExpression(value)
+      VectorTileStyleExpressionUtils.isVectorStyleExpression(value)
     ) {
       return VectorTileBucketFallbackReason.MISSING_PROPERTIES;
     }

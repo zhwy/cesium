@@ -131,4 +131,57 @@ function createStyle(source = {}) {
   assert.equal(projection.retainAll, true);
 }
 
+{
+  const style = createStyle({ pickProperties: [] });
+  style.layers[0].filter = [
+    "all",
+    ["in", ["get", "kind"], ["literal", ["road", "rail"]]],
+    ["!", ["has", "hidden"]],
+  ];
+  style.layers[0].paint["line-color"] = [
+    "coalesce",
+    ["get", "preferredColor"],
+    ["get", "fallbackColor"],
+  ];
+  style.layers[0].layout.custom = [
+    "concat",
+    ["upcase", ["get", "label"]],
+    ["to-string", ["id"]],
+    ["literal", ["get", "ignored"]],
+  ];
+
+  const projection =
+    VectorTilePropertyProjectionUtils.createVectorTilePropertyProjections(
+      style,
+      {
+        allowPicking: true,
+        pickProperties: [],
+      },
+    ).transport;
+  assert.deepEqual(projection.style, {
+    all: false,
+    properties: ["fallbackColor", "hidden", "kind", "label", "preferredColor"],
+  });
+  assert.deepEqual(
+    VectorTilePropertyProjectionUtils.projectVectorTileProperties(
+      {
+        fallbackColor: "blue",
+        hidden: false,
+        kind: "road",
+        label: "main",
+        preferredColor: "red",
+        ignored: true,
+      },
+      projection,
+    ),
+    {
+      fallbackColor: "blue",
+      hidden: false,
+      kind: "road",
+      label: "main",
+      preferredColor: "red",
+    },
+  );
+}
+
 console.log("VectorTilePropertyProjection tests passed.");

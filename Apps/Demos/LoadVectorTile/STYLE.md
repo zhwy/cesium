@@ -355,13 +355,38 @@ terrain: {
 
 ## 11. 表达式
 
-当前样式值支持和 demo 现有实现一致的可序列化表达式子集，例如：
+当前样式值支持以下可序列化表达式子集：
 
 - `["get", "name"]`
 - `["has", "kind"]`
 - `["match", ["get", "type"], "park", "#00ff0044", "#0088ff33"]`
 - `["case", [">", ["get", "population"], 1000000], 18, 14]`
 - `["interpolate", ["linear"], ["zoom"], 1, 1, 6, 4]`
+- `["concat", ["upcase", ["coalesce", ["get", "name"], "unknown"]], " #", ["to-string", ["id"]]]`
+
+### 11.1 合法签名
+
+| 类别         | 合法签名                                                                                                                                           |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 属性与上下文 | `["get", key]`、`["has", key]`、`["feature-state", key]`、`["id"]`、`["zoom"]`                                                                     |
+| 布尔与比较   | `["boolean", value, fallback]`、`["!", value]`、`["==", a, b]`、`["!=", a, b]`、`[">", a, b]`、`[">=", a, b]`、`["<", a, b]`、`["<=", a, b]`       |
+| 组合与分支   | `["all", value, ...]`、`["any", value, ...]`、`["case", condition, output, ..., fallback]`、`["match", input, label, output, ..., fallback]`       |
+| 成员与查找   | `["in", needle, haystack]`、`["index-of", needle, haystack, start?]`、`["slice", input, start, end?]`、`["length", input]`、`["at", index, array]` |
+| 字符串       | `["to-string", value]`、`["concat", value, ...]`、`["upcase", string]`、`["downcase", string]`                                                     |
+| 缺失值与常量 | `["coalesce", value1, value2, ...]`、`["literal", value]`                                                                                          |
+| 插值         | `["interpolate", ["linear"], input, stop1, output1, stop2, output2, ...]`                                                                          |
+
+参数数量会在样式规范化时严格校验。`case`、`match` 必须包含完整的成对参数和最终 fallback；`interpolate` 至少包含两组 stop/output。`["linear"]` 只能作为 `interpolate` 的插值模式，不能独立使用。
+
+### 11.2 字符串、数组与缺失值
+
+- 表达式中的数组常量必须写成 `["literal", [...]]`，其内容不会被当作表达式或属性依赖继续遍历。
+- `in` 对数组使用严格成员匹配；字符串容器只接受字符串查询值。
+- `index-of` 未找到时返回 `-1`；`slice` 使用 JavaScript 左闭右开与负索引语义；`at` 只接受非负整数数组索引。
+- `length` 只接受字符串或数组。`upcase`、`downcase` 只接受字符串，并使用 JavaScript 的非 locale 定制 Unicode 大小写转换。
+- `to-string` 将 `null`/`undefined` 转成空字符串，string/number/boolean 转成稳定字符串，数组和普通对象转成 JSON；`concat` 对每个输入复用同一规则。
+- `coalesce` 返回首个既不是 `null` 也不是 `undefined` 的值；`false`、`0` 和空字符串都是有效结果。`id` 保持 feature id 原有的 string/number 类型。
+- feature property 的运行时类型错误、非法索引和越界读取返回 `undefined`，由样式值 fallback 或 filter 的布尔结果处理，不中断瓦片构建。表达式形状、参数数量、非法 `literal` 或不可序列化常量则会在样式校验阶段报出包含路径和操作符的错误。
 
 可用于：
 
@@ -407,9 +432,10 @@ terrain: {
 `filter` 使用可序列化过滤表达式。常见示例：
 
 ```js
-["==", ["get", "kind"], "park"][
-  ("all", ["has", "name"], [">", ["get", "population"], 100000])
-][("match", ["get", "class"], ["motorway", "trunk"], true, false)];
+["==", ["get", "kind"], "park"];
+["all", ["has", "name"], [">", ["get", "population"], 100000]];
+["match", ["get", "class"], ["motorway", "trunk"], true, false];
+["in", ["get", "kind"], ["literal", ["park", "water"]]];
 ```
 
 过滤在 worker 可支持时会尽量前移；如果表达式不在 worker 支持范围内，会回退到主线程过滤。

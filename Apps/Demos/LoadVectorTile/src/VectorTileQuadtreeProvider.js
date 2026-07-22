@@ -101,6 +101,9 @@ VectorTileQuadtreeProvider.prototype.loadTile = function (frameState, tile) {
   );
 };
 
+const boundingSphereScratch = new BoundingSphere();
+const rectangleIntersectionScratch = new Rectangle();
+
 VectorTileQuadtreeProvider.prototype.computeTileVisibility = function (
   tile,
   frameState,
@@ -371,8 +374,6 @@ function isUndergroundVisible(tileProvider, frameState) {
   return false;
 }
 
-const boundingSphereScratch = new BoundingSphere();
-const rectangleIntersectionScratch = new Rectangle();
 const splitCartographicLimitRectangleScratch = new Rectangle();
 const rectangleCenterScratch = new Cartographic();
 

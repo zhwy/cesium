@@ -253,10 +253,13 @@ function resolveVectorTileIconResource(iconImage, registry = {}) {
 }
 
 function evaluateSymbolStyleValue(value, metadata, zoom, fallback) {
-  return VectorTileBucketUtils.evaluateStyleValue(
+  return VectorTileStyleExpressionUtils.evaluateVectorStyleValue(
     value,
     metadata,
-    zoom,
+    {
+      zoom,
+      level: zoom,
+    },
     fallback,
   );
 }

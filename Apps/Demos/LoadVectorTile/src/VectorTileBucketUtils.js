@@ -11,20 +11,12 @@ import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils
 import VectorTileGeometryUtils from "./VectorTileGeometryUtils.js";
 
 class VectorTileBucketUtils {
-  static isVectorStyleExpression(value) {
-    return isVectorStyleExpression(value);
-  }
-
   static getGeometryFeature(featureTable, geometry, index) {
     return getGeometryFeature(featureTable, geometry, index);
   }
 
   static getGeometryFeatureIndex(geometry, index) {
     return getGeometryFeatureIndex(geometry, index);
-  }
-
-  static evaluateStyleValue(value, metadata, zoom, fallback, options = {}) {
-    return evaluateStyleValue(value, metadata, zoom, fallback, options);
   }
 
   static evaluateFiniteStyleNumber(
@@ -109,10 +101,6 @@ class VectorTileBucketUtils {
   }
 }
 
-function isVectorStyleExpression(value) {
-  return Array.isArray(value) && typeof value[0] === "string";
-}
-
 function getGeometryFeature(featureTable, geometry, index) {
   const featureIndex = geometry?.featureIndices?.[index];
   if (featureIndex !== undefined) {
@@ -125,23 +113,6 @@ function getGeometryFeatureIndex(geometry, index) {
   return geometry?.featureIndices?.[index] ?? index;
 }
 
-function evaluateStyleValue(value, metadata, zoom, fallback, options = {}) {
-  if (!defined(value)) {
-    return fallback;
-  }
-
-  const result = isVectorStyleExpression(value)
-    ? VectorTileStyleExpressionUtils.evaluateVectorStyleExpression(value, {
-        properties: metadata?.properties ?? {},
-        state: options.state ?? {},
-        id: metadata?.id,
-        zoom,
-        level: zoom,
-      })
-    : value;
-  return defined(result) ? result : fallback;
-}
-
 function evaluateFiniteStyleNumber(
   value,
   metadata,
@@ -149,7 +120,16 @@ function evaluateFiniteStyleNumber(
   fallback,
   options = {},
 ) {
-  const result = evaluateStyleValue(value, metadata, zoom, fallback, options);
+  const result = VectorTileStyleExpressionUtils.evaluateVectorStyleValue(
+    value,
+    metadata,
+    {
+      state: options.state ?? {},
+      zoom,
+      level: zoom,
+    },
+    fallback,
+  );
   if (!defined(result)) {
     return fallback;
   }
@@ -173,7 +153,16 @@ function evaluateColorStyleValue(
   options = {},
 ) {
   return parseCesiumColor(
-    evaluateStyleValue(value, metadata, zoom, fallback, options),
+    VectorTileStyleExpressionUtils.evaluateVectorStyleValue(
+      value,
+      metadata,
+      {
+        state: options.state ?? {},
+        zoom,
+        level: zoom,
+      },
+      fallback,
+    ),
     fallback,
   );
 }

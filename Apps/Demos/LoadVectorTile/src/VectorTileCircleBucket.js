@@ -4,6 +4,7 @@ import defined from "../../../../packages/engine/Source/Core/defined.js";
 import HeightReference from "../../../../packages/engine/Source/Scene/HeightReference.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
+import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 
 const DEFAULT_CIRCLE_RADIUS = 5;
 const DEFAULT_CIRCLE_COLOR = "#000000ff";
@@ -165,10 +166,13 @@ class VectorTileCircleBucket extends VectorTilePrimitiveBucket {
 }
 
 function evaluateCircleStyleValue(primaryValue, aliasValue, metadata, zoom) {
-  return VectorTileBucketUtils.evaluateStyleValue(
+  return VectorTileStyleExpressionUtils.evaluateVectorStyleValue(
     defined(primaryValue) ? primaryValue : aliasValue,
     metadata,
-    zoom,
+    {
+      zoom,
+      level: zoom,
+    },
   );
 }
 
@@ -198,10 +202,13 @@ function resolveCircleRadius(
   if (defined(paint["circle-radius"])) {
     return normalizeCircleRadius(
       Number(
-        VectorTileBucketUtils.evaluateStyleValue(
+        VectorTileStyleExpressionUtils.evaluateVectorStyleValue(
           paint["circle-radius"],
           metadata,
-          zoom,
+          {
+            zoom,
+            level: zoom,
+          },
           fallback,
         ),
       ),
@@ -211,10 +218,13 @@ function resolveCircleRadius(
 
   if (defined(paint.pixelSize)) {
     const pixelSize = Number(
-      VectorTileBucketUtils.evaluateStyleValue(
+      VectorTileStyleExpressionUtils.evaluateVectorStyleValue(
         paint.pixelSize,
         metadata,
-        zoom,
+        {
+          zoom,
+          level: zoom,
+        },
         fallback * 2,
       ),
     );

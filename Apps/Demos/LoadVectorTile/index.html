@@ -332,6 +332,7 @@
                 "all",
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "2"],
+                ["!", ["in", ["get", "org_code"], "8616"]],
               ],
               terrain: {
                 clampToGround: true,
@@ -353,6 +354,7 @@
                 "all",
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "3"],
+                ["!", ["in", ["get", "org_code"], "8616"]],
               ],
               terrain: {
                 clampToGround: true,
@@ -374,6 +376,7 @@
                 "all",
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "4"],
+                ["!", ["in", ["get", "org_code"], "8616"]],
               ],
               terrain: {
                 clampToGround: true,
@@ -384,6 +387,7 @@
               type: "symbol",
               source: "gp_res_org_gr",
               sourceLayer: "gp_res_org_gr",
+              minzoom: 3,
               maxzoom: 5,
               layout: {
                 "text-field": ["get", "org_name"],
@@ -398,6 +402,7 @@
                 "all",
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "2"],
+                ["!=", ["get", "bl_branch_com_no"], "8616"],
               ],
             },
             {
@@ -420,6 +425,7 @@
                 "all",
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "3"],
+                ["!=", ["get", "bl_branch_com_no"], "8616"],
               ],
             },
             {
@@ -442,6 +448,7 @@
                 "all",
                 ["==", ["get", "year"], 2025],
                 ["==", ["get", "org_level"], "4"],
+                ["!=", ["get", "bl_branch_com_no"], "8616"],
               ],
             },
             {
@@ -458,7 +465,11 @@
               terrain: {
                 clampToGround: true,
               },
-              filter: ["all", ["==", ["get", "year"], 2025]],
+              filter: [
+                "all",
+                ["==", ["get", "year"], 2025],
+                ["!=", ["get", "bl_branch_com_no"], "8616"],
+              ],
             },
             {
               id: "res_parent_plot-label",
@@ -475,7 +486,11 @@
                 "text-halo-color": "#000000",
                 "text-halo-width": 3,
               },
-              filter: ["all", ["==", ["get", "year"], 2025]],
+              filter: [
+                "all",
+                ["==", ["get", "year"], 2025],
+                ["!=", ["get", "bl_branch_com_no"], "8616"],
+              ],
             },
             // {
             //   id: "globe-text",

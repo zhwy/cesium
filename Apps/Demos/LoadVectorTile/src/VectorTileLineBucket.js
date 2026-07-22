@@ -10,6 +10,7 @@ import PolylineMaterialAppearance from "../../../../packages/engine/Source/Scene
 import Primitive from "../../../../packages/engine/Source/Scene/Primitive.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
+import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 
 /**
  * 为 `line` 类型样式规则构建线图元，按配置选择普通实例路径或打包渲染路径。
@@ -104,10 +105,10 @@ class VectorTileLineBucket extends VectorTilePrimitiveBucket {
       this._renderBackend === "packed" &&
       !this._allowPicking &&
       lineCount >= this._packedMinimumInstances &&
-      !VectorTileBucketUtils.isVectorStyleExpression(
+      !VectorTileStyleExpressionUtils.isVectorStyleExpression(
         this.styleRule.paint?.["line-color"],
       ) &&
-      !VectorTileBucketUtils.isVectorStyleExpression(
+      !VectorTileStyleExpressionUtils.isVectorStyleExpression(
         this.styleRule.paint?.["line-width"],
       )
     );
