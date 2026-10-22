@@ -1,11 +1,13 @@
-import Check from "./Check.js";
 import CompressedTextureBuffer from "./CompressedTextureBuffer.js";
-import defined from "./defined.js";
-import PixelFormat from "./PixelFormat.js";
+import {
+  defined,
+  Check,
+  PixelFormat,
+  RuntimeError,
+  WebGLConstants,
+  deprecationWarning,
+} from "@cesium/core";
 import Resource from "./Resource.js";
-import RuntimeError from "./RuntimeError.js";
-import WebGLConstants from "./WebGLConstants.js";
-import deprecationWarning from "./deprecationWarning.js";
 
 /**
  * Asynchronously loads and parses the given URL to a KTX file or parses the raw binary data of a KTX file.
@@ -62,7 +64,7 @@ import deprecationWarning from "./deprecationWarning.js";
 function loadKTX(resourceOrUrlOrBuffer) {
   deprecationWarning(
     "loadKTX",
-    "loadKTX is deprecated and has been removed in CesiumJS 1.82."
+    "loadKTX is deprecated and has been removed in CesiumJS 1.82.",
   );
   //>>includeStart('debug', pragmas.debug);
   Check.defined("resourceOrUrlOrBuffer", resourceOrUrlOrBuffer);
@@ -91,18 +93,7 @@ function loadKTX(resourceOrUrlOrBuffer) {
 }
 
 const fileIdentifier = [
-  0xab,
-  0x4b,
-  0x54,
-  0x58,
-  0x20,
-  0x31,
-  0x31,
-  0xbb,
-  0x0d,
-  0x0a,
-  0x1a,
-  0x0a,
+  0xab, 0x4b, 0x54, 0x58, 0x20, 0x31, 0x31, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a,
 ];
 const endiannessTest = 0x04030201;
 const faceOrder = [
@@ -204,24 +195,24 @@ function parseKTX(data) {
   if (PixelFormat.isCompressedFormat(glInternalFormat)) {
     if (glType !== 0) {
       throw new RuntimeError(
-        "glType must be zero when the texture is compressed."
+        "glType must be zero when the texture is compressed.",
       );
     }
     if (glTypeSize !== 1) {
       throw new RuntimeError(
-        "The type size for compressed textures must be 1."
+        "The type size for compressed textures must be 1.",
       );
     }
     if (glFormat !== 0) {
       throw new RuntimeError(
-        "glFormat must be zero when the texture is compressed."
+        "glFormat must be zero when the texture is compressed.",
       );
     }
   } else if (glType !== WebGLConstants.UNSIGNED_BYTE) {
     throw new RuntimeError("Only unsigned byte buffers are supported.");
   } else if (glBaseInternalFormat !== glFormat) {
     throw new RuntimeError(
-      "The base internal format must be the same as the format for uncompressed textures."
+      "The base internal format must be the same as the format for uncompressed textures.",
     );
   }
 
@@ -244,13 +235,13 @@ function parseKTX(data) {
         ? PixelFormat.compressedTextureSizeInBytes(
             glInternalFormat,
             width,
-            height
+            height,
           )
         : PixelFormat.textureSizeInBytes(
             glInternalFormat,
             glType,
             width,
-            height
+            height,
           );
       const levelBuffer = new Uint8Array(texture.buffer, offset, levelSize);
       level[faceOrder[j]] = new CompressedTextureBuffer(
@@ -258,7 +249,7 @@ function parseKTX(data) {
         glType,
         width,
         height,
-        levelBuffer
+        levelBuffer,
       );
       offset += levelSize;
     }

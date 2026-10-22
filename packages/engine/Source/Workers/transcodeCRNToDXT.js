@@ -1,8 +1,10 @@
 import CompressedTextureBuffer from "../Core/CompressedTextureBuffer.js";
-import defined from "../Core/defined.js";
-import PixelFormat from "../Core/PixelFormat.js";
-import RuntimeError from "../Core/RuntimeError.js";
-import PixelDatatype from "../Renderer/PixelDatatype.js";
+import {
+  defined,
+  PixelFormat,
+  PixelDatatype,
+  RuntimeError,
+} from "@cesium/core";
 import crunch from "../ThirdParty/Workers/crunch.js";
 import createTaskProcessorWorker from "./createTaskProcessorWorker.js";
 
@@ -103,7 +105,7 @@ function transcodeCRNToDXT(arrayBuffer, transferableObjects) {
     dstSize += PixelFormat.compressedTextureSizeInBytes(
       format,
       width >> i,
-      height >> i
+      height >> i,
     );
   }
 
@@ -130,7 +132,7 @@ function transcodeCRNToDXT(arrayBuffer, transferableObjects) {
   const length = PixelFormat.compressedTextureSizeInBytes(
     format,
     width,
-    height
+    height,
   );
 
   // Get a copy of the 0th mip level. dxtData will exceed length when there are more mip levels.
@@ -145,7 +147,7 @@ function transcodeCRNToDXT(arrayBuffer, transferableObjects) {
     PixelDatatype.UNSIGNED_INT,
     width,
     height,
-    level0DXTData
+    level0DXTData,
   );
 }
 export default createTaskProcessorWorker(transcodeCRNToDXT);

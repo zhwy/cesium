@@ -1,9 +1,7 @@
 import CompressedTextureBuffer from "./CompressedTextureBuffer.js";
-import defined from "./defined.js";
-import DeveloperError from "./DeveloperError.js";
+import { defined, DeveloperError, deprecationWarning } from "@cesium/core";
 import Resource from "./Resource.js";
 import TaskProcessor from "./TaskProcessor.js";
-import deprecationWarning from "./deprecationWarning.js";
 
 const transcodeTaskProcessor = new TaskProcessor("transcodeCRNToDXT");
 
@@ -16,7 +14,7 @@ const transcodeTaskProcessor = new TaskProcessor("transcodeCRNToDXT");
  *
  * @function loadCRN
  *
- * @param {Resource|String|ArrayBuffer} resourceOrUrlOrBuffer The URL of the binary data or an ArrayBuffer.
+ * @param {Resource | string | ArrayBuffer} resourceOrUrlOrBuffer The URL of the binary data or an ArrayBuffer.
  * @returns {Promise.<CompressedTextureBuffer>|undefined} A promise that will resolve to the requested data when loaded. Returns undefined if <code>request.throttle</code> is true and the request does not have high enough priority.
  *
  * @exception {RuntimeError} Unsupported compressed format.
@@ -41,7 +39,7 @@ const transcodeTaskProcessor = new TaskProcessor("transcodeCRNToDXT");
 function loadCRN(resourceOrUrlOrBuffer) {
   deprecationWarning(
     "loadCRN",
-    "loadCRN is deprecated and has been removed in CesiumJS 1.82."
+    "loadCRN is deprecated and has been removed in CesiumJS 1.82.",
   );
   //>>includeStart('debug', pragmas.debug);
   if (!defined(resourceOrUrlOrBuffer)) {

@@ -1,6 +1,4 @@
-import Color from "../Core/Color.js";
-import defined from "../Core/defined.js";
-import Event from "../Core/Event.js";
+import { Color, defined, Event } from "@cesium/core";
 import createPropertyDescriptor from "./createPropertyDescriptor.js";
 import Property from "./Property.js";
 import Material from "../Scene/Material.js";
@@ -18,16 +16,16 @@ const defaultFadeFactor = 1;
  * @alias WaterMaterialProperty
  * @constructor
  *
- * @param {Object} [options] Object with the following properties:
- * @param {Property|String} [options.specularMap] A Property specifying thie specular map.
- * @param {Property|String} [options.normalMap] A Property specifying thie normal map.
+ * @param {object} [options] Object with the following properties:
+ * @param {Property | string} [options.specularMap] A Property specifying thie specular map.
+ * @param {Property | string} [options.normalMap] A Property specifying thie normal map.
  * @param {Property|Color} [options.baseWaterColor=new Color(0.2, 0.3, 0.6, 1.0)] A {@link Color} Property specifying water color.
  * @param {Property|Color} [options.blendColor=new Color(0.0, 1.0, 0.699, 1.0)] A Property specifying the blend color.
- * @param {Property|Number} [options.frequency=10.0] Property specifying the waves amount.
- * @param {Property|Number} [options.animationSpeed=1.0] Property specifying the wave amplitude.
- * @param {Property|Number} [options.amplitude=1.0] Property specifying the wave amplitude.
- * @param {Property|Number} [options.specularIntensity=0.5] Property specifying the specular intensity.
- * @param {Property|Number} [options.fadeFactor=1.0] Property specifying the specular intensity.
+ * @param {Property | number} [options.frequency=10.0] Property specifying the waves amount.
+ * @param {Property | number} [options.animationSpeed=1.0] Property specifying the wave amplitude.
+ * @param {Property | number} [options.amplitude=1.0] Property specifying the wave amplitude.
+ * @param {Property | number} [options.specularIntensity=0.5] Property specifying the specular intensity.
+ * @param {Property | number} [options.fadeFactor=1.0] Property specifying the specular intensity.
  */
 function WaterMaterialProperty(options) {
   options = options ?? {};
@@ -62,7 +60,7 @@ Object.defineProperties(WaterMaterialProperty.prototype, {
    * constant if getValue always returns the same result for the current definition.
    * @memberof WaterMaterialProperty.prototype
    *
-   * @type {Boolean}
+   * @type {boolean}
    * @readonly
    */
   isConstant: {
@@ -161,7 +159,7 @@ Object.defineProperties(WaterMaterialProperty.prototype, {
  * Gets the {@link Material} type at the provided time.
  *
  * @param {JulianDate} time The time for which to retrieve the type.
- * @returns {String} The type of material.
+ * @returns {string} The type of material.
  */
 WaterMaterialProperty.prototype.getType = function (time) {
   return Material.WaterType;
@@ -171,8 +169,8 @@ WaterMaterialProperty.prototype.getType = function (time) {
  * Gets the value of the property at the provided time.
  *
  * @param {JulianDate} time The time for which to retrieve the value.
- * @param {Object} [result] The object to store the value into, if omitted, a new instance is created and returned.
- * @returns {Object} The modified result parameter or a new instance if the result parameter was not supplied.
+ * @param {object} [result] The object to store the value into, if omitted, a new instance is created and returned.
+ * @returns {object} The modified result parameter or a new instance if the result parameter was not supplied.
  */
 WaterMaterialProperty.prototype.getValue = function (time, result) {
   if (!defined(result)) {
@@ -236,7 +234,7 @@ WaterMaterialProperty.prototype.getValue = function (time, result) {
  * <code>true</code> if they are equal, <code>false</code> otherwise.
  *
  * @param {Property} [other] The other property.
- * @returns {Boolean} <code>true</code> if left and right are equal, <code>false</code> otherwise.
+ * @returns {boolean} <code>true</code> if left and right are equal, <code>false</code> otherwise.
  */
 WaterMaterialProperty.prototype.equals = function (other) {
   return (
