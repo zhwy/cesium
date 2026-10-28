@@ -108,6 +108,7 @@
       <button id="btnInstances" class="active">instances（可拾取）</button>
       <button id="btnPacked">packed（不可拾取）</button>
       <button id="btnClear">清除选择</button>
+      <button id="btnCompare">对比 Vector glTF</button>
     </div>
     <div id="pickPanel">
       <h3>Pick 对比</h3>
@@ -125,6 +126,8 @@
       {
         "imports": {
           "@cesium/engine": "../../../packages/engine/index.js",
+          "@cesium/core": "../../../packages/core/index.js",
+          "@cesium/gltf": "../../../packages/gltf/index.js",
           "@tweenjs/tween.js": "https://cdn.jsdelivr.net/npm/@tweenjs/tween.js/+esm",
           "bitmap-sdf": "https://cdn.jsdelivr.net/npm/bitmap-sdf/+esm",
           "dompurify": "https://cdn.jsdelivr.net/npm/dompurify/+esm",
@@ -289,7 +292,7 @@
               allowPicking: allowPicking,
               renderBackend: backend,
               promoteId: {
-                res_parent_plot: "plot_name",
+                res_parent_plot: "plot_id",
               },
             },
             res_parent_plot_label: {
@@ -477,6 +480,9 @@
               source: "res_parent_plot_label",
               sourceLayer: "res_parent_plot_label",
               minzoom: 14,
+              terrain: {
+                clampToGround: true,
+              },
               layout: {
                 "text-field": ["get", "plot_name"],
                 "text-font-family": "sans-serif",
@@ -731,6 +737,42 @@
         clearHighlight();
         document.getElementById("pickResult").textContent = "{}";
       });
+
+      document
+        .getElementById("btnCompare")
+        .addEventListener("click", async (event) => {
+          const button = event.currentTarget;
+          const statusEl = document.getElementById("pickStatus");
+          const resultEl = document.getElementById("pickResult");
+          button.disabled = true;
+          statusEl.style.color = "#ffcc00";
+          statusEl.textContent = "对比运行中（冷启动，请勿操作相机）...";
+          try {
+            const result =
+              await window._vectorTileBenchmark.compareWithVectorGltf(
+                "current",
+                {
+                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                },
+              );
+            window._vectorGltfComparison = result;
+            console.log(result);
+            resultEl.textContent = JSON.stringify(
+              { ratios: result.ratios, options: result.options },
+              null,
+              2,
+            );
+            statusEl.style.color = "#90ee90";
+            statusEl.textContent =
+              "对比完成：ratios < 1 表示 vector glTF 更好，完整结果见 window._vectorGltfComparison。";
+          } catch (error) {
+            console.error(error);
+            statusEl.style.color = "#ff6666";
+            statusEl.textContent = `对比失败：${error.message}`;
+          } finally {
+            button.disabled = false;
+          }
+        });
 
       switchBackend("instances");
 

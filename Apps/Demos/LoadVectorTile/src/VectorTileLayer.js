@@ -386,6 +386,12 @@ class VectorTileLayer {
             getDecodedTileByteLength(decodedTile),
           );
           this._diagnostics?.increment("decodedFeatures", counts.features);
+          this._diagnostics?.increment(
+            `decodedTilesAtLevel${vectorTile.level}`,
+          );
+          this._diagnostics?.increment(
+            `source:${this._vectorTileProvider.sourceId}:decodedTilesAtLevel${vectorTile.level}`,
+          );
           this._diagnostics?.increment("decodedPositions", counts.positions);
           this._diagnostics?.increment(
             "clippedFeatures",
