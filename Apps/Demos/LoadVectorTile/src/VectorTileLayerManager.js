@@ -1,5 +1,5 @@
-import defined from "../../../../packages/engine/Source/Core/defined.js";
-import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import defined from "../../../../packages/core/Source/defined.js";
+import DeveloperError from "../../../../packages/core/Source/DeveloperError.js";
 import GeographicTilingScheme from "../../../../packages/engine/Source/Core/GeographicTilingScheme.js";
 import WebMercatorTilingScheme from "../../../../packages/engine/Source/Core/WebMercatorTilingScheme.js";
 import ShadowMode from "../../../../packages/engine/Source/Scene/ShadowMode.js";

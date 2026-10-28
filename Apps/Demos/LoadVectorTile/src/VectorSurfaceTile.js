@@ -1,4 +1,4 @@
-import defined from "../../../../packages/engine/Source/Core/defined.js";
+import defined from "../../../../packages/core/Source/defined.js";
 import GlobeSurfaceTile from "../../../../packages/engine/Source/Scene/GlobeSurfaceTile.js";
 import ImageryState from "../../../../packages/engine/Source/Scene/ImageryState.js";
 import QuadtreeTileLoadState from "../../../../packages/engine/Source/Scene/QuadtreeTileLoadState.js";

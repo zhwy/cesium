@@ -106,7 +106,7 @@ Apps/Demos/LoadVectorTile/
 
 `src/` 代码需要保持接近 Cesium 源码目录的模块形态，后续新增或整理代码时遵循以下规则：
 
-1. Cesium API 必须从 `../../../../packages/engine/Source` 导入模块，例如 `import Rectangle from "../../../../packages/engine/Source/Core/Rectangle.js`；不要使用 `import * as Cesium`、`CesiumModule` 或 `globalThis.Cesium` 兜底。
+1. Cesium API 按实际源码位置导入：已迁移的 Core 模块从 `../../../../packages/core/Source` 导入，例如 `import Rectangle from "../../../../packages/core/Source/Rectangle.js"`；仍在 engine 中的模块从 `../../../../packages/engine/Source` 导入，例如 `Resource` 从 `Core/Resource.js`、`ImageryState` 从 `Scene/ImageryState.js` 导入。不要使用 `import * as Cesium`、`CesiumModule` 或 `globalThis.Cesium` 兜底。
 2. 优先复用 Cesium 已有工具方法。值是否存在使用 `defined`，开发期参数错误使用 `DeveloperError`，对象销毁使用 `destroyObject`。
 3. 跨文件复用的通用 helper 放到默认导出的工具类静态方法中，例如 `CommonUtils.isPlainObject()`、`CommonUtils.cloneValue()`、`CommonUtils.isNonEmptyString()`；不要在多个文件重复定义等价函数。
 4. 每个 `src` 文件都必须提供 `export default`，默认导出表达该文件的主要职责：主类文件导出主类，单一工厂函数文件导出该函数，工具集合文件导出工具类。`export default`放置在文件末尾，内部方法定义放置在主类之后，`export default`之前。

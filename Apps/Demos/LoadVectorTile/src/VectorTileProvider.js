@@ -1,5 +1,5 @@
-import defined from "../../../../packages/engine/Source/Core/defined.js";
-import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import defined from "../../../../packages/core/Source/defined.js";
+import DeveloperError from "../../../../packages/core/Source/DeveloperError.js";
 import Resource from "../../../../packages/engine/Source/Core/Resource.js";
 import WebMercatorTilingScheme from "../../../../packages/engine/Source/Core/WebMercatorTilingScheme.js";
 import CommonUtils from "./CommonUtils.js";

@@ -1,4 +1,5 @@
-import createTaskProcessorWorker from "../../../../packages/engine/Source/Workers/createTaskProcessorWorker.js";
+// import createTaskProcessorWorker from "../../../../packages/engine/Source/Workers/createTaskProcessorWorker.js";
+import createTaskProcessorWorker from "../../../../Build/CesiumUnminified/Workers/createTaskProcessorWorker.js";
 import decodeVectorTile from "./decodeVectorTile.js";
 
 function getVectorTileTransferableBuffers(result) {

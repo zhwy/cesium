@@ -1,4 +1,4 @@
-import defined from "../../../../packages/engine/Source/Core/defined.js";
+import defined from "../../../../packages/core/Source/defined.js";
 import QuadtreeTileLoadState from "../../../../packages/engine/Source/Scene/QuadtreeTileLoadState.js";
 import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
 

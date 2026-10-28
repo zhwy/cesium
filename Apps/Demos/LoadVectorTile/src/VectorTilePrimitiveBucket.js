@@ -1,4 +1,4 @@
-import ColorGeometryInstanceAttribute from "../../../../packages/engine/Source/Core/ColorGeometryInstanceAttribute.js";
+import ColorGeometryInstanceAttribute from "../../../../packages/core/Source/ColorGeometryInstanceAttribute.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
 import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";

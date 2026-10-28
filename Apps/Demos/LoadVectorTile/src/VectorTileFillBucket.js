@@ -1,10 +1,10 @@
-import ArcType from "../../../../packages/engine/Source/Core/ArcType.js";
-import ColorGeometryInstanceAttribute from "../../../../packages/engine/Source/Core/ColorGeometryInstanceAttribute.js";
-import GeometryInstance from "../../../../packages/engine/Source/Core/GeometryInstance.js";
+import ArcType from "../../../../packages/core/Source/ArcType.js";
+import ColorGeometryInstanceAttribute from "../../../../packages/core/Source/ColorGeometryInstanceAttribute.js";
+import GeometryInstance from "../../../../packages/core/Source/GeometryInstance.js";
 import GroundPolylineGeometry from "../../../../packages/engine/Source/Core/GroundPolylineGeometry.js";
-import PolygonGeometry from "../../../../packages/engine/Source/Core/PolygonGeometry.js";
-import PolygonHierarchy from "../../../../packages/engine/Source/Core/PolygonHierarchy.js";
-import PolylineGeometry from "../../../../packages/engine/Source/Core/PolylineGeometry.js";
+import PolygonGeometry from "../../../../packages/core/Source/PolygonGeometry.js";
+import PolygonHierarchy from "../../../../packages/core/Source/PolygonHierarchy.js";
+import PolylineGeometry from "../../../../packages/core/Source/PolylineGeometry.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 

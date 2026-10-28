@@ -1,7 +1,7 @@
-import defined from "../../../../packages/engine/Source/Core/defined.js";
-import destroyObject from "../../../../packages/engine/Source/Core/destroyObject.js";
-import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
-import Event from "../../../../packages/engine/Source/Core/Event.js";
+import defined from "../../../../packages/core/Source/defined.js";
+import destroyObject from "../../../../packages/core/Source/destroyObject.js";
+import DeveloperError from "../../../../packages/core/Source/DeveloperError.js";
+import Event from "../../../../packages/core/Source/Event.js";
 import VectorTileLayer from "./VectorTileLayer.js";
 
 /**

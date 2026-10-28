@@ -1,4 +1,4 @@
-import DeveloperError from "../../../../packages/engine/Source/Core/DeveloperError.js";
+import DeveloperError from "../../../../packages/core/Source/DeveloperError.js";
 import VectorTileTaskCancelledError from "./VectorTileTaskCancelledError.js";
 
 const DEFAULT_PBF_CACHE_BYTES = 64 * 1024 * 1024;
