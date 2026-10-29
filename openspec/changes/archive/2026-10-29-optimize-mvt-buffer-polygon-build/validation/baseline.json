@@ -1,0 +1,424 @@
+{
+  "mode": "baseline",
+  "results": {
+    "ground": {
+      "primitives": {
+        "settled": true,
+        "loadMs": 14664.800000000745,
+        "load": {
+          "frameCpu": {
+            "count": 762,
+            "averageMs": 1.1192913385856105,
+            "p95Ms": 1.599999999627471,
+            "maximumMs": 61.79999999888241
+          },
+          "frameInterval": {
+            "count": 761,
+            "averageMs": 19.982654402103474,
+            "p95Ms": 19.90000000037253,
+            "maximumMs": 182.89999999850988
+          },
+          "averageCommands": 0.3123359580052493,
+          "longTasks": {
+            "supported": true,
+            "count": 20,
+            "totalMs": 2586,
+            "maximumMs": 195
+          }
+        },
+        "steady": {
+          "frameCpu": {
+            "count": 9,
+            "averageMs": 15.48888888851636,
+            "p95Ms": 58.69999999925494,
+            "maximumMs": 58.69999999925494
+          },
+          "frameInterval": {
+            "count": 9,
+            "averageMs": 179.31111111098693,
+            "p95Ms": 321.90000000037253,
+            "maximumMs": 321.90000000037253
+          },
+          "averageCommands": 31.22222222222222,
+          "longTasks": {
+            "supported": true,
+            "count": 10,
+            "totalMs": 1804,
+            "maximumMs": 376
+          }
+        },
+        "network": {
+          "requests": 29,
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        "heapDeltaBytes": 0,
+        "backend": {
+          "tileLevels": {
+            "tilesBySourceLevel": {
+              "res_org_gr": {
+                "5": 3,
+                "6": 7
+              },
+              "res_parent_plot": {}
+            },
+            "tilesByLevel": {
+              "5": 3,
+              "6": 7
+            },
+            "tiles": 10,
+            "meanLevel": 5.7
+          },
+          "counters": {
+            "decodedFeatures": 33,
+            "primitiveBuckets": 10,
+            "pbfCacheHits": 0,
+            "pbfCacheMisses": 50
+          },
+          "gauges": {
+            "residentRenderPrimitives": 37,
+            "residentFeatureTableEntries": 32
+          }
+        },
+        "buffer": {
+          "buckets": 0,
+          "submissions": 0,
+          "polygons": 0,
+          "cpuCapacityBytes": 0,
+          "pending": 0,
+          "preparedBytes": 0,
+          "perFrame": {}
+        }
+      },
+      "buffer": {
+        "settled": true,
+        "loadMs": 2772.800000000745,
+        "load": {
+          "frameCpu": {
+            "count": 19,
+            "averageMs": 5.1421052633147495,
+            "p95Ms": 23.09999999962747,
+            "maximumMs": 23.09999999962747
+          },
+          "frameInterval": {
+            "count": 18,
+            "averageMs": 191.2611111110697,
+            "p95Ms": 283.59999999962747,
+            "maximumMs": 283.59999999962747
+          },
+          "averageCommands": 42.68421052631579,
+          "longTasks": {
+            "supported": true,
+            "count": 18,
+            "totalMs": 3302,
+            "maximumMs": 284
+          }
+        },
+        "steady": {
+          "frameCpu": {
+            "count": 7,
+            "averageMs": 2.5,
+            "p95Ms": 4.700000001117587,
+            "maximumMs": 4.700000001117587
+          },
+          "frameInterval": {
+            "count": 7,
+            "averageMs": 227.22857142851822,
+            "p95Ms": 231.59999999962747,
+            "maximumMs": 231.59999999962747
+          },
+          "averageCommands": 30.714285714285715,
+          "longTasks": {
+            "supported": true,
+            "count": 8,
+            "totalMs": 1835,
+            "maximumMs": 239
+          }
+        },
+        "network": {
+          "requests": 25,
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        "heapDeltaBytes": 0,
+        "backend": {
+          "tileLevels": {
+            "tilesBySourceLevel": {
+              "res_org_gr": {
+                "5": 3,
+                "6": 7
+              },
+              "res_parent_plot": {}
+            },
+            "tilesByLevel": {
+              "5": 3,
+              "6": 7
+            },
+            "tiles": 10,
+            "meanLevel": 5.7
+          },
+          "counters": {
+            "decodedFeatures": 33,
+            "primitiveBuckets": 10,
+            "pbfCacheHits": 0,
+            "pbfCacheMisses": 50
+          },
+          "gauges": {
+            "residentRenderPrimitives": 8,
+            "residentFeatureTableEntries": 8
+          }
+        },
+        "buffer": {
+          "buckets": 10,
+          "submissions": 58,
+          "polygons": 820,
+          "cpuCapacityBytes": 1231500,
+          "build": {
+            "count": 10,
+            "averageMs": 5.389999999664724,
+            "p95Ms": 14.799999998882413,
+            "maximumMs": 14.799999998882413
+          },
+          "pending": 0,
+          "preparedBytes": 0,
+          "perFrame": {}
+        }
+      },
+      "workload": {
+        "tiles": {
+          "primitives": 10,
+          "buffer": 10,
+          "ratio": 1
+        },
+        "meanLevel": {
+          "primitives": 5.7,
+          "buffer": 5.7
+        },
+        "byLevel": {
+          "5": {
+            "primitives": 3,
+            "buffer": 3
+          },
+          "6": {
+            "primitives": 7,
+            "buffer": 7
+          }
+        },
+        "mismatch": false
+      },
+      "comparable": true,
+      "cacheMode": "清空内存 PBF 缓存；HTTP 缓存由浏览器控制",
+      "draping": "贴地初次烘焙包含在加载窗口；settled 仅表示任务队列稳定，真实烘焙完成需结合视觉结果验证"
+    },
+    "elevated": {
+      "primitives": {
+        "settled": true,
+        "loadMs": 4602.0999999996275,
+        "load": {
+          "frameCpu": {
+            "count": 32,
+            "averageMs": 2.7437500000814907,
+            "p95Ms": 7.799999998882413,
+            "maximumMs": 13.700000001117587
+          },
+          "frameInterval": {
+            "count": 31,
+            "averageMs": 163.1451612903226,
+            "p95Ms": 267.80000000074506,
+            "maximumMs": 277.40000000037253
+          },
+          "averageCommands": 27.1875,
+          "longTasks": {
+            "supported": true,
+            "count": 31,
+            "totalMs": 4943,
+            "maximumMs": 252
+          }
+        },
+        "steady": {
+          "frameCpu": {
+            "count": 14,
+            "averageMs": 1.4142857140728406,
+            "p95Ms": 1.700000001117587,
+            "maximumMs": 1.700000001117587
+          },
+          "frameInterval": {
+            "count": 14,
+            "averageMs": 112.58571428579411,
+            "p95Ms": 115.70000000111759,
+            "maximumMs": 115.70000000111759
+          },
+          "averageCommands": 31,
+          "longTasks": {
+            "supported": true,
+            "count": 15,
+            "totalMs": 1679,
+            "maximumMs": 115
+          }
+        },
+        "network": {
+          "requests": 25,
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        "heapDeltaBytes": 0,
+        "backend": {
+          "tileLevels": {
+            "tilesBySourceLevel": {
+              "res_org_gr": {
+                "5": 3,
+                "6": 7
+              },
+              "res_parent_plot": {}
+            },
+            "tilesByLevel": {
+              "5": 3,
+              "6": 7
+            },
+            "tiles": 10,
+            "meanLevel": 5.7
+          },
+          "counters": {
+            "decodedFeatures": 33,
+            "primitiveBuckets": 10,
+            "pbfCacheHits": 0,
+            "pbfCacheMisses": 50
+          },
+          "gauges": {
+            "residentRenderPrimitives": 6,
+            "residentFeatureTableEntries": 6
+          }
+        },
+        "buffer": {
+          "buckets": 0,
+          "submissions": 70,
+          "polygons": 0,
+          "cpuCapacityBytes": 0,
+          "pending": 0,
+          "preparedBytes": 0,
+          "perFrame": {}
+        }
+      },
+      "buffer": {
+        "settled": true,
+        "loadMs": 1864.7000000011176,
+        "load": {
+          "frameCpu": {
+            "count": 20,
+            "averageMs": 2.7150000001303853,
+            "p95Ms": 6.099999999627471,
+            "maximumMs": 13.300000000745058
+          },
+          "frameInterval": {
+            "count": 19,
+            "averageMs": 124.2842105263354,
+            "p95Ms": 145.80000000074506,
+            "maximumMs": 145.80000000074506
+          },
+          "averageCommands": 27.3,
+          "longTasks": {
+            "supported": true,
+            "count": 19,
+            "totalMs": 2229,
+            "maximumMs": 144
+          }
+        },
+        "steady": {
+          "frameCpu": {
+            "count": 13,
+            "averageMs": 1.753846153903466,
+            "p95Ms": 2.099999999627471,
+            "maximumMs": 2.099999999627471
+          },
+          "frameInterval": {
+            "count": 13,
+            "averageMs": 118.29999999988537,
+            "p95Ms": 121.30000000074506,
+            "maximumMs": 121.30000000074506
+          },
+          "averageCommands": 31,
+          "longTasks": {
+            "supported": true,
+            "count": 14,
+            "totalMs": 1643,
+            "maximumMs": 121
+          }
+        },
+        "network": {
+          "requests": 25,
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        "heapDeltaBytes": 0,
+        "backend": {
+          "tileLevels": {
+            "tilesBySourceLevel": {
+              "res_org_gr": {
+                "5": 3,
+                "6": 7
+              },
+              "res_parent_plot": {}
+            },
+            "tilesByLevel": {
+              "5": 3,
+              "6": 7
+            },
+            "tiles": 10,
+            "meanLevel": 5.7
+          },
+          "counters": {
+            "decodedFeatures": 33,
+            "primitiveBuckets": 10,
+            "pbfCacheHits": 0,
+            "pbfCacheMisses": 50
+          },
+          "gauges": {
+            "residentRenderPrimitives": 4,
+            "residentFeatureTableEntries": 4
+          }
+        },
+        "buffer": {
+          "buckets": 10,
+          "submissions": 110,
+          "polygons": 820,
+          "cpuCapacityBytes": 1231536,
+          "build": {
+            "count": 10,
+            "averageMs": 6.759999999776483,
+            "p95Ms": 26.90000000037253,
+            "maximumMs": 26.90000000037253
+          },
+          "pending": 0,
+          "preparedBytes": 0,
+          "perFrame": {}
+        }
+      },
+      "workload": {
+        "tiles": {
+          "primitives": 10,
+          "buffer": 10,
+          "ratio": 1
+        },
+        "meanLevel": {
+          "primitives": 5.7,
+          "buffer": 5.7
+        },
+        "byLevel": {
+          "5": {
+            "primitives": 3,
+            "buffer": 3
+          },
+          "6": {
+            "primitives": 7,
+            "buffer": 7
+          }
+        },
+        "mismatch": false
+      },
+      "comparable": true,
+      "cacheMode": "清空内存 PBF 缓存；HTTP 缓存由浏览器控制",
+      "draping": "贴地初次烘焙包含在加载窗口；settled 仅表示任务队列稳定，真实烘焙完成需结合视觉结果验证"
+    }
+  },
+  "errors": []
+}

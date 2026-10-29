@@ -1,5 +1,5 @@
 import * as Cesium from "../../../../../Build/CesiumUnminified/index.js";
-import WMTSVectorTileProvider from "./WMTSGeoVectorTileProvider";
+import WMTSVectorTileProvider from "./WMTSGeoVectorTileProvider.js";
 
 export default class WMTSGeoVectorTileProvider extends WMTSVectorTileProvider {
   loadTile(frameState, tile) {

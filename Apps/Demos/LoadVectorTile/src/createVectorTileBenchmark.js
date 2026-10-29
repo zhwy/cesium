@@ -5,7 +5,7 @@ import Rectangle from "../../../../packages/core/Source/Rectangle.js";
 const scenarios = Object.freeze({
   world: Rectangle.fromDegrees(-180.0, -80.0, 180.0, 80.0),
   regional: Rectangle.fromDegrees(-30.0, 15.0, 60.0, 75.0),
-  close: Rectangle.fromDegrees(-12.0, 35.0, 12.0, 58.0),
+  close: Rectangle.fromDegrees(133.642031, 47.64763, 133.739338, 47.684557),
 });
 
 function wait(milliseconds) {
@@ -631,6 +631,20 @@ function createVectorTileBenchmark(viewer, manager) {
             polygons: snapshot.gauges.residentBufferPolygons ?? 0,
             cpuCapacityBytes: snapshot.gauges.residentBufferPolygonBytes ?? 0,
             build: snapshot.durations.bufferPolygonBuild,
+            prepare: snapshot.durations.bufferPolygonPrepare,
+            workerPrepare: snapshot.durations.bufferPolygonWorkerPrepare,
+            add: snapshot.durations.bufferPolygonAdd,
+            ready: snapshot.durations.bufferPolygonReady,
+            pending: snapshot.gauges.pendingBufferPolygons ?? 0,
+            preparedBytes: snapshot.gauges.bufferPolygonPreparedBytes ?? 0,
+            outline: snapshot.durations.bufferPolygonOutline,
+            firstUpdate: snapshot.durations.bufferPolygonFirstUpdate,
+            // 每帧窗口内同时完成的桶数及累计耗时，用于判断多个桶是否挤进同一帧。
+            perFrame: {
+              build: snapshot.frameWork?.bufferPolygonBuild,
+              add: snapshot.frameWork?.bufferPolygonAdd,
+              firstUpdate: snapshot.frameWork?.bufferPolygonFirstUpdate,
+            },
           };
           results[enabled ? "buffer" : "primitives"] = result;
         }

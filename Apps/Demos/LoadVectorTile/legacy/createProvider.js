@@ -1,4 +1,4 @@
-import WMTSVectorTileProvider from "./WMTSGeoVectorTileProvider";
+import WMTSVectorTileProvider from "./WmtsVectorTileProvider.js";
 import WMTSGeoVectorTileProvider from "./WMTSGeoVectorTileProvider.js";
 import XYZVectorTileProvider from "./XYZVectorTileProvider.js";
 import TileType from "./TileType.js";

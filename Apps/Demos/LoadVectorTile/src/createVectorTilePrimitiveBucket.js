@@ -27,7 +27,11 @@ function createVectorTilePrimitiveBucket(
     bucket = new FillBucket(styleRule, options).build(
       packedLayer.polygons,
       zoom,
-      { lines: packedLayer.lines, tileBounds },
+      {
+        lines: packedLayer.lines,
+        tileBounds,
+        bufferPolygons: packedLayer.bufferPolygons,
+      },
     );
   } else if (styleRule.type === "circle") {
     bucket = new VectorTileCircleBucket(styleRule, options).build(

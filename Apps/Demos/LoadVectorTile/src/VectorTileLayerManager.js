@@ -16,6 +16,7 @@ import VectorTilePickRegistry from "./VectorTilePickRegistry.js";
 import VectorTileFeatureStateUtils from "./VectorTileFeatureStateUtils.js";
 import TileType from "./TileType.js";
 import VectorTileStyleUpdateType from "./VectorTileStyleUpdateType.js";
+import installTerrainVectorDataPrefetch from "./installTerrainVectorDataPrefetch.js";
 import XYZVectorTileProvider from "./XYZVectorTileProvider.js";
 import WMTSVectorTileProvider from "./WMTSVectorTileProvider.js";
 import WMTSGeoVectorTileProvider from "./WMTSGeoVectorTileProvider.js";
@@ -66,6 +67,7 @@ class VectorTileLayerManager {
 
   constructor(options = {}) {
     this._diagnostics = new VectorTileDiagnostics(options.diagnostics);
+    this._bufferPolygonBudget = { frameNumber: undefined, spent: 0 };
     this._pbfCache = new VectorTilePbfCache({
       maximumBytes: options.pbfCacheBytes,
       diagnostics: this._diagnostics,
@@ -138,12 +140,14 @@ class VectorTileLayerManager {
 
     this._removePreUpdateListener = undefined;
     this._removePostRenderListener = undefined;
+    this._removeVectorDataPrefetch = undefined;
   }
 
   addToScene(scene) {
     this._scene = scene;
     this._setSceneOnLayers(scene);
     scene.primitives.add(this.quadtreePrimitive);
+    this._removeVectorDataPrefetch = installTerrainVectorDataPrefetch(scene);
     if (this._diagnostics.enabled) {
       this._removePreUpdateListener = scene.preUpdate.addEventListener(() => {
         this._diagnostics.beginFrame();
@@ -192,6 +196,8 @@ class VectorTileLayerManager {
     this._removePostRenderListener?.();
     this._removePreUpdateListener = undefined;
     this._removePostRenderListener = undefined;
+    this._removeVectorDataPrefetch?.();
+    this._removeVectorDataPrefetch = undefined;
 
     this._scene?.primitives.remove(this.quadtreePrimitive);
     this._scene = undefined;
@@ -254,6 +260,7 @@ class VectorTileLayerManager {
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
+      bufferPolygonBudget: this._bufferPolygonBudget,
       pickRegistry: this._pickRegistry,
     };
     provider.setPbfCache?.(this._pbfCache);
@@ -305,6 +312,7 @@ class VectorTileLayerManager {
       networkScheduler: this._networkScheduler,
       decodeScheduler: this._decodeScheduler,
       buildScheduler: this._buildScheduler,
+      bufferPolygonBudget: this._bufferPolygonBudget,
       pickRegistry: this._pickRegistry,
       scene: this._scene,
       iconImages: this._iconImages,

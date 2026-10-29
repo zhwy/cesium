@@ -23,6 +23,7 @@ import VectorTileTaskCancelledError from "./VectorTileTaskCancelledError.js";
 import TileType from "./TileType.js";
 import VectorTileStyleUpdateType from "./VectorTileStyleUpdateType.js";
 import VectorTileFeatureStateStore from "./VectorTileFeatureStateStore.js";
+import VectorTileBufferPolygonGeometry from "./VectorTileBufferPolygonGeometry.js";
 
 const DEFAULT_OPTIONS = {
   tilingScheme: "WebMercatorTilingScheme",
@@ -122,6 +123,10 @@ class VectorTileLayer {
     this._option = { ...DEFAULT_OPTIONS, ...options };
     this._styleLayer = (this._option.layer || "").replace(/(.*:)/g, "");
     this._scene = options.scene;
+    this._bufferPolygonBudget = options.bufferPolygonBudget ?? {
+      frameNumber: undefined,
+      spent: 0,
+    };
     this._styleDocument = options.styleDocument
       ? VectorTileStyleUtils.normalizeStyleDocument(options.styleDocument)
       : undefined;
@@ -307,6 +312,15 @@ class VectorTileLayer {
         styleDocument,
         vectorTile.level,
       );
+      const buildContext = {
+        styleDocument,
+        revisions: new Map(
+          styleRules.map((rule) => [
+            rule.id,
+            this.getStyleLayerRevision(rule.id),
+          ]),
+        ),
+      };
       const hasUnsupportedWorkerFilter = styleRules.some(
         (styleRule) =>
           !VectorTileStyleExpressionUtils.isWorkerSupportedVectorStyleFilter(
@@ -347,6 +361,10 @@ class VectorTileLayer {
             },
             styledLayerNames: getStyledLayerNames(styleRules),
             styleRules: workerStyleRules,
+            bufferPolygonRequests:
+              VectorTileBufferPolygonGeometry.createRequests(
+                getStyleRulesForBuild(styleDocument),
+              ),
             propertyProjections,
             clipToTile: this._option.clipToTile,
             promoteId: getSourcePromoteId(
@@ -381,6 +399,12 @@ class VectorTileLayer {
           }
 
           const counts = countDecodedTile(decodedTile);
+          if (decodedTile.bufferPolygonPrepareMs !== undefined) {
+            this._diagnostics?.recordSample?.(
+              "bufferPolygonWorkerPrepare",
+              decodedTile.bufferPolygonPrepareMs,
+            );
+          }
           this._vectorTileCache.updateSize(
             vectorTile,
             getDecodedTileByteLength(decodedTile),
@@ -421,6 +445,7 @@ class VectorTileLayer {
                 decodedTile,
                 styleZoom,
                 propertyProjections,
+                buildContext,
               ),
             vectorTile.priority,
           );
@@ -483,6 +508,7 @@ class VectorTileLayer {
     decodedTile,
     styleZoom,
     propertyProjections,
+    buildContext,
   ) {
     if (vectorTile.released || !this.isCurrentContentRevision(vectorTile)) {
       return false;
@@ -505,7 +531,7 @@ class VectorTileLayer {
       propertyProjections,
     );
     const styleRules = getStyleRulesForBuild(
-      vectorTile.styleDocument,
+      buildContext?.styleDocument ?? vectorTile.styleDocument,
       vectorTile.level,
     );
     vectorTile.builtStyleLayerIds = new Set(
@@ -523,6 +549,9 @@ class VectorTileLayer {
           styleZoom,
           {
             scene: this._scene,
+            bufferPolygonBudget: this._bufferPolygonBudget,
+            isCurrent: () =>
+              !vectorTile.released && this.isCurrentContentRevision(vectorTile),
             iconResolver: this._iconResolver,
             allowPicking: this._option.allowPicking,
             pickProperties: getSourcePickProperties(
@@ -542,7 +571,9 @@ class VectorTileLayer {
             vectorTile,
             featureTable: packedLayer.features,
             propertyProjection: propertyProjections?.[styleRule.sourceLayer],
-            styleRevision: this.getStyleLayerRevision(styleRule.id),
+            styleRevision:
+              buildContext?.revisions.get(styleRule.id) ??
+              this.getStyleLayerRevision(styleRule.id),
             featureStateStore: this._featureStateStore,
             featureStateOwner: this,
           },
@@ -626,6 +657,10 @@ class VectorTileLayer {
     for (const vectorTile of this._vectorTileCache.values()) {
       if (this.isCurrentContentRevision(vectorTile)) {
         vectorTile.styleDocument = snapshotStyleDocument(normalizedStyle);
+        const rebuild = vectorTile.bucketRebuilds?.[layerId];
+        if (rebuild) {
+          rebuild.revision = revision;
+        }
       }
     }
     this._diagnostics?.increment("styleInPlaceUpdates");
@@ -786,6 +821,17 @@ class VectorTileLayer {
     }
     for (const [layerId, rebuild] of Object.entries(rebuilds)) {
       if (rebuild.replacementBucket) {
+        const styleState = this.getStyleLayerState(layerId);
+        if (
+          styleState &&
+          rebuild.replacementBucket.appliedStyleRevision < styleState.revision
+        ) {
+          rebuild.replacementBucket.applyStyle(
+            styleState.rule,
+            styleState.revision,
+          );
+        }
+        rebuild.replacementBucket.applyPendingFeatureStateUpdates?.();
         this._warmReplacementBucket(rebuild.replacementBucket, frameState);
         if (isBucketDrawable(rebuild.replacementBucket)) {
           this._commitStyleLayerBucketReplacement(vectorTile, layerId, rebuild);
@@ -912,6 +958,8 @@ class VectorTileLayer {
               },
               styledLayerNames: [styleRule.sourceLayer],
               styleRules: workerStyleRules,
+              bufferPolygonRequests:
+                VectorTileBufferPolygonGeometry.createRequests(styleRules),
               propertyProjections,
               clipToTile: this._option.clipToTile,
               promoteId: getSourcePromoteId(
@@ -938,6 +986,12 @@ class VectorTileLayer {
         let { decodedTile } = decodeResult;
         const { propertyProjections, hasUnsupportedWorkerFilter } =
           decodeResult;
+        if (decodedTile.bufferPolygonPrepareMs !== undefined) {
+          this._diagnostics?.recordSample?.(
+            "bufferPolygonWorkerPrepare",
+            decodedTile.bufferPolygonPrepareMs,
+          );
+        }
         if (hasUnsupportedWorkerFilter) {
           decodedTile = applyMainThreadStyleFilters(
             decodedTile,
@@ -951,9 +1005,10 @@ class VectorTileLayer {
             this._buildReplacementBucket(
               vectorTile,
               decodedTile,
-              styleRule,
+              this.getStyleLayerState(layerId).rule,
               propertyProjections,
-              revision,
+              rebuild.revision,
+              rebuild,
             ),
           vectorTile.priority,
         );
@@ -1004,6 +1059,7 @@ class VectorTileLayer {
     styleRule,
     propertyProjections,
     styleRevision,
+    rebuild,
   ) {
     if (vectorTile.released || !this.isCurrentContentRevision(vectorTile)) {
       return undefined;
@@ -1012,12 +1068,19 @@ class VectorTileLayer {
     if (!packedLayer) {
       return undefined;
     }
-    return createVectorTilePrimitiveBucket(
+    const bucket = createVectorTilePrimitiveBucket(
       packedLayer,
       styleRule,
       vectorTile.level,
       {
         scene: this._scene,
+        bufferPolygonBudget: this._bufferPolygonBudget,
+        isCurrent: () =>
+          !vectorTile.released &&
+          this.isCurrentContentRevision(vectorTile) &&
+          (!rebuild ||
+            vectorTile.buckets?.[styleRule.id] === bucket ||
+            this._isCurrentBucketRebuild(vectorTile, styleRule.id, rebuild)),
         iconResolver: this._iconResolver,
         allowPicking: this._option.allowPicking,
         pickProperties: getSourcePickProperties(
@@ -1052,6 +1115,8 @@ class VectorTileLayer {
         featureStateOwner: this,
       },
     );
+    this.registerFeatureStateBucket(bucket);
+    return bucket;
   }
 
   _warmReplacementBucket(bucket, frameState) {
@@ -1214,6 +1279,9 @@ class VectorTileLayer {
   }
 
   registerFeatureStateBucket(bucket) {
+    if (bucket?._registeredFeatureStateKeys !== undefined) {
+      return;
+    }
     const keys = bucket?.getFeatureStateKeys?.() ?? [];
     if (keys.length === 0) {
       return;
@@ -1457,17 +1525,10 @@ function countDecodedTile(decodedTile) {
 }
 
 function getDecodedTileByteLength(decodedTile) {
-  let byteLength = 0;
+  let byteLength = VectorTileBufferPolygonGeometry.getTransferableBuffers(
+    decodedTile.layers,
+  ).reduce((sum, buffer) => sum + buffer.byteLength, 0);
   Object.values(decodedTile.layers).forEach((layer) => {
-    byteLength += layer.points.positions.byteLength;
-    byteLength += layer.points.featureIndices.byteLength;
-    byteLength += layer.lines.positions.byteLength;
-    byteLength += layer.lines.offsets.byteLength;
-    byteLength += layer.lines.featureIndices.byteLength;
-    byteLength += layer.polygons.positions.byteLength;
-    byteLength += layer.polygons.ringOffsets.byteLength;
-    byteLength += layer.polygons.polygonOffsets.byteLength;
-    byteLength += layer.polygons.featureIndices.byteLength;
     byteLength += estimateFeatureTableByteLength(layer.features);
   });
   return byteLength;

@@ -4,7 +4,7 @@ let instance;
 
 /**
  * 统一管理矢量瓦片解码任务，使用 Cesium `TaskProcessor` 风格封装 Worker，
- * 但仍复用当前 demo 目录下的 Worker 文件。
+ * Worker 由当前 demo 的 build-worker.mjs 从源码打包。
  */
 class VectorTileDecoder {
   constructor() {
@@ -24,7 +24,10 @@ class VectorTileDecoder {
   _getTaskProcessor() {
     if (!this._taskProcessor) {
       this._taskProcessor = new TaskProcessor(
-        new URL("./src/createDecodeVectorTileTask.js", location.href).href,
+        new URL(
+          "../../../../Build/LoadVectorTile/createDecodeVectorTileTask.js",
+          import.meta.url,
+        ).href,
       );
     }
     return this._taskProcessor;

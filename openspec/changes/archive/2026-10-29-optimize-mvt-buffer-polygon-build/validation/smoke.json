@@ -1,0 +1,56 @@
+{
+  "hover": {
+    "feature": {
+      "id": "8601",
+      "properties": {
+        "bl_branch_com_no": "8601",
+        "org_full_name": "黑龙江北大荒农垦集团总公司宝泉岭分公司",
+        "org_id": 42996,
+        "org_level": "2",
+        "org_name": "宝泉岭分公司",
+        "org_no": "8601",
+        "org_code": "8601",
+        "year": 2025
+      },
+      "sourceId": "res_org_gr",
+      "sourceLayer": "res_org_gr",
+      "layerId": "res_org_gr-level2-fill",
+      "tile": {
+        "x": 55,
+        "y": 22,
+        "level": 6
+      },
+      "featureIndex": 2,
+      "sourceFeatureIndex": 1065
+    },
+    "bucketsBefore": 10,
+    "state": {
+      "hover": true
+    },
+    "bucketsAfter": 10
+  },
+  "elevated": {
+    "id": "8601",
+    "properties": {
+      "bl_branch_com_no": "8601",
+      "org_full_name": "黑龙江北大荒农垦集团总公司宝泉岭分公司",
+      "org_id": 42996,
+      "org_level": "2",
+      "org_name": "宝泉岭分公司",
+      "org_no": "8601",
+      "org_code": "8601",
+      "year": 2025
+    },
+    "sourceId": "res_org_gr",
+    "sourceLayer": "res_org_gr",
+    "layerId": "res_org_gr-level2-fill",
+    "tile": {
+      "x": 55,
+      "y": 22,
+      "level": 6
+    },
+    "featureIndex": 2,
+    "sourceFeatureIndex": 1065
+  },
+  "errors": []
+}

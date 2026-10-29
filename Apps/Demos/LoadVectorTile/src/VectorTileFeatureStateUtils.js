@@ -32,7 +32,10 @@ class VectorTileFeatureStateUtils {
   }
 
   static resolveFeatureStateId(sourceLayer, feature, promoteId) {
-    const propertyName = getPromoteIdPropertyName(promoteId, sourceLayer);
+    const propertyName = VectorTileFeatureStateUtils.getPromoteIdPropertyName(
+      promoteId,
+      sourceLayer,
+    );
     if (propertyName !== undefined) {
       const id = feature?.properties?.[propertyName];
       return {
@@ -54,19 +57,19 @@ class VectorTileFeatureStateUtils {
   static encodeFeatureStateKey(sourceLayer, id) {
     return `${sourceLayer}\u0000${typeof id}\u0000${String(id)}`;
   }
-}
 
-function getPromoteIdPropertyName(promoteId, sourceLayer) {
-  if (typeof promoteId === "string") {
-    return promoteId;
+  static getPromoteIdPropertyName(promoteId, sourceLayer) {
+    if (typeof promoteId === "string") {
+      return promoteId;
+    }
+    if (
+      promoteId &&
+      Object.prototype.hasOwnProperty.call(promoteId, sourceLayer)
+    ) {
+      return promoteId[sourceLayer];
+    }
+    return undefined;
   }
-  if (
-    promoteId &&
-    Object.prototype.hasOwnProperty.call(promoteId, sourceLayer)
-  ) {
-    return promoteId[sourceLayer];
-  }
-  return undefined;
 }
 
 function isValidFeatureStateId(id) {

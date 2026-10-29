@@ -1,96 +1,112 @@
 import Cartesian3 from "../../../../packages/core/Source/Cartesian3.js";
-import Ellipsoid from "../../../../packages/core/Source/Ellipsoid.js";
-import EllipsoidTangentPlane from "../../../../packages/core/Source/EllipsoidTangentPlane.js";
 import Matrix4 from "../../../../packages/core/Source/Matrix4.js";
-import PolygonPipeline from "../../../../packages/core/Source/PolygonPipeline.js";
-import Rectangle from "../../../../packages/core/Source/Rectangle.js";
 import BufferPolygonCollection from "../../../../packages/engine/Source/Scene/BufferPolygonCollection.js";
-import BufferPolygonMaterial from "../../../../packages/engine/Source/Scene/BufferPolygonMaterial.js";
 import HeightReference from "../../../../packages/engine/Source/Scene/HeightReference.js";
+import VectorTileBufferPolygonGeometry from "./VectorTileBufferPolygonGeometry.js";
 import VectorTileFillBucket from "./VectorTileFillBucket.js";
 import VectorTileBucketUtils from "./VectorTileBucketUtils.js";
 import VectorTileBucketFallbackReason from "./VectorTileBucketFallbackReason.js";
 import VectorTileBufferPolygonPrimitive from "./VectorTileBufferPolygonPrimitive.js";
+
+const FALLBACK_FILL_COLOR = "#ff000077";
+
+function createOutline() {
+  return {
+    positions: [],
+    ringOffsets: [0],
+    polygonOffsets: [0],
+    featureIndices: [],
+    metadata: [],
+  };
+}
+
+/** 把第 i 个面的所有环追加为旧轮廓工具需要的闭合环。 */
+function appendOutline(outline, group, i, featureIndex, feature) {
+  for (let r = group.polygonOffsets[i]; r < group.polygonOffsets[i + 1]; r++) {
+    const start = group.ringOffsets[r] * 2;
+    const end = group.ringOffsets[r + 1] * 2;
+    for (let j = start; j < end; j++) {
+      outline.positions.push(group.ringPositions[j]);
+    }
+    outline.positions.push(
+      group.ringPositions[start],
+      group.ringPositions[start + 1],
+    );
+    outline.ringOffsets.push(outline.positions.length / 2);
+  }
+  outline.polygonOffsets.push(outline.ringOffsets.length - 1);
+  outline.featureIndices.push(featureIndex);
+  outline.metadata.push(feature);
+}
 
 /** 独立的 Buffer 面桶；继承旧桶仅复用轮廓和公共生命周期，不修改旧实现。 */
 class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
   constructor(styleRule, options = {}) {
     super(styleRule, options);
     this._scene = options.scene;
+    this._budget = options.bufferPolygonBudget;
+    this._isCurrent = options.isCurrent;
   }
 
   build(polygons, zoom, tileContext = {}) {
     this.buildZoom ??= zoom;
     const started = this._diagnostics?.startTimer?.();
-    const ground = VectorTileBucketUtils.shouldUseGroundPath(this.styleRule);
-    const height = ground
-      ? 0
-      : VectorTileBucketUtils.getStyleRuleHeightOffset(this.styleRule);
+    const { ground, height } = VectorTileBufferPolygonGeometry.getParameters(
+      this.styleRule,
+    );
     if (
       VectorTileBucketUtils.requiresGroundHeightOffsetFallback(this.styleRule)
     ) {
       this._diagnostics?.increment("groundHeightOffsetFallbacks");
     }
-    const candidates = [];
-    for (let i = 0; i + 1 < (polygons?.polygonOffsets?.length ?? 0); i++) {
-      const rings = [];
-      for (
-        let r = polygons.polygonOffsets[i];
-        r < polygons.polygonOffsets[i + 1];
-        r++
-      ) {
-        rings.push(
-          polygons.positions.subarray(
-            polygons.ringOffsets[r] * 2,
-            polygons.ringOffsets[r + 1] * 2,
-          ),
-        );
-      }
-      candidates.push({ rings, geometry: polygons, index: i, type: 3 });
+    const group = tileContext.bufferPolygons?.find(
+      (prepared) => prepared.ground === ground && prepared.height === height,
+    );
+    if (!group) {
+      throw new Error(`BufferPolygon 图层 ${this.id} 缺少 Worker 面准备结果。`);
     }
-    const lines = tileContext.lines;
-    for (let i = 0; i + 1 < (lines?.offsets?.length ?? 0); i++) {
-      candidates.push({
-        rings: [
-          lines.positions.subarray(
-            lines.offsets[i] * 2,
-            lines.offsets[i + 1] * 2,
-          ),
-        ],
-        geometry: lines,
-        index: i,
-        type: 2,
-      });
+
+    const selection = this._selectFeatures(group, zoom, ground);
+    if (selection.indices.length > 0) {
+      this._addFillPrimitive(group, selection, ground);
     }
-    const rectangle = this._vectorTile?.rectangle;
-    const center = rectangle && Rectangle.center(rectangle);
-    const origin = center
-      ? Cartesian3.fromRadians(
-          center.longitude,
-          center.latitude,
-          0,
-          Ellipsoid.WGS84,
-        )
-      : new Cartesian3();
-    const geometries = [];
-    // 同步构建轮廓用的 packed 环，继续复用旧桶的边界裁剪和线图元工厂。
-    const outline = {
-      positions: [],
-      ringOffsets: [0],
-      polygonOffsets: [0],
-      featureIndices: [],
-      metadata: [],
-    };
-    for (const candidate of candidates) {
-      const feature = VectorTileBucketUtils.getGeometryFeature(
-        this._featureTable,
-        candidate.geometry,
-        candidate.index,
+    if (selection.outline) {
+      this._addOutlinePrimitive(
+        selection.outline,
+        zoom,
+        ground,
+        tileContext.tileBounds,
       );
+    }
+
+    const buildMs = this._diagnostics?.recordDuration?.(
+      "bufferPolygonBuild",
+      started,
+    );
+    this._diagnostics?.addFrameWork?.("bufferPolygonBuild", buildMs ?? 0);
+    return this;
+  }
+
+  /** 按样式筛出要素，同时统计集合容量并（需要时）收集轮廓。 */
+  _selectFeatures(group, zoom, ground) {
+    const hasOutline = Object.prototype.hasOwnProperty.call(
+      this.styleRule.paint ?? {},
+      "fill-outline-color",
+    );
+    const selection = {
+      indices: [],
+      vertexCount: 0,
+      holeCount: 0,
+      triangleCount: 0,
+      outline: hasOutline ? createOutline() : undefined,
+    };
+    for (let i = 0; i < group.featureIndices.length; i++) {
+      const featureIndex = group.featureIndices[i];
+      const feature = this._featureTable[featureIndex];
       if (
         !VectorTileBucketUtils.doesStyleRuleMatchMetadata(
           feature,
-          candidate.type,
+          group.geometryTypes[i],
           this.styleRule,
           zoom,
           { ignoreZoomRange: true },
@@ -98,110 +114,73 @@ class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
       ) {
         continue;
       }
-      if (
-        !center &&
-        geometries.length === 0 &&
-        candidate.rings[0]?.length >= 2
-      ) {
-        Cartesian3.fromDegrees(
-          candidate.rings[0][0],
-          candidate.rings[0][1],
-          0,
-          Ellipsoid.WGS84,
-          origin,
-        );
+      selection.indices.push(i);
+      selection.vertexCount +=
+        group.vertexOffsets[i + 1] - group.vertexOffsets[i];
+      selection.holeCount += group.holeOffsets[i + 1] - group.holeOffsets[i];
+      if (!ground) {
+        selection.triangleCount +=
+          (group.triangleOffsets[i + 1] - group.triangleOffsets[i]) / 3;
       }
-      const geometry = this._prepareGeometry(
-        candidate.rings,
-        origin,
-        ground,
-        height,
-      );
-      if (!geometry) {
-        continue;
+      if (selection.outline) {
+        appendOutline(selection.outline, group, i, featureIndex, feature);
       }
-      geometry.featureIndex = VectorTileBucketUtils.getGeometryFeatureIndex(
-        candidate.geometry,
-        candidate.index,
-      );
-      geometry.color = VectorTileBucketUtils.evaluateColorStyleValue(
-        this.styleRule.paint?.["fill-color"],
-        feature,
-        zoom,
-        "#ff000077",
-        { state: this._getFeatureStateForFeature(feature) },
-      );
-      geometries.push(geometry);
-      for (const ring of geometry.rings) {
-        for (const value of ring) {
-          outline.positions.push(value);
-        }
-        // 旧轮廓工具要求闭合环。
-        outline.positions.push(ring[0], ring[1]);
-        outline.ringOffsets.push(outline.positions.length / 2);
-      }
-      outline.polygonOffsets.push(outline.ringOffsets.length - 1);
-      outline.featureIndices.push(geometry.featureIndex);
-      outline.metadata.push(feature);
     }
-    if (geometries.length > 0) {
-      const collection = new BufferPolygonCollection({
-        primitiveCountMax: geometries.length,
-        vertexCountMax: geometries.reduce(
-          (sum, geometry) => sum + geometry.positions.length / 3,
-          0,
-        ),
-        holeCountMax: geometries.reduce(
-          (sum, geometry) => sum + geometry.holes.length,
-          0,
-        ),
-        triangleCountMax: geometries.reduce(
-          (sum, geometry) => sum + geometry.triangles.length / 3,
-          0,
-        ),
-        modelMatrix: Matrix4.fromTranslation(origin),
-        allowPicking: this._allowPicking,
-        heightReference: ground
-          ? HeightReference.CLAMP_TO_GROUND
-          : HeightReference.NONE,
-      });
-      const primitive = new VectorTileBufferPolygonPrimitive(collection, {
-        scene: tileContext.scene ?? this._scene,
-        ground,
-        diagnostics: this._diagnostics,
-      });
-      geometries.forEach((geometry, id) => {
-        collection.add({
-          ...geometry,
-          material: new BufferPolygonMaterial({ color: geometry.color }),
-          pickObject: this._allowPicking ? { primitive, id } : undefined,
-        });
-      });
-      this.addPrimitive(
-        primitive,
-        "buffer-fill",
-        geometries.map((geometry) => geometry.featureIndex),
-      );
-      this._diagnostics?.increment("bufferPolygonBuckets");
-      this._diagnostics?.increment("createdBufferPolygons", geometries.length);
-      this._diagnostics?.increment("createdPrimitives");
-      // 容量统计在填充后登记，primitiveCount 此时才是实际面数。
-      this._diagnostics?.addGauge("residentBufferPolygons", geometries.length);
-    }
+    return selection;
+  }
+
+  _addFillPrimitive(group, selection, ground) {
+    const { indices } = selection;
+    const collection = new BufferPolygonCollection({
+      primitiveCountMax: indices.length,
+      vertexCountMax: selection.vertexCount,
+      holeCountMax: selection.holeCount,
+      triangleCountMax: selection.triangleCount,
+      modelMatrix: Matrix4.fromTranslation(Cartesian3.fromArray(group.origin)),
+      allowPicking: this._allowPicking,
+      heightReference: ground
+        ? HeightReference.CLAMP_TO_GROUND
+        : HeightReference.NONE,
+    });
+    const featureIndices = Uint32Array.from(
+      indices,
+      (index) => group.featureIndices[index],
+    );
+    const primitive = new VectorTileBufferPolygonPrimitive(collection, {
+      scene: this._scene,
+      ground,
+      diagnostics: this._diagnostics,
+      prepared: group,
+      indices: Uint32Array.from(indices),
+      budget: this._budget,
+      allowPicking: this._allowPicking,
+      isCurrent: this._isCurrent,
+      getColor: (index) => this._evaluateFillColor(featureIndices[index]),
+    });
+    this.addPrimitive(primitive, "buffer-fill", featureIndices);
+    this._diagnostics?.increment("bufferPolygonBuckets");
+    this._diagnostics?.increment("createdPrimitives");
+  }
+
+  _addOutlinePrimitive(outline, zoom, ground, tileBounds) {
+    const started = this._diagnostics?.startTimer?.();
     const result = this._createFillOutlineGeometryInstances(
       outline,
       zoom,
       ground,
-      tileContext.tileBounds,
+      tileBounds,
     );
     if (result.instances.length > 0) {
+      const options = {
+        allowPicking: this._allowPicking,
+        diagnostics: this._diagnostics,
+      };
       this.addPrimitive(
         ground
           ? VectorTileBucketUtils.createGroundPolylinePrimitive(
               result.instances,
               {
-                allowPicking: this._allowPicking,
-                diagnostics: this._diagnostics,
+                ...options,
                 createGroundPolylinePrimitive:
                   this._createGroundPolylinePrimitive,
               },
@@ -211,9 +190,8 @@ class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
               "line",
               {},
               {
-                allowPicking: this._allowPicking,
+                ...options,
                 asynchronous: this._asynchronous,
-                diagnostics: this._diagnostics,
                 shadows: this._shadows,
               },
             ),
@@ -221,98 +199,18 @@ class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
         result.featureIndices,
       );
     }
-    this._diagnostics?.recordDuration?.("bufferPolygonBuild", started);
-    return this;
+    this._diagnostics?.recordDuration?.("bufferPolygonOutline", started);
   }
 
-  _prepareGeometry(rawRings, origin, ground, height) {
-    const rings = [];
-    for (const raw of rawRings) {
-      const ring = [];
-      for (let i = 0; i < raw.length; i += 2) {
-        if (
-          Number.isFinite(raw[i]) &&
-          Number.isFinite(raw[i + 1]) &&
-          (ring.length === 0 ||
-            raw[i] !== ring[ring.length - 2] ||
-            raw[i + 1] !== ring[ring.length - 1])
-        ) {
-          ring.push(raw[i], raw[i + 1]);
-        }
-      }
-      if (
-        ring.length >= 4 &&
-        ring[0] === ring[ring.length - 2] &&
-        ring[1] === ring[ring.length - 1]
-      ) {
-        ring.length -= 2;
-      }
-      let area = 0;
-      for (let i = 0; i < ring.length; i += 2) {
-        const j = (i + 2) % ring.length;
-        area += ring[i] * ring[j + 1] - ring[j] * ring[i + 1];
-      }
-      if (ring.length < 6 || Math.abs(area) < 1e-14) {
-        if (rings.length === 0) {
-          return undefined;
-        }
-        continue;
-      }
-      rings.push(ring);
-    }
-    if (rings.length === 0) {
-      return undefined;
-    }
-    const world = [];
-    const holes = [];
-    for (let r = 0; r < rings.length; r++) {
-      if (r > 0) {
-        holes.push(world.length);
-      }
-      for (let i = 0; i < rings[r].length; i += 2) {
-        world.push(
-          Cartesian3.fromDegrees(
-            rings[r][i],
-            rings[r][i + 1],
-            0,
-            Ellipsoid.WGS84,
-          ),
-        );
-      }
-    }
-    const plane = EllipsoidTangentPlane.fromPoints(world, Ellipsoid.WGS84);
-    let triangles = PolygonPipeline.triangulate(
-      plane.projectPointsToNearestOnPlane(world),
-      holes,
+  _evaluateFillColor(featureIndex) {
+    const feature = this._featureTable[featureIndex];
+    return VectorTileBucketUtils.evaluateColorStyleValue(
+      this.styleRule.paint?.["fill-color"],
+      feature,
+      this.buildZoom,
+      FALLBACK_FILL_COLOR,
+      { state: this._getFeatureStateForFeature(feature) },
     );
-    if (triangles.length === 0) {
-      return undefined;
-    }
-    let positions;
-    if (ground) {
-      positions = Cartesian3.packArray(world);
-    } else {
-      const subdivided = PolygonPipeline.computeSubdivision(
-        Ellipsoid.WGS84,
-        world,
-        triangles,
-      );
-      positions = subdivided.attributes.position.values;
-      PolygonPipeline.scaleToGeodeticHeight(positions, height, Ellipsoid.WGS84);
-      triangles = subdivided.indices;
-    }
-    const local = new Float64Array(positions.length);
-    for (let i = 0; i < positions.length; i += 3) {
-      local[i] = positions[i] - origin.x;
-      local[i + 1] = positions[i + 1] - origin.y;
-      local[i + 2] = positions[i + 2] - origin.z;
-    }
-    return {
-      positions: local,
-      holes: Uint32Array.from(holes),
-      triangles: Uint32Array.from(triangles),
-      rings,
-    };
   }
 
   getStyleUpdateFallback(styleRule, plan) {
@@ -336,18 +234,11 @@ class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
           continue;
         }
         record.instanceFeatureIndices.forEach((featureIndex, index) => {
-          const feature = this._featureTable[featureIndex];
-          record.primitive.setColor(
+          const updated = record.primitive.setColor(
             index,
-            VectorTileBucketUtils.evaluateColorStyleValue(
-              styleRule.paint?.["fill-color"],
-              feature,
-              this.buildZoom,
-              "#ff000077",
-              { state: this._getFeatureStateForFeature(feature) },
-            ),
+            this._evaluateFillColor(featureIndex),
           );
-          result.instanceUpdates++;
+          result.instanceUpdates += updated ? 1 : 0;
         });
       }
     }
@@ -365,7 +256,7 @@ class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
       return super._applyFeatureStateBinding(binding);
     }
     const feature = this._featureTable[binding.featureIndex];
-    binding.primitive.setColor(
+    return binding.primitive.setColor(
       binding.instanceId,
       VectorTileBucketUtils.evaluateColorStyleValue(
         this.styleRule.paint?.[binding.property],
@@ -375,7 +266,6 @@ class VectorTileBufferPolygonBucket extends VectorTileFillBucket {
         { state: this._getFeatureStateForFeature(feature) },
       ),
     );
-    return true;
   }
 }
 

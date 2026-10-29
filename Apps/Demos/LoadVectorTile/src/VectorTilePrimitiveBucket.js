@@ -368,7 +368,9 @@ VectorTilePrimitiveBucket.prototype.applyStyle = function (
 };
 
 VectorTilePrimitiveBucket.prototype._rebuildFeatureStateBindings = function () {
-  if (this._stored) {
+  const registered =
+    this._stored || this._registeredFeatureStateKeys !== undefined;
+  if (registered) {
     this._featureStateOwner?.unregisterFeatureStateBucket?.(this);
   }
   this._featureStateBindings.clear();
@@ -376,7 +378,7 @@ VectorTilePrimitiveBucket.prototype._rebuildFeatureStateBindings = function () {
   for (const record of this.primitiveRecords) {
     this._indexFeatureStateBindings(record);
   }
-  if (this._stored) {
+  if (registered) {
     this._featureStateOwner?.registerFeatureStateBucket?.(this);
   }
 };
@@ -398,7 +400,7 @@ VectorTilePrimitiveBucket.prototype.applyFeatureState = function (target) {
   let instanceUpdates = 0;
   let deferredUpdates = 0;
   for (const binding of bindings) {
-    if (!binding.primitive.ready) {
+    if (!binding.primitive.ready && binding.primitive.filling !== true) {
       this._pendingFeatureStateKeys.set(key, this._featureStateStore.revision);
       deferredUpdates++;
       continue;
@@ -422,7 +424,7 @@ VectorTilePrimitiveBucket.prototype.applyPendingFeatureStateUpdates =
       const bindings = this._featureStateBindings.get(key) ?? [];
       let hasPending = false;
       for (const binding of bindings) {
-        if (!binding.primitive.ready) {
+        if (!binding.primitive.ready && binding.primitive.filling !== true) {
           hasPending = true;
           continue;
         }
@@ -454,8 +456,8 @@ VectorTilePrimitiveBucket.prototype.destroy = function () {
       primitive.destroy();
     }
   });
+  this._featureStateOwner?.unregisterFeatureStateBucket?.(this);
   if (this._stored) {
-    this._featureStateOwner?.unregisterFeatureStateBucket?.(this);
     this._diagnostics?.addGauge("residentStyleBuckets", -1);
     this._diagnostics?.addGauge(
       "residentRenderPrimitives",

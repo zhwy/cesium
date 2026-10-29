@@ -1,4 +1,5 @@
 import VectorTileStyleExpressionUtils from "./VectorTileStyleExpressionUtils.js";
+import VectorTileBufferPolygonGeometry from "./VectorTileBufferPolygonGeometry.js";
 
 const SYMBOL_PLACEMENT_POINT = "point";
 const SYMBOL_PLACEMENT_POLYGON_CENTER = "polygon-center";
@@ -74,6 +75,15 @@ class VectorTileGeometryPlacementUtils {
       points,
       lines,
       polygons,
+      ...(packedLayer.bufferPolygons
+        ? {
+            bufferPolygons: VectorTileBufferPolygonGeometry.filterGroups(
+              packedLayer.bufferPolygons,
+              lines,
+              polygons,
+            ),
+          }
+        : {}),
     });
   }
 
@@ -203,6 +213,7 @@ function filterLines(packedLayer, styleRules, zoom) {
   const positions = [];
   const offsets = [0];
   const featureIndices = [];
+  const sourceGeometryIndices = packedLayer.bufferPolygons ? [] : undefined;
   for (let i = 0; i + 1 < lines.offsets.length; ++i) {
     const featureIndex = lines.featureIndices[i];
     if (
@@ -225,11 +236,15 @@ function filterLines(packedLayer, styleRules, zoom) {
     }
     offsets.push(positions.length / 2);
     featureIndices.push(featureIndex);
+    sourceGeometryIndices?.push(i);
   }
   return {
     positions: new Float64Array(positions),
     offsets: new Uint32Array(offsets),
     featureIndices: new Uint32Array(featureIndices),
+    ...(sourceGeometryIndices
+      ? { sourceGeometryIndices: Uint32Array.from(sourceGeometryIndices) }
+      : {}),
   };
 }
 
@@ -240,6 +255,7 @@ function filterPolygons(packedLayer, styleRules, zoom) {
   const ringOffsets = [0];
   const polygonOffsets = [0];
   const featureIndices = [];
+  const sourceGeometryIndices = packedLayer.bufferPolygons ? [] : undefined;
   for (let i = 0; i + 1 < polygons.polygonOffsets.length; ++i) {
     const featureIndex = polygons.featureIndices[i];
     if (
@@ -270,12 +286,16 @@ function filterPolygons(packedLayer, styleRules, zoom) {
     }
     polygonOffsets.push(ringOffsets.length - 1);
     featureIndices.push(featureIndex);
+    sourceGeometryIndices?.push(i);
   }
   return {
     positions: new Float64Array(positions),
     ringOffsets: new Uint32Array(ringOffsets),
     polygonOffsets: new Uint32Array(polygonOffsets),
     featureIndices: new Uint32Array(featureIndices),
+    ...(sourceGeometryIndices
+      ? { sourceGeometryIndices: Uint32Array.from(sourceGeometryIndices) }
+      : {}),
   };
 }
 
@@ -299,6 +319,13 @@ function compactPackedLayerFeatures(packedLayer) {
     points: remapGeometryFeatureIndices(packedLayer.points, remap),
     lines: remapGeometryFeatureIndices(packedLayer.lines, remap),
     polygons: remapGeometryFeatureIndices(packedLayer.polygons, remap),
+    ...(packedLayer.bufferPolygons
+      ? {
+          bufferPolygons: packedLayer.bufferPolygons.map((group) =>
+            remapGeometryFeatureIndices(group, remap),
+          ),
+        }
+      : {}),
   };
 }
 

@@ -4,6 +4,28 @@
 
 fill 图层可通过顶层 `useBufferPrimitive: true` 选择直接构建的 BufferPolygon 后端，支持非贴地和贴地；旧 bucket、数据加载与瓦片调度继续保留。字段默认 false，首期只支持 fill，轮廓仍使用线图元。完整配置与透明拾取限制见 [STYLE.md](./STYLE.md#按图层启用-bufferpolygon)。
 
+启动演示前，在仓库根目录构建解码 Worker：
+
+```sh
+node Apps/Demos/LoadVectorTile/build-worker.mjs
+```
+
+该命令使用项目已有的 esbuild，将 `src/createDecodeVectorTileTask.js` 及其 Cesium 源码依赖打包到 `Build/LoadVectorTile/createDecodeVectorTileTask.js`，并生成 source map。Worker 源文件直接引用 `packages/engine/Source` 和 `packages/core/Source`，不再引用预构建的 `Build/CesiumUnminified/Workers` 或单独的 `BufferPolygonMath.js`。解码器加载打包后的 Worker，因为 Worker 不继承页面 import map，无法直接解析源码中的裸模块依赖。原有 MVT 解码器的两个 CDN 模块仍由浏览器加载。
+
+开发时可开启自动重建，修改 Worker 或其本地依赖后刷新页面即可使用新代码：
+
+```sh
+node Apps/Demos/LoadVectorTile/build-worker.mjs --watch
+```
+
+单次构建后修改源码、或清理 Build 后，需要重新构建。无论是否启用 Buffer 面，都需要该 Worker 产物；旧的 `BufferPolygonMath.js` 不再使用。页面的 Cesium 静态资源及其他引擎 Worker 仍使用原有 `Build/CesiumUnminified`，本构建器仅处理本演示的解码 Worker。缺少 Worker 资源或面准备结果会明确报错，不会退回主线程剖分。
+
+Buffer 面的环清理、坐标转换及非贴地投影、剖分、椭球细分在现有解码 Worker 中执行。同一任务内相同 sourceLayer、实际贴地模式及高度复用准备结果，过滤回退同步压缩并重映射结果。贴地只保留环、洞和三维坐标，不分配三角形；非零 heightOffset 继续走既有非贴地回退。未配置 `fill-outline-color` 时不创建面桶的额外轮廓位置数组，配置后仍使用原有线图元。
+
+主线程通过既有隐藏预热逐帧填充集合，同一 manager 共享每帧 4 ms 软预算，同帧重复 update/pick 不重置。所有实例和必要资源完成前保持 not-ready，沿用祖先覆盖或旧 replacement；颜色、显隐和 feature-state 更新不重做数值准备。该预算在完整处理一个面后检查，单个大面的 add、GPU 上传以及贴地打包/烘焙仍可能造成长帧；ready 不代表贴地纹理已经烘焙。
+
+诊断与 benchmark 中，`workerPrepare` 是 Worker 内数值准备时长，`add` 是主线程填充的实际 CPU 片段，`ready` 是适配对象创建至可提交的墙钟时长；`workerDecodeRoundTrip` 还包含排队、模块加载和传输。`pending` 和 `preparedBytes` 分别统计未填充面及共享准备缓冲字节，可能包含尚未被选中预热的缓存祖先桶。分析性能时同时查看 load/steady 的 frameInterval、longTasks、总加载时间及工作量，不以同步 build 时间代替掉帧测量。
+
 `index.html` 右上角提供“BufferPolygon 对比”面板，可选择 fill 测试图层并切换其是否使用 BufferPrimitive，并在当前视野对比加载时间、稳定帧耗时、绘制命令数和瓦片数。对比使用可见测试色并清空内存 PBF 缓存，结束后恢复原配置；完整结果保存在 `window._bufferPolygonComparison`。
 
 可在浏览器控制台进行同一调度链的面后端对比：
@@ -21,7 +43,7 @@ await window._vectorTileBenchmark.compareBufferPolygons(
 新后端的针对性测试：
 
 ```sh
-node --test Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonBucket.test.js Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonBenchmark.test.js
+node --test Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonPreparation.test.js Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonBucket.test.js Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonBenchmark.test.js
 ```
 
 当前框架包含：

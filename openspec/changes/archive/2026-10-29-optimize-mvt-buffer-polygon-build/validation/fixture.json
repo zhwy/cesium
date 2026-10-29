@@ -1,0 +1,410 @@
+{
+  "results": [
+    {
+      "ground": true,
+      "picks": [
+        "1",
+        null,
+        "2"
+      ],
+      "snapshot": {
+        "enabled": true,
+        "counters": {
+          "renderPasses": 56,
+          "primitiveCandidates": 528,
+          "primitiveSubmissions": 528,
+          "preventedDuplicatePrimitiveSubmissions": 0,
+          "suppressedLodVectorTiles": 0,
+          "cacheMisses": 100,
+          "pbfCacheMisses": 100,
+          "cacheHits": 72,
+          "downloadedBytes": 1351363,
+          "pbfCacheCopies": 56,
+          "styleInPlaceUpdates": 6,
+          "styleSourceRebuilds": 1,
+          "styleNoopUpdates": 1,
+          "cacheEvictions": 50,
+          "readyEmptyTiles": 25,
+          "decodedFeatures": 50,
+          "decodedTilesAtLevel5": 10,
+          "source:gp_res_org_gr:decodedTilesAtLevel5": 3,
+          "decodedPositions": 325,
+          "clippedFeatures": 0,
+          "discardedFeatures": 0,
+          "styleFilteredFeatures": 0,
+          "outOfBoundsPositions": 0,
+          "unaddressableFeatureStateFeatures": 0,
+          "source:res_org_gr:decodedTilesAtLevel5": 7,
+          "bufferPolygonBuckets": 25,
+          "createdPrimitives": 50,
+          "createdGroundPolylinePrimitives": 25,
+          "primitiveBuckets": 25,
+          "readyTiles": 25,
+          "decodedTilesAtLevel6": 25,
+          "source:res_org_gr:decodedTilesAtLevel6": 18,
+          "source:gp_res_org_gr:decodedTilesAtLevel6": 7,
+          "featureStateInstanceUpdates": 0,
+          "featureStateDeferredUpdates": 0,
+          "createdBufferPolygons": 36,
+          "bufferPolygonSubmissions": 264
+        },
+        "gauges": {
+          "residentPbfCacheBytes": 1350614,
+          "residentPbfCacheEntries": 35,
+          "activeNetworkTasks": 0,
+          "queuedNetworkTasks": 0,
+          "activeDecodeTasks": 0,
+          "queuedDecodeTasks": 0,
+          "activeBuildTasks": 0,
+          "queuedBuildTasks": 0,
+          "sharedPointAddsThisFrame": 0,
+          "sharedPointRemovesThisFrame": 0,
+          "idealTiles": 36,
+          "committedRenderTiles": 36,
+          "ancestorFallbackTiles": 0,
+          "refreshRetainedTiles": 0,
+          "retiredResidentTiles": 0,
+          "staleResidentTiles": 0,
+          "currentContentRevision": 2,
+          "warmingUpTiles": 0,
+          "offscreenResidentVectorTiles": 0,
+          "residentCacheBytes": 21350,
+          "residentArrayBufferBytes": 0,
+          "residentFeatureTableEntries": 50,
+          "residentPickPropertyValues": 50,
+          "bufferPolygonPreparedBytes": 3766,
+          "pendingBufferPolygons": 14,
+          "residentBufferPolygonBytes": 9050,
+          "residentBufferPolygons": 36,
+          "residentStyleBuckets": 25,
+          "residentRenderPrimitives": 50
+        },
+        "durations": {
+          "renderSubmit": {
+            "count": 56,
+            "averageMs": 0.44285714283718597,
+            "p95Ms": 1.5,
+            "maximumMs": 4
+          },
+          "frameCpu": {
+            "count": 53,
+            "averageMs": 7.679245283159445,
+            "p95Ms": 42.30000000074506,
+            "maximumMs": 83.5
+          },
+          "request": {
+            "count": 100,
+            "averageMs": 359.4990000001155,
+            "p95Ms": 1010.6999999992549,
+            "maximumMs": 1014.5999999996275
+          },
+          "workerDecodeRoundTrip": {
+            "count": 41,
+            "averageMs": 1114.6682926830267,
+            "p95Ms": 1661.5,
+            "maximumMs": 1775
+          },
+          "primitiveBuild": {
+            "count": 35,
+            "averageMs": 0.22000000013836793,
+            "p95Ms": 0.900000000372529,
+            "maximumMs": 1.699999999254942
+          },
+          "bufferPolygonWorkerPrepare": {
+            "count": 25,
+            "averageMs": 0.1200000000745058,
+            "p95Ms": 0.19999999925494194,
+            "maximumMs": 0.7000000011175871
+          },
+          "bufferPolygonOutline": {
+            "count": 25,
+            "averageMs": 0.13600000001490117,
+            "p95Ms": 0.6999999992549419,
+            "maximumMs": 0.6999999992549419
+          },
+          "bufferPolygonBuild": {
+            "count": 25,
+            "averageMs": 0.22400000020861627,
+            "p95Ms": 0.6999999992549419,
+            "maximumMs": 1.199999999254942
+          },
+          "bufferPolygonAdd": {
+            "count": 18,
+            "averageMs": 0.07777777779847383,
+            "p95Ms": 0.5,
+            "maximumMs": 0.5
+          },
+          "bufferPolygonFirstUpdate": {
+            "count": 18,
+            "averageMs": 0.02222222224291828,
+            "p95Ms": 0.2999999988824129,
+            "maximumMs": 0.2999999988824129
+          },
+          "bufferPolygonReady": {
+            "count": 18,
+            "averageMs": 1482.1500000001656,
+            "p95Ms": 2594.0999999996275,
+            "maximumMs": 2594.0999999996275
+          }
+        },
+        "frameWork": {
+          "bufferPolygonBuild": {
+            "ms": {
+              "count": 18,
+              "averageMs": 0.3111111114008559,
+              "p95Ms": 1.199999999254942,
+              "maximumMs": 1.199999999254942
+            },
+            "items": {
+              "count": 18,
+              "averageMs": 1.3888888888888888,
+              "p95Ms": 2,
+              "maximumMs": 2
+            }
+          },
+          "bufferPolygonAdd": {
+            "ms": {
+              "count": 5,
+              "averageMs": 0.2800000000745058,
+              "p95Ms": 0.8000000007450581,
+              "maximumMs": 0.8000000007450581
+            },
+            "items": {
+              "count": 5,
+              "averageMs": 7.2,
+              "p95Ms": 8,
+              "maximumMs": 8
+            }
+          },
+          "bufferPolygonFirstUpdate": {
+            "ms": {
+              "count": 5,
+              "averageMs": 0.0800000000745058,
+              "p95Ms": 0.2999999988824129,
+              "maximumMs": 0.2999999988824129
+            },
+            "items": {
+              "count": 5,
+              "averageMs": 3.6,
+              "p95Ms": 4,
+              "maximumMs": 4
+            }
+          }
+        },
+        "lastRenderPass": {
+          "pass": "pick",
+          "quadtreeTiles": 18,
+          "readyVectorTiles": 0,
+          "primitiveCandidates": 36,
+          "primitiveSubmissions": 36,
+          "preventedDuplicatePrimitives": 0,
+          "suppressedLodVectorTiles": 0
+        }
+      }
+    },
+    {
+      "ground": false,
+      "picks": [
+        "1",
+        null,
+        "2"
+      ],
+      "snapshot": {
+        "enabled": true,
+        "counters": {
+          "renderPasses": 96,
+          "primitiveCandidates": 1636,
+          "primitiveSubmissions": 1636,
+          "preventedDuplicatePrimitiveSubmissions": 0,
+          "suppressedLodVectorTiles": 15,
+          "cacheMisses": 150,
+          "pbfCacheMisses": 150,
+          "cacheHits": 108,
+          "downloadedBytes": 2701977,
+          "pbfCacheCopies": 106,
+          "styleInPlaceUpdates": 6,
+          "styleSourceRebuilds": 2,
+          "styleNoopUpdates": 8,
+          "cacheEvictions": 95,
+          "readyEmptyTiles": 50,
+          "decodedFeatures": 100,
+          "decodedTilesAtLevel5": 20,
+          "source:gp_res_org_gr:decodedTilesAtLevel5": 6,
+          "decodedPositions": 650,
+          "clippedFeatures": 0,
+          "discardedFeatures": 0,
+          "styleFilteredFeatures": 0,
+          "outOfBoundsPositions": 0,
+          "unaddressableFeatureStateFeatures": 0,
+          "source:res_org_gr:decodedTilesAtLevel5": 14,
+          "bufferPolygonBuckets": 50,
+          "createdPrimitives": 100,
+          "createdGroundPolylinePrimitives": 25,
+          "primitiveBuckets": 50,
+          "readyTiles": 50,
+          "decodedTilesAtLevel6": 50,
+          "source:res_org_gr:decodedTilesAtLevel6": 36,
+          "source:gp_res_org_gr:decodedTilesAtLevel6": 14,
+          "featureStateInstanceUpdates": 0,
+          "featureStateDeferredUpdates": 0,
+          "createdBufferPolygons": 74,
+          "bufferPolygonSubmissions": 818,
+          "createdGeometryInstances": 75
+        },
+        "gauges": {
+          "residentPbfCacheBytes": 1350614,
+          "residentPbfCacheEntries": 35,
+          "activeNetworkTasks": 0,
+          "queuedNetworkTasks": 0,
+          "activeDecodeTasks": 0,
+          "queuedDecodeTasks": 0,
+          "activeBuildTasks": 0,
+          "queuedBuildTasks": 0,
+          "sharedPointAddsThisFrame": 0,
+          "sharedPointRemovesThisFrame": 0,
+          "idealTiles": 33,
+          "committedRenderTiles": 36,
+          "ancestorFallbackTiles": 3,
+          "refreshRetainedTiles": 3,
+          "retiredResidentTiles": 5,
+          "staleResidentTiles": 5,
+          "currentContentRevision": 4,
+          "warmingUpTiles": 3,
+          "offscreenResidentVectorTiles": 0,
+          "residentCacheBytes": 30888,
+          "residentArrayBufferBytes": 0,
+          "residentFeatureTableEntries": 60,
+          "residentPickPropertyValues": 60,
+          "bufferPolygonPreparedBytes": 6908,
+          "pendingBufferPolygons": 16,
+          "residentBufferPolygonBytes": 14040,
+          "residentBufferPolygons": 44,
+          "residentStyleBuckets": 30,
+          "residentRenderPrimitives": 60
+        },
+        "durations": {
+          "renderSubmit": {
+            "count": 96,
+            "averageMs": 0.5427083333100503,
+            "p95Ms": 1.900000000372529,
+            "maximumMs": 4
+          },
+          "frameCpu": {
+            "count": 90,
+            "averageMs": 5.7222222223463985,
+            "p95Ms": 18.59999999962747,
+            "maximumMs": 83.5
+          },
+          "request": {
+            "count": 150,
+            "averageMs": 574.4553333334377,
+            "p95Ms": 1409.699999999255,
+            "maximumMs": 3787.800000000745
+          },
+          "workerDecodeRoundTrip": {
+            "count": 76,
+            "averageMs": 1030.371052631618,
+            "p95Ms": 1657.2999999988824,
+            "maximumMs": 1775
+          },
+          "primitiveBuild": {
+            "count": 70,
+            "averageMs": 0.16428571439215114,
+            "p95Ms": 0.40000000037252903,
+            "maximumMs": 1.699999999254942
+          },
+          "bufferPolygonWorkerPrepare": {
+            "count": 50,
+            "averageMs": 0.16600000005215407,
+            "p95Ms": 0.5,
+            "maximumMs": 1.300000000745058
+          },
+          "bufferPolygonOutline": {
+            "count": 50,
+            "averageMs": 0.10399999998509885,
+            "p95Ms": 0.2999999988824129,
+            "maximumMs": 0.6999999992549419
+          },
+          "bufferPolygonBuild": {
+            "count": 50,
+            "averageMs": 0.17400000009685754,
+            "p95Ms": 0.40000000037252903,
+            "maximumMs": 1.199999999254942
+          },
+          "bufferPolygonAdd": {
+            "count": 37,
+            "averageMs": 0.06756756756756757,
+            "p95Ms": 0.2000000011175871,
+            "maximumMs": 0.5
+          },
+          "bufferPolygonFirstUpdate": {
+            "count": 37,
+            "averageMs": 0.0729729730535198,
+            "p95Ms": 0.2999999988824129,
+            "maximumMs": 0.8000000007450581
+          },
+          "bufferPolygonReady": {
+            "count": 37,
+            "averageMs": 1180.4918918919725,
+            "p95Ms": 2259.4000000003725,
+            "maximumMs": 2594.0999999996275
+          }
+        },
+        "frameWork": {
+          "bufferPolygonBuild": {
+            "ms": {
+              "count": 34,
+              "averageMs": 0.25588235308361407,
+              "p95Ms": 0.900000000372529,
+              "maximumMs": 1.199999999254942
+            },
+            "items": {
+              "count": 34,
+              "averageMs": 1.4705882352941178,
+              "p95Ms": 2,
+              "maximumMs": 2
+            }
+          },
+          "bufferPolygonAdd": {
+            "ms": {
+              "count": 16,
+              "averageMs": 0.15625,
+              "p95Ms": 0.8000000007450581,
+              "maximumMs": 0.8000000007450581
+            },
+            "items": {
+              "count": 16,
+              "averageMs": 4.625,
+              "p95Ms": 8,
+              "maximumMs": 8
+            }
+          },
+          "bufferPolygonFirstUpdate": {
+            "ms": {
+              "count": 16,
+              "averageMs": 0.16875000018626451,
+              "p95Ms": 1.1000000033527613,
+              "maximumMs": 1.1000000033527613
+            },
+            "items": {
+              "count": 16,
+              "averageMs": 2.3125,
+              "p95Ms": 4,
+              "maximumMs": 4
+            }
+          }
+        },
+        "lastRenderPass": {
+          "pass": "pick",
+          "quadtreeTiles": 18,
+          "readyVectorTiles": 0,
+          "primitiveCandidates": 36,
+          "primitiveSubmissions": 36,
+          "preventedDuplicatePrimitives": 0,
+          "suppressedLodVectorTiles": 0
+        }
+      }
+    }
+  ],
+  "errors": []
+}

@@ -1,24 +1,6 @@
-// import createTaskProcessorWorker from "../../../../packages/engine/Source/Workers/createTaskProcessorWorker.js";
-import createTaskProcessorWorker from "../../../../Build/CesiumUnminified/Workers/createTaskProcessorWorker.js";
+import createTaskProcessorWorker from "../../../../packages/engine/Source/Workers/createTaskProcessorWorker.js";
 import decodeVectorTile from "./decodeVectorTile.js";
-
-function getVectorTileTransferableBuffers(result) {
-  const buffers = [];
-  Object.values(result.layers).forEach((layer) => {
-    buffers.push(
-      layer.points.positions.buffer,
-      layer.points.featureIndices.buffer,
-      layer.lines.positions.buffer,
-      layer.lines.offsets.buffer,
-      layer.lines.featureIndices.buffer,
-      layer.polygons.positions.buffer,
-      layer.polygons.ringOffsets.buffer,
-      layer.polygons.polygonOffsets.buffer,
-      layer.polygons.featureIndices.buffer,
-    );
-  });
-  return buffers;
-}
+import VectorTileBufferPolygonGeometry from "./VectorTileBufferPolygonGeometry.js";
 
 function decodeVectorTileTask(parameters, transferableObjects) {
   const {
@@ -29,6 +11,7 @@ function decodeVectorTileTask(parameters, transferableObjects) {
     clipToTile,
     styleRules,
     promoteId,
+    bufferPolygonRequests = [],
   } = parameters;
 
   const result = decodeVectorTile(
@@ -40,7 +23,30 @@ function decodeVectorTileTask(parameters, transferableObjects) {
     styleRules,
     promoteId,
   );
-  transferableObjects.push(...getVectorTileTransferableBuffers(result));
+  if (bufferPolygonRequests.length > 0) {
+    const started = performance.now();
+    for (const request of bufferPolygonRequests) {
+      const layer = result.layers[request.sourceLayer];
+      if (!layer) {
+        continue;
+      }
+      layer.bufferPolygons ??= [];
+      if (
+        !layer.bufferPolygons.some(
+          (group) =>
+            group.ground === request.ground && group.height === request.height,
+        )
+      ) {
+        layer.bufferPolygons.push(
+          VectorTileBufferPolygonGeometry.prepareLayer(layer, request),
+        );
+      }
+    }
+    result.bufferPolygonPrepareMs = performance.now() - started;
+  }
+  transferableObjects.push(
+    ...VectorTileBufferPolygonGeometry.getTransferableBuffers(result.layers),
+  );
   return result;
 }
 
