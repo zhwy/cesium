@@ -499,6 +499,9 @@ class VectorTileQuadtreePrimitive extends QuadtreePrimitive {
               bucket?.styleRule?.visibility !== false;
             primitive.show = styleRuleVisible && bucketVisible;
             primitive.update(frameState);
+            if (primitive.show) {
+              primitive.submitForFrame?.(frameState);
+            }
           }
         }
       }

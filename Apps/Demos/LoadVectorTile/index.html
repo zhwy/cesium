@@ -99,6 +99,38 @@
         word-break: break-all;
         margin: 0;
       }
+
+      #bufferValidationPanel {
+        position: absolute;
+        top: 140px;
+        left: 10px;
+        z-index: 99;
+        width: 350px;
+        max-width: calc(100vw - 40px);
+        max-height: calc(100vh - 40px);
+        overflow: auto;
+        padding: 10px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        font: 12px sans-serif;
+      }
+
+      #bufferValidationPanel label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 8px 0;
+      }
+
+      #bufferValidationPanel button {
+        margin: 3px 0;
+      }
+
+      #bufferValidationPanel pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
     </style>
   </head>
 
@@ -108,7 +140,6 @@
       <button id="btnInstances" class="active">instances（可拾取）</button>
       <button id="btnPacked">packed（不可拾取）</button>
       <button id="btnClear">清除选择</button>
-      <button id="btnCompare">对比 Vector glTF</button>
     </div>
     <div id="pickPanel">
       <h3>Pick 对比</h3>
@@ -122,6 +153,21 @@
       <h3>诊断信息</h3>
       <pre id="diagnosticsResult">等待数据...</pre>
     </div>
+    <details id="bufferValidationPanel" open>
+      <summary>BufferPolygon 对比</summary>
+      <label
+        >测试图层
+        <select id="bufferTestLayer"></select
+      ></label>
+      <label>
+        <input id="useBufferPrimitive" type="checkbox" />使用 BufferPrimitive
+      </label>
+      <button id="compareBufferPolygons" type="button">
+        对比原有面 / Buffer 面
+      </button>
+      <p id="bufferValidationStatus" role="status">在有效视野内运行对比。</p>
+      <pre id="bufferValidationResult"></pre>
+    </details>
     <script type="importmap">
       {
         "imports": {
@@ -202,6 +248,8 @@
       let highlightPoint;
       let hoveredTarget;
       let selectedTarget;
+      let bufferValidationBusy = false;
+      const bufferLayerOverrides = new Map();
 
       function switchBackend(backend) {
         const allowPicking = backend === "instances";
@@ -325,7 +373,7 @@
               type: "fill",
               source: "res_org_gr",
               sourceLayer: "res_org_gr",
-              maxzoom: 5,
+              maxzoom: 6,
               paint: {
                 "fill-color": fillStateColor("#00000000"),
                 "fill-outline-color": lineStateColor("#00000000"),
@@ -462,8 +510,8 @@
               minzoom: 12,
               paint: {
                 "fill-color": fillStateColor("#00ffff22"),
-                "fill-outline-color": lineStateColor("#00ffff"),
-                "fill-outline-width": 2,
+                // "fill-outline-color": lineStateColor("#00ffff"),
+                // "fill-outline-width": 2,
               },
               terrain: {
                 clampToGround: true,
@@ -473,6 +521,7 @@
                 ["==", ["get", "year"], 2025],
                 ["!=", ["get", "bl_branch_com_no"], "8616"],
               ],
+              useBufferPrimitive: true,
             },
             {
               id: "res_parent_plot-label",
@@ -486,6 +535,7 @@
               layout: {
                 "text-field": ["get", "plot_name"],
                 "text-font-family": "sans-serif",
+                visibility: "none",
               },
               paint: {
                 "text-color": "#ffffff",
@@ -600,6 +650,9 @@
             // },
           ],
         });
+        for (const [layerId, useBufferPrimitive] of bufferLayerOverrides) {
+          manager.setLayerStyle(layerId, { useBufferPrimitive });
+        }
 
         updateBackendUI(backend);
       }
@@ -705,6 +758,9 @@
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
       handler.setInputAction((click) => {
+        if (bufferValidationBusy) {
+          return;
+        }
         const picked = viewer.scene.pick(click.position);
         showPickResult(picked);
         setSelectedTarget(
@@ -719,6 +775,9 @@
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       handler.setInputAction((movement) => {
+        if (bufferValidationBusy) {
+          return;
+        }
         const picked = viewer.scene.pick(movement.endPosition);
         setHoverTarget(
           getFeatureStateTarget(manager.resolvePickedFeature(picked)),
@@ -738,45 +797,87 @@
         document.getElementById("pickResult").textContent = "{}";
       });
 
-      document
-        .getElementById("btnCompare")
-        .addEventListener("click", async (event) => {
-          const button = event.currentTarget;
-          const statusEl = document.getElementById("pickStatus");
-          const resultEl = document.getElementById("pickResult");
-          button.disabled = true;
-          statusEl.style.color = "#ffcc00";
-          statusEl.textContent = "对比运行中（冷启动，请勿操作相机）...";
-          try {
-            const result =
-              await window._vectorTileBenchmark.compareWithVectorGltf(
-                "current",
-                {
-                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                },
-              );
-            window._vectorGltfComparison = result;
-            console.log(result);
-            resultEl.textContent = JSON.stringify(
-              { ratios: result.ratios, options: result.options },
-              null,
-              2,
-            );
-            statusEl.style.color = "#90ee90";
-            statusEl.textContent =
-              "对比完成：ratios < 1 表示 vector glTF 更好，完整结果见 window._vectorGltfComparison。";
-          } catch (error) {
-            console.error(error);
-            statusEl.style.color = "#ff6666";
-            statusEl.textContent = `对比失败：${error.message}`;
-          } finally {
-            button.disabled = false;
-          }
-        });
-
       switchBackend("instances");
 
-      // 每一帧更新诊断信息
+      const bufferTestLayer = document.getElementById("bufferTestLayer");
+      for (const layer of manager
+        .getStyle()
+        .layers.filter((layer) => layer.type === "fill")) {
+        const option = document.createElement("option");
+        option.value = layer.id;
+        option.textContent = layer.id;
+        bufferTestLayer.append(option);
+      }
+      bufferTestLayer.value = "res_org_gr-level2-fill";
+      const bufferSwitch = document.getElementById("useBufferPrimitive");
+      const bufferCompare = document.getElementById("compareBufferPolygons");
+      const bufferStatus = document.getElementById("bufferValidationStatus");
+      const bufferResult = document.getElementById("bufferValidationResult");
+      bufferTestLayer.addEventListener("change", () => {
+        const layer = manager
+          .getStyle()
+          .layers.find((item) => item.id === bufferTestLayer.value);
+        bufferSwitch.checked = layer.useBufferPrimitive === true;
+        bufferStatus.textContent = "在有效视野内运行对比。";
+        bufferResult.textContent = "";
+      });
+      bufferSwitch.checked =
+        manager
+          .getStyle()
+          .layers.find((layer) => layer.id === bufferTestLayer.value)
+          .useBufferPrimitive === true;
+      bufferSwitch.addEventListener("change", () => {
+        const useBufferPrimitive = bufferSwitch.checked;
+        bufferLayerOverrides.set(bufferTestLayer.value, useBufferPrimitive);
+        manager.setLayerStyle(bufferTestLayer.value, { useBufferPrimitive });
+      });
+      bufferCompare.addEventListener("click", async () => {
+        const cameraInputs =
+          viewer.scene.screenSpaceCameraController.enableInputs;
+        bufferValidationBusy = true;
+        bufferTestLayer.disabled = true;
+        bufferSwitch.disabled = true;
+        bufferCompare.disabled = true;
+        for (const button of document.querySelectorAll("#toolbar button")) {
+          button.disabled = true;
+        }
+        viewer.scene.screenSpaceCameraController.enableInputs = false;
+        bufferStatus.textContent = "对比运行中，请勿操作相机。";
+        bufferResult.textContent = "";
+        try {
+          const result =
+            await window._vectorTileBenchmark.compareBufferPolygons(
+              [bufferTestLayer.value],
+              "current",
+              { fillColor: "#3388ff80" },
+            );
+          window._bufferPolygonComparison = result;
+          bufferStatus.textContent = result.comparable
+            ? "对比完成，已恢复原配置。"
+            : "结果不可比：请检查视野、加载是否超时及 Buffer 是否实际提交。";
+          bufferResult.textContent = [
+            "                     原有面       Buffer 面",
+            `加载时间（ms）       ${result.primitives.loadMs.toFixed(1)}       ${result.buffer.loadMs.toFixed(1)}`,
+            `稳定帧平均耗时（ms） ${result.primitives.steady.frameCpu.averageMs.toFixed(2)}       ${result.buffer.steady.frameCpu.averageMs.toFixed(2)}`,
+            `平均绘制命令数       ${result.primitives.steady.averageCommands.toFixed(1)}       ${result.buffer.steady.averageCommands.toFixed(1)}`,
+            `加载瓦片数           ${result.primitives.backend.tileLevels.tiles}       ${result.buffer.backend.tileLevels.tiles}`,
+            `p95       ${result.primitives.steady.frameCpu.p95.toFixed(2)}       ${result.buffer.steady.frameCpu.p95.toFixed(2)}`,
+            `Buffer 面数 / 提交数：${result.buffer.buffer.polygons} / ${result.buffer.buffer.submissions}`,
+          ].join("\n");
+        } catch (error) {
+          bufferStatus.textContent = `对比失败：${error.message}`;
+        } finally {
+          bufferValidationBusy = false;
+          viewer.scene.screenSpaceCameraController.enableInputs = cameraInputs;
+          bufferTestLayer.disabled = false;
+          bufferSwitch.disabled = false;
+          bufferCompare.disabled = false;
+          for (const button of document.querySelectorAll("#toolbar button")) {
+            button.disabled = false;
+          }
+        }
+      });
+
       viewer.scene.postRender.addEventListener(() => {
         const diagnostics = manager.diagnostics.snapshot();
         document.getElementById("diagnosticsResult").textContent =

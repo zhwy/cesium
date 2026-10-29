@@ -1,11 +1,6 @@
 import Cartesian2 from "../../../../packages/core/Source/Cartesian2.js";
 import Cartesian3 from "../../../../packages/core/Source/Cartesian3.js";
-import Cartographic from "../../../../packages/core/Source/Cartographic.js";
-import Color from "../../../../packages/core/Source/Color.js";
 import Rectangle from "../../../../packages/core/Source/Rectangle.js";
-import WebMercatorTilingScheme from "../../../../packages/engine/Source/Core/WebMercatorTilingScheme.js";
-import Cesium3DTileStyle from "../../../../packages/engine/Source/Scene/Cesium3DTileStyle.js";
-import VectorGltfTilesetProvider from "./VectorGltfTilesetProvider.js";
 
 const scenarios = Object.freeze({
   world: Rectangle.fromDegrees(-180.0, -80.0, 180.0, 80.0),
@@ -74,10 +69,7 @@ function summarizeSamples(samples) {
   };
 }
 
-const webMercatorTilingScheme = new WebMercatorTilingScheme();
-
 const SOURCE_LEVEL_COUNTER = /^source:(.+):decodedTilesAtLevel(\d+)$/;
-const LEVEL_COUNTER = /^decodedTilesAtLevel(\d+)$/;
 
 // tilesBySourceLevel: { [sourceId]: { [level]: tileCount } }
 function summarizeTileLevels(tilesBySourceLevel) {
@@ -112,96 +104,35 @@ function readPrimitiveTileLevels(counters, sourceIds) {
   return summarizeTileLevels(tilesBySourceLevel);
 }
 
-function readTilesetTileLevels(providers, sourceIds) {
-  const tilesBySourceLevel = {};
-  providers.forEach((provider, index) => {
-    const levels = {};
-    for (const [name, count] of Object.entries(
-      provider.diagnostics.snapshot().counters,
-    )) {
-      const match = LEVEL_COUNTER.exec(name);
-      if (match) {
-        levels[match[1]] = count;
-      }
-    }
-    tilesBySourceLevel[sourceIds[index]] = levels;
-  });
-  return summarizeTileLevels(tilesBySourceLevel);
-}
-
 // 瓦片数比值落在 [0.8, 1.25] 之外时，认为两个后端的工作量不可比。
-function compareWorkload(primitiveLevels, vectorGltfLevels) {
+function compareWorkload(primitiveLevels, comparisonLevels, comparisonName) {
   const levels = [
     ...new Set([
       ...Object.keys(primitiveLevels.tilesByLevel),
-      ...Object.keys(vectorGltfLevels.tilesByLevel),
+      ...Object.keys(comparisonLevels.tilesByLevel),
     ]),
   ].sort((left, right) => Number(left) - Number(right));
   const byLevel = {};
   for (const level of levels) {
     byLevel[level] = {
       primitives: primitiveLevels.tilesByLevel[level] ?? 0,
-      vectorGltf: vectorGltfLevels.tilesByLevel[level] ?? 0,
+      [comparisonName]: comparisonLevels.tilesByLevel[level] ?? 0,
     };
   }
-  const tileRatio = ratio(vectorGltfLevels.tiles, primitiveLevels.tiles);
+  const tileRatio = ratio(comparisonLevels.tiles, primitiveLevels.tiles);
   return {
     tiles: {
       primitives: primitiveLevels.tiles,
-      vectorGltf: vectorGltfLevels.tiles,
+      [comparisonName]: comparisonLevels.tiles,
       ratio: tileRatio,
     },
     meanLevel: {
       primitives: primitiveLevels.meanLevel,
-      vectorGltf: vectorGltfLevels.meanLevel,
+      [comparisonName]: comparisonLevels.meanLevel,
     },
     byLevel,
     mismatch: tileRatio === undefined || tileRatio > 1.25 || tileRatio < 0.8,
   };
-}
-
-function resolveBenchmarkExtent(viewer, scenarioName) {
-  const view =
-    scenarioName === "current"
-      ? viewer.camera.computeViewRectangle()
-      : scenarios[scenarioName];
-  if (!view) {
-    throw new Error(
-      "当前视野包含地平线，无法确定范围，请放大到只看到地表后再对比。",
-    );
-  }
-  const maxLatitude = webMercatorTilingScheme.rectangle.north;
-  const paddingLongitude = view.width * 0.1;
-  const paddingLatitude = view.height * 0.1;
-  return new Rectangle(
-    Math.max(-Math.PI, view.west - paddingLongitude),
-    Math.max(-maxLatitude, view.south - paddingLatitude),
-    Math.min(Math.PI, view.east + paddingLongitude),
-    Math.min(maxLatitude, view.north + paddingLatitude),
-  );
-}
-
-// 瓦片树一次性生成，按视野范围截断 maxZoom，并由 provider 限制总节点数。
-function chooseMaxZoom(extent, minZoom, maxZoom, maximumTilesPerLevel) {
-  let result = minZoom;
-  for (let level = minZoom; level <= maxZoom; level++) {
-    const northwest = webMercatorTilingScheme.positionToTileXY(
-      Cartographic.fromRadians(extent.west, extent.north),
-      level,
-    );
-    const southeast = webMercatorTilingScheme.positionToTileXY(
-      Cartographic.fromRadians(extent.east, extent.south),
-      level,
-    );
-    const tileCount =
-      (Math.abs(southeast.x - northwest.x) + 1) *
-      (Math.abs(southeast.y - northwest.y) + 1);
-    if (tileCount > maximumTilesPerLevel) {
-      break;
-    }
-    result = level;
-  }
-  return result;
 }
 
 function resolveCameraView(viewer, scenarioName) {
@@ -303,6 +234,14 @@ function waitUntilSettled(
     let frames = 0;
     let stable = 0;
     let settledAt;
+    const finish = () => {
+      remove();
+      clearTimeout(timeout);
+      resolve({
+        settled: stable >= stableFrames,
+        loadMs: (settledAt ?? now()) - start,
+      });
+    };
     const remove = scene.postRender.addEventListener(() => {
       frames++;
       if (frames >= minFrames && isSettled()) {
@@ -312,15 +251,11 @@ function waitUntilSettled(
         stable = 0;
         settledAt = undefined;
       }
-      const timedOut = now() - start >= timeoutMs;
-      if (stable >= stableFrames || timedOut) {
-        remove();
-        resolve({
-          settled: stable >= stableFrames,
-          loadMs: (settledAt ?? now()) - start,
-        });
+      if (stable >= stableFrames) {
+        finish();
       }
     });
+    const timeout = setTimeout(finish, timeoutMs);
   });
 }
 
@@ -373,7 +308,6 @@ function createPrimitiveBackend(manager, viewer) {
     manager._decodeScheduler,
     manager._buildScheduler,
   ];
-  const savedShow = new Map();
 
   return {
     name: "primitives",
@@ -384,10 +318,6 @@ function createPrimitiveBackend(manager, viewer) {
       );
     },
     async start() {
-      for (const [layer, show] of savedShow) {
-        layer.show = show;
-      }
-      savedShow.clear();
       manager.diagnostics.reset();
       manager.clearCache();
     },
@@ -456,175 +386,6 @@ function createPrimitiveBackend(manager, viewer) {
       return on
         ? manager.setFeatureState(target, { hover: true })
         : manager.removeFeatureState(target, "hover");
-    },
-    // 供另一后端运行时隐藏本后端，隐藏图层会同时清掉已提交的点集合。
-    suspend() {
-      const quadtree = manager.quadtreePrimitive;
-      const layers = manager.vectorTileLayers;
-      for (let i = 0; i < layers.length; ++i) {
-        const layer = layers.get(i);
-        savedShow.set(layer, layer.show);
-        layer.show = false;
-      }
-      const hadOwnUpdate = Object.hasOwn(quadtree, "update");
-      const originalUpdate = quadtree.update;
-      quadtree.update = () => {};
-      return () => {
-        if (hadOwnUpdate) {
-          quadtree.update = originalUpdate;
-        } else {
-          delete quadtree.update;
-        }
-        for (const [layer, show] of savedShow) {
-          layer.show = show;
-        }
-        savedShow.clear();
-      };
-    },
-  };
-}
-
-function createVectorGltfBackend(viewer, manager, options) {
-  const scene = viewer.scene;
-  const primitiveBackend = createPrimitiveBackend(manager, viewer);
-  let providers = [];
-  const sourceIds = [];
-  const maxZooms = [];
-  const hoverColors = new Map();
-  let resume;
-
-  const tilesets = () =>
-    providers.map((provider) => provider.tileset).filter(Boolean);
-
-  return {
-    name: "vectorGltf",
-    urlTemplates: () => primitiveBackend.urlTemplates(),
-    async start() {
-      resume = primitiveBackend.suspend();
-      const styleDocument = manager.getStyle();
-      for (const sourceId of getFillAndLineSourceIds(styleDocument)) {
-        const source = styleDocument.sources[sourceId];
-        const maxZoom = chooseMaxZoom(
-          options.extent,
-          source.minimumLevel ?? 0,
-          source.maximumLevel ?? 14,
-          options.maximumTilesPerLevel,
-        );
-        maxZooms.push(maxZoom);
-        sourceIds.push(sourceId);
-        const provider = await VectorGltfTilesetProvider.fromUrl(source.url, {
-          ...source,
-          rules: styleDocument.layers.filter(
-            (rule) => rule.source === sourceId,
-          ),
-          maximumNodes: options.maximumNodes,
-          minZoom: source.minimumLevel,
-          maxZoom: maxZoom,
-          extent: options.extent,
-          heightReference: options.heightReference,
-          scene: options.heightReference === undefined ? undefined : scene,
-        });
-        const tileset = provider.tileset;
-        tileset.maximumScreenSpaceError = options.maximumScreenSpaceError;
-        if (options.cacheBytes !== undefined) {
-          tileset.cacheBytes = options.cacheBytes;
-        }
-        tileset.style = new Cesium3DTileStyle(options.style);
-        scene.primitives.add(provider);
-        providers.push(provider);
-      }
-    },
-    isSettled() {
-      return tilesets().every(
-        (tileset) =>
-          tileset.tilesLoaded &&
-          tileset.statistics.numberOfPendingRequests === 0 &&
-          tileset.statistics.numberOfTilesProcessing === 0,
-      );
-    },
-    stats() {
-      const total = {
-        tilesWithContentReady: 0,
-        featuresLoaded: 0,
-        geometryByteLength: 0,
-        trianglesSelected: 0,
-        commands: 0,
-      };
-      for (const { statistics } of tilesets()) {
-        total.tilesWithContentReady += statistics.numberOfTilesWithContentReady;
-        total.featuresLoaded += statistics.numberOfFeaturesLoaded;
-        total.geometryByteLength += statistics.geometryByteLength;
-        total.trianglesSelected += statistics.numberOfTrianglesSelected;
-        total.commands += statistics.numberOfCommands;
-      }
-      return {
-        sources: providers.length,
-        maxZooms: [...maxZooms],
-        styleZoom: "tileLevel",
-        buildThread: "main",
-        tileLevels: readTilesetTileLevels(providers, sourceIds),
-        diagnostics: providers.map((provider) =>
-          provider.diagnostics.snapshot(),
-        ),
-        ...total,
-      };
-    },
-    // 从当前选中的瓦片里逐瓦片轮流取要素；贴地后线面不再产生拾取命令，所以不能用 scene.pick。
-    collectHoverTargets(count) {
-      const featuresByTile = [];
-      for (const tileset of tilesets()) {
-        for (const tile of tileset._selectedTiles) {
-          const tables = tile.content?._featuresByTableId;
-          if (!tables) {
-            continue;
-          }
-          const features = [];
-          for (const table of tables.values()) {
-            features.push(...table.values());
-          }
-          if (features.length > 0) {
-            featuresByTile.push(features);
-          }
-        }
-      }
-      const targets = [];
-      for (let round = 0; targets.length < count; round++) {
-        let added = false;
-        for (const features of featuresByTile) {
-          if (round < features.length && targets.length < count) {
-            targets.push(features[round]);
-            added = true;
-          }
-        }
-        if (!added) {
-          break;
-        }
-      }
-      return targets;
-    },
-    setHover(feature, on) {
-      if (on) {
-        hoverColors.set(feature, Color.clone(feature.color));
-        feature.color = Color.YELLOW;
-        return true;
-      }
-      const original = hoverColors.get(feature);
-      if (original !== undefined) {
-        feature.color = original;
-      }
-      hoverColors.delete(feature);
-      return true;
-    },
-    async stop() {
-      for (const provider of providers) {
-        scene.primitives.remove(provider);
-      }
-      providers = [];
-      sourceIds.length = 0;
-      maxZooms.length = 0;
-      hoverColors.clear();
-      resume?.();
-      resume = undefined;
     },
   };
 }
@@ -788,256 +549,117 @@ function createVectorTileBenchmark(viewer, manager) {
   return {
     scenarios: [...Object.keys(scenarios), "current"],
 
-    /**
-     * 在相同相机和相同数据源（仅 fill/line 样式引用的 source）上，冷启动对比：
-     * - `primitives`：当前四叉树 + Worker 解码 + Primitive 后端；
-     * - `vectorGltf`：demo provider（3D Tiles + vector glTF + Buffer 集合）后端。
-     *
-     * 点要素（symbol/circle）不在对比范围内，两种后端都不计入。
-     *
-     * @param {string} [scenarioName="current"] `current` 使用调用时的相机，其余使用内置场景。
-     * @param {object} [options]
-     * @param {number} [options.maximumScreenSpaceError=2] vectorGltf 后端的 SSE，默认值与四叉树对齐。
-     * @param {object} [options.style] vectorGltf 后端使用的 `Cesium3DTileStyle` 定义。
-     * @param {number} [options.cacheBytes] vectorGltf tileset 缓存预算。
-     * @param {number} [options.heightReference] 传给 tileset，需要贴地时设置。
-     * @param {number} [options.maximumNodes=50000] vectorGltf 瓦片树的总节点上限。
-     * @param {boolean} [options.primeHttpCache=true] 先预热一次，避免后运行的后端独占浏览器 HTTP 缓存。
-     * @param {number} [options.steadyMs=3000] 加载稳定后的静态渲染采样时长。
-     * @param {number} [options.timeoutMs=60000] 单个后端的加载超时。
-     * @param {number} [options.maximumTilesPerLevel=1500] vectorGltf 的瓦片树是一次性生成的，
-     *   这里限制视野范围内单层的瓦片数，据此截断 maxZoom，避免生成海量节点卡死页面。
-     * @param {boolean} [options.dynamic=true] 稳定后是否继续运行 hover 修改和相机平移场景。
-     * @param {number} [options.panMs=5000] 平移往返总时长。
-     * @param {number} [options.panDistanceRatio=0.5] 单程平移距离占相机高度的比例。
-     * @param {number} [options.hoverCount=10] hover 高亮次数。
-     * @param {number} [options.hoverIntervalMs=250] 相邻两次 hover 的间隔。
-     */
-    async compareWithVectorGltf(scenarioName = "current", options = {}) {
-      options = {
-        maximumScreenSpaceError: 2,
-        style: { color: "color('#3388ff', 0.5)" },
-        primeHttpCache: true,
+    /** 在同一调度链上比较指定 fill 图层；关闭 outline 可单独观察填充成本。 */
+    async compareBufferPolygons(
+      layerIds,
+      scenarioName = "current",
+      options = {},
+    ) {
+      if (!manager.diagnostics.enabled) {
+        throw new Error("请使用 ?diagnostics 开启诊断后运行面后端对比。");
+      }
+      const original = manager.getStyle();
+      const ids = new Set(layerIds);
+      const selected = original.layers.filter((layer) => ids.has(layer.id));
+      if (
+        selected.length !== ids.size ||
+        selected.length === 0 ||
+        selected.some((layer) => layer.type !== "fill")
+      ) {
+        throw new Error("layerIds 必须是已存在且非空的 fill 图层 id 数组。");
+      }
+      const cameraView = resolveCameraView(viewer, scenarioName);
+      const runOptions = {
+        timeoutMs: 60000,
+        stableFrames: 10,
+        minFrames: 10,
         steadyMs: 3000,
-        timeoutMs: 60000,
-        stableFrames: 10,
-        minFrames: 10,
-        maximumTilesPerLevel: 1500,
-        dynamic: true,
-        panMs: 5000,
-        panDistanceRatio: 0.5,
-        hoverCount: 10,
-        hoverIntervalMs: 250,
-        ...options,
-      };
-      const cameraView = resolveCameraView(viewer, scenarioName);
-      options.extent = resolveBenchmarkExtent(viewer, scenarioName);
-      const primitiveBackend = createPrimitiveBackend(manager, viewer);
-      const vectorGltfBackend = createVectorGltfBackend(
-        viewer,
-        manager,
-        options,
-      );
-      if (primitiveBackend.urlTemplates().length === 0) {
-        throw new Error("当前样式中没有引用 fill/line 的 source。");
-      }
-
-      if (options.primeHttpCache) {
-        await runBackend(viewer, primitiveBackend, cameraView, {
-          ...options,
-          steadyMs: 0,
-          dynamic: false,
-        });
-      }
-      const primitives = await runBackend(
-        viewer,
-        primitiveBackend,
-        cameraView,
-        options,
-      );
-      const vectorGltf = await runBackend(
-        viewer,
-        vectorGltfBackend,
-        cameraView,
-        options,
-      );
-      const workload = compareWorkload(
-        primitives.backend.tileLevels,
-        vectorGltf.backend.tileLevels,
-      );
-
-      return {
-        scenario: scenarioName,
-        options: {
-          maximumScreenSpaceError: options.maximumScreenSpaceError,
-          primeHttpCache: options.primeHttpCache,
-          heightReference: options.heightReference,
-          dynamic: options.dynamic,
-        },
-        // mismatch 为 true 时，加载耗时等比值不可直接解读，先用 sweepVectorGltfSse 对齐瓦片数。
-        workload,
-        primitives,
-        vectorGltf,
-        // 比值 < 1 表示 vectorGltf 更好（耗时、内存、命令数越小越好）。
-        ratios: {
-          loadMs: ratio(vectorGltf.loadMs, primitives.loadMs),
-          loadMsPerTile: ratio(
-            vectorGltf.loadMs / workload.tiles.vectorGltf,
-            primitives.loadMs / workload.tiles.primitives,
-          ),
-          loadFrameCpuP95: ratio(
-            vectorGltf.load.frameCpu.p95Ms,
-            primitives.load.frameCpu.p95Ms,
-          ),
-          loadLongTaskTotal: ratio(
-            vectorGltf.load.longTasks.totalMs,
-            primitives.load.longTasks.totalMs,
-          ),
-          steadyFrameCpuAverage: ratio(
-            vectorGltf.steady.frameCpu.averageMs,
-            primitives.steady.frameCpu.averageMs,
-          ),
-          steadyCommands: ratio(
-            vectorGltf.steady.averageCommands,
-            primitives.steady.averageCommands,
-          ),
-          heapDelta: ratio(
-            vectorGltf.heapDeltaBytes,
-            primitives.heapDeltaBytes,
-          ),
-          ...(options.dynamic
-            ? {
-                hoverCallAverage: ratio(
-                  vectorGltf.hover?.callMs?.averageMs,
-                  primitives.hover?.callMs?.averageMs,
-                ),
-                hoverFrameCpuMaximum: ratio(
-                  vectorGltf.hover?.frameCpu?.maximumMs,
-                  primitives.hover?.frameCpu?.maximumMs,
-                ),
-                panFrameCpuP95: ratio(
-                  vectorGltf.pan.frameCpu.p95Ms,
-                  primitives.pan.frameCpu.p95Ms,
-                ),
-                panFrameCpuMaximum: ratio(
-                  vectorGltf.pan.frameCpu.maximumMs,
-                  primitives.pan.frameCpu.maximumMs,
-                ),
-                panLongTaskTotal: ratio(
-                  vectorGltf.pan.longTasks.totalMs,
-                  primitives.pan.longTasks.totalMs,
-                ),
-                panRequests: ratio(
-                  vectorGltf.pan.requests,
-                  primitives.pan.requests,
-                ),
-              }
-            : {}),
-        },
-      };
-    },
-
-    /**
-     * 用一组 `maximumScreenSpaceError` 重复运行 vectorGltf，与 primitives 的瓦片数/层级分布对齐，
-     * 找出让两边工作量最接近的 SSE（按瓦片数比值的对数距离选择）。默认不跑动态场景。
-     *
-     * @param {string} [scenarioName="current"]
-     * @param {object} [options] 同 `compareWithVectorGltf`，另有：
-     * @param {number[]} [options.sseValues=[2, 4, 8, 16]] 待测的 SSE。
-     */
-    async sweepVectorGltfSse(scenarioName = "current", options = {}) {
-      options = {
-        sseValues: [2, 4, 8, 16],
-        style: { color: "color('#3388ff', 0.5)" },
-        primeHttpCache: true,
-        steadyMs: 2000,
-        timeoutMs: 60000,
-        stableFrames: 10,
-        minFrames: 10,
-        maximumTilesPerLevel: 1500,
         dynamic: false,
-        panMs: 5000,
-        panDistanceRatio: 0.5,
-        hoverCount: 10,
-        hoverIntervalMs: 250,
         ...options,
       };
-      const cameraView = resolveCameraView(viewer, scenarioName);
-      options.extent = resolveBenchmarkExtent(viewer, scenarioName);
-      const primitiveBackend = createPrimitiveBackend(manager, viewer);
-      if (primitiveBackend.urlTemplates().length === 0) {
-        throw new Error("当前样式中没有引用 fill/line 的 source。");
-      }
-
-      if (options.primeHttpCache) {
-        await runBackend(viewer, primitiveBackend, cameraView, {
-          ...options,
-          steadyMs: 0,
-          dynamic: false,
-        });
-      }
-      const baseline = await runBackend(
-        viewer,
-        primitiveBackend,
-        cameraView,
-        options,
-      );
-
-      const rows = [];
-      for (const sse of options.sseValues) {
-        const runOptions = { ...options, maximumScreenSpaceError: sse };
-        const result = await runBackend(
-          viewer,
-          createVectorGltfBackend(viewer, manager, runOptions),
-          cameraView,
-          runOptions,
-        );
+      const results = {};
+      try {
+        for (const enabled of [false, true]) {
+          // 隔离相同 fill 集合，透明默认色也使用相同的可见测试色，避免测量空画面。
+          for (const layer of original.layers) {
+            manager.setLayerStyle(
+              layer.id,
+              {
+                ...layer,
+                visibility: ids.has(layer.id),
+                ...(ids.has(layer.id)
+                  ? {
+                      useBufferPrimitive: enabled,
+                      paint: {
+                        ...layer.paint,
+                        ...(options.fillColor
+                          ? { "fill-color": options.fillColor }
+                          : {}),
+                      },
+                      terrain: {
+                        ...layer.terrain,
+                        ...(options.heightOffset === undefined
+                          ? {}
+                          : { heightOffset: options.heightOffset }),
+                        ...(options.clampToGround === undefined
+                          ? {}
+                          : { clampToGround: options.clampToGround }),
+                      },
+                    }
+                  : {}),
+              },
+              false,
+            );
+          }
+          const backend = createPrimitiveBackend(manager, viewer);
+          backend.start = async () => {
+            manager.diagnostics.reset();
+            if (options.cold !== false) {
+              manager.clearCache();
+            }
+          };
+          const result = await runBackend(
+            viewer,
+            backend,
+            cameraView,
+            runOptions,
+          );
+          const snapshot = manager.diagnostics.snapshot();
+          result.buffer = {
+            buckets: snapshot.counters.bufferPolygonBuckets ?? 0,
+            submissions: snapshot.counters.bufferPolygonSubmissions ?? 0,
+            polygons: snapshot.gauges.residentBufferPolygons ?? 0,
+            cpuCapacityBytes: snapshot.gauges.residentBufferPolygonBytes ?? 0,
+            build: snapshot.durations.bufferPolygonBuild,
+          };
+          results[enabled ? "buffer" : "primitives"] = result;
+        }
         const workload = compareWorkload(
-          baseline.backend.tileLevels,
-          result.backend.tileLevels,
+          results.primitives.backend.tileLevels,
+          results.buffer.backend.tileLevels,
+          "buffer",
         );
-        rows.push({
-          maximumScreenSpaceError: sse,
-          settled: result.settled,
-          tiles: workload.tiles.vectorGltf,
-          tileRatio: workload.tiles.ratio,
-          meanLevel: workload.meanLevel.vectorGltf,
-          byLevel: workload.byLevel,
-          loadMs: result.loadMs,
-          loadMsPerTile: result.loadMs / workload.tiles.vectorGltf,
-          loadFrameCpuP95Ms: result.load.frameCpu.p95Ms,
-          loadFrameCpuMaximumMs: result.load.frameCpu.maximumMs,
-          loadLongTaskTotalMs: result.load.longTasks.totalMs,
-          steadyFrameCpuAverageMs: result.steady.frameCpu.averageMs,
-          steadyCommands: result.steady.averageCommands,
-        });
+        return {
+          ...results,
+          workload,
+          comparable:
+            !workload.mismatch &&
+            results.primitives.settled &&
+            results.buffer.settled &&
+            results.buffer.buffer.polygons > 0 &&
+            results.buffer.buffer.submissions > 0,
+          cacheMode:
+            options.cold === false
+              ? "保留内存 PBF 缓存；后端切换仍会重建渲染对象"
+              : "清空内存 PBF 缓存；HTTP 缓存由浏览器控制",
+          draping:
+            "贴地初次烘焙包含在加载窗口；settled 仅表示任务队列稳定，真实烘焙完成需结合视觉结果验证",
+        };
+      } finally {
+        for (const layer of original.layers) {
+          manager.setLayerStyle(layer.id, layer, false);
+        }
       }
-
-      const candidates = rows.filter((row) => row.tileRatio > 0);
-      const recommended = candidates.reduce(
-        (best, row) =>
-          best === undefined ||
-          Math.abs(Math.log(row.tileRatio)) < Math.abs(Math.log(best.tileRatio))
-            ? row
-            : best,
-        undefined,
-      );
-      return {
-        scenario: scenarioName,
-        baseline: {
-          tiles: baseline.backend.tileLevels.tiles,
-          meanLevel: baseline.backend.tileLevels.meanLevel,
-          tilesByLevel: baseline.backend.tileLevels.tilesByLevel,
-          loadMs: baseline.loadMs,
-          loadMsPerTile: baseline.loadMs / baseline.backend.tileLevels.tiles,
-          loadFrameCpuP95Ms: baseline.load.frameCpu.p95Ms,
-          steadyFrameCpuAverageMs: baseline.steady.frameCpu.averageMs,
-          steadyCommands: baseline.steady.averageCommands,
-        },
-        rows,
-        recommendedMaximumScreenSpaceError:
-          recommended?.maximumScreenSpaceError,
-      };
     },
 
     async capture(

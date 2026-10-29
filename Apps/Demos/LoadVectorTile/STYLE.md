@@ -32,6 +32,7 @@
       layout: {},
       paint: {},
       terrain: {},
+      useBufferPrimitive: false,
       visibility: true,
       metadata: {},
     },
@@ -47,6 +48,29 @@
 - `sourceLayer`：PBF 瓦片内部的 source-layer 名称，必须和数据里的一致。
 
 `source` 决定从哪个数据源取瓦片，`sourceLayer` 决定从瓦片里读哪一层要素，`id` 决定当前样式图层本身的身份。
+
+### 按图层启用 BufferPolygon
+
+在 `layers[]` 每项的顶层配置 `useBufferPrimitive: true`，对应 `fill` 使用独立的 BufferPolygon bucket，直接消费现有 Worker 解码结果。省略或设为 `false` 时继续使用原有 bucket。字段只接受 boolean；本期 line/circle/symbol 即使设为 true 也继续原有路径。source 的 `renderBackend: "instances" | "packed"` 仍只控制原有线渲染。
+
+```js
+{
+  id: "res_org_gr-level2-fill",
+  type: "fill",
+  source: "res_org_gr",
+  sourceLayer: "res_org_gr",
+  useBufferPrimitive: true,
+  maxzoom: 6,
+  paint: { "fill-color": "#3388ff80" },
+  terrain: { clampToGround: true },
+}
+```
+
+`maxzoom` 不含上界。Demo 的该 source 最低级别为 5，因此此示例将 maxzoom 设为 6；原值 5 与 source 层级没有可建桶交集。
+
+Buffer 面同时支持非贴地和贴地；`clampToGround: true` 加非零 `heightOffset` 继续按现有非贴地高度偏移规则处理。轮廓保留 `fill-outline-color/width`，首期仍由线 Primitive/GroundPolylinePrimitive 绘制。`setLayerStyle()` 切换开关属于结构变化，会沿用 source 重建；颜色、显隐和 feature-state 更新继续使用原地更新和必要的 bucket 回退流程。
+
+普通 Buffer 面着色器会丢弃近乎透明片元，不能依靠全透明面直接命中鼠标来触发 hover。可通过 feature-state API 设置状态后观察显色，使用可见填充/轮廓验证拾取；完全透明面的拾取结果与可见性需要分别确认。关闭开关或移除该字段即可经原有重建流程返回旧面路径。
 
 ## 2. source 配置
 

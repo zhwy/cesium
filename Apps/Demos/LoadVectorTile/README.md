@@ -2,6 +2,28 @@
 
 本目录是一套基于 Cesium 四叉树调度的实验性 MVT/PBF 矢量瓦片加载框架。它不使用 `ImageryProvider` 把矢量绘制到 Canvas，而是将 MVT 几何转换为 Cesium `Primitive`，直接参与场景渲染、裁剪和拾取。
 
+fill 图层可通过顶层 `useBufferPrimitive: true` 选择直接构建的 BufferPolygon 后端，支持非贴地和贴地；旧 bucket、数据加载与瓦片调度继续保留。字段默认 false，首期只支持 fill，轮廓仍使用线图元。完整配置与透明拾取限制见 [STYLE.md](./STYLE.md#按图层启用-bufferpolygon)。
+
+`index.html` 右上角提供“BufferPolygon 对比”面板，可选择 fill 测试图层并切换其是否使用 BufferPrimitive，并在当前视野对比加载时间、稳定帧耗时、绘制命令数和瓦片数。对比使用可见测试色并清空内存 PBF 缓存，结束后恢复原配置；完整结果保存在 `window._bufferPolygonComparison`。
+
+可在浏览器控制台进行同一调度链的面后端对比：
+
+```js
+await window._vectorTileBenchmark.compareBufferPolygons(
+  ["res_org_gr-level2-fill"],
+  "current",
+  { fillColor: "#3388ff80", clampToGround: true, cold: true },
+);
+```
+
+将 `clampToGround` 改为 false 可验证非贴地，将 `cold` 改为 false 可保留内存 PBF 缓存。对比会临时隔离指定 fill 图层，并在结束/失败时恢复原配置。必须在能构建这些图层的相机层级运行；示例 source 最低级别为 5，对应测试层 maxzoom 已设为 6（不含上界）。返回值包含 Buffer 激活计数、CPU 缓冲容量、构建耗时、瓦片工作量、帧 CPU/command 指标及 comparable 标记；HTTP 缓存和贴地烘焙完成度需要单独确认。未激活 Buffer 或工作量不匹配时不应解读为性能提升。
+
+新后端的针对性测试：
+
+```sh
+node --test Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonBucket.test.js Apps/Demos/LoadVectorTile/test/VectorTileBufferPolygonBenchmark.test.js
+```
+
 当前框架包含：
 
 - XYZ/TMS 和 WMTS 地址生成；

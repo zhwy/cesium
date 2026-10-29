@@ -246,8 +246,16 @@ function normalizeLayers(layers, sources) {
     const paint = CommonUtils.cloneValue(layer.paint ?? {});
     validateStyleObjectFeatureStateUsage(paint, id, "paint", type);
 
+    if (
+      layer.useBufferPrimitive !== undefined &&
+      typeof layer.useBufferPrimitive !== "boolean"
+    ) {
+      throw new Error(`layer "${id}" useBufferPrimitive must be a boolean.`);
+    }
+
     return {
       id,
+      useBufferPrimitive: layer.useBufferPrimitive ?? false,
       type,
       source: layer.source,
       sourceLayer: layer.sourceLayer,

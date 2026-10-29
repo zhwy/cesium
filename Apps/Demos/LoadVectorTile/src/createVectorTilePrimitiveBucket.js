@@ -2,6 +2,7 @@ import VectorTileGeometryUtils from "./VectorTileGeometryUtils.js";
 import VectorTileGeometryPlacementUtils from "./VectorTileGeometryPlacementUtils.js";
 import VectorTileCircleBucket from "./VectorTileCircleBucket.js";
 import VectorTileFillBucket from "./VectorTileFillBucket.js";
+import VectorTileBufferPolygonBucket from "./VectorTileBufferPolygonBucket.js";
 import VectorTileLineBucket from "./VectorTileLineBucket.js";
 import VectorTileSymbolBucket from "./VectorTileSymbolBucket.js";
 import VectorTilePrimitiveBucket from "./VectorTilePrimitiveBucket.js";
@@ -19,7 +20,11 @@ function createVectorTilePrimitiveBucket(
   let bucket = new VectorTilePrimitiveBucket(styleRule, options);
 
   if (styleRule.type === "fill") {
-    bucket = new VectorTileFillBucket(styleRule, options).build(
+    const FillBucket =
+      styleRule.useBufferPrimitive === true
+        ? VectorTileBufferPolygonBucket
+        : VectorTileFillBucket;
+    bucket = new FillBucket(styleRule, options).build(
       packedLayer.polygons,
       zoom,
       { lines: packedLayer.lines, tileBounds },

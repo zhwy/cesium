@@ -17,12 +17,14 @@ import CommonUtils from "./CommonUtils.js";
  * @param {object} [layer.paint] 绘制样式。
  * @param {object} [layer.terrain] 地形相关配置。
  * @param {boolean} [layer.visibility=true] 是否可见。
+ * @param {boolean} [layer.useBufferPrimitive=false] fill 图层是否使用 BufferPolygon。
  * @param {object} [layer.metadata] 自定义元数据。
  */
 class VectorTileStyleRule {
   constructor(layer) {
     this.id = layer.id;
     this.type = layer.type;
+    this.useBufferPrimitive = layer.useBufferPrimitive ?? false;
     this.source = layer.source;
     this.sourceLayer = layer.sourceLayer;
     this.minzoom = layer.minzoom;
@@ -39,6 +41,7 @@ class VectorTileStyleRule {
     return {
       id: this.id,
       type: this.type,
+      useBufferPrimitive: this.useBufferPrimitive,
       source: this.source,
       sourceLayer: this.sourceLayer,
       minzoom: this.minzoom,
